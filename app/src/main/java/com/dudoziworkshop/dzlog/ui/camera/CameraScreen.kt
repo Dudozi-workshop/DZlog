@@ -297,7 +297,7 @@ fun CameraPreview(
     LaunchedEffect(tourLocation) {
         if (readOnlyTour) {
             ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "feedback", "controls")
-            ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select", "move", "size", "rotation", "lock")
+            ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")
         }
     }
     LaunchedEffect(templateSessionSafe) {
@@ -775,7 +775,7 @@ fun CameraPreview(
                 CameraPreviewArea(
                     args = if (readOnlyTour) guidePreviewArgs(previewAreaArgs, tourLocation?.pageId, tourProgress) else previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
-                    isTableLocked = if (readOnlyTour && tourLocation?.pageId in listOf("select", "move", "size", "rotation", "lock")) tourLocation?.pageId == "lock" && tourProgress in 0.33f..0.75f else ui.prefs.wmTableLocked,
+                    isTableLocked = if (readOnlyTour && tourLocation?.pageId in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")) tourLocation?.pageId == "lock" && tourProgress in 0.33f..0.75f else ui.prefs.wmTableLocked,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -906,9 +906,9 @@ fun CameraPreview(
                 }
 
                 FloatingAssistShutterButton(
-                    enabled = if (readOnlyTour && tourLocation?.pageId == "assist") tourProgress >= 0.5f else ui.prefs.assistShutterEnabled,
-                    xRatio = ui.prefs.assistShutterXRatio,
-                    yRatio = ui.prefs.assistShutterYRatio,
+                    enabled = if (readOnlyTour && tourLocation?.pageId == "assist") tourProgress >= 0.15f else ui.prefs.assistShutterEnabled,
+                    xRatio = if (readOnlyTour && tourLocation?.pageId == "assist") 0.25f + 0.5f * tourProgress else ui.prefs.assistShutterXRatio,
+                    yRatio = if (readOnlyTour && tourLocation?.pageId == "assist") 0.65f - 0.15f * tourProgress else ui.prefs.assistShutterYRatio,
                     onPositionRatioChange = { xRatio, yRatio ->
                         ui.prefs.assistShutterXRatio = xRatio
                         ui.prefs.assistShutterYRatio = yRatio
@@ -934,7 +934,7 @@ fun CameraPreview(
         ) {
             SaveStatusDetails(guidePendingCount(tourProgress), false, {}, Modifier.tutorialTarget("camera.save-detail"))
         }
-        val guideQuick = readOnlyTour && (tourLocation?.pageId?.startsWith("quick") == true || tourLocation?.pageId == "template")
+        val guideQuick = readOnlyTour && ((tourLocation?.pageId?.startsWith("quick") == true && tourLocation?.pageId != "quick-button") || tourLocation?.pageId in listOf("template-name", "template"))
         if (showQuickValueSheet || guideQuick) {
             key(if (guideQuick) tourLocation?.pageId else null) {
             key(quickTemplateId) {

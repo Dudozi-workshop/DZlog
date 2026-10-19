@@ -7,7 +7,10 @@ import com.dudoziworkshop.dzlog.feature.help.model.*
 internal class TutorialProgressStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("dzlog_tutorial_v2", Context.MODE_PRIVATE)
     private fun key(area: String, session: String) = "$area/$session"
-    fun page(area: String, session: String) = prefs.getString("page/" + key(area, session), "").orEmpty()
+    fun page(area: String, session: String): String {
+        val saved = prefs.getString("page/" + key(area, session), "").orEmpty()
+        return if (area == "camera") cameraGuideSavedPage(session, saved) else saved
+    }
     fun status(area: String, session: String): String = when {
         prefs.getBoolean("done/" + key(area, session), false) -> "완료"
         page(area, session).isNotEmpty() -> "보는 중"

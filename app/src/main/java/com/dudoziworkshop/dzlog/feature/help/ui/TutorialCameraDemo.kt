@@ -8,7 +8,7 @@ import kotlin.math.roundToInt
 /** Presentation-only copies: no preferences, capture queue or table edits are changed. */
 internal fun guidePreviewArgs(args: CameraPreviewAreaArgs, page: String?, progress: Float): CameraPreviewAreaArgs {
     val fraction = progress.coerceIn(0f, 1f)
-    val tableDemo = page in setOf("select", "move", "size", "rotation", "lock")
+    val tableDemo = page in setOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")
     return args.copy(
         captureAspect = if (page == "ratio") guideAspect(progress) else args.captureAspect,
         saveMode = if (page == "quality") guideSaveMode(progress) else args.saveMode,
@@ -20,15 +20,15 @@ internal fun guidePreviewArgs(args: CameraPreviewAreaArgs, page: String?, progre
 }
 
 internal fun guideWatermarkArgs(wm: WatermarkUiArgs, page: String?, progress: Float): WatermarkUiArgs {
-    if (page !in setOf("select", "move", "size", "rotation", "lock")) return wm
+    if (page !in setOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")) return wm
     val fraction = progress.coerceIn(0f, 1f)
     return wm.copy(
         anchor = WatermarkTableAnchor.CUSTOM,
-        tableWidthRatio = if (page == "size") (35 + 20 * fraction).roundToInt() else 40,
-        tableHeightRatio = if (page == "size") (18 + 10 * fraction).roundToInt() else 20,
+        tableWidthRatio = if (page in setOf("size", "corner-size")) (35 + 20 * fraction).roundToInt() else 40,
+        tableHeightRatio = if (page in setOf("size", "corner-size")) (18 + 10 * fraction).roundToInt() else 20,
         boundsOffsetX10000 = if (page == "move") (1500 + 3500 * fraction).roundToInt() else 3500,
         boundsOffsetY10000 = if (page == "move") (6500 - 3000 * fraction).roundToInt() else 4000,
-        rotationCwDeg = if (page == "rotation" && fraction >= 0.5f) 90 else 0,
+        rotationCwDeg = if (page == "lock" || (page == "rotation" && fraction >= 0.5f)) 90 else 0,
     )
 }
 

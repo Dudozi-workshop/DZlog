@@ -45,7 +45,7 @@ fun DDZAlertDialog(
     properties: DialogProperties = DialogProperties(),
 ) {
     if (LocalTutorialReadOnly.current) {
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(horizontal = 24.dp),
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(top = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardTopSpace.current).padding(horizontal = 24.dp),
             contentAlignment = androidx.compose.ui.Alignment.Center) {
             Surface(modifier.tutorialTarget("guide.dialog"), shape = shape, color = containerColor, tonalElevation = tonalElevation) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -215,7 +215,7 @@ fun DDZContentDialog(
     }
     if (inlinePreview || LocalTutorialReadOnly.current) {
         androidx.compose.foundation.layout.Box(
-            Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            Modifier.fillMaxSize().padding(top = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardTopSpace.current).padding(horizontal = 24.dp),
             contentAlignment = androidx.compose.ui.Alignment.Center,
         ) { dialogContent() }
     } else Dialog(onDismissRequest = onDismiss, properties = properties) { dialogContent() }

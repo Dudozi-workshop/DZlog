@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,7 +45,7 @@ internal fun CameraNextCaptureInfoPopup(
     onDismiss: () -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().padding(bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)) {
         Box(
             Modifier.fillMaxSize()
                 .background(DDZColor.PrimaryDark.copy(alpha = 0.20f))
@@ -55,7 +57,8 @@ internal fun CameraNextCaptureInfoPopup(
         )
         Surface(
             modifier = Modifier
-                .align(Alignment.Center)
+                .align(if (LocalTutorialReadOnly.current) Alignment.TopCenter else Alignment.Center)
+                .then(if (LocalTutorialReadOnly.current) Modifier.statusBarsPadding() else Modifier)
                 .padding(horizontal = 20.dp)
                 .fillMaxWidth()
                 .widthIn(max = 360.dp).tutorialTarget("camera.next-info"),

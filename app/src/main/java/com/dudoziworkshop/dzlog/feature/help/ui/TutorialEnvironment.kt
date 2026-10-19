@@ -21,7 +21,9 @@ internal val LocalTutorialLocation = staticCompositionLocalOf<TutorialLocation?>
 internal val LocalTutorialTarget = staticCompositionLocalOf<String?> { null }
 internal val LocalTutorialBounds = staticCompositionLocalOf<(Rect) -> Unit> { {} }
 internal val LocalTutorialDemoProgress = staticCompositionLocalOf { 0f }
-internal val TutorialDemoPages = setOf("zoom", "grid", "table", "assist", "flash", "manual-focus", "move", "size", "rotation", "lock", "quick-text", "quick-number", "quick-date", "quick-phrase", "template", "saving", "preview", "ratio", "quality", "capture-confirmation", "feedback", "controls", "pinch")
+
+internal val LocalTutorialCardBottomSpace = staticCompositionLocalOf { 0.dp }
+internal val LocalTutorialCardTopSpace = staticCompositionLocalOf { 0.dp }
 
 internal val LocalTutorialReadOnly = staticCompositionLocalOf { false }
 

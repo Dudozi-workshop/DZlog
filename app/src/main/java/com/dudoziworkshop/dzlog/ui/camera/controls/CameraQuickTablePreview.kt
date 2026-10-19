@@ -93,8 +93,8 @@ internal fun CameraQuickTablePreview(
     onTemplateSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val guideTemplatePage = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "template"
-    val guideTemplateMenu = guideTemplatePage && LocalTutorialDemoProgress.current < 0.5f
+    val guideTemplatePage = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId in listOf("template-name", "template")
+    val guideTemplateMenu = guideTemplatePage && LocalTutorialLocation.current?.pageId == "template" && LocalTutorialDemoProgress.current < 0.5f
     val density = LocalDensity.current
     var showPicker by remember { mutableStateOf(false) }
     var zoomFactor by remember { mutableStateOf(1f) }
@@ -166,7 +166,7 @@ internal fun CameraQuickTablePreview(
                 Box(Modifier.fillMaxWidth().height(headingHeight)) {
                     Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                         Row(
-                            Modifier.weight(1f).fillMaxHeight()
+                            Modifier.weight(1f).fillMaxHeight().tutorialTarget("camera.quick-template-name")
                                 .clickable(enabled = (templates.isNotEmpty() || guideTemplatePage) && !switching) { showPicker = true }
                                 .padding(start = DDZSpacing.xs, end = DDZSpacing.xs),
                             verticalAlignment = Alignment.CenterVertically,

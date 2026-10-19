@@ -52,16 +52,17 @@ internal fun CameraTableSelectionToolbar(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CameraTableAction("상세", Icons.Default.Edit, true, onOpenDetails)
-        CameraTableAction("크기", Icons.Default.AspectRatio, !isLocked, onResize)
-        CameraTableAction("회전", Icons.AutoMirrored.Filled.RotateRight, !isLocked, onRotate)
-        CameraTableAction(if (isLocked) "잠금 해제" else "잠금", if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock, true, onToggleLock)
+        CameraTableAction("상세", "details", Icons.Default.Edit, true, onOpenDetails)
+        CameraTableAction("크기", "size", Icons.Default.AspectRatio, !isLocked, onResize)
+        CameraTableAction("회전", "rotation", Icons.AutoMirrored.Filled.RotateRight, !isLocked, onRotate)
+        CameraTableAction(if (isLocked) "잠금 해제" else "잠금", "lock", if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock, true, onToggleLock)
     }
 }
 
 @Composable
 private fun CameraTableAction(
     label: String,
+    target: String,
     icon: ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -69,7 +70,7 @@ private fun CameraTableAction(
     val tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted
     Column(
         modifier = Modifier
-            .width(66.dp)
+            .tutorialTarget("camera.table-$target").width(66.dp)
             .height(54.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)

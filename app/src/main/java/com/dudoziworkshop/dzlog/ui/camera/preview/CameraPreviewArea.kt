@@ -2,6 +2,9 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import android.graphics.RectF
 import android.util.Log
 import android.view.View
@@ -431,7 +434,10 @@ internal fun CameraPreviewArea(
                     continuousPreviewMode = args.continuousPreviewMode,
                     aspectRatio = captureAspect.ratioF,
                     onDismissCaptured = onDismissCaptured,
-                    tapFocusUi = tapFocusUi,
+                    tapFocusUi = if (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "focus") {
+                        TapFocusUiState(previewBoxWidthPx * 0.60f, previewBoxHeightPx * 0.60f,
+                            if (LocalTutorialDemoProgress.current < 0.5f) FocusRingPhase.FOCUSING else FocusRingPhase.SUCCESS)
+                    } else tapFocusUi,
                     isWatermarkArmed = isWatermarkArmed,
                     isTableLocked = isTableLocked,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,

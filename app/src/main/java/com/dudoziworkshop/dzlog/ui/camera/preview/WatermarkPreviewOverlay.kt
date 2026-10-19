@@ -201,8 +201,8 @@ internal fun WatermarkPreviewOverlay(
         }
     }
     val guidePage = if (LocalTutorialReadOnly.current) LocalTutorialLocation.current?.pageId else null
-    if (guidePage in listOf("move", "size")) Canvas(Modifier.fillMaxSize().zIndex(2f)) {
-        val finger = if (guidePage == "size") Offset(visibleBounds.right, visibleBounds.bottom)
+    if (guidePage in listOf("move", "corner-size")) Canvas(Modifier.fillMaxSize().zIndex(2f)) {
+        val finger = if (guidePage == "corner-size") Offset(visibleBounds.right, visibleBounds.bottom)
             else Offset(visibleBounds.centerX(), visibleBounds.centerY())
         drawCircle(DDZColor.Surface.copy(alpha = 0.85f), 11.dp.toPx(), finger)
         drawCircle(DDZColor.PrimaryDark, 11.dp.toPx(), finger, style = Stroke(2.dp.toPx()))

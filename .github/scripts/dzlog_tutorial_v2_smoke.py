@@ -78,51 +78,48 @@ def main():
     initial_prefs = user_preferences()
     initial_media = query_media()
 
-    # New capture/status/settings changes first. Previously verified quick-edit
-    # pages below are traversed without repeating their full screenshot checks.
-    open_session("카메라", "촬영과 확인", "카메라 화면 둘러보기")
-    for title in ("상단 파일명과 정보", "하단 버튼", "촬영 버튼", "저장 진행 상태",
-                  "촬영 후 미리보기", "최근 촬영", "빠른 결과"):
+    # Camera is 20 navigation pages; each page owns a short passive sequence.
+    open_session("카메라", "촬영과 확인", "카메라 화면")
+    tap("다음", "촬영과 저장")
+    top_buttons = guide_button_y()
+    time.sleep(5)
+    mark("tutorial-22-saving-status")
+    for title in ("촬영 후 확인", "최근 촬영", "촬영 취소"):
         tap("다음", title)
-        if title in ("저장 진행 상태", "촬영 후 미리보기", "빠른 결과"):
-            time.sleep(6)
-            mark({"저장 진행 상태": "tutorial-22-saving-status",
-                  "촬영 후 미리보기": "tutorial-23-capture-preview",
-                  "빠른 결과": "tutorial-24-quick-results-empty"}[title])
+        if any(abs(a - b) > 4 for a, b in zip(guide_button_y(), top_buttons)):
+            raise AssertionError("Camera top guide buttons moved between explanations")
+    time.sleep(4)
+    mark("tutorial-24-undo-warning")
+    tap("다음", "배율 조절")
+    tap("이전", "촬영 취소")  # Previous crosses a group boundary.
     back_to_index()
-    open_session("카메라", "촬영·저장설정", "설정 열기")
-    for title, evidence in (("촬영 비율", "tutorial-25-aspect"),
-                            ("저장 양식", "tutorial-26-save-format"),
-                            ("촬영 확인", "tutorial-27-confirmation"),
-                            ("촬영 소리와 진동", "tutorial-28-feedback"),
-                            ("촬영 조작 옵션", "tutorial-29-volume")):
+    open_session("카메라", "촬영·저장설정", "촬영 비율")
+    bottom_buttons = guide_button_y()
+    time.sleep(4)
+    mark("tutorial-25-aspect")
+    for title, evidence in (("저장 양식과 확인", "tutorial-26-save-format"),
+                            ("소리와 조작", "tutorial-29-volume"),
+                            ("다음 촬영 정보", "tutorial-30-next-info")):
         tap("다음", title)
-        time.sleep(6)
+        time.sleep(4)
         mark(evidence)
+        if title != "다음 촬영 정보" and any(abs(a - b) > 4 for a, b in zip(guide_button_y(), bottom_buttons)):
+            raise AssertionError("Camera bottom guide buttons moved between explanations")
+    wait_for("완료")
     touch_passive_screen()
     back_to_index()
 
-    open_session("카메라", "표와 빠른 수정", "표 선택과 배치")
+    open_session("카메라", "표와 빠른 수정", "표 선택")
     for title, evidence in (
-        ("표 이동", "tutorial-08-table-move"),
-        ("표 크기", "tutorial-09-table-size"),
-        ("표 회전", "tutorial-10-table-rotation"),
-        ("배치 잠금과 해제", "tutorial-11-table-lock"),
+        ("이동과 크기", "tutorial-09-table-size"),
+        ("회전과 잠금", "tutorial-11-table-lock"),
         ("상세 편집", "tutorial-12-table-details"),
         ("빠른 수정", "tutorial-13-quick-window"),
-        ("문자 입력과 반영", "tutorial-14-quick-text"),
-        ("숫자 입력", "tutorial-15-quick-number"),
-        ("날짜 형식", "tutorial-16-quick-date"),
-        ("촬영 시각", "tutorial-17-quick-time"),
-        ("순환문구 세트", "tutorial-18-quick-phrase"),
-        ("파일명 전체 확인", "tutorial-19-quick-name"),
-        ("저장경로 전체 확인", "tutorial-20-quick-path"),
         ("템플릿 변경", "tutorial-21-quick-template"),
     ):
         tap("다음", title)
-        if title == "템플릿 변경":
-            time.sleep(4)
-            mark(evidence)
+        time.sleep(4 if title != "빠른 수정" else 7)
+        mark(evidence)
     back_to_index()
 
     open_session("홈", "촬영 준비", "현재 템플릿")
@@ -165,11 +162,11 @@ def main():
     adb("shell", "input", "keyevent", "4")
     wait_for("궁금한 기능")
 
-    open_session("카메라", "초점과 촬영도구", "배율 칩")
+    open_session("카메라", "초점과 촬영도구", "배율 조절")
     touch_passive_screen()
     time.sleep(4)
     mark("tutorial-02a-camera-zoom")
-    for title in ("핀치 줌", "초점 조절", "도구 메뉴", "초점 도구", "플래시", "격자"):
+    for title in ("화면 터치 초점", "초점 도구", "플래시와 격자"):
         tap("다음", title)
     mark("tutorial-02-camera-tools")
     back_to_index()
@@ -230,7 +227,7 @@ def main():
     adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity", timeout=70)
     wait_for("촬영 시작")
     open_help()
-    open_session("카메라", "초점과 촬영도구", "격자")
+    open_session("카메라", "초점과 촬영도구", "플래시와 격자")
     mark("tutorial-07-progress-after-relaunch")
     alive()
     print("PASS six areas; previous/next/completion; background and volume input blocked; preferences/media unchanged; progress survives relaunch", flush=True)

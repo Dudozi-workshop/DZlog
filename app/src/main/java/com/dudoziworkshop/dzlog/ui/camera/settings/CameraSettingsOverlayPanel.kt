@@ -78,7 +78,7 @@ internal fun CameraSettingsOverlayPanel(
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
     val panelTopPadding = (statusBarPadding.calculateTopPadding() - 1.dp).coerceAtLeast(0.dp)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().padding(bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

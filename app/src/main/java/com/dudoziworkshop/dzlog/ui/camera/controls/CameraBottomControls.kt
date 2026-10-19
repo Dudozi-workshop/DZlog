@@ -155,7 +155,7 @@ internal fun CameraBottomControls(
         val tutorialTarget = LocalTutorialTarget.current
         val showPassiveToolMenu = (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
             tutorialTarget?.startsWith("camera.tool.") == true ||
-            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "menu")) &&
+            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId in listOf("menu", "assist"))) &&
             !showToolMenu && selectedTool == null && !isToolPanelExpanded
         if (showPassiveToolMenu) {
             Box(
@@ -250,18 +250,23 @@ internal fun CameraBottomControls(
                     }),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val baseline = resizeBaseline
-                if (baseline != null && ui.isTableResizePanelOpen && !ui.prefs.wmTableLocked) {
+                val guideResize = guidePage == "size"
+                val baseline = if (guideResize) CameraTableResizeBaseline(
+                    widthRatio = 35, heightRatio = 18, rotationCwDeg = 0,
+                    anchor = WatermarkTableAnchor.CUSTOM, x10000 = 3500, y10000 = 4000,
+                    photoAspect = ui.prefs.captureAspect.ratioF,
+                ) else resizeBaseline
+                if (baseline != null && (guideResize || ui.isTableResizePanelOpen) && (guideResize || !ui.prefs.wmTableLocked)) {
                     val sliderRange = cameraTableScaleRange(baseline)
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth(0.85f)
+                            .fillMaxWidth(0.85f).tutorialTarget("camera.table-size-panel")
                             .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                     ) {
-                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
+                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, if (guideResize) (35 + 20 * fraction).toInt() else ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
                         Slider(
-                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
+                            value = ((if (guideResize) 35f + 20f * fraction else ui.prefs.wmTableWidthRatio.toFloat()) / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
                             onValueChange = { next ->
                                 val resized = resizeCameraTableKeepingCenter(baseline, next * sliderRange.endInclusive)
                                 ui.prefs.wmTableWidthRatio = resized.widthRatio
@@ -328,7 +333,7 @@ internal fun CameraBottomControls(
                         }
                         }
                     },
-                    isLocked = if (guidePage == "lock") fraction in 0.33f..0.75f else if (guidePage in listOf("select", "move", "size", "rotation")) false else ui.prefs.wmTableLocked,
+                    isLocked = if (guidePage == "lock") fraction in 0.33f..0.75f else if (guidePage in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "details")) false else ui.prefs.wmTableLocked,
                     onToggleLock = {
                         val next = !ui.prefs.wmTableLocked
                         ui.prefs.wmTableLocked = next
@@ -418,11 +423,11 @@ internal fun CameraBottomControls(
         // anchored to this badge; its position provider clamps within the window.
         // Calculate against the real screen width and measured bottom row height;
         // do not alter the row's buttons or the center zoom/tool overlays.
-        if (guidePage == "saving" || ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
+        if (guidePage in listOf("save-badge", "saving") || ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
             val undoCenter = BottomControlsHorizontalPadding +
                 (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
             CaptureSaveStatusIndicator(
-                pendingCount = if (guidePage == "saving") guidePendingCount(fraction) else ui.capture.pendingSaveCount,
+                pendingCount = if (guidePage in listOf("save-badge", "saving")) guidePendingCount(fraction) else ui.capture.pendingSaveCount,
                 hasError = ui.capture.pendingSaveError,
                 detailsAllowed = !showDismissLayer && !ui.isTableSelected,
                 modifier = Modifier
@@ -432,7 +437,7 @@ internal fun CameraBottomControls(
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
                         } - 4.dp,
-                    ),
+                    ).tutorialTarget("camera.save-badge"),
             )
         }
     }

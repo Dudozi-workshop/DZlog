@@ -62,14 +62,23 @@ internal fun LiveTutorialHost(
         contents = false
     }
     var replay by remember(location) { mutableIntStateOf(0) }
-    val demo = remember { Animatable(0f) }
-    val hasDemo = (areaId == "camera" && page.id in TutorialDemoPages) ||
+    val demo = remember(location) { Animatable(0f) }
+    val hasDemo = (areaId == "camera" && page.id !in setOf("recent", "details")) ||
         (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/"))
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
-        if (hasDemo) { delay(800); demo.animateTo(1f, tween(if (page.id in setOf("preview", "ratio", "quality", "capture-confirmation", "feedback", "controls")) 4200 else 2400)) }
+        if (hasDemo) {
+            delay(600)
+            val duration = if (areaId == "camera") {
+                (cameraGuideScenes(page.id).size * 1800).coerceIn(2400, 9000)
+            } else 2400
+            demo.animateTo(1f, tween(duration, easing = androidx.compose.animation.core.LinearEasing))
+        }
     }
-    var targetBounds by remember(location) { mutableStateOf<Rect?>(null) }
+    val cameraFrame = cameraGuideFrame(page.id, demo.value)
+    val displayLocation = if (areaId == "camera") location.copy(pageId = cameraFrame.pageId) else location
+    val displayProgress = if (areaId == "camera") cameraFrame.progress else demo.value
+    var targetBounds by remember(displayLocation) { mutableStateOf<Rect?>(null) }
     var rootY by remember { mutableFloatStateOf(0f) }
     var cardHeight by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
@@ -89,13 +98,19 @@ internal fun LiveTutorialHost(
             Box(Modifier.fillMaxSize().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
                 CompositionLocalProvider(
                     LocalTutorialBounds provides { targetBounds = it },
-                    LocalTutorialDemoProgress provides demo.value,
-                    LocalTutorialLocation provides location,
-                    LocalTutorialTarget provides (if (location.areaId == "camera" && page.id == "template") "camera.quick-table" else tutorialTarget(location, page.parentId)),
+                    LocalTutorialDemoProgress provides displayProgress,
+                    LocalTutorialLocation provides displayLocation,
+                    LocalTutorialTarget provides tutorialTarget(displayLocation, if (areaId == "camera") displayLocation.pageId else page.parentId),
+                    LocalTutorialCardTopSpace provides (if (areaId == "camera" && !cameraGuideAtBottom(page.id))
+                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp),
+                    LocalTutorialCardBottomSpace provides (if (areaId == "camera" && cameraGuideAtBottom(page.id))
+                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
                     LocalTutorialReadOnly provides true,
-                ) { screen(location) }
-                if (areaId == "camera" && page.id == "pinch") {
-                    TutorialPinchHint(Modifier.align(Alignment.Center))
+                ) { screen(displayLocation) }
+                if (areaId == "camera" && displayLocation.pageId == "pinch") {
+                    CompositionLocalProvider(LocalTutorialDemoProgress provides displayProgress) {
+                        TutorialPinchHint(Modifier.align(Alignment.Center))
+                    }
                 }
                 // A sibling shield also covers AndroidView camera preview touch events.
                 Box(Modifier.matchParentSize().pointerInput(Unit) {
@@ -125,6 +140,7 @@ internal fun LiveTutorialHost(
         val cardY = when {
             areaId == "home" && page.id in setOf("start", "recent", "album", "table-settings", "save-info") -> topY
             areaId == "home" -> bottomY
+            areaId == "camera" -> if (cameraGuideAtBottom(page.id)) bottomY else topY
             else -> desiredY.coerceIn(topY, bottomY)
         }
         if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
@@ -133,7 +149,7 @@ internal fun LiveTutorialHost(
             val homeCardHeight = (236 * density.fontScale.coerceAtLeast(1f)).dp
                 .coerceAtMost((maxHeight - with(density) { topY.toDp() } - 16.dp).coerceAtLeast(1.dp))
             Column(Modifier.fillMaxWidth()
-                .then(if (areaId == "home") Modifier.height(homeCardHeight) else Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState()))
+                .then(if (areaId in setOf("home", "camera")) Modifier.height(homeCardHeight) else Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState()))
                 .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -144,7 +160,7 @@ internal fun LiveTutorialHost(
                 }
                 LinearProgressIndicator(progress = { (overallIndex + 1).toFloat() / areaPages.size }, modifier = Modifier.fillMaxWidth().height(4.dp), color = DDZColor.PrimaryDark, trackColor = DDZColor.SelectedSoft)
                 Text(page.title, style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
-                if (areaId == "home") Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                if (areaId in setOf("home", "camera")) Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 } else Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 if (location.areaId == "gallery") Text("저장된 사진과 폴더가 있는 경우 해당 항목이 보여요.",
@@ -188,13 +204,19 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
     }
     "camera" -> when (parent) {
         "flash", "manual-focus" -> "camera.tool-detail"
-        "grid", "table", "assist" -> "camera.tool.$parent"
+        "grid", "table" -> "camera.tool.$parent"
+        "assist" -> "camera.assist-shutter"
         "focus" -> "camera.preview"
         "menu" -> "camera.tools"
         "zoom" -> "camera.zoom"
-        "select", "lock" -> "camera.table-toolbar"
-        "move", "size", "rotation" -> "camera.watermark"
-        "details" -> "table.panel"
+        "select" -> "camera.table-toolbar"
+        "select-table", "corner-size" -> "camera.watermark"
+        "resize-button" -> "camera.table-size"
+        "lock" -> "camera.table-lock"
+        "move" -> "camera.watermark"
+        "size" -> "camera.table-size-panel"
+        "rotation" -> "camera.table-rotation"
+        "details" -> "camera.table-details"
         "entry" -> "camera.settings"
         "ratio" -> "camera.settings.비율"
         "capture-confirmation" -> "camera.settings.촬영 확인"
@@ -203,13 +225,16 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "controls" -> "camera.settings.음량키"
         "quick", "quick-filename", "quick-path" -> "camera.quick-naming"
         "quick-text", "quick-number", "quick-date", "quick-time", "quick-phrase" -> "camera.quick-editor"
-        "template" -> "camera.quick-naming"
+        "quick-button" -> "camera.quick"
+        "template-name" -> "camera.quick-template-name"
+        "template" -> "camera.quick-table"
         "undo" -> "camera.undo"
         "warning" -> "camera.undo-warning"
         "recent" -> "camera.recent"
         "result" -> "camera.results"
         "preview" -> "camera.capture-confirmation"
         "shutter", "bottom" -> "camera.shutter"
+        "save-badge" -> "camera.save-badge"
         "saving" -> "camera.save-detail"
         "top" -> "camera.filename"
         "filename", "path", "counter" -> "camera.next-info"

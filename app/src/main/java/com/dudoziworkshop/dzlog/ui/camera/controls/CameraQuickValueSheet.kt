@@ -280,7 +280,7 @@ internal fun CameraQuickValueSheet(
         fun dismiss() { inputDone(); commit(); onDismiss() }
         BoxWithConstraints(Modifier.heightIn(max = with(density) { hostHeight.toDp() })
             .fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
-            .padding(top = with(density) { safeTop.toDp() },
+            .padding(top = maxOf(with(density) { safeTop.toDp() }, LocalTutorialCardTopSpace.current),
                 bottom = with(density) { safeBottom.toDp() })
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
             // Reserve a table viewport even with the keyboard and manual input expansion.
