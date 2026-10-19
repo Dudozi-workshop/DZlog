@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/onboarding-ui-20261015
+      - qa/onboarding-integration-20261019
     paths:
       - '.github/scripts/dzlog_onboarding_ui_visual_smoke.py'
       - '.github/workflows/dzlog-onboarding-ui-device-qa.yml'
