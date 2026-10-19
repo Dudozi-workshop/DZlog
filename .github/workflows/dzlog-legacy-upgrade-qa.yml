@@ -1,0 +1,77 @@
+name: DZlog Legacy-to-Onboarding Upgrade QA
+on:
+  push:
+    branches:
+      - qa/onboarding-integration-20261019
+    paths:
+      - '.github/scripts/dzlog_legacy_upgrade_regression.py'
+      - '.github/workflows/dzlog-legacy-upgrade-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dzlog-legacy-upgrade-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  legacy-update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install Android SDK 36
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Build previous integration APK and approved integrated candidate with matching CI key
+        run: |
+          set -euo pipefail
+          QA_HEAD="$(git rev-parse HEAD)"
+          mkdir -p qa-output
+          # Both APKs built in the same runner: identical debug signer and package,
+          # increasing versionCode. No publishing or user-device install.
+          git checkout --detach 81f8b19ea0d612d073a4643ab1caae0680a36bab
+          bash ./gradlew --no-daemon :app:assembleDebug -PdzlogDebugVersionCode=1000020
+          cp app/build/outputs/apk/debug/app-debug.apk qa-output/DZlog-pre-onboarding.apk
+          git checkout --detach "$QA_HEAD"
+          bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug -PdzlogDebugVersionCode=1000021
+          cp app/build/outputs/apk/debug/app-debug.apk qa-output/DZlog-integrated-candidate.apk
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$SIGNER" verify qa-output/DZlog-pre-onboarding.apk
+          "$SIGNER" verify qa-output/DZlog-integrated-candidate.apk
+          for pair in 'DZlog-pre-onboarding.apk:1000020' 'DZlog-integrated-candidate.apk:1000021'; do
+            name="${pair%:*}"; code="${pair#*:}"
+            "$AAPT" dump badging "qa-output/$name" | head -1 | grep -F "name='com.dudoziworkshop.dzlog'" | grep -F "versionCode='$code'"
+          done
+          OLD_CERT="$("$SIGNER" verify --print-certs qa-output/DZlog-pre-onboarding.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          NEW_CERT="$("$SIGNER" verify --print-certs qa-output/DZlog-integrated-candidate.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+      - name: Run non-destructive old-to-new Android 16 upgrade regression
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: python3 .github/scripts/dzlog_legacy_upgrade_regression.py
+      - name: Upload evidence without APK files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-legacy-upgrade-qa-evidence
+          path: api36-journey/
+          if-no-files-found: ignore
