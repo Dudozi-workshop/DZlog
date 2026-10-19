@@ -11,9 +11,9 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
+import com.dudoziworkshop.dzlog.domain.time.formatCaptureTime
+import com.dudoziworkshop.dzlog.domain.time.formatMinuteToken
 
 /**
  * File-name sanitizer for generic (non date/time) parts.
@@ -54,12 +54,12 @@ fun buildGalleryRelativePath(group1: String, group2: String): String {
     }
 }
 
-private fun formatNow(pattern: String, now: Date): String {
-    return runCatching { SimpleDateFormat(pattern, Locale.getDefault()).format(now) }
+private fun formatNow(pattern: String, now: CaptureTime): String {
+    return runCatching { formatCaptureTime(pattern, now) }
         .getOrElse { "" }
 }
 
-internal fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
+fun resolveRotatingFileNameCell(resolvedCells: List<ResolvedCell>): ResolvedCell? {
     val rotating = resolvedCells.filter { it.type == TableCellDataType.ROTATING_TEXT }
         .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
     return rotating.firstOrNull { it.resolvedText.isNotBlank() } ?: rotating.firstOrNull()
@@ -79,11 +79,11 @@ private fun resolveFileNameSlotToken(
     draft: TableEditorSlotDraft?,
     resolvedById: Map<String, ResolvedCell>,
     resolvedCells: List<ResolvedCell>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
-    val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
+    val value = when (draft?.kind?.uppercase()) {
         "CELL" -> {
             val rc = draft.cellId?.let { resolvedById[it] }
             when (rc?.type) {
@@ -93,7 +93,7 @@ private fun resolveFileNameSlotToken(
             }
         }
         "MANUAL" -> draft.manualText.orEmpty()
-        "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+        "FORMAT" -> when (draft.formatType?.uppercase()) {
             "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
             "TIME" -> normalizeTimeWithoutSeconds(
                 formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
@@ -112,17 +112,17 @@ private fun resolvePathSlotToken(
     draft: TableEditorSlotDraft?,
     resolvedById: Map<String, ResolvedCell>,
     resolvedCells: List<ResolvedCell>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
-    val value = when (draft?.kind?.uppercase(Locale.ROOT)) {
+    val value = when (draft?.kind?.uppercase()) {
         "CELL" -> {
             val rc = draft.cellId?.let { resolvedById[it] }
             if (rc?.type == TableCellDataType.TIME) normalizeTimeWithoutSeconds(rc.resolvedText) else rc?.resolvedText.orEmpty()
         }
         "MANUAL" -> draft.manualText.orEmpty()
-        "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+        "FORMAT" -> when (draft.formatType?.uppercase()) {
             "DATE" -> formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
             "TIME" -> normalizeTimeWithoutSeconds(
                 formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: timeFormat, now)
@@ -146,20 +146,20 @@ private fun normalizeTimeWithoutSeconds(text: String): String {
     val match = Regex("""^(\d{1,2})[:.\-]?(\d{2})""").find(t) ?: return ""
     val hour = match.groupValues[1].toIntOrNull()?.takeIf { it in 0..23 } ?: return ""
     val minute = match.groupValues[2].toIntOrNull()?.takeIf { it in 0..59 } ?: return ""
-    return "%02d%02d".format(hour, minute)
+    return formatMinuteToken(hour, minute)
 }
 
 fun resolveFileNameScopeTokensFromDrafts(
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     resolvedCells: List<ResolvedCell>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): List<String> {
     val resolvedById = resolvedCells.associateBy { it.id }
     val normalized = normalizeSlotDrafts(fileNameSlotDrafts, FILE_NAME_SLOT_COUNT)
     return normalized.mapNotNull { draft ->
-        when (draft?.kind?.uppercase(Locale.ROOT)) {
+        when (draft?.kind?.uppercase()) {
             "CELL" -> {
                 val rc = draft.cellId?.let { resolvedById[it] } ?: return@mapNotNull null
                 when (rc.type) {
@@ -178,7 +178,7 @@ fun resolveFileNameScopeTokensFromDrafts(
                 }
             }
             "MANUAL" -> sanitizeFilePart(draft.manualText.orEmpty())
-            "FORMAT" -> when (draft.formatType?.uppercase(Locale.ROOT)) {
+            "FORMAT" -> when (draft.formatType?.uppercase()) {
                 "DATE" -> sanitizeFilePart(
                     formatNow(draft.formatPattern?.takeIf { it.isNotBlank() } ?: dateFormat, now)
                 )
@@ -206,7 +206,7 @@ fun resolveFileNameScopeTokensFromDrafts(
 fun resolveFileNameDraftToken(
     draft: TableEditorSlotDraft?,
     resolvedCells: List<ResolvedCell>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
@@ -224,7 +224,7 @@ fun resolveFileNameDraftToken(
 fun resolvePathDraftToken(
     draft: TableEditorSlotDraft?,
     resolvedCells: List<ResolvedCell>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
@@ -243,7 +243,7 @@ fun buildCounterScanPrefix(
     resolvedCells: List<ResolvedCell>,
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
@@ -279,7 +279,7 @@ fun buildFileNamePrefix(
     resolvedCells: List<ResolvedCell>,
     fileNameSlotDrafts: List<TableEditorSlotDraft?>,
     fnDelim: String,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
@@ -298,7 +298,7 @@ fun buildFileName(
     fnDelim: String,
     counterDigits: Int,
     usedCounter: Int?,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String {
@@ -328,23 +328,31 @@ fun buildFileName(
     return sanitizeFilePart(withExt)
 }
 
-fun buildSavePath(
+fun buildLogicalSaveSegments(
     resolvedCells: List<ResolvedCell>,
     pathSlotDrafts: List<TableEditorSlotDraft?>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
-): String {
+): List<String> {
     val resolvedById = resolvedCells.associateBy { it.id }
     val segments = normalizeSlotDrafts(pathSlotDrafts, PATH_SLOT_UI_MAX_COUNT)
         .map { resolvePathSlotToken(it, resolvedById, resolvedCells, now, dateFormat, timeFormat) }
         .filter { it.isNotBlank() }
 
-    return if (segments.isEmpty()) {
-        "Pictures/DZlog/"
-    } else {
-        "Pictures/DZlog/${segments.joinToString("/")}/"
-    }
+    return segments
+}
+
+/** Legacy Android physical-path representation. iOS uses buildLogicalSaveSegments. */
+fun buildSavePath(
+    resolvedCells: List<ResolvedCell>,
+    pathSlotDrafts: List<TableEditorSlotDraft?>,
+    now: CaptureTime,
+    dateFormat: String,
+    timeFormat: String,
+): String {
+    val segments = buildLogicalSaveSegments(resolvedCells, pathSlotDrafts, now, dateFormat, timeFormat)
+    return if (segments.isEmpty()) "Pictures/DZlog/" else "Pictures/DZlog/${segments.joinToString("/")}/"
 }
 
 /**
@@ -387,7 +395,7 @@ fun buildDisplayNameFromSlotDrafts(
     fnDelim: String,
     counterDigits: Int,
     usedCounter: Int?,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String = buildFileName(
@@ -405,7 +413,7 @@ fun buildDisplayNameFromSlotDrafts(
 fun buildGalleryRelativePathFromSlotDrafts(
     resolvedCells: List<ResolvedCell>,
     pathSlotDrafts: List<TableEditorSlotDraft?>,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): String = buildSavePath(
@@ -431,7 +439,7 @@ fun buildNamingCellPreview(
     fnDelim: String,
     counterDigits: Int,
     usedCounter: Int?,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): NamingCellPreview {
@@ -456,7 +464,7 @@ fun buildNamingSlotPreview(
     fnDelim: String,
     counterDigits: Int,
     usedCounter: Int?,
-    now: Date,
+    now: CaptureTime,
     dateFormat: String,
     timeFormat: String,
 ): NamingSlotPreview {

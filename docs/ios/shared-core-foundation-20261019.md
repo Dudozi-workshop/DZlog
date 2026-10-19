@@ -22,3 +22,13 @@ Native compilation is not a simulator/device test or a finished iOS app. No iOS 
 ## Next boundary
 
 CounterScopeResolver depends on resolved table cells and time policy; filename/preview calculation uses Java dates. Those dependencies remain in app until their contracts are extracted with behavior tests. Existing .dzlog codecs and persistence stay in Android for now. Common UI will be evaluated separately with Compose Multiplatform, following the existing design.
+
+## Second extraction: date, naming and counter rules
+
+The shared core now accepts CaptureTime(epochMilliseconds, localeTag, timeZoneId). JVM formatting delegates to the same SimpleDateFormat behavior. iOS formatting uses Foundation with an explicit locale/time zone. Approved numeric date/time patterns, UTC/KST/Los Angeles boundaries and DST are covered by common cases; arbitrary platform format-pattern equivalence is not assumed.
+
+TableValueResolver holds the original cell/counter interpretation. The Android TableResolver is a thin Date/Locale-compatible facade. Existing naming Date overloads delegate to common CaptureTime functions. CounterRules contains pure stream-key/prefix/max+1 rules; real MediaStore scanning and cache maintenance remain Android-only.
+
+Logical folder segments are exposed separately; the old Pictures/DZlog path representation remains available for Android compatibility and is not imposed on iOS storage. No existing files, IDs, counter history or .dzlog formats are migrated.
+
+Validation adds shared golden cases, JVM comparison with Java locale/time-zone formatting and URL encoding, existing Android regressions, and execution of common tests on an iOS simulator. Codecs/settings/media adapters and UI remain later roadmap steps.
