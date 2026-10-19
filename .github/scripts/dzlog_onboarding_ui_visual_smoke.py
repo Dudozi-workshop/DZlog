@@ -154,8 +154,9 @@ def folder_setup():
     deadline = time.monotonic() + 45
     while True:
         root = hierarchy()
-        if any(contains(root, name) for name in
-               ("Pictures", "DZlog", "USE THIS FOLDER", "Use this folder")):
+        # DocumentsUI renders a disabled root-level "USE THIS FOLDER" before
+        # its directory rows are ready. Wait for a real Pictures/DZlog row.
+        if contains(root, "Pictures") or contains(root, "DZlog"):
             break
         if time.monotonic() >= deadline:
             raise AssertionError("Android picker did not render a usable folder list")
