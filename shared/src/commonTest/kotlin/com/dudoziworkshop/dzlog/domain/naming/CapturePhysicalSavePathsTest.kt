@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class CapturePhysicalSavePathsTest {
     @Test

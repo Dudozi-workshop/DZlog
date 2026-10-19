@@ -5,10 +5,10 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import java.util.Date
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
 
 class NamePathBuildersCounterPaddingTest {
 
@@ -30,7 +30,7 @@ class NamePathBuildersCounterPaddingTest {
             fnDelim = "_",
             counterDigits = 3,
             usedCounter = 7,
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )
@@ -56,7 +56,7 @@ class NamePathBuildersCounterPaddingTest {
             fnDelim = "_",
             counterDigits = 2,
             usedCounter = 4,
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )
@@ -72,7 +72,7 @@ class NamePathBuildersCounterPaddingTest {
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A/B"),
                 TableEditorSlotDraft(kind = "FORMAT", label = "날짜", formatType = "DATE"),
             ),
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )
@@ -98,7 +98,7 @@ class NamePathBuildersCounterPaddingTest {
             fnDelim = "_",
             counterDigits = 1,
             usedCounter = 3,
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )
@@ -115,7 +115,7 @@ class NamePathBuildersCounterPaddingTest {
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "line"),
                 TableEditorSlotDraft(kind = "FORMAT", label = "시간", formatType = "TIME"),
             ),
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )
@@ -133,7 +133,7 @@ class NamePathBuildersCounterPaddingTest {
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "TreatmentA"),
                 TableEditorSlotDraft(kind = "FORMAT", label = "날짜", formatType = "DATE"),
             ),
-            now = Date(0),
+            now = CaptureTime(0, "en-US", "UTC"),
             dateFormat = "yyyyMMdd",
             timeFormat = "HHmm",
         )

@@ -1,14 +1,12 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
-import java.net.URLDecoder
-import java.net.URLEncoder
 
 /** Finite slot alternatives; no wildcard and no Cartesian expansion. */
 object CounterScanPrefixes {
     private const val MARKER = "|rp-scan-v1|" // '|' cannot occur in a sanitized filename.
 
     fun encode(slotChoices: List<List<String>>): String = MARKER + slotChoices.joinToString("|") { choices ->
-        choices.distinct().joinToString(",") { URLEncoder.encode(it, "UTF-8") }
+        choices.distinct().joinToString(",") { encodeCounterToken(it) }
     }
 
     fun isEncoded(value: String): Boolean = value.startsWith(MARKER)
@@ -17,7 +15,7 @@ object CounterScanPrefixes {
         if (!isEncoded(scanPrefix)) return prefix == scanPrefix
         val slots = runCatching {
             scanPrefix.removePrefix(MARKER).split('|').map { group ->
-                group.split(',').map { URLDecoder.decode(it, "UTF-8") }
+                group.split(',').map { decodeCounterToken(it) }
             }
         }.getOrNull() ?: return false
         // States are offsets in the actual prefix, bounded by its length.
