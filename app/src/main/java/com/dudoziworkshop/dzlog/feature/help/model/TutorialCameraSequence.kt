@@ -42,7 +42,7 @@ internal fun cameraGuideFrame(pageId: String, progress: Float): CameraGuideFrame
 }
 
 internal fun cameraGuideAtBottom(pageId: String): Boolean =
-    pageId in setOf("layout", "ratio", "quality", "controls", "filename")
+    pageId in setOf("layout", "ratio", "quality", "capture-confirmation", "feedback", "controls", "filename")
 
 /** Map old saved positions to their merged page while preserving the same session. */
 internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = when (sessionId) {
