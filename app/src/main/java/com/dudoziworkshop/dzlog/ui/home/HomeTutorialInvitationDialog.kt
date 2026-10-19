@@ -69,18 +69,18 @@ internal fun HomeTutorialInvitationDialog(
                     )
                 }
                 Text(
-                    "DZlog 사용법을 알아볼까요?",
-                    fontSize = 20.sp,
-                    lineHeight = 28.sp,
+                    "DZlog 사용법을\n알아볼까요?",
+                    fontSize = 18.sp,
+                    lineHeight = 25.sp,
                     fontWeight = FontWeight.Bold,
                     color = DDZColor.TextPrimary,
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "카메라부터 앨범, 기록표와 저장 설정까지\n" +
-                        "실제 화면에서 주요 기능을 하나씩 살펴볼 수 있어요.",
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp,
+                    "카메라·앨범·기록표·저장 설정까지\n" +
+                        "실제 화면에서 하나씩 살펴보세요.",
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
                     color = DDZColor.TextSecondary,
                     textAlign = TextAlign.Center,
                 )
