@@ -16,4 +16,9 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "DZlog"
-include(":app")
+// Native-only checks do not configure the Android application or require an Android SDK.
+if (!providers.gradleProperty("dzlogSharedOnly").map(String::toBoolean).getOrElse(false)) {
+    include(":app")
+}
+
+include(":shared")

@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --stacktrace
+          ./gradlew :shared:jvmTest :app:testDebugUnitTest --stacktrace
       - name: Verify dormant billing backend
         shell: bash
         run: node --test billing-server/test/*.test.mjs
@@ -56,6 +56,8 @@ jobs:
         with:
           name: dzlog-mainline-unit-reports
           path: |
+            shared/build/test-results/jvmTest/**
+            shared/build/reports/tests/jvmTest/**
             app/build/test-results/testDebugUnitTest/**
             app/build/reports/tests/testDebugUnitTest/**
           if-no-files-found: warn

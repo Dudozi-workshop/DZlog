@@ -1,7 +1,5 @@
 package com.dudoziworkshop.dzlog.domain.model
 
-import java.util.UUID
-
 /**
  * Core Rule:
  * - rawText는 사용자가 TEXT 편집으로 입력한 "원본 텍스트"를 보존한다. (타입 변경으로 자동 변경 금지)
@@ -22,7 +20,7 @@ data class TableCellState(
     val timeFormatOptions: TimeFormatOptions? = null,
 
     val groupLevel: GroupLevel = GroupLevel.NONE,
-    val cellId: String = UUID.randomUUID().toString(),
+    val cellId: String = randomCellId(),
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
     val dataType: TableCellDataType = TableCellDataType.TEXT,
