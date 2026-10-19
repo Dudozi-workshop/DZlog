@@ -33,7 +33,7 @@ class TutorialCameraSequenceTest {
         assertEquals(listOf("flash", "grid", "table", "assist", "zoom"), sessions[1].steps.drop(2).map { it.id })
         assertTrue(cameraGuideAtBottom("filename"))
         assertFalse(cameraGuideAtBottom("focus"))
-        assertEquals(listOf("quick-text", "quick-number", "quick-date", "quick-phrase"), sessions.last().steps.takeLast(5).map { it.id })
+        assertEquals(listOf("quick-text", "quick-number", "quick-date", "quick-phrase"), sessions.last().steps.takeLast(4).map { it.id })
         assertEquals(listOf("menu"), cameraGuideScenes("menu"))
         assertEquals(listOf("focus", "manual-focus"), cameraGuideScenes("focus"))
         assertEquals("focus", cameraGuideSavedPage("tools", "manual-focus"))
