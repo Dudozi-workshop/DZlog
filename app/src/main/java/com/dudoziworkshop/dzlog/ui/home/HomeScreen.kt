@@ -61,6 +61,9 @@ fun HomeScreen(
     activeTemplateName: String = "",
     onManageTemplates: () -> Unit = {},
     onOpenSettings: () -> Unit,
+    showTutorialInvitation: Boolean = false,
+    onTutorialStart: () -> Unit = {},
+    onTutorialLater: () -> Unit = {},
     onStartCamera: () -> Unit,
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit = onOpenTableEditor,
@@ -240,6 +243,10 @@ fun HomeScreen(
             )
         }
     }
+    if (showTutorialInvitation) {
+        HomeTutorialInvitationDialog(onStart = onTutorialStart, onLater = onTutorialLater)
+    }
+
     if (showSaveInfo) {
         HomeSaveInfoSheet(
             fileName = uiState.nextFilenamePreview,

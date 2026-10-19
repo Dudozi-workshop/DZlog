@@ -54,6 +54,12 @@ internal fun FirstCaptureGuide(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        "전체 4단계 중 4단계 · 첫 촬영 안내 (선택)",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.SelectedDark,
+                    )
                 Text(
                     text = when (phase) {
                         FirstCaptureGuidePhase.QUICK_EDIT -> "첫 촬영 · 1/2"
@@ -63,8 +69,8 @@ internal fun FirstCaptureGuide(
                     },
                     style = DDZTypography.SettingLabel,
                     color = DDZColor.PrimaryDark,
-                    modifier = Modifier.weight(1f),
                 )
+                }
                 TextButton(onClick = onSkip) {
                     Text("안내 닫기", color = DDZColor.TextSecondary)
                 }
