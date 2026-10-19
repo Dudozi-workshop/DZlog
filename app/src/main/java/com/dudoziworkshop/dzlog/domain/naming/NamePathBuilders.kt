@@ -240,10 +240,11 @@ fun buildCounterScanPrefix(
                 draft?.formatType.equals("ROTATING_TEXT", ignoreCase = true) -> resolveRotatingFileNameCell(resolvedCells)
             else -> null
         }?.takeIf { it.type == TableCellDataType.ROTATING_TEXT }
-        if (rotating?.rotatingPhraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
+        val phraseSet = rotating?.rotatingPhraseSet
+        if (rotating != null && phraseSet?.counterProgressMode == RotatingCounterProgressMode.CONTINUOUS) {
             hasContinuousSlot = true
             // Only this set's known phrases vary. Fixed/date/time/other phrase slots remain exact.
-            (rotating.rotatingPhraseSet.items + rotating.resolvedText).map(::sanitizeFilePart).distinct()
+            (phraseSet.items + rotating.resolvedText).map(::sanitizeFilePart).distinct()
         } else {
             listOf(resolveFileNameSlotToken(draft, resolvedById, resolvedCells, now, dateFormat, timeFormat))
         }
