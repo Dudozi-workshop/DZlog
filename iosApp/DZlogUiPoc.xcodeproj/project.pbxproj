@@ -1,0 +1,216 @@
+// !$*UTF8*$!
+{
+	"archiveVersion" = 1;
+	"classes" = {
+	};
+	"objectVersion" = 56;
+	"objects" = {
+		"000000000000000000000001" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PoCApp/AppDelegate.swift";
+			"sourceTree" = "<group>";
+		};
+		"000000000000000000000002" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "PoCUITests/PreviewInteractionTests.swift";
+			"sourceTree" = "<group>";
+		};
+		"000000000000000000000003" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "wrapper.framework";
+			"path" = "../sharedUi/build/bin/iosSimulatorArm64/debugFramework/DZlogUi.framework";
+			"sourceTree" = "<group>";
+		};
+		"000000000000000000000004" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.application";
+			"path" = "DZlogUiPoc.app";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"000000000000000000000005" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "DZlogUiPocUITests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"000000000000000000000006" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "000000000000000000000001";
+		};
+		"000000000000000000000007" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "000000000000000000000002";
+		};
+		"000000000000000000000008" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "000000000000000000000003";
+		};
+		"000000000000000000000009" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "000000000000000000000003";
+			"settings" = {
+				"ATTRIBUTES" = ("RemoveHeadersOnCopy");
+			};
+		};
+		"00000000000000000000000A" = {
+			"isa" = "PBXGroup";
+			"children" = ("000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
+			"sourceTree" = "<group>";
+		};
+		"00000000000000000000000B" = {
+			"isa" = "PBXGroup";
+			"name" = "Products";
+			"children" = ("000000000000000000000004", "000000000000000000000005");
+			"sourceTree" = "<group>";
+		};
+		"00000000000000000000000C" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("000000000000000000000006");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"00000000000000000000000D" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("000000000000000000000008");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"00000000000000000000000E" = {
+			"isa" = "PBXCopyFilesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"dstPath" = "";
+			"dstSubfolderSpec" = 10;
+			"files" = ("000000000000000000000009");
+			"name" = "Embed Frameworks";
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"00000000000000000000000F" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ("000000000000000000000007");
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"000000000000000000000010" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"000000000000000000000011" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "00000000000000000000001E";
+			"proxyType" = 1;
+			"remoteGlobalIDString" = "000000000000000000000012";
+			"remoteInfo" = "DZlogUiPoc";
+		};
+		"000000000000000000000013" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "000000000000000000000012";
+			"targetProxy" = "000000000000000000000011";
+		};
+		"000000000000000000000012" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "000000000000000000000019";
+			"buildPhases" = ("00000000000000000000000C", "00000000000000000000000D", "00000000000000000000000E");
+			"buildRules" = ();
+			"dependencies" = ();
+			"name" = "DZlogUiPoc";
+			"productName" = "DZlogUiPoc";
+			"productReference" = "000000000000000000000004";
+			"productType" = "com.apple.product-type.application";
+		};
+		"000000000000000000000014" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "00000000000000000000001A";
+			"buildPhases" = ("00000000000000000000000F", "000000000000000000000010");
+			"buildRules" = ();
+			"dependencies" = ("000000000000000000000013");
+			"name" = "DZlogUiPocUITests";
+			"productName" = "DZlogUiPocUITests";
+			"productReference" = "000000000000000000000005";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+		};
+		"000000000000000000000015" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "15.0";
+				"SWIFT_VERSION" = "5.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"ENABLE_TESTABILITY" = "YES";
+			};
+			"name" = "Debug";
+		};
+		"000000000000000000000016" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc";
+				"INFOPLIST_FILE" = "PoCApp/Info.plist";
+				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../sharedUi/build/bin/iosSimulatorArm64/debugFramework");
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+			};
+			"name" = "Debug";
+		};
+		"000000000000000000000017" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "DZlogUiPoc";
+			};
+			"name" = "Debug";
+		};
+		"000000000000000000000018" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("000000000000000000000015");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Debug";
+		};
+		"000000000000000000000019" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("000000000000000000000016");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Debug";
+		};
+		"00000000000000000000001A" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("000000000000000000000017");
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Debug";
+		};
+		"00000000000000000000001E" = {
+			"isa" = "PBXProject";
+			"attributes" = {
+				"BuildIndependentTargetsInParallel" = "YES";
+				"LastUpgradeCheck" = "1600";
+				"TargetAttributes" = {
+					"000000000000000000000012" = {
+						"CreatedOnToolsVersion" = "16.0";
+					};
+					"000000000000000000000014" = {
+						"CreatedOnToolsVersion" = "16.0";
+						"TestTargetID" = "000000000000000000000012";
+					};
+				};
+			};
+			"buildConfigurationList" = "000000000000000000000018";
+			"compatibilityVersion" = "Xcode 14.0";
+			"developmentRegion" = "en";
+			"hasScannedForEncodings" = 0;
+			"knownRegions" = ("en", "Base");
+			"mainGroup" = "00000000000000000000000A";
+			"productRefGroup" = "00000000000000000000000B";
+			"projectDirPath" = "";
+			"projectRoot" = "";
+			"targets" = ("000000000000000000000012", "000000000000000000000014");
+		};
+	};
+	"rootObject" = "00000000000000000000001E";
+}

@@ -25,6 +25,8 @@ jobs:
         run: bash scripts/ios/build-ui-poc.sh
       - name: Launch Compose UI and capture actual simulator screen
         run: bash scripts/ios/smoke-ui-poc.sh
+      - name: Test actual close/select and horizontal/vertical gestures
+        run: bash scripts/ios/test-ui-poc.sh
       - name: Preserve UI evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -14,11 +14,14 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateReadOnlyPreviewDialog
 import com.dudoziworkshop.dzlog.ui.theme.*
 import platform.UIKit.UIViewController
+import platform.Foundation.NSProcessInfo
 
 /** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
 fun MainViewController(): UIViewController = ComposeUIViewController {
     DDZTheme {
-        val template = remember { previewFixture() }
+        val template = remember {
+            if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()
+        }
         var open by remember { mutableStateOf(true) }
         var selected by remember { mutableStateOf(false) }
         Column(
@@ -38,6 +41,23 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
         )
     }
 }
+
+/** Oversized synthetic table exercises both existing scroll containers through real gestures. */
+private fun scrollFixture(): SavedTableTemplate = SavedTableTemplate(
+    id = "poc-scroll", name = "스크롤 검증", modifiedAt = 0,
+    templateState = TableTemplateState(16, 8, List(128) { index ->
+        val row = index / 8
+        val col = index % 8
+        TableCellState(rowIndex = row, colIndex = col, cellId = "scroll-$index",
+            dataType = TableCellDataType.TEXT,
+            rawText = when {
+                row == 0 && col == 0 -> "왼쪽 시작"
+                row == 0 && col == 7 -> "오른쪽 끝"
+                row == 15 && col == 0 -> "마지막 행"
+                else -> "${row + 1}행 ${col + 1}열"
+            })
+    }), styleState = TableStyleState(),
+)
 
 /** Synthetic, memory-only sample. No photo, database, preference or active-template write. */
 private fun previewFixture(): SavedTableTemplate {
