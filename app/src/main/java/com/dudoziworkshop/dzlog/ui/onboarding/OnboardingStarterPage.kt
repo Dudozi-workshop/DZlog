@@ -61,14 +61,12 @@ internal fun OnboardingStarterPage(
             ) {
                 Text(
                     "어떤 기록을 시작할까요?",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 23.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold,
-                    ),
+                    style = OnboardingTextStyles.PageTitle.copy(fontSize = if (compact) 26.sp else 28.sp, lineHeight = if (compact) 34.sp else 36.sp),
                     color = DDZColor.TextPrimary,
                 )
                 Text(
                     "원하는 양식을 골라보세요.",
-                    fontSize = 13.sp, lineHeight = 19.sp,
+                    style = OnboardingTextStyles.Body,
                     color = DDZColor.TextSecondary,
                 )
             }
@@ -79,7 +77,7 @@ internal fun OnboardingStarterPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("기록 유형", fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                Text("기록 유형", style = OnboardingTextStyles.SectionTitle,
                     color = DDZColor.TextPrimary)
                 Text("총 ${OnboardingStarterCatalog.definitions.size}개 양식",
                     fontSize = 12.sp, color = DDZColor.TextSecondary)
@@ -94,7 +92,7 @@ internal fun OnboardingStarterPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(selected.title, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                Text(selected.title, style = OnboardingTextStyles.SectionTitle,
                     color = DDZColor.TextPrimary)
                 if (category != "basic") {
                     Text(
