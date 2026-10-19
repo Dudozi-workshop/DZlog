@@ -77,22 +77,14 @@ internal fun LiveTutorialHost(
     val overallIndex = area.sessions.take(area.sessions.indexOf(session)).sumOf { it.guidePages().size } + index
     BoxWithConstraints(Modifier.fillMaxSize().navigationBarsPadding().onGloballyPositioned { rootY = it.positionInRoot().y }) {
         if (contents) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                TextButton(onClick = { contents = false }) { Text("안내로 돌아가기") }
-                Text("목차 · 바로 이동", style = DDZTypography.SettingLabel)
-                DzlogTutorialSections.areas.forEach { item ->
-                    Text(item.title, modifier = Modifier.padding(top = 12.dp), style = DDZTypography.SettingLabel)
-                    item.sessions.forEachIndexed { i, section ->
-                        TextButton(onClick = { select(item.id, section.id) }) {
-                            Text("${i + 1}. ${section.title} · ${progress.status(item.id, section.id)}")
-                        }
-                    }
-                }
-                Text("현재 세션의 설명", style = DDZTypography.SettingLabel)
-                pages.forEachIndexed { i, entry ->
-                    TextButton(onClick = { pageId = entry.id; contents = false }) { Text("${i + 1}. ${entry.title}") }
-                }
-            }
+            TutorialContentsScreen(area, location, progress,
+                onResume = { contents = false },
+                onJump = { entry ->
+                    progress.save(entry)
+                    if (entry.sessionId == sessionId) { pageId = entry.pageId; contents = false }
+                    else select(entry.areaId, entry.sessionId)
+                },
+                onArea = { item -> val saved = progress.resume(item); select(item.id, saved.sessionId) })
         } else {
             Box(Modifier.fillMaxSize().clearAndSetSemantics { contentDescription = "기능 안내 화면" }) {
                 CompositionLocalProvider(
@@ -118,7 +110,7 @@ internal fun LiveTutorialHost(
         }
         if (!contents) Canvas(Modifier.fillMaxSize()) {
             val shade = Path().apply { addRect(Rect(0f, 0f, size.width, size.height)) }
-            val target = targetBounds?.translate(0f, -rootY)?.inflate(5.dp.toPx())
+            val target = targetBounds?.translate(0f, -rootY)
             val cutout = Path().apply { if (target != null) addRoundRect(androidx.compose.ui.geometry.RoundRect(target, CornerRadius(12.dp.toPx()))) }
             drawPath(Path.combine(PathOperation.Difference, shade, cutout), Color.Black.copy(alpha = 0.48f))
         }
@@ -131,24 +123,30 @@ internal fun LiveTutorialHost(
         val bottomY = (hostHeight - cardHeight - gap).coerceAtLeast(topY)
         // Keep consecutive explanations anchored, rather than jumping around their targets.
         val cardY = when {
-            areaId == "home" && page.id in setOf("recent", "album") -> topY
-            areaId == "home" && page.id in setOf("main", "templates", "manage", "more") -> bottomY
+            areaId == "home" && page.id in setOf("start", "recent", "album", "table-settings", "save-info") -> topY
+            areaId == "home" -> bottomY
             else -> desiredY.coerceIn(topY, bottomY)
         }
         if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
             .onGloballyPositioned { cardHeight = it.size.height },
             shape = RoundedCornerShape(18.dp), color = DDZColor.Surface, shadowElevation = 6.dp) {
-            Column(Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()).padding(14.dp),
+            val homeCardHeight = (236 * density.fontScale.coerceAtLeast(1f)).dp
+                .coerceAtMost((maxHeight - with(density) { topY.toDp() } - 16.dp).coerceAtLeast(1.dp))
+            Column(Modifier.fillMaxWidth()
+                .then(if (areaId == "home") Modifier.height(homeCardHeight) else Modifier.heightIn(max = 260.dp).verticalScroll(rememberScrollState()))
+                .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${area.title} · ${session.title}   ${overallIndex + 1}/${areaPages.size}",
+                    Text("${area.title} 안내   ${overallIndex + 1} / ${areaPages.size}",
                         Modifier.weight(1f), style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
                     if (hasDemo) TextButton(onClick = { replay++ }) { Text("다시 보기") }
                     TextButton(onClick = onClose) { Text("닫기") }
                 }
-                LinearProgressIndicator(progress = { (overallIndex + 1).toFloat() / areaPages.size }, modifier = Modifier.fillMaxWidth(), color = DDZColor.PrimaryDark)
+                LinearProgressIndicator(progress = { (overallIndex + 1).toFloat() / areaPages.size }, modifier = Modifier.fillMaxWidth().height(4.dp), color = DDZColor.PrimaryDark, trackColor = DDZColor.SelectedSoft)
                 Text(page.title, style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
-                Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                if (areaId == "home") Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                } else Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 if (location.areaId == "gallery") Text("저장된 사진과 폴더가 있는 경우 해당 항목이 보여요.",
                     style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -157,22 +155,27 @@ internal fun LiveTutorialHost(
                     }, enabled = overallIndex > 0, modifier = Modifier.weight(1f)) { Text("이전") }
                     OutlinedButton(onClick = { contents = !contents }, modifier = Modifier.weight(1f)) { Text(if (contents) "안내" else "목차") }
                     Button(onClick = {
+                        progress.markViewed(location)
                         if (index < pages.lastIndex) pageId = pages[index + 1].id
                         else {
                             progress.complete(location)
                             val next = area.sessions.indexOf(session) + 1
-                            if (next <= area.sessions.lastIndex) select(areaId, area.sessions[next].id)
+                            if (next <= area.sessions.lastIndex) {
+                                val following = area.sessions[next]
+                                progress.save(TutorialLocation(areaId, following.id, following.guidePages().first().id))
+                                select(areaId, following.id)
+                            }
                             else contents = true
                         }
                     }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark)) {
-                        Text(if (index < pages.lastIndex) "다음" else "완료")
+                        Text(if (overallIndex < areaPages.lastIndex) "다음" else "완료")
                     }
                 }
             }
         }
     }
     // Registered after the child screens so device Back cannot perform normal screen actions.
-    BackHandler { if (contents) contents = false else onClose() }
+    BackHandler(enabled = !contents) { onClose() }
 }
 
 private fun tutorialTarget(location: TutorialLocation, parent: String): String = when (location.areaId) {

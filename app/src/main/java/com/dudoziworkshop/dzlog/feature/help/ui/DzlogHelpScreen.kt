@@ -3,44 +3,25 @@ package com.dudoziworkshop.dzlog.feature.help.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.feature.help.model.DzlogTutorialSections
-import com.dudoziworkshop.dzlog.feature.help.model.TutorialArea
-import com.dudoziworkshop.dzlog.feature.help.model.TutorialSession
+import com.dudoziworkshop.dzlog.feature.help.model.*
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
-import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
-import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.ui.theme.*
 
-/** Read-only guide. Neither browsing nor jumping to a session modifies application data. */
+/** Only guide preferences are written; app settings, templates and photos stay untouched. */
 @Composable
 internal fun DzlogHelpScreen(
     moduleId: String?,
@@ -50,87 +31,168 @@ internal fun DzlogHelpScreen(
     onOpenLiveSession: (String, String) -> Unit = { _, _ -> },
 ) {
     val area = moduleId?.let(DzlogTutorialSections::area)
-    if (area == null) {
-        BackHandler { onBack() }
-        HelpIndex(onOpenModule, onOpenIntroduction, onBack)
-    } else {
-        BackHandler { onBack() }
-        SessionIndex(area, onBack) { onOpenLiveSession(area.id, area.sessions[it].id) }
-    }
+    BackHandler { onBack() }
+    if (area == null) HelpIndex(onOpenModule, onOpenIntroduction, onBack)
+    else SessionIndex(area, onBack) { onOpenLiveSession(area.id, it) }
 }
 
+private fun areaIcon(id: String): ImageVector = when (id) {
+    "home" -> Icons.Default.Home
+    "camera" -> Icons.Default.PhotoCamera
+    "gallery" -> Icons.Default.PhotoLibrary
+    "table-detail" -> Icons.Default.GridOn
+    "saving" -> Icons.Default.Folder
+    else -> Icons.Default.Settings
+}
+
+private fun areaDescription(id: String) = when (id) {
+    "home" -> "템플릿과 주요 메뉴"
+    "camera" -> "촬영과 표 조작"
+    "gallery" -> "사진과 폴더 관리"
+    "table-detail" -> "내용·구조·스타일"
+    "saving" -> "파일명·저장경로·촬영번호"
+    else -> "촬영 환경·권한·백업"
+}
+
+private fun sessionDescription(area: TutorialArea, session: TutorialSession): String =
+    if (area.id == "home") when (session.id) {
+        "overview" -> "템플릿 선택·관리·촬영 시작"
+        "recent" -> "최근 촬영·앨범 보기"
+        else -> "표 편집·저장 정보·앱 설정"
+    } else "${session.guidePages().size}개 설명"
+
 @Composable
-private fun HelpIndex(
-    onOpenModule: (String) -> Unit,
-    onOpenIntroduction: () -> Unit,
-    onBack: () -> Unit,
-) {
+private fun HelpIndex(onOpenModule: (String) -> Unit, onOpenIntroduction: () -> Unit, onBack: () -> Unit) {
     Scaffold(containerColor = DDZColor.Background, topBar = {
         DDZTopBar(title = "사용법 및 도움말", onBack = onBack)
     }) { insets ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(insets)
-                .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("알아보고 싶은 기능을 골라 살펴보세요.",
+        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState())
+            .padding(DDZSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("궁금한 기능을 살펴보세요.", Modifier.padding(bottom = 8.dp),
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
             DzlogTutorialSections.areas.forEach { area ->
-                HelpCard(area.title, when (area.id) {
-                    "home" -> "촬영 준비 · 사진 확인 · 편집과 설정"
-                    "camera" -> "촬영과 확인 · 촬영도구 · 표와 빠른 수정"
-                    "gallery" -> "사진과 폴더 찾기 · 보기와 관리"
-                    "table-detail" -> "표 내용 · 구조 · 스타일 바꾸기"
-                    "saving" -> "파일명 · 저장 위치 · 자동번호"
-                    else -> "촬영 환경 · 권한 · 백업과 도움말"
-                }, { onOpenModule(area.id) })
+                HelpCard(area.title, areaDescription(area.id), areaIcon(area.id), onClick = { onOpenModule(area.id) })
             }
-            TextButton(onClick = onOpenIntroduction) { Text("처음 사용법 다시 보기") }
+            TextButton(onClick = onOpenIntroduction, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text("처음 사용법 다시 보기", color = DDZColor.PrimaryDark)
+            }
         }
     }
 }
 
 @Composable
-private fun SessionIndex(area: TutorialArea, onBack: () -> Unit, onSelect: (Int) -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+private fun SessionIndex(area: TutorialArea, onBack: () -> Unit, onSelect: (String) -> Unit) {
+    val context = LocalContext.current
     val progress = remember { TutorialProgressStore(context) }
+    val resume = progress.resume(area)
+    val started = area.sessions.any { progress.page(area.id, it.id).isNotEmpty() }
+    val completed = area.sessions.all { progress.status(area.id, it.id) == "완료" }
+    val total = area.sessions.sumOf { it.guidePages().size }
+    val current = if (!started) 0 else if (completed) total else
+        area.sessions.takeWhile { it.id != resume.sessionId }.sumOf { it.guidePages().size } +
+            tutorialPageIndex(area.sessions.first { it.id == resume.sessionId }.guidePages(), resume.pageId) + 1
     Scaffold(containerColor = DDZColor.Background, topBar = {
-        DDZTopBar(title = area.title, onBack = onBack)
+        DDZTopBar(title = "${area.title} 안내", onBack = onBack)
     }) { insets ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(insets)
-                .verticalScroll(rememberScrollState()).padding(DDZSpacing.screenPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("원하는 설명부터 볼 수 있어요.",
-                style = DDZTypography.Body, color = DDZColor.TextSecondary)
-            area.sessions.forEachIndexed { index, session ->
-                HelpCard(session.title, "${session.steps.sumOf { 1 + it.scenes.size }}개 설명 · ${progress.status(area.id, session.id)}",
-                    { onSelect(index) })
+        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState())
+            .padding(DDZSpacing.screenPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("${area.title}의 주요 기능을 알아보세요.", style = DDZTypography.Body, color = DDZColor.TextSecondary)
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text("${area.title} 안내 진행도", Modifier.weight(1f), style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                Text("$current / $total", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+            }
+            LinearProgressIndicator(progress = { current.toFloat() / total }, modifier = Modifier.fillMaxWidth().height(4.dp),
+                color = DDZColor.PrimaryDark, trackColor = DDZColor.SelectedSoft)
+            Button(onClick = {
+                if (!started || completed) { progress.start(area); onSelect(area.sessions.first().id) }
+                else onSelect(resume.sessionId)
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark)) {
+                Text(if (completed) "다시 보기" else if (started) "이어서 보기" else "처음부터 보기")
+            }
+            if (started && !completed) TextButton(onClick = { progress.start(area); onSelect(area.sessions.first().id) },
+                modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("처음부터 보기", color = DDZColor.PrimaryDark) }
+            Text("목차", Modifier.padding(top = 12.dp), style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+            area.sessions.forEach { session ->
+                HelpCard(session.title, sessionDescription(area, session), when (session.id) {
+                    "overview", "capture" -> areaIcon(area.id)
+                    "recent" -> Icons.Default.PhotoLibrary
+                    else -> Icons.Default.Settings
+                }, status = progress.status(area.id, session.id).takeUnless { it == "미시작" },
+                    onClick = { onSelect(session.id) })
             }
         }
     }
 }
 
 @Composable
-private fun HelpCard(title: String, subtitle: String, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = DDZColor.Surface,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, DDZColor.Border),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(Icons.Default.HelpOutline, null, tint = DDZColor.PrimaryDark)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
+private fun HelpCard(title: String, subtitle: String, icon: ImageVector, status: String? = null, onClick: () -> Unit) {
+    Surface(Modifier.fillMaxWidth().clickable(onClick = onClick), color = if (status == "보는 중") DDZColor.SelectedSoft.copy(alpha = 0.35f) else DDZColor.Surface,
+        shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, DDZColor.Border)) {
+        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(shape = RoundedCornerShape(12.dp), color = DDZColor.SelectedSoft) {
+                Icon(icon, null, Modifier.padding(10.dp).size(24.dp), tint = DDZColor.PrimaryDark)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                 Text(subtitle, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
             }
-            Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+            when (status) {
+                "완료" -> Icon(Icons.Default.Check, "완료", tint = DDZColor.PrimaryDark)
+                "보는 중" -> Surface(shape = RoundedCornerShape(20.dp), color = DDZColor.SelectedSoft) {
+                    Text(status, Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                }
+                else -> Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+            }
+        }
+    }
+}
+
+/** Current area only; another area is an explicit secondary choice. */
+@Composable
+internal fun TutorialContentsScreen(area: TutorialArea, location: TutorialLocation, progress: TutorialProgressStore,
+    onResume: () -> Unit, onJump: (TutorialLocation) -> Unit, onArea: (TutorialArea) -> Unit) {
+    var otherAreas by rememberSaveable { mutableStateOf(false) }
+    BackHandler { if (otherAreas) otherAreas = false else onResume() }
+    Scaffold(containerColor = DDZColor.Background, topBar = {
+        DDZTopBar(title = if (otherAreas) "다른 안내 보기" else "${area.title} 목차",
+            onBack = { if (otherAreas) otherAreas = false else onResume() },
+            actions = { if (!otherAreas) TextButton(onClick = onResume) { Text("돌아가기", color = DDZColor.PrimaryDark) } })
+    }) { insets ->
+        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (otherAreas) DzlogTutorialSections.areas.forEach { item ->
+                HelpCard(item.title, areaDescription(item.id), areaIcon(item.id), onClick = { otherAreas = false; onArea(item) })
+            } else {
+                area.sessions.forEach { session ->
+                    var expanded by rememberSaveable(area.id, session.id) { mutableStateOf(true) }
+                    Surface(color = DDZColor.Surface, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, DDZColor.Border)) {
+                        Column {
+                            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${session.title} (${session.guidePages().size})", Modifier.weight(1f), style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
+                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, if (expanded) "접기" else "펼치기", tint = DDZColor.PrimaryDark)
+                            }
+                            if (expanded) session.guidePages().forEach { page ->
+                                val entry = TutorialLocation(area.id, session.id, page.id)
+                                val current = entry == location
+                                HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.5f))
+                                Surface(color = if (current) DDZColor.SelectedSoft else DDZColor.Surface) {
+                                    Row(Modifier.fillMaxWidth().clickable { onJump(entry) }.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(page.title, Modifier.weight(1f), style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                                        when {
+                                            current -> Text("현재", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                                            progress.viewed(entry) -> Icon(Icons.Default.Check, "확인한 설명", tint = DDZColor.PrimaryDark)
+                                            else -> Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                TextButton(onClick = { otherAreas = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("다른 안내 보기", color = DDZColor.PrimaryDark) }
+            }
         }
     }
 }

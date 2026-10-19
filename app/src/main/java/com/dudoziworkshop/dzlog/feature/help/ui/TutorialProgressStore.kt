@@ -14,7 +14,22 @@ internal class TutorialProgressStore(context: Context) {
         else -> "미시작"
     }
     fun save(location: TutorialLocation) {
-        prefs.edit().putString("page/" + key(location.areaId, location.sessionId), location.pageId).apply()
+        prefs.edit().putString("page/" + key(location.areaId, location.sessionId), location.pageId)
+            .putString("last-session/" + location.areaId, location.sessionId).apply()
+    }
+    fun resume(area: TutorialArea): TutorialLocation {
+        val saved = prefs.getString("last-session/" + area.id, null)
+        val session = area.sessions.firstOrNull { it.id == saved }
+            ?: area.sessions.lastOrNull { page(area.id, it.id).isNotEmpty() }
+            ?: area.sessions.first()
+        return TutorialLocation(area.id, session.id, session.guidePages()[tutorialPageIndex(session.guidePages(), page(area.id, session.id))].id)
+    }
+    fun start(area: TutorialArea) = save(TutorialLocation(area.id, area.sessions.first().id, area.sessions.first().guidePages().first().id))
+    fun viewed(location: TutorialLocation): Boolean =
+        prefs.getBoolean("seen/" + key(location.areaId, location.sessionId) + "/" + location.pageId, false) ||
+            status(location.areaId, location.sessionId) == "완료"
+    fun markViewed(location: TutorialLocation) {
+        prefs.edit().putBoolean("seen/" + key(location.areaId, location.sessionId) + "/" + location.pageId, true).apply()
     }
     fun complete(location: TutorialLocation) {
         prefs.edit().putBoolean("done/" + key(location.areaId, location.sessionId), true).apply()

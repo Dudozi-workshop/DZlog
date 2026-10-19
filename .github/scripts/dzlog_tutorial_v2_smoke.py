@@ -32,21 +32,23 @@ def user_preferences():
 def open_help():
     tap("설정", "사진 품질")
     tap_visible("사용법 및 도움말")
-    wait_for("알아보고 싶은 기능")
+    wait_for("궁금한 기능")
 
 
 def open_session(area, session, title):
     tap_visible(area)
-    wait_for("원하는 설명")
+    wait_for("안내 진행도")
+    if area == "홈":
+        mark("tutorial-44-home-index")
     tap_visible(session)
     wait_for(title)
     wait_for("목차")
 
 
 def back_to_index():
-    tap("닫기", "원하는 설명")
+    tap("닫기", "안내 진행도")
     adb("shell", "input", "keyevent", "4")
-    wait_for("알아보고 싶은 기능")
+    wait_for("궁금한 기능")
 
 
 def touch_passive_screen():
@@ -58,6 +60,11 @@ def touch_passive_screen():
         adb("shell", "input", "tap", str(x), str(y))
     adb("shell", "input", "keyevent", "24")
     time.sleep(3)  # Let the Android volume overlay dismiss before screenshots.
+
+
+def guide_button_y():
+    node = next(n for n in nodes(hierarchy()) if n.get("text") == "다음")
+    return tuple(map(int, re.findall(r"\d+", node.get("bounds"))))[1::2]
 
 
 def main():
@@ -121,28 +128,42 @@ def main():
     open_session("홈", "촬영 준비", "현재 템플릿")
     touch_passive_screen()
     mark("tutorial-01-home")
-    for title in ("템플릿 관리", "템플릿 메뉴 버튼", "수정과 삭제", "다음 촬영번호", "촬영 시작"):
+    bottom_buttons = guide_button_y()
+    for title in ("템플릿 선택", "템플릿 메뉴", "템플릿 관리", "다음 촬영번호", "촬영 시작"):
         tap("다음", title)
-        if title in ("템플릿 관리", "템플릿 메뉴 버튼", "수정과 삭제"):
-            mark({"템플릿 관리": "tutorial-37-template-list",
-                  "템플릿 메뉴 버튼": "tutorial-38-template-button",
-                  "수정과 삭제": "tutorial-39-template-menu"}[title])
-    tap("완료", "최근 촬영")
+        if title != "촬영 시작" and any(abs(a - b) > 4 for a, b in zip(bottom_buttons, guide_button_y())):
+            raise AssertionError("Home bottom guide buttons moved between explanations")
+        if title in ("템플릿 선택", "템플릿 메뉴", "템플릿 관리"):
+            mark({"템플릿 선택": "tutorial-37-template-list",
+                  "템플릿 메뉴": "tutorial-38-template-button",
+                  "템플릿 관리": "tutorial-39-template-menu"}[title])
+    tap("다음", "최근 촬영")
     # Previous crosses the group boundary, restoring its last explanation.
     tap("이전", "촬영 시작")
-    tap("완료", "최근 촬영")
+    tap("다음", "최근 촬영")
+    tap("닫기", "안내 진행도")
+    tap("이어서 보기", "최근 촬영")
     mark("tutorial-40-home-recent")
+    top_buttons = guide_button_y()
     tap("다음", "앨범 보기")
     mark("tutorial-41-home-album")
-    tap("완료", "표 편집")
+    if any(abs(a - b) > 4 for a, b in zip(top_buttons, guide_button_y())):
+        raise AssertionError("Recent photo and album guide positions differ")
+    tap("다음", "표 편집")
     tap("다음", "저장 정보")
     mark("tutorial-42-home-save-info")
     tap("다음", "앱 설정")
-    tap("닫기", "원하는 설명")
+    tap("완료", "홈 목차")
+    mark("tutorial-43-home-contents")
+    if contains(hierarchy(), "카메라"):
+        raise AssertionError("Home contents unexpectedly expands other areas")
+    tap("현재 템플릿", "현재 템플릿")
+    wait_for("목차")
+    tap("닫기", "안내 진행도")
     if not contains(hierarchy(), "완료"):
         raise AssertionError("Finished session status was not retained")
     adb("shell", "input", "keyevent", "4")
-    wait_for("알아보고 싶은 기능")
+    wait_for("궁금한 기능")
 
     open_session("카메라", "초점과 촬영도구", "배율 칩")
     touch_passive_screen()
