@@ -9,6 +9,7 @@ internal fun cameraGuideScenes(pageId: String): List<String> = when (pageId) {
     "undo" -> listOf("undo", "warning")
     "zoom" -> listOf("zoom", "pinch")
     "menu" -> listOf("menu")
+    "focus" -> listOf("focus", "manual-focus")
     "manual-focus" -> listOf("manual-focus")
     "flash" -> listOf("flash")
     "grid" -> listOf("grid")
@@ -48,7 +49,8 @@ internal fun cameraGuideSavedPage(sessionId: String, pageId: String): String = w
     }
     "tools" -> when (pageId) {
         "pinch" -> "zoom"
-        "menu" -> "manual-focus"
+        "menu" -> "menu"
+        "manual-focus" -> "focus"
         "flash" -> "flash"
         "table" -> "table"
         else -> pageId
