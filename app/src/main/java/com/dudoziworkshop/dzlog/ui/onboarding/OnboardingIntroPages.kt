@@ -62,16 +62,11 @@ internal fun OnboardingBrandIntro(heroHeight: Dp = 300.dp, compact: Boolean = fa
         // HomeMainTitle style used on other screens.
         Column(verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-            val titleSize = when {
-                maxWidth < 310.dp -> 26.sp
-                maxWidth < 365.dp -> 29.sp
-                else -> 31.sp
-            }
-            val titleStyle = DDZTypography.HomeMainTitle.copy(
+            val titleSize = if (maxWidth < 340.dp) 26.sp else OnboardingTextStyles.PageTitle.fontSize
+            val titleStyle = OnboardingTextStyles.PageTitle.copy(
                 fontSize = titleSize,
-                fontWeight = FontWeight.Bold,
-                lineHeight = titleSize * 1.18f,
-                letterSpacing = (-0.6).sp,
+                lineHeight = titleSize * (36f / 28f),
+                letterSpacing = (-0.4).sp,
             )
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
@@ -105,10 +100,7 @@ internal fun OnboardingFeatureIntro(previewHeight: Dp = 146.dp, compact: Boolean
     ) {
         Text(
             "사진에 기록을 더하고,\n정리까지 한 번에.",
-            style = DDZTypography.HomeMainTitle.copy(
-                fontSize = if (compact) 26.sp else 28.sp,
-                lineHeight = if (compact) 32.sp else 35.sp,
-            ),
+            style = OnboardingTextStyles.PageTitle.copy(fontSize = if (compact) 26.sp else 28.sp, lineHeight = if (compact) 34.sp else 36.sp),
             color = DDZColor.TextPrimary,
         )
         // Treat the three cards as a single visual group. Leave breathing room
