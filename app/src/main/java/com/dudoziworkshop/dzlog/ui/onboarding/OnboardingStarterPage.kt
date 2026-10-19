@@ -60,7 +60,7 @@ internal fun OnboardingStarterPage(
                 modifier = Modifier.padding(end = 2.dp),
             ) {
                 Text(
-                    "어떤 기록을 시작할까요?",
+                    "어떤 기록을\n시작할까요?",
                     style = OnboardingTextStyles.PageTitle.copy(fontSize = if (compact) 26.sp else 28.sp, lineHeight = if (compact) 34.sp else 36.sp),
                     color = DDZColor.TextPrimary,
                 )
