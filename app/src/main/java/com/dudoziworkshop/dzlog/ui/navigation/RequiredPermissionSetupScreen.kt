@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryMediaAccess
+import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingTextStyles
 import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingProgressHeader
 import com.dudoziworkshop.dzlog.ui.onboarding.OnboardingPermissionArtwork
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -79,9 +80,9 @@ internal fun RequiredPermissionSetupScreen(
         currentStep == RequiredSetupStep.PHOTOS &&
             (photoRequestAttempted || state.photos == GalleryMediaAccess.SELECTED_ONLY) ->
             "휴대폰 권한 설정 열기"
-        currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 설정"
-        currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
-        onboarding -> "권한 설정하기"
+        currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 허용하기"
+        currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 허용하기"
+        onboarding -> "저장 폴더 연결하기"
         else -> "DZlog 폴더 연결"
     }
 
@@ -105,8 +106,9 @@ internal fun RequiredPermissionSetupScreen(
             Text(
                 if (onboarding) "필요한 권한만 설정하고,\n바로 시작해요." else "필요한 권한을 확인해 주세요",
                 style = if (onboarding) typography.ScreenTitle.copy(
-                    fontSize = 23.sp,
-                    lineHeight = 29.sp,
+                    fontSize = OnboardingTextStyles.PageTitle.fontSize,
+                    lineHeight = OnboardingTextStyles.PageTitle.lineHeight,
+                    fontWeight = FontWeight.Bold,
                 ) else typography.ScreenTitle,
                 color = colors.TextPrimary,
             )
@@ -127,7 +129,8 @@ internal fun RequiredPermissionSetupScreen(
                     stepNumber = 3,
                 )
             }
-            if (!onboarding || cameraRequestAttempted || photoRequestAttempted) {
+            // Show permission purpose and next action BEFORE any request.
+            if (true) {
                 CurrentSetupGuide(
                     currentStep,
                     state.photos,
@@ -217,11 +220,9 @@ private fun OnboardingPermissionCard(
                     modifier = Modifier.size(22.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = DDZColor.TextPrimary, fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(title, color = DDZColor.TextPrimary, style = OnboardingTextStyles.CardTitle, maxLines = 1)
                 // At 140% font scaling let explanations wrap instead of truncating.
-                Text(detail, color = DDZColor.TextSecondary, fontSize = 12.sp,
-                    lineHeight = 17.sp)
+                Text(detail, color = DDZColor.TextSecondary, style = OnboardingTextStyles.CardDetail)
             }
             if (folderAction != null) {
                 Surface(
