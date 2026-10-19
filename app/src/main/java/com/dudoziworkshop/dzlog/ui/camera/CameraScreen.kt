@@ -296,7 +296,7 @@ fun CameraPreview(
     val tourProgress = LocalTutorialDemoProgress.current
     LaunchedEffect(tourLocation) {
         if (readOnlyTour) {
-            ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "feedback", "controls")
+            ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "sound", "haptic", "feedback", "controls")
             ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")
         }
     }
@@ -1064,11 +1064,11 @@ fun CameraPreview(
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
                 },
-                captureSoundEnabled = if (readOnlyTour && tourLocation?.pageId == "feedback") tourProgress >= 0.34f else appSettings.captureSoundEnabled,
+                captureSoundEnabled = if (readOnlyTour && tourLocation?.pageId == "sound") tourProgress >= 0.34f else appSettings.captureSoundEnabled,
                 onCaptureSoundChange = { checked ->
                     if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
                 },
-                captureHapticEnabled = if (readOnlyTour && tourLocation?.pageId == "feedback") tourProgress >= 0.67f else appSettings.captureHapticEnabled,
+                captureHapticEnabled = if (readOnlyTour && tourLocation?.pageId == "haptic") tourProgress >= 0.5f else appSettings.captureHapticEnabled,
                 onCaptureHapticChange = { checked ->
                     if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
