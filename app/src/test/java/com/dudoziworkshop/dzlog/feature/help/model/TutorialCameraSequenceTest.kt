@@ -24,12 +24,13 @@ class TutorialCameraSequenceTest {
         assertEquals("unknown", cameraGuideSavedPage("table", "unknown"))
     }
 
-    @Test fun cardMovesOnlyAtTheTwoApprovedBoundaries() {
-        val pages = DzlogTutorialSections.area("camera")!!.sessions.flatMap { it.guidePages() }
-        val positions = pages.map { cameraGuideAtBottom(it.id) }
-        assertEquals(2, positions.zipWithNext().count { (a, b) -> a != b })
-        assertTrue(positions.first())
-        assertTrue(positions.takeLast(4).all { it })
-        assertTrue(positions.drop(1).dropLast(4).none { it })
+    @Test fun cameraGuideStartsWithTopInformationAndThenTouchFocus() {
+        val sessions = DzlogTutorialSections.area("camera")!!.sessions
+        assertEquals(listOf("settings", "tools", "capture", "table"), sessions.map { it.id })
+        assertEquals("filename", sessions.first().steps.first().id)
+        assertEquals(listOf("focus", "zoom"), sessions[1].steps.take(2).map { it.id })
+        assertEquals(20, sessions.sumOf { it.steps.size })
+        assertTrue(cameraGuideAtBottom("filename"))
+        assertFalse(cameraGuideAtBottom("focus"))
     }
 }
