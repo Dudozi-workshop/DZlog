@@ -21,10 +21,10 @@ class DzlogTutorialSectionsTest {
     @Test fun cameraHasFourGroupsWithSettingsInScreenOrder() {
         val camera = DzlogTutorialSections.area("camera")!!
         assertEquals(listOf("settings", "tools", "capture", "table"), camera.sessions.map { it.id })
-        assertEquals(listOf("filename", "ratio", "quality", "capture-confirmation", "sound", "haptic", "controls"),
+        assertEquals(listOf("filename", "ratio", "quality", "capture-confirmation", "feedback", "controls"),
             camera.sessions.first().guidePages().map { it.id })
-        assertEquals(listOf(7, 7, 5, 12), camera.sessions.map { it.guidePages().size })
-        assertEquals(31, camera.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf(6, 7, 5, 12), camera.sessions.map { it.guidePages().size })
+        assertEquals(30, camera.sessions.sumOf { it.guidePages().size })
         val home = DzlogTutorialSections.area("home")!!
         // Home introduces destinations without opening their separate tutorials.
         assertEquals(listOf("main", "templates", "manage", "more", "counter", "start",
