@@ -4,7 +4,9 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.counter.planCounterNumber
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
-import java.text.SimpleDateFormat
+import com.dudoziworkshop.dzlog.domain.time.asCaptureTime
+import com.dudoziworkshop.dzlog.domain.time.resolveCaptureDate
+import com.dudoziworkshop.dzlog.domain.time.resolveCaptureMinute
 import java.util.Date
 import java.util.Locale
 
@@ -109,9 +111,12 @@ class TableResolver {
 
             TableCellDataType.DATE -> {
                 // DATE는 항상 현재(captureNow) 기준으로 표시한다.
-                val pattern = normalizeDatePattern(cell.formatPattern.ifBlank { config.dateFormat })
-                val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
-                val scopeToken = SimpleDateFormat("yyyyMMdd", Locale.US).format(captureNow)
+                val value = resolveCaptureDate(
+                    captureNow.asCaptureTime(config.locale),
+                    cell.formatPattern.ifBlank { config.dateFormat },
+                )
+                val resolved = value.display
+                val scopeToken = value.scopeToken
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
@@ -124,9 +129,9 @@ class TableResolver {
 
             TableCellDataType.TIME -> {
                 // TIME 정책: 파일명/저장경로/카운터 스코프 모두 분 단위 HHmm만 사용한다.
-                val pattern = "HHmm"
-                val resolved = SimpleDateFormat(pattern, config.locale).format(captureNow)
-                val scopeToken = SimpleDateFormat("HHmm", Locale.US).format(captureNow)
+                val value = resolveCaptureMinute(captureNow.asCaptureTime(config.locale))
+                val resolved = value.display
+                val scopeToken = value.scopeToken
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,
@@ -152,14 +157,6 @@ class TableResolver {
                     scopeToken = null
                 )
             }
-        }
-    }
-
-
-    private fun normalizeDatePattern(pattern: String): String {
-        return when (pattern) {
-            "yyyyMMdd", "yyMMdd", "MMdd" -> pattern
-            else -> "yyyyMMdd"
         }
     }
 
