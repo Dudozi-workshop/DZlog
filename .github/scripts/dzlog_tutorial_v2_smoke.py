@@ -84,15 +84,18 @@ def main():
     bottom_buttons = guide_button_y()
     mark("tutorial-30-next-info")
     for title, evidence in (("촬영 비율", "tutorial-25-aspect"),
-                            ("저장 양식과 확인", "tutorial-26-save-format"),
-                            ("소리와 조작", "tutorial-29-volume")):
+                            ("저장 방식", "tutorial-26-save-format"),
+                            ("촬영 후 확인 방식", "tutorial-27-preview-mode"),
+                            ("촬영 효과음", "tutorial-28-sound"),
+                            ("촬영 진동", "tutorial-28-haptic"),
+                            ("음량 버튼", "tutorial-29-volume")):
         tap("다음", title)
         time.sleep(3)
         mark(evidence)
         if any(abs(a - b) > 4 for a, b in zip(guide_button_y(), bottom_buttons)):
             raise AssertionError("Top settings guide controls shifted unexpectedly")
     tap("다음", "촬영도구 메뉴")
-    tap("이전", "소리와 조작")
+    tap("이전", "음량 버튼")
     back_to_index()
 
     open_session("카메라", "촬영 화면·도구", "촬영도구 메뉴")
@@ -129,7 +132,10 @@ def main():
         ("템플릿 변경", "tutorial-21-quick-template"),
         ("파일명 확인", "tutorial-21-quick-filename"),
         ("저장경로 확인", "tutorial-21-quick-path"),
-        ("셀 값과 형식 수정", "tutorial-21-quick-values"),
+        ("텍스트 입력", "tutorial-21-quick-text"),
+        ("숫자 입력", "tutorial-21-quick-number"),
+        ("날짜와 시간", "tutorial-21-quick-date"),
+        ("순환문구", "tutorial-21-quick-phrase"),
     ):
         tap("다음", title)
         time.sleep(3)
