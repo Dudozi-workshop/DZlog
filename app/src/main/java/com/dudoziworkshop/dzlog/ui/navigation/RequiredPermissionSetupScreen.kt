@@ -104,7 +104,7 @@ internal fun RequiredPermissionSetupScreen(
             verticalArrangement = Arrangement.spacedBy(if (onboarding) 10.dp else 14.dp),
         ) {
             Text(
-                if (onboarding) "필요한 권한만 설정하고,\n바로 시작해요." else "필요한 권한을 확인해 주세요",
+                if (onboarding) "필요한 권한을\n설정해 주세요." else "필요한 권한을 확인해 주세요",
                 style = if (onboarding) typography.ScreenTitle.copy(
                     fontSize = OnboardingTextStyles.PageTitle.fontSize,
                     lineHeight = OnboardingTextStyles.PageTitle.lineHeight,
@@ -204,45 +204,70 @@ private fun OnboardingPermissionCard(
     folderAction: (() -> Unit)? = null, working: Boolean = false,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(), color = Color(0xFFF5F2E9),
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFFF5F2E9),
         shape = RoundedCornerShape(15.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Box(Modifier.size(40.dp).background(iconColor, CircleShape),
-                contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = Color.White,
-                    modifier = Modifier.size(22.dp))
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = DDZColor.TextPrimary, style = OnboardingTextStyles.CardTitle, maxLines = 1)
-                // At 140% font scaling let explanations wrap instead of truncating.
-                Text(detail, color = DDZColor.TextSecondary, style = OnboardingTextStyles.CardDetail)
-            }
-            if (folderAction != null) {
-                Surface(
-                    modifier = Modifier.clickable(enabled = !working) { folderAction() },
-                    color = Color(0xFFFEFCF8),
-                    shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFAB8A70)),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+            ) {
+                Box(
+                    Modifier.size(34.dp).background(iconColor, CircleShape),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text("연결하기", modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp),
-                        fontSize = 11.5.sp, color = DDZColor.PrimaryDark,
-                        fontWeight = FontWeight.SemiBold)
+                    Icon(icon, contentDescription = null, tint = Color.White,
+                        modifier = Modifier.size(20.dp))
                 }
-            } else {
-                Surface(
-                    color = if (granted) Color(0xFFE1E8D6) else Color(0xFFF0E6DA),
-                    shape = RoundedCornerShape(22.dp),
-                ) {
-                    Text(status, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                        color = if (granted) Color(0xFF49643A) else DDZColor.PrimaryDark,
-                        fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(
+                    title,
+                    modifier = Modifier.weight(1f),
+                    color = DDZColor.TextPrimary,
+                    style = OnboardingTextStyles.CardTitle,
+                    maxLines = 2,
+                )
+                if (folderAction != null) {
+                    Surface(
+                        modifier = Modifier.clickable(enabled = !working) { folderAction() },
+                        color = Color(0xFFFEFCF8),
+                        shape = RoundedCornerShape(24.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFAB8A70)),
+                    ) {
+                        Text(
+                            "연결하기",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            fontSize = 12.sp,
+                            color = DDZColor.PrimaryDark,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else {
+                    Surface(
+                        color = if (granted) Color(0xFFE1E8D6) else Color(0xFFF0E6DA),
+                        shape = RoundedCornerShape(22.dp),
+                    ) {
+                        Text(
+                            status,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            color = if (granted) Color(0xFF49643A) else DDZColor.PrimaryDark,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
+            Text(
+                detail,
+                modifier = Modifier.fillMaxWidth(),
+                color = DDZColor.TextSecondary,
+                style = OnboardingTextStyles.CardDetail,
+            )
         }
     }
 }
