@@ -58,7 +58,17 @@ internal fun GalleryPhotoMoveConfirmation(
                     else "${sources.size}개 폴더에서 선택"
                 GalleryPathPreviewCard("현재 경로", currentPathLabel)
                 GalleryPathChangeArrow()
-                GalleryPathPreviewCard("이동 후 경로", galleryReadablePath(destinationPath))
+                val selectedOriginals = selected.any { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
+                val selectedResults = selected.any { !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) }
+                val willMoveOriginals = selectedOriginals || (includeOriginals == true && originals.isNotEmpty())
+                val afterPath = when {
+                    selectedResults && willMoveOriginals ->
+                        galleryReadablePath(destinationPath) + " (결과)\n" +
+                            galleryReadablePath(destinationPath.trimEnd('/') + "/original/") + " (원본)"
+                    willMoveOriginals -> galleryReadablePath(destinationPath.trimEnd('/') + "/original/")
+                    else -> galleryReadablePath(destinationPath)
+                }
+                GalleryPathPreviewCard("이동 후 경로", afterPath)
                 if (sources.size > 1) {
                     Text("선택한 사진 ${selected.size}장", style = typography.Caption,
                         color = colors.TextSecondary)
