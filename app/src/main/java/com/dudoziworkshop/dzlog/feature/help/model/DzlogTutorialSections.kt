@@ -74,9 +74,9 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("gallery", "앨범", listOf(
             from("gallery", "overview", "앨범 화면과 탐색", "home", "browse"),
-            from("gallery", "viewer", "사진 보기와 원본·결과", "viewer"),
-            from("gallery", "photos", "사진 선택·공유·삭제", "photos"),
             from("gallery", "folders", "폴더와 하위 폴더 관리", "folders"),
+            from("gallery", "photos", "사진 선택·공유·삭제", "photos"),
+            from("gallery", "viewer", "사진 보기와 원본·결과", "viewer"),
         )),
         TutorialArea("table-detail", "표 편집", listOf(
             from("table-detail", "overview", "표 상세 화면 구성", "sections"),
