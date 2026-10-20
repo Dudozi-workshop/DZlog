@@ -12,6 +12,7 @@ on:
       - integration/dzlog-20261010
       - feat/gallery-folder-guidance-popup
       - feat/interactive-tutorial-v1
+      - feat/tutorial-settings-v2-aligned
   workflow_dispatch:
     inputs:
       build_apk:
