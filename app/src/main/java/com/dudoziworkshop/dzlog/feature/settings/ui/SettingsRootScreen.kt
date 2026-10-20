@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.app.Activity
 import com.dudoziworkshop.dzlog.feature.table.policy.BillingEntitlementRuntime
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
@@ -107,6 +109,8 @@ fun SettingsRootScreen(
         return
     }
     var isQualityExpanded by remember { mutableStateOf(false) }
+    val guide = LocalTutorialLocation.current
+    androidx.compose.runtime.LaunchedEffect(guide) { if (guide != null) isQualityExpanded = guide.areaId == "settings" && guide.pageId == "quality" }
     var isQualitySaving by remember { mutableStateOf(false) }
     val version = remember(context) { buildAppVersionLabel(context) }
     val proTier by BillingEntitlementRuntime.tier.collectAsState()
@@ -211,7 +215,7 @@ fun SettingsRootScreen(
                         if (isQualityExpanded) {
                             SettingsDivider()
                             Column(
-                                modifier = Modifier.padding(vertical = 6.dp),
+                                modifier = Modifier.padding(vertical = 6.dp).tutorialTarget("settings.quality-options"),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 SETTINGS_QUALITY_ITEMS.forEach { item ->
@@ -521,6 +525,13 @@ private fun SettingsActionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .tutorialTarget(when (title) {
+                "권한 관리" -> "settings.permission"
+                "플로팅 보조 셔터" -> "settings.feedback"
+                "사진 품질" -> "settings.capture"
+                "작업 환경 내보내기" -> "settings.data"
+                else -> "settings.other.$title"
+            })
             .heightIn(min = 66.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),

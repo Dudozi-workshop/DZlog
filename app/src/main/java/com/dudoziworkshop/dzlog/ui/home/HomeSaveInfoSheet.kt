@@ -1,7 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.home
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,10 +29,7 @@ internal fun HomeSaveInfoSheet(
     onOpenSaveSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = DDZColor.Background,
-    ) {
+    HomeGuideSheet(onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,4 +55,22 @@ internal fun HomeSaveInfoSheet(
             )
         }
     }
+}
+
+/** Reuses the sheet content in the guide window so guide controls stay above it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HomeGuideSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    if (com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly.current) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+        ) {
+            androidx.compose.material3.Surface(
+                modifier = Modifier.fillMaxWidth().tutorialTarget("home.sheet"),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = DDZColor.Background,
+            ) { content() }
+        }
+    } else ModalBottomSheet(onDismissRequest = onDismiss, containerColor = DDZColor.Background) { content() }
 }

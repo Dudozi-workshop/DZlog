@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -85,8 +86,10 @@ internal fun CameraQuickAutoValueEditor(
         else -> Unit
     }
 
-    if (showOptions) {
+    val guideOptions = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId in listOf("quick-date", "quick-phrase") && LocalTutorialDemoProgress.current < 0.5f
+    if (showOptions || guideOptions) {
         DDZBottomSheet(
+            inlinePreview = guideOptions,
             title = if (cell.dataType == TableCellDataType.DATE) "날짜 형식 선택" else "순환문구 세트 선택",
             onDismiss = { showOptions = false },
         ) {

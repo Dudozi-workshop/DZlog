@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -48,6 +50,8 @@ internal fun CameraUndoPathWarningDialog(
     var disableWarning by remember { mutableStateOf(false) }
 
     DDZContentDialog(
+        inlinePreview = LocalTutorialReadOnly.current,
+        modifier = Modifier.tutorialTarget("camera.undo-warning"),
         title = "다른 폴더의 사진을 삭제할까요?",
         onDismiss = onCancel,
         content = {

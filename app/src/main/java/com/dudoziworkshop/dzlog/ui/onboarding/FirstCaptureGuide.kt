@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** The first camera walk-through never intercepts the shutter or changes saved data. */
 internal enum class FirstCaptureGuidePhase {
-    QUICK_EDIT, SHUTTER, SAVED, DISMISSED,
+    QUICK_EDIT, ZOOM_FOCUS, ZOOM_CHIP, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
 }
 
 internal data class FirstCaptureSavedResult(
@@ -59,7 +59,7 @@ internal fun FirstCaptureGuide(
                         FirstCaptureGuidePhase.QUICK_EDIT -> "첫 촬영 · 1/2"
                         FirstCaptureGuidePhase.SHUTTER -> "첫 촬영 · 2/2"
                         FirstCaptureGuidePhase.SAVED -> "첫 사진 저장 완료"
-                        FirstCaptureGuidePhase.DISMISSED -> ""
+                        else -> ""
                     },
                     style = DDZTypography.SettingLabel,
                     color = DDZColor.PrimaryDark,
@@ -76,7 +76,7 @@ internal fun FirstCaptureGuide(
                     FirstCaptureGuidePhase.SHUTTER ->
                         "준비되면 셔터를 눌러 촬영하세요. 저장이 성공한 뒤 결과를 알려드려요."
                     FirstCaptureGuidePhase.SAVED -> "실제 촬영한 사진이 저장됐어요."
-                    FirstCaptureGuidePhase.DISMISSED -> ""
+                    else -> ""
                 },
                 style = DDZTypography.Body,
                 color = DDZColor.TextPrimary,

@@ -34,6 +34,7 @@ internal fun TableEditorTemplatePicker(
     currentTemplateId: String?,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
+    tutorialDemo: Boolean = false,
 ) {
     DDZBottomSheet(title = "템플릿 교체", onDismiss = onDismiss) {
         Text(
@@ -47,7 +48,25 @@ internal fun TableEditorTemplatePicker(
             contentPadding = PaddingValues(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(templates.sortedByDescending { it.modifiedAt }, key = { it.id }) { template ->
+            if (tutorialDemo) {
+                items(listOf("기본 기록표", "예시 측정표")) { name ->
+                    DDZCard(contentPadding = PaddingValues(0.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("▦", color = DDZColor.TextSecondary, fontSize = 22.sp)
+                            Text(name, modifier = Modifier.weight(1f),
+                                color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold)
+                            if (name == "기본 기록표") {
+                                Icon(Icons.Default.Check, contentDescription = "편집 중",
+                                    tint = DDZColor.Primary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            } else items(templates.sortedByDescending { it.modifiedAt }, key = { it.id }) { template ->
                 DDZCard(contentPadding = PaddingValues(0.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth()
