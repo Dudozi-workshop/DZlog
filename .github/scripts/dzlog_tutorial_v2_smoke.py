@@ -238,7 +238,7 @@ def main():
     adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity", timeout=70)
     wait_for("촬영 시작")
     open_help()
-    open_session("카메라", "촬영 화면·도구", "화면 터치 초점")
+    open_session("카메라", "촬영 화면·도구", "초점")
     mark("tutorial-07-progress-after-relaunch")
     alive()
     print("PASS six areas; previous/next/completion; background and volume input blocked; preferences/media unchanged; progress survives relaunch", flush=True)
