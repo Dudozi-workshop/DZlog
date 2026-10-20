@@ -63,3 +63,13 @@
   non-null TableCellState map의 getOrPut으로 바꿔 기존 좌표가 있으면 최초 root를 유지한다.
 - 두 수정 뒤 Android/shared JVM·iOS core·UI 검사는 재실행 대기이며 PASS가 아니다.
   로컬은 Java 21/Gradle 도구가 없어 컴파일하지 못하며 CI에서 확인한다.
+
+### 다음 컴파일 단계 경계 수정
+
+7c99e9fc: iOS core 39408585742는 실제 컴파일/시뮬레이터 테스트 단계 성공. Android
+39408585847/UI 39408585689는 sharedUi 컴파일 실패로 실제 편집 조작 전 중단됐다.
+- 누락된 기존 RotatingPhraseSetCreationPolicy를 shared로 이동한다. 공개 범위 외 본문 동일.
+  기존 Android 정책 테스트는 같은 클래스를 계속 검사한다.
+- isImeVisible 및 DialogProperties.decorFitsSystemWindows는 Android actual로 보존한다.
+  iOS는 IME inset으로 표시 여부를 구하고 지원되는 공통 full-width DialogProperties를 사용한다.
+- 수정 후 재검사 전이며 전체 표 편집 흐름은 미검증이다. 동일 Draft #76 유지.

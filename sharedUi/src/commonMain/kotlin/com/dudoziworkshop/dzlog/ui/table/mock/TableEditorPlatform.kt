@@ -25,3 +25,10 @@ expect fun tableEditorNow(): CaptureTime
 
 fun editorDateExample(pattern: String): String =
     runCatching { formatCaptureTime(pattern, tableEditorNow()) }.getOrElse { "" }
+
+/** Keep Android keyboard visibility semantics behind the platform boundary. */
+@Composable
+expect fun tableEditorImeVisible(): Boolean
+
+/** Full-screen editor dialog; window decor flags exist only on Android. */
+expect fun tableEditorDialogProperties(): androidx.compose.ui.window.DialogProperties

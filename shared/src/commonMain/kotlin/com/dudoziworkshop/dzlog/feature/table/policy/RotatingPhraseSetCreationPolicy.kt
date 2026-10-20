@@ -9,7 +9,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
  * The newly created set must always start at its first phrase, regardless of
  * the progress or repeat interval from a previously selected set.
  */
-internal object RotatingPhraseSetCreationPolicy {
+object RotatingPhraseSetCreationPolicy {
     data class Result(
         val template: TableTemplateState,
         val selectedSetId: String,
