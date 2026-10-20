@@ -1,7 +1,5 @@
 package com.dudoziworkshop.dzlog.feature.help.ui
 
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,11 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.remember
-import com.dudoziworkshop.dzlog.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -39,31 +32,13 @@ internal object TutorialGallerySample {
 /** Bundled crops from the previously approved photo reference; tutorial only. */
 @Composable
 private fun SamplePicture(index: Int, modifier: Modifier = Modifier, result: Boolean = false) {
-    val context = LocalContext.current
-    // Photo-only rectangular regions of the previously approved source montage.
-    // Kept fully inside this read-only sample; never accesses the user's gallery.
-    val regions = listOf(
-        intArrayOf(804, 230, 141, 113), // dog outdoors
-        intArrayOf(988, 250, 121, 110), // coast
-        intArrayOf(806, 409, 128, 103), // coffee
-        intArrayOf(976, 427, 133, 93), // notebook
-        intArrayOf(534, 342, 61, 61), // dog portrait
-        intArrayOf(665, 339, 59, 61), // sleeping cat
-    )
-    val bitmap = remember(index) {
-        val source = BitmapFactory.decodeResource(context.resources, R.drawable.tutorial_dani_reference)
-        val region = regions[index % regions.size]
-        val scaleX = source.width / 1140f
-        val scaleY = source.height / 735f
-        val x = (region[0] * scaleX).toInt().coerceIn(0, source.width - 1)
-        val y = (region[1] * scaleY).toInt().coerceIn(0, source.height - 1)
-        val width = (region[2] * scaleX).toInt().coerceIn(1, source.width - x)
-        val height = (region[3] * scaleY).toInt().coerceIn(1, source.height - y)
-        android.graphics.Bitmap.createBitmap(source, x, y, width, height).asImageBitmap()
-    }
-    Box(modifier.background(Color(0xFFE8E2D6), RoundedCornerShape(8.dp))) {
-        Image(bitmap = bitmap, contentDescription = null,
-            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+    // Do not crop the promotional montage or read actual user gallery data.
+    // Individual original photo assets will be connected once verified.
+    Box(
+        modifier.background(Color(0xFFE8E2D6), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("원본 사진 준비 중", color = Color(0xFF806B59))
         if (result) {
             Text("DZlog  |  예시 기록", modifier = Modifier.align(Alignment.BottomStart)
                 .fillMaxWidth().background(Color(0xCCFFFFFF)).padding(6.dp),
@@ -162,7 +137,7 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
             ) {
                 Text(if (move) "사진 이동 예시" else "사진 삭제 예시",
                     fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
-                Text(if (move) "선택한 사진 1장 → 블루베리 관찰 폴더"
+                Text(if (move) "선택한 사진 1장 → 단이 사진 폴더"
                     else "선택한 사진 1장을 삭제하기 전 확인하는 단계입니다.",
                     color = Color(0xFF806B59))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
