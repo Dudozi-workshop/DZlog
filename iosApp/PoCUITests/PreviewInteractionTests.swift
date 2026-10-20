@@ -91,11 +91,12 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
     }
 
-    func testHomeTemplatePreviewSelectionAndBack() {
+    func testHomeTemplatePreviewSelectionAndBack() throws {
         app.launchArguments = ["--home-navigation"]
         app.launch()
-        XCTAssertTrue(homeTemplateButton().label.contains("기본 촬영"))
-        XCTAssertTrue(homeTemplateButton().label.contains("다음 촬영 번호 0001"))
+        XCTAssertTrue(homeTemplateButton().exists)
+        XCTAssertTrue(try screenContains("기본 촬영"))
+        XCTAssertTrue(try screenContains("다음 촬영 번호 0001"))
         XCTAssertTrue(text("아직 촬영한 사진이 없어요.").waitForExistence(timeout: 10))
         let home = XCTAttachment(screenshot: app.screenshot())
         home.name = "shared-home-empty"
@@ -112,14 +113,16 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
         tapButton("표 확대 보기 · 현장 기록")
         tapButton("이 템플릿 선택")
-        XCTAssertTrue(homeTemplateButton().label.contains("현장 기록"))
+        XCTAssertTrue(homeTemplateButton().exists)
+        XCTAssertTrue(try screenContains("현장 기록"))
         openHomeTemplates()
         XCTAssertTrue(app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "사용 중")).firstMatch
             .waitForExistence(timeout: 10))
         tapButton("뒤로가기")
-        XCTAssertTrue(homeTemplateButton().label.contains("현장 기록"))
-        XCTAssertTrue(homeTemplateButton().label.contains("다음 촬영 번호 0001"))
+        XCTAssertTrue(homeTemplateButton().exists)
+        XCTAssertTrue(try screenContains("현장 기록"))
+        XCTAssertTrue(try screenContains("다음 촬영 번호 0001"))
     }
 
     func testHorizontalGestureRevealsLastColumn() throws {
