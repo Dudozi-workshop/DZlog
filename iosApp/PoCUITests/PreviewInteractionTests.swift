@@ -59,7 +59,7 @@ final class PreviewInteractionTests: XCTestCase {
 
     func testCloseReopenSelectAndRetainSelection() {
         app.launch()
-        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertEqual(app.state, .runningForeground, "Shared preview host must be in foreground")
         let initial = XCTAttachment(screenshot: app.screenshot())
         initial.name = "template-preview-first-launch"
         initial.lifetime = .keepAlways
