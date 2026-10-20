@@ -103,7 +103,8 @@ internal fun LiveTutorialHost(
                     LocalTutorialTarget provides tutorialTarget(displayLocation, if (areaId == "camera") displayLocation.pageId else page.parentId),
                     LocalTutorialCardTopSpace provides (if (areaId == "camera" && !cameraGuideAtBottom(page.id))
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp),
-                    LocalTutorialCardBottomSpace provides (if (areaId == "camera" && cameraGuideAtBottom(page.id))
+                    LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
+                        (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete", "photos/move", "photos/delete")))
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
                     LocalTutorialReadOnly provides true,
                 ) { screen(displayLocation) }
