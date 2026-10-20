@@ -66,6 +66,8 @@ internal fun GalleryMoveDestinationPicker(
     movingFolderPath: String? = null,
 ) {
     var path by rememberSaveable(initialPath, movingFolderPath) { mutableStateOf(initialPath) }
+    var folderFilter by remember { mutableStateOf(GalleryFolderFilter.ALL) }
+    var folderSort by remember { mutableStateOf(GalleryFolderSort.NAME) }
     var physicalPaths by remember(path) { mutableStateOf<List<String>>(emptyList()) }
     var childLoading by remember(path) { mutableStateOf(true) }
     var childError by remember(path) { mutableStateOf<String?>(null) }
@@ -174,9 +176,34 @@ internal fun GalleryMoveDestinationPicker(
                         }) { Text("다시 시도") }
                     }
                 } else {
-                    item { GallerySectionTitle("하위 폴더") }
-                    if (folderChildren.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
-                    items(folderChildren, key = { it.relativePath }) { child ->
+                    if (path == GalleryFolderIndexPolicy.ROOT) {
+                        item { GallerySectionTitle("최근 촬영") }
+                        val recent = GalleryPhotoSort.NEWEST.sorted(allPhotos).take(9)
+                        if (recent.isEmpty()) {
+                            item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                        } else {
+                            item {
+                                androidx.compose.foundation.lazy.LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    items(recent, key = { it.id }) { photo ->
+                                        Box(Modifier.fillParentMaxWidth(0.31f).aspectRatio(1f)
+                                            .clip(RoundedCornerShape(10.dp))) {
+                                            DzThumbnail(photo.uri.toString())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item { GallerySectionTitle(if (path == GalleryFolderIndexPolicy.ROOT) "저장 폴더" else "하위 폴더") }
+                    if (path == GalleryFolderIndexPolicy.ROOT) {
+                        item { GalleryFolderFilterControls(folderFilter, folderSort, true,
+                            { folderFilter = it }, { folderSort = it }) }
+                    }
+                    val visibleFolders = filterGalleryFolders(folderChildren, emptyMap(), folderFilter, folderSort)
+                    if (visibleFolders.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
+                    items(visibleFolders, key = { it.relativePath }) { child ->
                         val cover = allPhotos.firstOrNull {
                             it.relativePath.startsWith(child.relativePath) &&
                                 !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath)
