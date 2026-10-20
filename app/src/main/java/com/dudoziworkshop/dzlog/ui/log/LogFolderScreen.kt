@@ -908,7 +908,6 @@ fun LogFolderScreen(
                 allPhotos = moveAllPhotos,
                 destinationPath = photoMoveTarget,
                 busy = photoMoveBusy,
-                onChangeDestination = { showMoveDestination = true },
                 onCancel = { showPhotoMove = false },
                 onConfirm = { prepared ->
                     showPhotoMove = false
@@ -994,7 +993,6 @@ fun LogFolderScreen(
                 renameName = renameName,
                 destinationPath = moveTarget,
                 onRenameNameChange = { renameName = it },
-                onChangeDestination = { folderOperationError = null },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
                 busy = folderManagementBusy,
                 error = folderOperationError,
@@ -1073,9 +1071,6 @@ fun LogFolderScreen(
                 renameName = renameName,
                 destinationPath = moveTarget,
                 onRenameNameChange = { renameName = it },
-                onChangeDestination = {
-                    showFolderMovePicker = true
-                },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
                 busy = folderManagementBusy,
                 error = folderOperationError,
