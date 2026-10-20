@@ -175,7 +175,7 @@ fun SettingsRootContent(
                             trailing = {
                                 Switch(
                                     checked = assistShutterEnabled,
-                                    onCheckedChange = ::onChangeAssistShutter,
+                                    onCheckedChange = onChangeAssistShutter,
                                     colors = SwitchDefaults.colors(
                                         checkedTrackColor = DDZColor.Selected,
                                         uncheckedTrackColor = DDZColor.Border,
