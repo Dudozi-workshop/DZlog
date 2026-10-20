@@ -149,9 +149,17 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("ios-sample_0001").exists)
     }
 
+    private func panelText(_ label: String) -> XCUIElement {
+        // Compose merges an icon/title/value into newline-separated AX labels.
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@ OR label ENDSWITH %@ OR label CONTAINS %@",
+            label, label + "\n", "\n" + label, "\n" + label + "\n"
+        )).firstMatch
+    }
+
     private func tapPanelText(_ label: String) {
-        let element = text(label)
-        XCTAssertTrue(element.waitForExistence(timeout: 10))
+        let element = panelText(label)
+        XCTAssertTrue(element.waitForExistence(timeout: 10), "Missing panel label: \(label)")
         let frame = element.frame
         XCTAssertFalse(frame.isEmpty)
         app.coordinate(withNormalizedOffset: .zero)
@@ -202,9 +210,11 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(try screenContains("iosqa"), "Typed text must appear in the existing editor")
         // Shared back policy closes the keyboard before changing tabs.
         tapButton("뒤로가기")
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "iosqa")).firstMatch.exists,
+                      "Edited contents must remain in the table after keyboard dismissal")
         tapPanelText("구조")
         XCTAssertFalse(text("3행과 4행 높이 조절").exists)
-        tapPanelText("행 추가")
+        tapButton("+\n행 추가")
         XCTAssertTrue(text("3행과 4행 높이 조절").waitForExistence(timeout: 10))
         tapButton("실행 취소")
         XCTAssertFalse(text("3행과 4행 높이 조절").exists)
@@ -214,7 +224,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("투명")
         XCTAssertFalse(text("배경 투명도").exists)
         tapPanelText("저장설정")
-        XCTAssertTrue(text("파일명").waitForExistence(timeout: 10))
+        XCTAssertTrue(panelText("파일명").waitForExistence(timeout: 10))
         tapPanelText("파일명")
         tapButton("+ 구성요소 추가")
         tapButton("직접입력")
