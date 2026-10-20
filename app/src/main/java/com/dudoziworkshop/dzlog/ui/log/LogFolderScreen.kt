@@ -179,7 +179,6 @@ fun LogFolderScreen(
     var folderMoveLoadError by remember { mutableStateOf<String?>(null) }
     var folderMoveLoadVersion by remember { mutableStateOf(0) }
     var folderMovePhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
-    var managementConfirmed by remember { mutableStateOf(false) }
     var folderOperationError by remember { mutableStateOf<String?>(null) }
     var connected by remember { mutableStateOf(folderStorage.isConnected()) }
     var showFolderAccessHelp by rememberSaveable { mutableStateOf(false) }
@@ -472,7 +471,6 @@ fun LogFolderScreen(
         }
         managedFolderPath = path
         folderOperationError = null
-        managementConfirmed = false
         renameName = path.trimEnd('/').substringAfterLast('/')
         moveTarget = GalleryFolderIndexPolicy.ROOT
         destinationPaths = emptyList()
@@ -995,7 +993,7 @@ fun LogFolderScreen(
                 sourcePath = managedFolderPath,
                 renameName = renameName,
                 destinationPath = moveTarget,
-                onRenameNameChange = { renameName = it; managementConfirmed = false },
+                onRenameNameChange = { renameName = it },
                 onChangeDestination = { folderOperationError = null },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
                 busy = folderManagementBusy,
@@ -1059,7 +1057,6 @@ fun LogFolderScreen(
                     if (valid) {
                         moveTarget = selectedPath
                         folderMoveHasChoice = true
-                        managementConfirmed = false
                         folderOperationError = null
                         showFolderMovePicker = false
                     } else {
@@ -1077,7 +1074,6 @@ fun LogFolderScreen(
                 destinationPath = moveTarget,
                 onRenameNameChange = { renameName = it },
                 onChangeDestination = {
-                    managementConfirmed = false
                     showFolderMovePicker = true
                 },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
