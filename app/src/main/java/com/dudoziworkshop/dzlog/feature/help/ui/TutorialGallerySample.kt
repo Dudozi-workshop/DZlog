@@ -95,6 +95,17 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
                 Text("공유")
             }
         }
+        if (location.pageId == "photos/move" || location.pageId == "photos/delete") {
+            val moving = location.pageId == "photos/move"
+            Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (moving) "사진 이동 확인" else "사진 삭제 확인",
+                    fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
+                Text(if (moving) "선택한 사진을 다른 폴더로 이동하는 방법을 안내해요."
+                    else "선택한 사진을 삭제하기 전 확인하는 화면이에요.", color = Color(0xFF806B59))
+                Text("취소                 확인 (안내용)", color = Color(0xFF4B3829))
+            }
+        }
         Text("이 화면은 기능 설명용 예시이며 실제 사진과 폴더에는 영향을 주지 않습니다.",
             color = Color(0xFF806B59))
     }
