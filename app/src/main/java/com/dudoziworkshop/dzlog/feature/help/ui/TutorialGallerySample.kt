@@ -150,20 +150,29 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
                     Text("공유")
                 }
             }
-            if (move || delete) {
-                Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(if (compact) 8.dp else 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(if (move) "사진 이동 확인" else "사진 삭제 확인",
-                        fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
-                    Text(if (move) "이동할 폴더: 블루베리 관찰" else "선택한 사진 1장을 삭제할까요?",
-                        color = Color(0xFF806B59))
-                    Text("취소                         확인 (안내용)", color = Color(0xFF4B3829))
-                }
-            }
             if (!compact) {
                 Text("안내용 화면입니다. 실제 사진과 폴더는 변경되지 않습니다.",
                     color = Color(0xFF806B59))
+            }
+        }
+        if (move || delete) {
+            Column(
+                Modifier.align(if (compact) Alignment.TopCenter else Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = if (compact) 48.dp else 56.dp)
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(if (move) "사진 이동 예시" else "사진 삭제 예시",
+                    fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
+                Text(if (move) "선택한 사진 1장 → 블루베리 관찰 폴더"
+                    else "선택한 사진 1장을 삭제하기 전 확인하는 단계입니다.",
+                    color = Color(0xFF806B59))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text("취소", color = Color(0xFF806B59), modifier = Modifier.padding(end = 24.dp))
+                    Text("확인 (예시)", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
