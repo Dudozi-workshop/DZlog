@@ -95,7 +95,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--home-navigation"]
         app.launch()
         XCTAssertTrue(homeTemplateButton().label.contains("기본 촬영"))
-        XCTAssertTrue(text("다음 촬영 번호 0001").waitForExistence(timeout: 10))
+        XCTAssertTrue(homeTemplateButton().label.contains("다음 촬영 번호 0001"))
         XCTAssertTrue(text("아직 촬영한 사진이 없어요.").waitForExistence(timeout: 10))
         let home = XCTAttachment(screenshot: app.screenshot())
         home.name = "shared-home-empty"
@@ -119,7 +119,7 @@ final class PreviewInteractionTests: XCTestCase {
             .waitForExistence(timeout: 10))
         tapButton("뒤로가기")
         XCTAssertTrue(homeTemplateButton().label.contains("현장 기록"))
-        XCTAssertTrue(text("다음 촬영 번호 0001").exists)
+        XCTAssertTrue(homeTemplateButton().label.contains("다음 촬영 번호 0001"))
     }
 
     func testHorizontalGestureRevealsLastColumn() throws {
