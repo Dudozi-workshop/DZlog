@@ -99,7 +99,12 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
               catch (_: Exception) { emptyList() }
         }
     }
-    // Always render the real gallery UI; an empty library is never replaced by a fictitious gallery.
+    // On a fresh install, show an isolated read-only sample instead of an empty tutorial.
+    // Existing photo libraries continue to use the actual DZlog gallery screens.
+    if (viewerPhotos.isEmpty() && location.pageId != "home") {
+        TutorialGallerySampleScreen(location)
+        return
+    }
     if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
         Box(Modifier.fillMaxSize()) {
             LogViewerScreen(relativePath = viewerPhotos.first().relativePath,
