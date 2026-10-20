@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - integration/dzlog-20261010
+    paths:
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/settings/**'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/settings/**'
+      - '.github/workflows/android-debug-apk.yml'
   push:
     branches:
       - feat/table-editor-v2-ux-mock
