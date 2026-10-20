@@ -81,6 +81,10 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("템플릿 목록")
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
+        let listScreen = XCTAttachment(screenshot: app.screenshot())
+        listScreen.name = "shared-template-list"
+        listScreen.lifetime = .keepAlways
+        add(listScreen)
         XCTAssertFalse(app.buttons["+ 새 템플릿"].exists, "PoC must not expose unavailable editing")
         tapButton("표 확대 보기 · 현장 기록")
         tapButton("닫기")
@@ -89,7 +93,9 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("이 템플릿 선택")
         XCTAssertTrue(text("선택한 템플릿 · 현장 기록").waitForExistence(timeout: 10))
         tapButton("템플릿 목록")
-        XCTAssertTrue(text("사용 중").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "사용 중")).firstMatch
+            .waitForExistence(timeout: 10))
         tapButton("뒤로가기")
         XCTAssertTrue(text("선택한 템플릿 · 현장 기록").waitForExistence(timeout: 10))
     }
