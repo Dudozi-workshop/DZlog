@@ -97,7 +97,10 @@ private fun dzlogFolderInitialUri(): Uri = DocumentsContract.buildTreeDocumentUr
 
 /** Actual grants, never a stored onboarding-completed flag, control access. */
 @Composable
-internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
+internal fun RequiredPermissionsGate(
+    onboarding: Boolean = false,
+    content: @Composable () -> Unit,
+) {
     val context = LocalContext.current
     val permissionState = rememberPermissionState()
     val state by permissionState
@@ -120,7 +123,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
         if (uri == null) {
             selectedFolderPath = null
             folderGuideNotice = "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
-            showFolderGuide = true
+            showFolderGuide = !onboarding
             return@rememberLauncherForActivityResult
         }
         connectingFolder = true
@@ -136,7 +139,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                     DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
                 }.getOrDefault("선택한 폴더")
                 folderGuideNotice = "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
-                showFolderGuide = true
+                showFolderGuide = !onboarding
             }
         }
     }
@@ -154,40 +157,17 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
         content()
         return
     }
-    val colors = LocalDDZColor.current
-    val typography = LocalDDZTypography.current
-    Surface(Modifier.fillMaxSize(), color = colors.Background) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            Text("DZlog", style = typography.ScreenTitle, color = colors.PrimaryDark)
-        }
-    }
-    if (!showFolderGuide) DDZContentDialog(
-        title = "필요한 설정을 완료해 주세요",
-        onDismiss = { context.activity()?.finish() },
-        properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = true),
-        content = {
-            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("처음 한 번만 아래 순서대로 설정하면 DZlog의 모든 기능을 사용할 수 있어요.", style = typography.Body, color = colors.TextSecondary)
-                PermissionStatusCards(state, currentStep)
-                PermissionCard(
-                    "폴더 관리",
-                    if (folderConnected) "연결됨" else "연결 필요",
-                    if (folderConnected) "Pictures / DZlog 폴더가 연결되어 있어요."
-                    else "DZlog 사용에 필요한 필수 폴더예요. 연결은 한 번만 하면 돼요.",
-                    active = currentStep == RequiredSetupStep.FOLDER,
-                    stepNumber = 3,
-                )
-                CurrentSetupGuide(currentStep, state.photos, cameraRequestAttempted, photoRequestAttempted)
-            }
-        },
-        actions = {
-            val buttonLabel = when {
-                connectingFolder -> "폴더 확인 중…"
-                currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 설정"
-                currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 권한 설정"
-                else -> "DZlog 폴더 연결"
-            }
-            DDZButton(buttonLabel, onClick = {
+    if (!showFolderGuide) {
+        RequiredPermissionSetupScreen(
+            onboarding = onboarding,
+            state = state,
+            folderConnected = folderConnected,
+            currentStep = currentStep,
+            cameraRequestAttempted = cameraRequestAttempted,
+            photoRequestAttempted = photoRequestAttempted,
+            notice = folderGuideNotice,
+            working = requesting || connectingFolder,
+            onAction = {
                 if (!requesting && !connectingFolder) {
                     when (currentStep) {
                         RequiredSetupStep.CAMERA -> if (cameraRequestAttempted) {
@@ -198,7 +178,8 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                             runCatching { requester.launch(arrayOf(Manifest.permission.CAMERA)) }
                                 .onFailure { requesting = false; openAppPermissionSettings(context) }
                         }
-                        RequiredSetupStep.PHOTOS -> if (photoRequestAttempted) {
+                        RequiredSetupStep.PHOTOS -> if (photoRequestAttempted ||
+                            state.photos == GalleryMediaAccess.SELECTED_ONLY) {
                             openAppPermissionSettings(context)
                         } else {
                             photoRequestAttempted = true
@@ -209,13 +190,23 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
                         RequiredSetupStep.FOLDER -> {
                             selectedFolderPath = null
                             folderGuideNotice = null
-                            showFolderGuide = true
+                            if (onboarding) {
+                                // Android's document picker opens directly from the
+                                // in-onboarding permission page (no extra DZlog dialog).
+                                runCatching { folderPicker.launch(dzlogFolderInitialUri()) }
+                                    .onFailure {
+                                        folderGuideNotice =
+                                            "폴더 선택 화면을 열지 못했어요. 다시 시도해 주세요."
+                                    }
+                            } else {
+                                showFolderGuide = true
+                            }
                         }
                     }
                 }
-            }, modifier = Modifier.fillMaxWidth(), enabled = !requesting && !connectingFolder)
-        },
-    )
+            },
+        )
+    }
     else {
         GalleryFolderAccessGuide(
             selectedPath = selectedFolderPath,
@@ -236,7 +227,7 @@ internal fun RequiredPermissionsGate(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun PermissionStatusCards(
+internal fun PermissionStatusCards(
     state: RequiredPermissionState,
     activeStep: RequiredSetupStep? = null,
 ) {
@@ -261,7 +252,7 @@ private fun PermissionStatusCards(
 }
 
 @Composable
-private fun PermissionCard(
+internal fun PermissionCard(
     title: String,
     status: String,
     detail: String,
@@ -292,7 +283,7 @@ private fun PermissionCard(
 }
 
 @Composable
-private fun CurrentSetupGuide(
+internal fun CurrentSetupGuide(
     step: RequiredSetupStep,
     photoAccess: GalleryMediaAccess,
     cameraRequestAttempted: Boolean,

@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.CatalogStartupRoute
-import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingInstallProbe
 import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingStarterCommitResult
 import com.dudoziworkshop.dzlog.feature.table.policy.commitFirstOnboardingStarter
 import com.dudoziworkshop.dzlog.feature.table.policy.inspectTableTemplateCatalogStartup
@@ -38,7 +37,11 @@ import kotlinx.coroutines.withContext
 
 /** Prevent the legacy default-template creation from running before startup eligibility is known. */
 @Composable
-fun OnboardingStartupGate() {
+fun OnboardingStartupGate(
+    startWithStarterSelection: Boolean = false,
+    offerOnboarding: Boolean = true,
+    onInitialSetupComplete: suspend (Boolean) -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var checkVersion by remember { mutableIntStateOf(0) }
@@ -52,12 +55,14 @@ fun OnboardingStartupGate() {
         route = null
         route = try {
             withContext(Dispatchers.IO) {
-                val existingImages = OnboardingInstallProbe.existingDzlogImagesOrNull(context)
+                // Stage is already known from noBackupFilesDir. Permissions are
+                // checked separately; no MediaStore scan is needed to route.
                 inspectTableTemplateCatalogStartup(
                     context = context,
-                    verifiedNoExistingMedia = existingImages == false,
-                    knownExistingMedia = existingImages == true,
-                    verifiedFreshInstall = OnboardingInstallProbe.isUnupdatedFirstInstall(context),
+                    verifiedNoExistingMedia = false,
+                    verifiedFreshInstall = offerOnboarding,
+                    requireVerifiedMediaForOnboarding = false,
+                    ignoreOtherSavedState = offerOnboarding,
                 )
             }
         } catch (e: CancellationException) {
@@ -69,7 +74,7 @@ fun OnboardingStartupGate() {
 
     when {
         finishedDestination != null -> AppRoot(startOnCamera = finishedDestination == true)
-        route == CatalogStartupRoute.OFFER_ONBOARDING -> {
+        offerOnboarding && route == CatalogStartupRoute.OFFER_ONBOARDING -> {
             fun apply(id: String, openCamera: Boolean) {
                 if (busy) return
                 busy = true
@@ -81,7 +86,11 @@ fun OnboardingStartupGate() {
                         when (result) {
                             is OnboardingStarterCommitResult.Created,
                             is OnboardingStarterCommitResult.AlreadyCompleted -> {
-                                finishedDestination = openCamera
+                                if (offerOnboarding) {
+                                    onInitialSetupComplete(openCamera)
+                                } else {
+                                    finishedDestination = openCamera
+                                }
                             }
                             else -> {
                                 Toast.makeText(context, "양식을 적용하지 못했습니다. 데이터를 확인해 주세요.",
@@ -100,8 +109,9 @@ fun OnboardingStartupGate() {
                 }
             }
             OnboardingFlowScreen(
-                busy = busy, onChoose = { apply(it, true) },
+                busy = busy, onChoose = { apply(it, false) },
                 onSkip = { apply(OnboardingStarterCatalog.DEFAULT_ID, false) },
+                startStep = if (startWithStarterSelection) 3 else 1,
             )
         }
         route == CatalogStartupRoute.RECOVERY_REQUIRED -> Column(
@@ -124,6 +134,32 @@ fun OnboardingStartupGate() {
             CircularProgressIndicator(color = DDZColor.Primary)
             Text("기록 정보를 확인하고 있어요", modifier = Modifier.padding(top = 16.dp),
                 color = DDZColor.TextSecondary)
+        }
+        offerOnboarding -> {
+            // A new install may restore older catalog/settings through Auto Backup.
+            // Show the introduction, then preserve restored data without a new starter.
+            LaunchedEffect(route) {
+                try {
+                    onInitialSetupComplete(false)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    Toast.makeText(
+                        context, "설정 완료 상태를 저장하지 못했어요. 다시 실행해 주세요.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    checkVersion++
+                }
+            }
+            Column(
+                Modifier.fillMaxSize().background(DDZColor.Background),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                CircularProgressIndicator(color = DDZColor.Primary)
+                Text("기존 기록을 준비하고 있어요", modifier = Modifier.padding(top = 16.dp),
+                    color = DDZColor.TextSecondary)
+            }
         }
         else -> AppRoot()
     }
