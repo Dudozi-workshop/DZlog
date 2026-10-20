@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.CatalogStartupRoute
+import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingInstallProbe
 import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingStarterCommitResult
 import com.dudoziworkshop.dzlog.feature.table.policy.commitFirstOnboardingStarter
 import com.dudoziworkshop.dzlog.feature.table.policy.inspectTableTemplateCatalogStartup
@@ -55,13 +56,17 @@ fun OnboardingStartupGate(
         route = null
         route = try {
             withContext(Dispatchers.IO) {
-                // Stage is already known from noBackupFilesDir. Permissions are
-                // checked separately; no MediaStore scan is needed to route.
+                // After permission setup, verify existing DZlog photos before
+                // offering the first starter. Unknown media state fails closed.
+                val existingImages = if (offerOnboarding) {
+                    OnboardingInstallProbe.existingDzlogImagesOrNull(context)
+                } else null
                 inspectTableTemplateCatalogStartup(
                     context = context,
-                    verifiedNoExistingMedia = false,
+                    verifiedNoExistingMedia = existingImages == false,
+                    knownExistingMedia = existingImages == true,
                     verifiedFreshInstall = offerOnboarding,
-                    requireVerifiedMediaForOnboarding = false,
+                    requireVerifiedMediaForOnboarding = offerOnboarding,
                     ignoreOtherSavedState = offerOnboarding,
                 )
             }
