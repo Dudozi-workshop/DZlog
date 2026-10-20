@@ -3,7 +3,7 @@ package com.dudoziworkshop.dzlog.ui.home
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-internal object HomeUiSpec {
+object HomeUiSpec {
     val HeaderHeight = 60.dp
     val HorizontalPaddingMin = 18.dp
     val HorizontalPaddingMax = 24.dp
@@ -50,7 +50,7 @@ internal object HomeUiSpec {
     val BottomContentPadding = 18.dp
 }
 
-internal object HomeAmbientSpec {
+object HomeAmbientSpec {
     // Single approved top-right shadow. The image and viewport scale independently.
     const val ViewportWidthFraction = 0.57f
     const val ViewportHeightFraction = 0.38f

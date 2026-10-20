@@ -29,13 +29,14 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 fun AlbumViewAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(10.dp)
     Row(
         modifier = modifier
             .clip(shape)
             .background(DDZColor.SurfaceSoft)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,

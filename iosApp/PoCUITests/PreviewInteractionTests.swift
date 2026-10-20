@@ -76,11 +76,32 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("선택한 템플릿 · 현장 기록").waitForExistence(timeout: 10))
     }
 
-    func testTemplateListPreviewSelectionAndBack() {
-        app.launchArguments = ["--template-navigation"]
-        app.launch()
-        tapButton("템플릿 목록")
+    private func homeTemplateButton() -> XCUIElement {
+        let element = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "템플릿 선택")).firstMatch
+        XCTAssertTrue(element.waitForExistence(timeout: 20))
+        XCTAssertFalse(element.frame.isEmpty)
+        XCTAssertTrue(app.frame.contains(element.frame))
+        return element
+    }
+
+    private func openHomeTemplates() {
+        let frame = homeTemplateButton().frame
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
+    }
+
+    func testHomeTemplatePreviewSelectionAndBack() {
+        app.launchArguments = ["--home-navigation"]
+        app.launch()
+        XCTAssertTrue(homeTemplateButton().label.contains("기본 촬영"))
+        XCTAssertTrue(text("다음 촬영 번호 0001").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("아직 촬영한 사진이 없어요.").waitForExistence(timeout: 10))
+        let home = XCTAttachment(screenshot: app.screenshot())
+        home.name = "shared-home-empty"
+        home.lifetime = .keepAlways
+        add(home)
+        openHomeTemplates()
         let listScreen = XCTAttachment(screenshot: app.screenshot())
         listScreen.name = "shared-template-list"
         listScreen.lifetime = .keepAlways
@@ -91,13 +112,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
         tapButton("표 확대 보기 · 현장 기록")
         tapButton("이 템플릿 선택")
-        XCTAssertTrue(text("선택한 템플릿 · 현장 기록").waitForExistence(timeout: 10))
-        tapButton("템플릿 목록")
+        XCTAssertTrue(homeTemplateButton().label.contains("현장 기록"))
+        openHomeTemplates()
         XCTAssertTrue(app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "사용 중")).firstMatch
             .waitForExistence(timeout: 10))
         tapButton("뒤로가기")
-        XCTAssertTrue(text("선택한 템플릿 · 현장 기록").waitForExistence(timeout: 10))
+        XCTAssertTrue(homeTemplateButton().label.contains("현장 기록"))
+        XCTAssertTrue(text("다음 촬영 번호 0001").exists)
     }
 
     func testHorizontalGestureRevealsLastColumn() throws {

@@ -27,6 +27,9 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
+        if (NSProcessInfo.processInfo.arguments.contains("--home-navigation")) {
+            HomeNavigationPoc(remember { previewFixture() })
+        } else {
         val template = remember {
             if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()
         }
@@ -59,6 +62,7 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
             onDismiss = { open = false },
             onSelect = { selected = true; open = false },
         )
+        }
     }
 }
 

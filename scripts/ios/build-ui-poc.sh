@@ -11,6 +11,7 @@ xcrun --sdk iphonesimulator swiftc -parse-as-library \
   -Xlinker -rpath -Xlinker @executable_path/Frameworks \
   "$repo_root/iosApp/PoCApp/AppDelegate.swift" -o "$app_dir/DZlogUiPoc"
 cp "$repo_root/iosApp/PoCApp/Info.plist" "$app_dir/Info.plist"
+cp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$app_dir/home_leaf_shadow_c.png"
 ditto "$framework_dir/DZlogUi.framework" "$app_dir/Frameworks/DZlogUi.framework"
 codesign --force --sign - "$app_dir/Frameworks/DZlogUi.framework"
 codesign --force --sign - "$app_dir"

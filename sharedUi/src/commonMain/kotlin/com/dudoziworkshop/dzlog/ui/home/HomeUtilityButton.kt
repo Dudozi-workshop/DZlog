@@ -27,9 +27,11 @@ internal fun HomeUtilityButton(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.heightIn(min = HomeUiSpec.UtilityButtonHeight),
         shape = RoundedCornerShape(HomeUiSpec.UtilityButtonRadius),
         colors = ButtonDefaults.buttonColors(
