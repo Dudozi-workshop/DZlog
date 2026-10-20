@@ -102,7 +102,10 @@ internal fun LiveTutorialHost(
                     LocalTutorialLocation provides displayLocation,
                     LocalTutorialTarget provides tutorialTarget(displayLocation, if (areaId == "camera") displayLocation.pageId else page.parentId),
                     LocalTutorialCardTopSpace provides (if (areaId == "camera" && !cameraGuideAtBottom(page.id))
-                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp),
+                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else if (areaId == "table-detail" && page.id in setOf("save/template-confirm", "save/decision"))
+                            with(density) { cardHeight.toDp() } + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else 0.dp),
                     LocalTutorialCardBottomSpace provides (if (areaId == "camera" && cameraGuideAtBottom(page.id))
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
                     LocalTutorialReadOnly provides true,
@@ -155,9 +158,9 @@ internal fun LiveTutorialHost(
                 }
             }
             areaId == "table-detail" -> when (sessionId) {
-                "overview", "structure", "style" -> topY
-                "save" -> if (page.id == "save/decision") topY else bottomY
-                "cells" -> if (page.id == "cells/types") topY else desiredY.coerceIn(topY, bottomY)
+                "overview" -> if (page.id == "sections/tabs") topY else bottomY
+                "structure", "style", "cells" -> topY
+                "save" -> if (page.id in setOf("save/template", "save/template-confirm", "save/decision")) topY else bottomY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
             areaId == "saving" -> when (sessionId) {
@@ -306,12 +309,16 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
             else -> "table.tabs"
         }
         "save" -> when (location.pageId) {
-            "save/decision" -> "guide.dialog"
+            "save/decision", "save/template-confirm", "save/template" -> "guide.dialog"
             "save/undo" -> "table.history.실행 취소"
             "save/redo" -> "table.history.다시 실행"
             else -> "table.save"
         }
-        "cells" -> if (location.pageId == "cells/types") "guide.dialog" else "table.panel"
+        "cells" -> when (location.pageId) {
+            "cells/types" -> "guide.dialog"
+            "cells" -> "table.preview"
+            else -> "table.cell-input"
+        }
         "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
         "style" -> when (location.pageId.substringAfter('/')) {
             "background" -> "table.style.배경"
