@@ -157,28 +157,39 @@ internal fun TutorialContentsScreen(area: TutorialArea, location: TutorialLocati
     BackHandler { if (otherAreas) otherAreas = false else onResume() }
     Scaffold(containerColor = DDZColor.Background, topBar = {
         DDZTopBar(title = if (otherAreas) "다른 안내 보기" else "${area.title} 목차",
-            onBack = { if (otherAreas) otherAreas = false else onResume() },
-            actions = { if (!otherAreas) TextButton(onClick = onResume) { Text("돌아가기", color = DDZColor.PrimaryDark) } })
+            onBack = { if (otherAreas) otherAreas = false else onResume() })
     }) { insets ->
-        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState())
+            .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (otherAreas) DzlogTutorialSections.areas.forEach { item ->
                 HelpCard(item.title, areaDescription(item.id), areaIcon(item.id), onClick = { otherAreas = false; onArea(item) })
             } else {
                 area.sessions.forEach { session ->
-                    var expanded by rememberSaveable(area.id, session.id) { mutableStateOf(true) }
-                    Surface(color = DDZColor.Surface, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, DDZColor.Border)) {
+                    var expanded by rememberSaveable(area.id, session.id, location.sessionId) {
+                        mutableStateOf(session.id == location.sessionId)
+                    }
+                    Surface(color = DDZColor.Surface, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, DDZColor.Border)) {
                         Column {
-                            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("${session.title} (${session.guidePages().size})", Modifier.weight(1f), style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
-                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, if (expanded) "접기" else "펼치기", tint = DDZColor.PrimaryDark)
+                            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }
+                                .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(session.title, Modifier.weight(1f), style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                                val viewedCount = session.guidePages().count { page ->
+                                    progress.viewed(TutorialLocation(area.id, session.id, page.id))
+                                }
+                                Text(if (progress.status(area.id, session.id) == "완료") "완료"
+                                    else "$viewedCount/${session.guidePages().size}",
+                                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    if (expanded) "접기" else "펼치기", tint = DDZColor.IconMuted, modifier = Modifier.size(20.dp))
                             }
                             if (expanded) session.guidePages().forEach { page ->
                                 val entry = TutorialLocation(area.id, session.id, page.id)
                                 val current = entry == location
                                 HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.5f))
                                 Surface(color = if (current) DDZColor.SelectedSoft else DDZColor.Surface) {
-                                    Row(Modifier.fillMaxWidth().clickable { onJump(entry) }.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.fillMaxWidth().clickable { onJump(entry) }
+                                        .padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text(page.title, Modifier.weight(1f), style = DDZTypography.Body, color = DDZColor.TextPrimary)
                                         when {
                                             current -> Text("현재", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
