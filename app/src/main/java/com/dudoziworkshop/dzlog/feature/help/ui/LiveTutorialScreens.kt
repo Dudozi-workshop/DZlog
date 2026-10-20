@@ -99,6 +99,11 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
               catch (_: Exception) { emptyList() }
         }
     }
+    // Destination browsing is always passive: do not expose or navigate the actual user folders.
+    if (location.pageId in setOf("photos/destination", "folders/destination")) {
+        TutorialGallerySampleScreen(location)
+        return
+    }
     // On a fresh install, show an isolated read-only sample instead of an empty tutorial.
     // Existing photo libraries continue to use the actual DZlog gallery screens.
     if (viewerPhotos.isEmpty() && location.pageId != "home") {
