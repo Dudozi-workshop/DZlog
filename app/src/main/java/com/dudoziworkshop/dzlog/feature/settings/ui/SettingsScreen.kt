@@ -20,7 +20,9 @@ fun SettingsScreen(
     var backupMode by remember { mutableStateOf<BackupScreenMode?>(null) }
     // index -> one of five module IDs -> index; intro reuses the read-only onboarding.
     var helpRoute by rememberSaveable { mutableStateOf<String?>(if (startWithHelp) "index" else null) }
-    if (helpRoute == "intro") {
+    if (helpRoute == "settings-v2") {
+        SettingsTutorialV2Screen(onBack = { helpRoute = "index" })
+    } else if (helpRoute == "intro") {
         OnboardingFlowScreen(
             busy = false,
             onChoose = {},
@@ -40,6 +42,7 @@ fun SettingsScreen(
             onBack = onBack,
             onOpenCredits = onOpenCredits,
             onOpenGuide = { helpRoute = "index" },
+            onOpenSettingsTour = { helpRoute = "settings-v2" },
             onOpenExport = { backupMode = BackupScreenMode.EXPORT },
             onOpenImport = { backupMode = BackupScreenMode.IMPORT },
         )
