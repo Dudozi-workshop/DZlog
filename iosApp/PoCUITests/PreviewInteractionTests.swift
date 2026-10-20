@@ -26,7 +26,9 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     private func button(_ label: String) -> XCUIElement {
-        let element = app.buttons[label]
+        // Overlay and underlying editor can both publish the same Back label.
+        // Taps use screen bounds; the visible overlay receives the actual touch.
+        let element = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
         XCTAssertTrue(element.waitForExistence(timeout: 20), "Missing button: \(label)")
         XCTAssertFalse(element.frame.isEmpty, "Button has no visible bounds: \(label)")
         // Native screen bounds check is a basic Safe Area sanity check, not full layout approval.
@@ -229,7 +231,23 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("+ 구성요소 추가")
         tapButton("직접입력")
         tapPanelText("값 없음")
-        tapPanelText("파일명 값")
+        XCTAssertTrue(text("직접 입력").waitForExistence(timeout: 10))
+        // An empty Compose field has no AX label in 1.7. Locate the unique visible
+        // input between this sheet's heading and preview, using its actual bounds.
+        let heading = text("직접 입력").frame
+        let previewHeading = text("미리보기").frame
+        XCTAssertFalse(heading.isEmpty)
+        XCTAssertFalse(previewHeading.isEmpty)
+        let filenameFields = app.buttons.matching(NSPredicate(format: "label == %@", ""))
+            .allElementsBoundByIndex.filter {
+                let frame = $0.frame
+                return !frame.isEmpty && frame.minY >= heading.maxY
+                    && frame.maxY <= previewHeading.minY && app.frame.contains(frame)
+            }
+        XCTAssertEqual(filenameFields.count, 1, "Expected one empty input in the manual filename sheet")
+        let filenameFrame = try XCTUnwrap(filenameFields.first).frame
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: filenameFrame.minX + filenameFrame.width * 0.25, dy: filenameFrame.midY)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         typeWithVisibleKeyboard("iosreview")
         tapButton("확인")
