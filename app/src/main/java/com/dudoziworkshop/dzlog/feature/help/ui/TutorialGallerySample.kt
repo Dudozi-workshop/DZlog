@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
 
 /** Purely visual teaching data. No files, folders, or MediaStore entries are created. */
 internal object TutorialGallerySample {
@@ -31,7 +32,10 @@ internal object TutorialGallerySample {
 }
 
 @Composable
-internal fun TutorialGallerySampleScreen(showViewer: Boolean) {
+internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
+    val showViewer = location.sessionId == "viewer"
+    val showSelection = location.sessionId == "photos"
+    val showFolders = location.sessionId == "folders"
     val photos = TutorialGallerySample.photos
     Column(
         Modifier.fillMaxSize().background(Color(0xFFF8F7F5)).padding(16.dp),
@@ -54,8 +58,20 @@ internal fun TutorialGallerySampleScreen(showViewer: Boolean) {
                 Text("공유")
             }
         } else {
-            Text("폴더  ·  " + TutorialGallerySample.folders.joinToString("  /  "),
-                color = Color(0xFF806B59))
+            if (showFolders) {
+                Column(Modifier.fillMaxWidth().tutorialTarget("gallery.breadcrumbs"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("전체 사진 / 블루베리 관찰", color = Color(0xFF806B59))
+                    TutorialGallerySample.folders.forEach { folder ->
+                        Text("▸  $folder", modifier = Modifier.fillMaxWidth()
+                            .background(Color(0xFFEEE9E2), RoundedCornerShape(8.dp)).padding(10.dp),
+                            color = Color(0xFF4B3829))
+                    }
+                }
+            } else {
+                Text("전체 / 최근 촬영 / 원본 / 결과", color = Color(0xFF806B59),
+                    modifier = Modifier.tutorialTarget("gallery.breadcrumbs"))
+            }
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.fillMaxWidth().weight(1f).tutorialTarget("gallery.content"),
@@ -66,8 +82,17 @@ internal fun TutorialGallerySampleScreen(showViewer: Boolean) {
                     Box(
                         Modifier.aspectRatio(1f).background(Color(0xFFE0E9DD), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center,
-                    ) { Text(label, color = Color(0xFF4B3829)) }
+                    ) { Text((if (showSelection) "☑  " else "") + label, color = Color(0xFF4B3829)) }
                 }
+            }
+        }
+        if (showSelection) {
+            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions"),
+                horizontalArrangement = Arrangement.SpaceEvenly) {
+                Text("선택 1개")
+                Text("이동")
+                Text("삭제")
+                Text("공유")
             }
         }
         Text("이 화면은 기능 설명용 예시이며 실제 사진과 폴더에는 영향을 주지 않습니다.",
