@@ -1,6 +1,10 @@
 package com.dudoziworkshop.dzlog.feature.help.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.dudoziworkshop.dzlog.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,16 +33,21 @@ internal object TutorialGallerySample {
     val folders = listOf("단이 사진", "여행 기록", "일상 기록")
 }
 
-/** Bundled crops from the previously approved photo reference; tutorial only. */
+/** Bundled onboarding photos; never reads user media or external storage. */
 @Composable
 private fun SamplePicture(index: Int, modifier: Modifier = Modifier, result: Boolean = false) {
-    // Do not crop the promotional montage or read actual user gallery data.
-    // Individual original photo assets will be connected once verified.
-    Box(
-        modifier.background(Color(0xFFE8E2D6), RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("원본 사진 준비 중", color = Color(0xFF806B59))
+    val images = listOf(
+        R.drawable.onboarding_gallery_photo,
+        R.drawable.onboarding_hero_photo,
+        R.drawable.onboarding_starter_photo,
+    )
+    Box(modifier.background(Color(0xFFE8E2D6), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+        Image(
+            painter = painterResource(images[index % images.size]),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
         if (result) {
             Text("DZlog  |  예시 기록", modifier = Modifier.align(Alignment.BottomStart)
                 .fillMaxWidth().background(Color(0xCCFFFFFF)).padding(6.dp),
