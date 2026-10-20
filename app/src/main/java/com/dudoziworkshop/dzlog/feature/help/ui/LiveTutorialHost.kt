@@ -141,6 +141,20 @@ internal fun LiveTutorialHost(
             areaId == "home" && page.id in setOf("start", "recent", "album", "table-settings", "save-info") -> topY
             areaId == "home" -> bottomY
             areaId == "camera" -> if (cameraGuideAtBottom(page.id)) bottomY else topY
+            areaId == "gallery" -> when (sessionId) {
+                "overview" -> if (page.parentId == "browse") bottomY else topY
+                "viewer", "photos" -> topY
+                else -> desiredY.coerceIn(topY, bottomY)
+            }
+            areaId == "table-detail" -> when (sessionId) {
+                "overview", "structure", "style" -> topY
+                "save" -> bottomY
+                else -> desiredY.coerceIn(topY, bottomY)
+            }
+            areaId == "saving" -> when (sessionId) {
+                "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
+                else -> desiredY.coerceIn(topY, bottomY)
+            }
             else -> desiredY.coerceIn(topY, bottomY)
         }
         if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
