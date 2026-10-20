@@ -100,7 +100,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
         }
     }
     if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
-        Box(Modifier.fillMaxSize().tutorialTarget("gallery.content")) {
+        Box(Modifier.fillMaxSize()) {
             LogViewerScreen(relativePath = viewerPhotos.first().relativePath,
                 items = viewerPhotos, startIndex = 0, onBack = {}, onItemsReloaded = {},
                 onRequestCloseViewer = {})
@@ -108,7 +108,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     } else {
         val folder = if (location.pageId == "browse") viewerPhotos.firstOrNull()?.relativePath
             ?: GalleryFolderIndexPolicy.ROOT else GalleryFolderIndexPolicy.ROOT
-        val target = if (location.pageId in setOf("photos/move", "photos/delete") && viewerPhotos.isEmpty()) "gallery.selection-actions"
+        val target = if (location.pageId in setOf("photos/move", "photos/delete") && viewerPhotos.isEmpty()) "gallery.content"
             else if (location.sessionId == "viewer" || (location.pageId == "browse" && folder == GalleryFolderIndexPolicy.ROOT))
             "gallery.content" else LocalTutorialTarget.current
         CompositionLocalProvider(LocalTutorialTarget provides target) {
