@@ -45,7 +45,6 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
-import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -126,7 +125,7 @@ internal fun GalleryMoveDestinationPicker(
     ) {
         // The footer is outside the scrolling content; system bars never overlap the action.
         Column(
-            Modifier.fillMaxSize().dzScreen()
+            Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = DDZSpacing.screenPadding),
         ) {
