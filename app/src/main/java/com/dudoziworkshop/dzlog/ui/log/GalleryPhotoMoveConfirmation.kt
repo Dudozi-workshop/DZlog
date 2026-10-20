@@ -30,7 +30,6 @@ internal fun GalleryPhotoMoveConfirmation(
     allPhotos: List<MediaImageItem>,
     destinationPath: String,
     busy: Boolean,
-    onChangeDestination: () -> Unit,
     onCancel: () -> Unit,
     onConfirm: (GalleryPhotoMovePlan) -> Unit,
 ) {
@@ -54,11 +53,7 @@ internal fun GalleryPhotoMoveConfirmation(
         onDismiss = { if (!busy) onCancel() },
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("이동 위치", modifier = Modifier.weight(1f),
-                        style = typography.SettingLabel, color = colors.TextPrimary)
-                    TextButton(enabled = !busy, onClick = onChangeDestination) { Text("위치 변경") }
-                }
+                Text("이동 위치", style = typography.SettingLabel, color = colors.TextPrimary)
                 GalleryFolderInfoCard(
                     name = destinationPath.trimEnd('/').substringAfterLast('/').ifBlank { "DZlog" },
                     detail = destinationPath.removePrefix(GalleryFolderIndexPolicy.ROOT)
