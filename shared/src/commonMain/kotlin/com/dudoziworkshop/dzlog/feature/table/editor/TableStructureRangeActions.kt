@@ -443,7 +443,7 @@ object TableStructureRangeActions {
             for (row in range.minRow..range.maxRow) {
                 for (col in range.minCol..range.maxCol) {
                     val coordinate = row to col
-                    rootByCoordinate.putIfAbsent(coordinate, candidate)
+                    rootByCoordinate.getOrPut(coordinate) { candidate }
                     if (coordinate != origin) {
                         covered += coordinate
                     }

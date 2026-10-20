@@ -51,3 +51,15 @@
   미검증이다. 표 편집 묶음의 구현과 자동 검증/사용자 검수 완료를 구분한다.
 - T2.2 전체 화면 연결은 진행 중으로 유지한다. 기존 온보딩/튜토리얼/출시 integration 및 보호 PR은
   건드리지 않고 같은 Draft #76에 누적한다. 사용자 요청대로 빌드 대기 없이 실행 링크를 전달한다.
+
+## 2026-10-20 빌드 실패 수정
+
+8df89a5의 Android 39407396840, iOS core 39407396835, UI 39407396899는 모두
+테스트 실행 전 공통 코드 컴파일에서 실패했다. 테스트 실패나 UI 검수 결과로 기록하지 않는다.
+
+- Android: common CellId.kt에 일반 함수를 추가하면서 jvmMain/CellId.kt와 CellIdKt JVM facade가
+  중복 생성됐다. 새 wrapper만 TableElementId.kt로 분리하고 UUID actual 구현/호출 정책은 유지한다.
+- iOS core/UI: 이동된 구조 엔진의 JVM Map.putIfAbsent가 common에서 해석되지 않았다.
+  non-null TableCellState map의 getOrPut으로 바꿔 기존 좌표가 있으면 최초 root를 유지한다.
+- 두 수정 뒤 Android/shared JVM·iOS core·UI 검사는 재실행 대기이며 PASS가 아니다.
+  로컬은 Java 21/Gradle 도구가 없어 컴파일하지 못하며 CI에서 확인한다.
