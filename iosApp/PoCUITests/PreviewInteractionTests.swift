@@ -174,6 +174,34 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(text("배경 투명도").exists, "Preserve the original transparent-background behavior")
     }
 
+    private func tapPanelText(_ label: String) {
+        let element = text(label)
+        XCTAssertTrue(element.waitForExistence(timeout: 10))
+        let frame = element.frame
+        XCTAssertFalse(frame.isEmpty)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+    }
+
+    func testStructurePanelDispatchAndLimits() {
+        app.launchArguments = ["--table-structure"]
+        app.launch()
+        tapPanelText("행 추가")
+        XCTAssertTrue(text("마지막 요청: 행 추가").waitForExistence(timeout: 10))
+        tapPanelText("행 삭제") // No selection: the existing panel must ignore this touch.
+        XCTAssertTrue(text("마지막 요청: 행 추가").exists)
+        tapButton("두 셀 선택")
+        tapPanelText("병합")
+        XCTAssertTrue(text("마지막 요청: 병합 전환").waitForExistence(timeout: 10))
+        tapButton("병합 셀 선택")
+        tapPanelText("병합 해제")
+        XCTAssertTrue(text("마지막 요청: 병합 전환").waitForExistence(timeout: 10))
+        tapButton("한계 상태 보기")
+        tapPanelText("최대 6행")
+        tapPanelText("최대 6열")
+        XCTAssertTrue(text("마지막 요청: 없음").exists, "Limit buttons must not dispatch additions")
+    }
+
     func testHorizontalGestureRevealsLastColumn() throws {
         app.launchArguments = ["--large-table"]
         app.launch()

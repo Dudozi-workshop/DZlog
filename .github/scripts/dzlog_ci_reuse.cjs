@@ -2,13 +2,35 @@ const { createHash } = require('node:crypto');
 
 const workflows = {
   android: 'dzlog-focused-tests.yml',
+  'android-unit': 'dzlog-focused-tests.yml',
   core: 'dzlog-shared-ios-compile.yml',
   ui: 'dzlog-ios-ui-poc.yml',
   framework: 'dzlog-ios-ui-poc.yml',
 };
 
+// Reviewed presentation leaves only. Unknown UI files and all adapters/policies remain unit inputs.
+const presentationLeaves = new Set([
+  'common/DDZButton.kt', 'common/DDZCard.kt', 'common/DDZDialog.kt', 'common/DDZIconButton.kt',
+  'common/DDZTopBar.kt', 'common/AlbumViewAction.kt', 'common/NextCaptureInfoFields.kt',
+  'home/HomeContent.kt', 'home/HomeAmbientContent.kt', 'home/HomeRecentCaptureContent.kt',
+  'home/HomeThreeZoneLayout.kt', 'home/HomeShadowBoundaryMask.kt', 'home/HomeUiSpec.kt',
+  'home/HomeUtilityButton.kt', 'home/HomeSaveInfoSheet.kt',
+  'theme/DDZColor.kt', 'theme/DDZLayout.kt', 'theme/DDZSpacing.kt',
+  'theme/DDZTypography.kt', 'theme/DDZTheme.kt',
+  'table/template/TableTemplateListContent.kt', 'table/template/TableTemplateReadOnlyPreviewDialog.kt',
+  'table/mock/TemplateMiniPreview.kt', 'table/mock/TableEditorStylePanel.kt',
+  'table/mock/TableEditorStructurePanel.kt',
+]);
+function presentationOnly(path) {
+  return ['app/src/main/java/', 'sharedUi/src/commonMain/kotlin/'].some(root => {
+    const prefix = root + 'com/dudoziworkshop/dzlog/ui/';
+    return path.startsWith(prefix) && presentationLeaves.has(path.slice(prefix.length));
+  });
+}
+
 function relevant(path, platform) {
   if (!workflows[platform]) throw new Error('Unknown validation platform');
+  if (platform === 'android-unit') return !presentationOnly(path) && relevant(path, 'android');
   if (path === 'README.md' || path.startsWith('docs/')) return false;
   if (path.startsWith('.github/')) {
     return path === `.github/workflows/${workflows[platform]}` ||
@@ -40,6 +62,9 @@ function fingerprint(tree, platform) {
 
 async function decide({ github, context, platform }) {
   const pr = context.payload.pull_request;
+  if (context.payload.action === 'ready_for_review') {
+    return { run: true, reason: 'Final PR review checkpoint: run full validation' };
+  }
   if (!pr || pr.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
     return { run: true, reason: 'Push, manual run, or external PR: run full validation' };
   }
@@ -69,13 +94,21 @@ async function decide({ github, context, platform }) {
     Date.now() - Date.parse(run.updated_at) >= 0 && Date.now() - Date.parse(run.updated_at) < 24 * 3600 * 1000 &&
     run.head_repository?.full_name === pr.head.repo.full_name &&
     run.pull_requests?.some(p => p.number === pr.number && p.base.sha === pr.base.sha)
-  ).slice(0, 5);
+  ).slice(0, platform === 'android-unit' ? 20 : 5);
   for (const run of candidates) {
     if (fingerprint(await tree(run.head_sha), platform) !== hash) continue;
+    if (platform === 'android-unit') {
+      // A green compile-only/reused job is not evidence that the full suite actually ran.
+      const jobs = await github.rest.actions.listJobsForWorkflowRun({ ...args, run_id: run.id, per_page: 100 });
+      if (!jobs.data.jobs.some(job => job.conclusion === 'success' && job.steps?.some(step =>
+        step.name === 'Complete Android unit suite (no partial selection)' && step.conclusion === 'success'))) continue;
+    }
     const previous = await github.rest.repos.compareCommitsWithBasehead({ ...args, basehead: `${pr.base.sha}...${run.head_sha}` });
     if (previous.data.merge_base_commit?.sha !== pr.base.sha) continue;
     return { run: false, framework, hash, previous: run.html_url, previousHead: run.head_sha,
-      reason: 'Same validated inputs, same PR and base; no tests executed in this run' };
+      reason: platform === 'android-unit'
+        ? 'Only reviewed presentation inputs differ; compile current Android, reuse actual prior full-suite evidence; no unit tests executed in this run'
+        : 'Same validated inputs, same PR and base; no tests executed in this run' };
   }
   return { run: true, framework, hash, reason: 'No successful run with identical inputs: run full validation' };
 }

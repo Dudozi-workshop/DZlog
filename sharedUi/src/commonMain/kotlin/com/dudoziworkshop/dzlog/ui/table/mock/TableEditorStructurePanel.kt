@@ -32,7 +32,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @Composable
-internal fun MockLayoutPanel(
+fun MockLayoutPanel(
     modifier: Modifier = Modifier,
     selectedCount: Int,
     rows: Int,
@@ -106,5 +106,5 @@ private fun StructureActionButton(
     }
 }
 // Four action rows, four 4dp gaps, one divider and 8dp top/bottom padding.
-internal fun structureActionHeight(fontScale: Float) = (44f * fontScale.coerceAtLeast(1f)).dp
-internal fun structurePanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 4 + 33.dp
+fun structureActionHeight(fontScale: Float) = (44f * fontScale.coerceAtLeast(1f)).dp
+fun structurePanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 4 + 33.dp
