@@ -99,11 +99,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
               catch (_: Exception) { emptyList() }
         }
     }
-    // Empty installations use a self-contained illustration, never seeded MediaStore data.
-    if (viewerPhotos.isEmpty() && location.pageId != "home") {
-        TutorialGallerySampleScreen(location)
-        return
-    }
+    // Always render the real gallery UI; an empty library is never replaced by a fictitious gallery.
     if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
         Box(Modifier.fillMaxSize()) {
             LogViewerScreen(relativePath = viewerPhotos.first().relativePath,
