@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.background
@@ -258,7 +260,7 @@ internal fun TableEditorCellUiModelEditor(
         }
     }
 
-    if (showTypePicker) {
+    if (showTypePicker || (LocalTutorialLocation.current?.areaId == "table-detail" && LocalTutorialLocation.current?.pageId == "cells/types")) {
         TableEditorCellTypeSheet(
             selectedType = cell.type,
             onSelect = { type ->
