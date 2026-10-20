@@ -149,52 +149,179 @@ private fun HelpCard(title: String, subtitle: String, icon: ImageVector, status:
     }
 }
 
-/** Current area only; another area is an explicit secondary choice. */
+/** Shared tutorial contents: compact sessions, progress and explicit restart/resume. */
 @Composable
-internal fun TutorialContentsScreen(area: TutorialArea, location: TutorialLocation, progress: TutorialProgressStore,
-    onResume: () -> Unit, onJump: (TutorialLocation) -> Unit, onArea: (TutorialArea) -> Unit) {
+internal fun TutorialContentsScreen(
+    area: TutorialArea,
+    location: TutorialLocation,
+    progress: TutorialProgressStore,
+    onResume: () -> Unit,
+    onJump: (TutorialLocation) -> Unit,
+    onArea: (TutorialArea) -> Unit,
+) {
     var otherAreas by rememberSaveable { mutableStateOf(false) }
     BackHandler { if (otherAreas) otherAreas = false else onResume() }
+    val total = area.sessions.sumOf { it.guidePages().size }.coerceAtLeast(1)
+    val viewed = area.sessions.sumOf { session ->
+        session.guidePages().count { page ->
+            progress.viewed(TutorialLocation(area.id, session.id, page.id))
+        }
+    }
     Scaffold(containerColor = DDZColor.Background, topBar = {
-        DDZTopBar(title = if (otherAreas) "다른 안내 보기" else "${area.title} 목차",
-            onBack = { if (otherAreas) otherAreas = false else onResume() })
+        DDZTopBar(
+            title = if (otherAreas) "다른 안내 보기" else "${area.title} 목차",
+            onBack = { if (otherAreas) otherAreas = false else onResume() },
+        )
     }) { insets ->
-        Column(Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState())
-            .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (otherAreas) DzlogTutorialSections.areas.forEach { item ->
-                HelpCard(item.title, areaDescription(item.id), areaIcon(item.id), onClick = { otherAreas = false; onArea(item) })
+        Column(
+            Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState())
+                .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (otherAreas) {
+                DzlogTutorialSections.areas.forEach { item ->
+                    HelpCard(
+                        item.title, areaDescription(item.id), areaIcon(item.id),
+                        onClick = { otherAreas = false; onArea(item) },
+                    )
+                }
             } else {
+                Surface(
+                    color = DDZColor.SurfaceSoft,
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${area.title} 기능 살펴보기",
+                                Modifier.weight(1f), style = DDZTypography.SettingLabel,
+                                color = DDZColor.TextPrimary,
+                            )
+                            Text(
+                                "$viewed / $total",
+                                style = DDZTypography.Caption, color = DDZColor.PrimaryDark,
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { viewed.toFloat() / total },
+                            modifier = Modifier.fillMaxWidth().height(5.dp),
+                            color = DDZColor.PrimaryDark,
+                            trackColor = DDZColor.SelectedSoft,
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val first = area.sessions.first()
+                                    progress.start(area)
+                                    onJump(TutorialLocation(area.id, first.id, first.guidePages().first().id))
+                                },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            ) {
+                                Text("처음부터 진행")
+                            }
+                            Button(
+                                onClick = { onJump(progress.resume(area)) },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
+                            ) {
+                                Text("이어서 진행")
+                            }
+                        }
+                    }
+                }
+                Text(
+                    "세션 ${area.sessions.size}개 · 원하는 설명을 선택하세요.",
+                    modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                    style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                )
                 area.sessions.forEach { session ->
                     var expanded by rememberSaveable(area.id, session.id, location.sessionId) {
                         mutableStateOf(session.id == location.sessionId)
                     }
-                    Surface(color = DDZColor.Surface, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, DDZColor.Border)) {
+                    val pages = session.guidePages()
+                    val seen = pages.count { page ->
+                        progress.viewed(TutorialLocation(area.id, session.id, page.id))
+                    }
+                    val currentSession = session.id == location.sessionId
+                    Surface(
+                        color = DDZColor.Surface,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (currentSession) DDZColor.PrimaryDark else DDZColor.Border,
+                        ),
+                    ) {
                         Column {
-                            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }
-                                .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(session.title, Modifier.weight(1f), style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
-                                val viewedCount = session.guidePages().count { page ->
-                                    progress.viewed(TutorialLocation(area.id, session.id, page.id))
+                            Row(
+                                Modifier.fillMaxWidth().clickable { expanded = !expanded }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (currentSession) {
+                                    Icon(
+                                        Icons.Default.PlayArrow, contentDescription = null,
+                                        tint = DDZColor.PrimaryDark,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                } else if (progress.status(area.id, session.id) == "완료") {
+                                    Icon(
+                                        Icons.Default.CheckCircle, contentDescription = null,
+                                        tint = DDZColor.PrimaryDark,
+                                        modifier = Modifier.size(20.dp),
+                                    )
                                 }
-                                Text(if (progress.status(area.id, session.id) == "완료") "완료"
-                                    else "$viewedCount/${session.guidePages().size}",
-                                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    if (expanded) "접기" else "펼치기", tint = DDZColor.IconMuted, modifier = Modifier.size(20.dp))
+                                Text(
+                                    session.title, Modifier.weight(1f),
+                                    style = DDZTypography.SettingLabel,
+                                    color = DDZColor.TextPrimary,
+                                )
+                                Text(
+                                    if (progress.status(area.id, session.id) == "완료") "완료"
+                                    else "$seen/${pages.size}",
+                                    style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                                )
+                                Icon(
+                                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = if (expanded) "접기" else "펼치기",
+                                    tint = DDZColor.IconMuted, modifier = Modifier.size(20.dp),
+                                )
                             }
-                            if (expanded) session.guidePages().forEach { page ->
+                            if (expanded) pages.forEach { page ->
                                 val entry = TutorialLocation(area.id, session.id, page.id)
                                 val current = entry == location
                                 HorizontalDivider(color = DDZColor.Border.copy(alpha = 0.5f))
                                 Surface(color = if (current) DDZColor.SelectedSoft else DDZColor.Surface) {
-                                    Row(Modifier.fillMaxWidth().clickable { onJump(entry) }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(page.title, Modifier.weight(1f), style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                                    Row(
+                                        Modifier.fillMaxWidth().clickable { onJump(entry) }
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            page.title, Modifier.weight(1f),
+                                            style = DDZTypography.Body,
+                                            color = if (current) DDZColor.PrimaryDark else DDZColor.TextPrimary,
+                                        )
                                         when {
-                                            current -> Text("현재", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
-                                            progress.viewed(entry) -> Icon(Icons.Default.Check, "확인한 설명", tint = DDZColor.PrimaryDark)
-                                            else -> Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted)
+                                            current -> Text(
+                                                "현재", style = DDZTypography.Caption,
+                                                color = DDZColor.PrimaryDark,
+                                            )
+                                            progress.viewed(entry) -> Icon(
+                                                Icons.Default.Check, "확인한 설명",
+                                                tint = DDZColor.PrimaryDark,
+                                            )
+                                            else -> Icon(
+                                                Icons.Default.ChevronRight, null,
+                                                tint = DDZColor.IconMuted,
+                                            )
                                         }
                                     }
                                 }
@@ -202,7 +329,12 @@ internal fun TutorialContentsScreen(area: TutorialArea, location: TutorialLocati
                         }
                     }
                 }
-                TextButton(onClick = { otherAreas = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("다른 안내 보기", color = DDZColor.PrimaryDark) }
+                TextButton(
+                    onClick = { otherAreas = true },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) {
+                    Text("다른 안내 보기", color = DDZColor.PrimaryDark)
+                }
             }
         }
     }
