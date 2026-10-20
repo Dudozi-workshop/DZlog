@@ -6,6 +6,7 @@ internal data class TutorialSession(
     val id: String,
     val title: String,
     val steps: List<TutorialStep>,
+    val pageOrder: List<String> = emptyList(),
 )
 
 internal object DzlogTutorialSections {
@@ -83,7 +84,9 @@ internal object DzlogTutorialSections {
             from("table-detail", "cells", "셀 내용과 입력 유형", "cells"),
             from("table-detail", "structure", "행·열과 병합 구조", "structure"),
             from("table-detail", "style", "스타일과 배치", "style"),
-            from("table-detail", "save", "저장·취소와 실행 취소", "save"),
+            from("table-detail", "save", "저장과 종료", "save").copy(
+                pageOrder = listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision")
+            ),
         )),
         TutorialArea("saving", "저장설정", listOf(
             from("saving", "filename", "파일명 구성", "overview", "filename"),
@@ -116,9 +119,14 @@ internal object DzlogTutorialSections {
 
 /** Stable page IDs keep saved positions independent of display wording. */
 internal data class TutorialGuidePage(val id: String, val parentId: String, val title: String, val instruction: String)
-internal fun TutorialSession.guidePages(): List<TutorialGuidePage> = steps.flatMap { step ->
-    listOf(TutorialGuidePage(step.id, step.id, step.title, step.instruction)) +
-        step.scenes.map { TutorialGuidePage("${step.id}/${it.id}", step.id, it.title, it.instruction) }
+internal fun TutorialSession.guidePages(): List<TutorialGuidePage> {
+    val pages = steps.flatMap { step ->
+        listOf(TutorialGuidePage(step.id, step.id, step.title, step.instruction)) +
+            step.scenes.map { TutorialGuidePage("${step.id}/${it.id}", step.id, it.title, it.instruction) }
+    }
+    if (pageOrder.isEmpty()) return pages
+    val order = pageOrder.withIndex().associate { it.value to it.index }
+    return pages.sortedBy { order[it.id] ?: Int.MAX_VALUE }
 }
 internal data class TutorialLocation(val areaId: String, val sessionId: String, val pageId: String = "")
 internal fun tutorialPageIndex(pages: List<TutorialGuidePage>, savedId: String): Int =

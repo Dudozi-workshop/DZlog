@@ -168,7 +168,8 @@ internal fun LiveTutorialHost(
             }
             areaId == "table-detail" -> when (sessionId) {
                 "overview", "structure", "style" -> topY
-                "save" -> bottomY
+                "save" -> if (page.id == "save/decision") topY else bottomY
+                "cells" -> if (page.id == "cells/types") topY else desiredY.coerceIn(topY, bottomY)
                 else -> desiredY.coerceIn(topY, bottomY)
             }
             areaId == "saving" -> when (sessionId) {
@@ -309,13 +310,18 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     }
     "table-detail" -> when (location.sessionId) {
-        "overview" -> "table.tabs"
+        "overview" -> when (location.pageId) {
+            "sections" -> "table.preview"
+            "sections/template" -> "table.template"
+            else -> "table.tabs"
+        }
         "save" -> when (location.pageId) {
             "save/decision" -> "guide.dialog"
             "save/undo" -> "table.history.실행 취소"
             "save/redo" -> "table.history.다시 실행"
             else -> "table.save"
         }
+        "cells" -> if (location.pageId == "cells/types") "guide.dialog" else "table.panel"
         "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
         "style" -> when (location.pageId.substringAfter('/')) {
             "background" -> "table.style.배경"
