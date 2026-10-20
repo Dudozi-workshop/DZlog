@@ -53,12 +53,16 @@ internal fun GalleryPhotoMoveConfirmation(
         onDismiss = { if (!busy) onCancel() },
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
-                Text("이동 위치", style = typography.SettingLabel, color = colors.TextPrimary)
-                GalleryFolderInfoCard(
-                    name = destinationPath.trimEnd('/').substringAfterLast('/').ifBlank { "DZlog" },
-                    detail = destinationPath.removePrefix(GalleryFolderIndexPolicy.ROOT)
-                        .trimEnd('/').ifBlank { "DZlog" },
-                )
+                val sources = selected.map { galleryReadablePath(it.relativePath) }.distinct()
+                val currentPathLabel = if (sources.size == 1) sources.single()
+                    else "${sources.size}개 폴더에서 선택"
+                GalleryPathPreviewCard("현재 경로", currentPathLabel)
+                GalleryPathChangeArrow()
+                GalleryPathPreviewCard("이동 후 경로", galleryReadablePath(destinationPath))
+                if (sources.size > 1) {
+                    Text("선택한 사진 ${selected.size}장", style = typography.Caption,
+                        color = colors.TextSecondary)
+                }
                 if (!showFinal) {
                     Text("원본사진 ${originals.size}장도 함께 이동할까요?",
                         style = typography.Body, color = colors.TextSecondary)
