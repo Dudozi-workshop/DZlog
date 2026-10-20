@@ -72,6 +72,26 @@ class OnboardingCatalogStartupPolicyTest {
     }
 
     @Test
+    fun `post permission media verification refuses uncertain and existing photos`() {
+        fun route(noMedia: Boolean, existing: Boolean) = decideCatalogStartupRoute(
+            catalogJson = null,
+            legacyJson = null,
+            hasOtherSavedState = false,
+            verifiedNoExistingMedia = noMedia,
+            verifiedFreshInstall = true,
+            knownExistingMedia = existing,
+            requireVerifiedMediaForOnboarding = true,
+        )
+        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED, route(false, false))
+        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING, route(false, true))
+        assertEquals(CatalogStartupRoute.OFFER_ONBOARDING, route(true, false))
+        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
+            decideCatalogStartupRoute(null, null, false, true,
+                verifiedFreshInstall = false,
+                requireVerifiedMediaForOnboarding = true))
+    }
+
+    @Test
     fun `partially decoded and duplicate catalogs require recovery instead of overwrite`() {
         val partlyCorrupt = validCatalog.dropLast(1) + ",{}]"
         assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
