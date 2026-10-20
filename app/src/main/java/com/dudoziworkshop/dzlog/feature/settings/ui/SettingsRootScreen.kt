@@ -88,6 +88,7 @@ fun SettingsRootScreen(
     onBack: () -> Unit,
     onOpenCredits: () -> Unit = {},
     onOpenGuide: () -> Unit = {},
+    onOpenSettingsTour: () -> Unit = {},
     onOpenExport: () -> Unit = {},
     onOpenImport: () -> Unit = {},
 ) {
@@ -357,6 +358,14 @@ fun SettingsRootScreen(
                             title = "사용법 및 도움말",
                             subtitle = "처음 사용법 · 기능별 튜토리얼",
                             onClick = onOpenGuide,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.HelpOutline,
+                            title = "전체 설정 둘러보기",
+                            subtitle = "실제 설정을 변경하지 않는 단계별 안내",
+                            onClick = onOpenSettingsTour,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
                         )
                         SettingsDivider()
