@@ -22,7 +22,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** The first camera walk-through never intercepts the shutter or changes saved data. */
-internal enum class FirstCaptureGuidePhase {
+enum class FirstCaptureGuidePhase {
     QUICK_EDIT, ZOOM_FOCUS, ZOOM_CHIP, TOOLS, SHUTTER, SAVED, SETTINGS, UNDO, DISMISSED,
 }
 
