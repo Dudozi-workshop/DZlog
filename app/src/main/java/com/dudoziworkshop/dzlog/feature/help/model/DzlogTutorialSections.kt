@@ -6,6 +6,7 @@ internal data class TutorialSession(
     val id: String,
     val title: String,
     val steps: List<TutorialStep>,
+    val pageOrder: List<String> = emptyList(),
 )
 
 internal object DzlogTutorialSections {
@@ -83,7 +84,9 @@ internal object DzlogTutorialSections {
             from("table-detail", "cells", "셀 내용과 입력 유형", "cells"),
             from("table-detail", "structure", "행·열과 병합 구조", "structure"),
             from("table-detail", "style", "스타일과 배치", "style"),
-            from("table-detail", "save", "저장·취소와 실행 취소", "save"),
+            from("table-detail", "save", "저장과 종료", "save").copy(
+                pageOrder = listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision")
+            ),
         )),
         TutorialArea("saving", "저장설정", listOf(
             from("saving", "filename", "파일명 구성", "overview", "filename"),
@@ -94,20 +97,20 @@ internal object DzlogTutorialSections {
                 Triple("automatic", "자동값", "날짜·시간·자동번호는 설정한 규칙에 따라 생성돼요.")),
         )),
         TutorialArea("settings", "앱 설정", listOf(
-            custom("capture", "촬영과 미리보기",
-                Triple("preview", "사진 품질", "사진 품질에서 속도 우선·균형·화질 우선을 선택해요. 촬영 비율과 촬영 후 확인 방식은 카메라 상단 설정에서 정해요."),
-                Triple("warning", "Undo 삭제 경고", "저장경로가 다른 사진을 Undo할 때의 삭제 경고를 켜거나 끌 수 있어요. 경고를 꺼도 Undo의 삭제 동작은 유지돼요.")),
-            custom("feedback", "소리와 조작 설정",
-                Triple("feedback", "보조 셔터", "플로팅 보조 셔터를 켜거나 끌 수 있어요. 촬영 소리·진동·음량키 동작은 카메라 상단의 촬영 설정에서 확인해요.")),
-            custom("permission", "권한과 폴더 연결",
-                Triple("permission", "권한", "사진 저장과 카메라 사용에 필요한 권한과 폴더 연결 상태를 확인할 수 있어요."),
-                Triple("permission-screen", "권한 관리 화면", "실제 권한 관리 화면에서 카메라·사진 접근 권한과 폴더 연결 상태를 확인해요. 안내에서는 권한 요청이나 폴더 연결을 실행하지 않아요.")),
-            custom("data", "데이터 관리와 도움말",
-                Triple("backup", "작업 환경 백업", "작업 환경 내보내기로 표 양식과 저장 규칙을 백업해요. 가져오기는 백업의 양식을 추가하는 기능이며 사진 파일 백업과는 달라요."),
-                Triple("export-screen", "작업 환경 내보내기", "실제 내보내기 화면이에요. 표 템플릿과 저장 규칙을 백업 파일로 보관할 수 있어요. 안내에서는 파일을 만들지 않아요."),
-                Triple("import", "작업 환경 가져오기", "백업 파일의 템플릿을 현재 작업 환경에 추가해요. 기존 사진 파일을 복원하는 기능은 아니에요."),
-                Triple("import-screen", "작업 환경 가져오기 화면", "실제 가져오기 화면이에요. 파일을 선택한 뒤 추가할 양식을 확인하고 진행해요. 안내에서는 파일을 선택하거나 가져오지 않아요."),
-                Triple("help", "도움말", "사용법 및 도움말에서 원하는 구역·세션으로 이동해 다시 볼 수 있어요. 보는 중인 위치와 완료 여부도 기억해요.")),
+            custom("environment", "앱 환경",
+                Triple("intro", "전체 설정 둘러보기", "DZlog의 촬영 환경과 앱 사용에 필요한 설정을 관리하는 화면이에요. 각 메뉴에서 어떤 기능을 설정할 수 있는지 하나씩 살펴볼게요."),
+                Triple("permission", "권한 관리", "카메라와 사진 접근 권한을 확인하고 관리할 수 있어요. 사진 저장에 필요한 권한이나 폴더 연결 상태도 여기에서 확인해요."),
+                Triple("quality", "사진 품질", "사진 저장 품질을 속도 우선, 균형, 화질 우선 중에서 선택할 수 있어요. 화질이 높을수록 저장 시간이 길어질 수 있어요."),
+                Triple("assist", "플로팅 보조 셔터", "촬영 화면에 표시되는 보조 셔터 버튼을 켜거나 끌 수 있어요. 원하는 위치에서 편리하게 촬영할 때 사용하는 기능이에요.")),
+            custom("capture", "촬영 설정",
+                Triple("feedback", "촬영 효과음 및 진동", "촬영할 때 사용할 효과음과 음량, 진동 강도를 설정할 수 있어요. 효과음은 저장하기 전에 미리 들어볼 수도 있어요."),
+                Triple("warning", "저장경로 변경 시 삭제 경고", "촬영 중 저장 위치가 변경된 경우, 실행 취소로 다른 폴더의 사진을 삭제하기 전에 확인 메시지를 표시하는 기능이에요.")),
+            custom("data", "데이터 관리",
+                Triple("export", "작업 환경 내보내기", "현재 사용 중인 표 양식과 저장 규칙을 백업 파일로 저장할 수 있어요. 촬영한 사진 자체를 백업하는 기능은 아니에요."),
+                Triple("import", "작업 환경 가져오기", "이전에 백업한 표 양식과 저장 규칙을 다시 가져올 수 있어요. 다른 기기에서 작업 환경을 준비할 때도 활용할 수 있어요.")),
+            custom("support", "정보 및 지원",
+                Triple("help", "사용법 및 도움말", "처음 사용법을 다시 보거나 카메라, 표 편집, 갤러리 등 기능별 튜토리얼을 선택해서 살펴볼 수 있어요."),
+                Triple("credits", "도움 주신 분들·버전 정보", "DZlog 제작에 도움을 주신 분들과 화면 아래의 앱 버전 정보를 확인할 수 있어요.")),
         )),
     )
 
@@ -116,9 +119,14 @@ internal object DzlogTutorialSections {
 
 /** Stable page IDs keep saved positions independent of display wording. */
 internal data class TutorialGuidePage(val id: String, val parentId: String, val title: String, val instruction: String)
-internal fun TutorialSession.guidePages(): List<TutorialGuidePage> = steps.flatMap { step ->
-    listOf(TutorialGuidePage(step.id, step.id, step.title, step.instruction)) +
-        step.scenes.map { TutorialGuidePage("${step.id}/${it.id}", step.id, it.title, it.instruction) }
+internal fun TutorialSession.guidePages(): List<TutorialGuidePage> {
+    val pages = steps.flatMap { step ->
+        listOf(TutorialGuidePage(step.id, step.id, step.title, step.instruction)) +
+            step.scenes.map { TutorialGuidePage("${step.id}/${it.id}", step.id, it.title, it.instruction) }
+    }
+    if (pageOrder.isEmpty()) return pages
+    val order = pageOrder.withIndex().associate { it.value to it.index }
+    return pages.sortedBy { order[it.id] ?: Int.MAX_VALUE }
 }
 internal data class TutorialLocation(val areaId: String, val sessionId: String, val pageId: String = "")
 internal fun tutorialPageIndex(pages: List<TutorialGuidePage>, savedId: String): Int =
