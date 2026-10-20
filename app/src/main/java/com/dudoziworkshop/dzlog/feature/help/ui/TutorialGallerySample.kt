@@ -53,6 +53,7 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
     val selection = location.sessionId == "photos"
     val folders = location.sessionId == "folders"
     val move = location.pageId == "photos/move"
+    val destination = location.pageId in setOf("photos/destination", "folders/destination")
     val delete = location.pageId == "photos/delete"
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFFF8F7F5))) {
         val compact = maxHeight < 560.dp
@@ -124,6 +125,29 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
             if (!compact) {
                 Text("안내용 화면입니다. 실제 사진과 폴더는 변경되지 않습니다.",
                     color = Color(0xFF806B59))
+            }
+        }
+        if (destination) {
+            Column(
+                Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = 20.dp)
+                    .tutorialTarget("guide.dialog")
+                    .background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("이동할 위치 선택", fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
+                Text("Pictures / DZlog / 단이 사진", color = Color(0xFF806B59))
+                TutorialGallerySample.folders.forEach { folder ->
+                    Text("▸  $folder", Modifier.fillMaxWidth()
+                        .background(Color(0xFFEEE9E2), RoundedCornerShape(8.dp)).padding(8.dp),
+                        color = Color(0xFF4B3829))
+                }
+                Text("폴더 및 사진 미리보기", color = Color(0xFF806B59))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    repeat(3) { index -> SamplePicture(index, Modifier.weight(1f).aspectRatio(1f)) }
+                }
+                Text("이 위치로 이동 (안내 전용)", color = Color(0xFF4B3829),
+                    modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
         if (move || delete) {
