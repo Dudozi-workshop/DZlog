@@ -387,7 +387,7 @@ fun TableEditorV2Screen(
                                 onClick = { if (session.redo()) selectionState.clearAll() },
                             )
                         }
-                        Box(Modifier.fillMaxSize().tutorialTarget("table.preview")) {
+                        Column(Modifier.fillMaxSize().tutorialTarget("table.preview")) {
                         MockTableCanvas(
                             cells = cells,
                             rows = rows,
