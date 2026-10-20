@@ -97,11 +97,13 @@ async function decide({ github, context, platform }) {
   ).slice(0, platform === 'android-unit' ? 20 : 5);
   for (const run of candidates) {
     if (fingerprint(await tree(run.head_sha), platform) !== hash) continue;
-    if (platform === 'android-unit') {
-      // A green compile-only/reused job is not evidence that the full suite actually ran.
+    if (platform === 'android-unit' || platform === 'ui') {
+      // A partial/reused green job is never proof that a complete suite actually ran.
+      const fullStep = platform === 'ui' ? 'Complete iOS UI suite (no partial selection)'
+        : 'Complete Android unit suite (no partial selection)';
       const jobs = await github.rest.actions.listJobsForWorkflowRun({ ...args, run_id: run.id, per_page: 100 });
       if (!jobs.data.jobs.some(job => job.conclusion === 'success' && job.steps?.some(step =>
-        step.name === 'Complete Android unit suite (no partial selection)' && step.conclusion === 'success'))) continue;
+        step.name === fullStep && step.conclusion === 'success'))) continue;
     }
     const previous = await github.rest.repos.compareCommitsWithBasehead({ ...args, basehead: `${pr.base.sha}...${run.head_sha}` });
     if (previous.data.merge_base_commit?.sha !== pr.base.sha) continue;

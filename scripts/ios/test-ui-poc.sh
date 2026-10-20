@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
+case "$test_scope" in
+  editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
+  full) selection=() ;;
+  *) echo "Unsupported UI scope: $test_scope" >&2; exit 2 ;;
+esac
 evidence_dir="$repo_root/build/ios-poc/evidence"
 mkdir -p "$evidence_dir"
+printf '%s\n' "$test_scope" > "$evidence_dir/test-scope.txt"
 device_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for xs in d["devices"].values() for x in xs if x.get("isAvailable") and x["name"].startswith("iPhone")))')"
 trap 'xcrun simctl shutdown "$device_id" || true' EXIT
 xcrun simctl boot "$device_id" || true
@@ -19,6 +26,6 @@ xcodebuild build-for-testing "${xcode_args[@]}" | tee "$evidence_dir/host-build.
 bundled_png="$repo_root/build/ios-poc/DerivedData/Build/Products/Debug-iphonesimulator/DZlogUiPoc.app/home_leaf_shadow_c.png"
 cmp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$bundled_png"
 shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
-xcodebuild test-without-building "${xcode_args[@]}" \
+xcodebuild test-without-building "${xcode_args[@]}" "${selection[@]}" \
   -resultBundlePath "$evidence_dir/interaction.xcresult" \
   | tee "$evidence_dir/interaction-build.log"

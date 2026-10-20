@@ -141,3 +141,15 @@ test('marking a PR ready for final review always runs the full suite', async () 
     assert.equal((await reuse.decide(input)).run, true);
   }
 });
+
+
+test('focused iOS success cannot replace a complete UI regression result', async () => {
+  for (const steps of [[],
+    [{ name: 'Focused iOS editor flow (partial development check)', conclusion: 'success' }],
+    [{ name: 'Complete iOS UI suite (no partial selection)', conclusion: 'skipped' }]]) {
+    assert.equal((await reuse.decide(fixture({ platform: 'ui', jobs: [{ conclusion: 'success', steps }] }))).run, true);
+  }
+  assert.equal((await reuse.decide(fixture({ platform: 'ui', jobs: [{ conclusion: 'success', steps: [
+    { name: 'Complete iOS UI suite (no partial selection)', conclusion: 'success' },
+  ] }] }))).run, false);
+});
