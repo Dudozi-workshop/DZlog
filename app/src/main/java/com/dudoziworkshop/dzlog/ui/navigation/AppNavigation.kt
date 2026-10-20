@@ -1007,6 +1007,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
 
             AppScreen.SETTINGS -> SettingsScreen(
+                tutorialTemplate = tableTemplateState,
+                tutorialStyle = activeSavedTableStyle(tableTemplateViewModel.templates, tableTemplateViewModel.activeTemplateId),
+                tutorialTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                 startWithHelp = showHelpFromGuide,
                 onBack = {
                     showHelpFromGuide = false

@@ -23,6 +23,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -89,7 +90,7 @@ internal fun FloatingAssistShutterButton(
                                 y = (localCenterY - buttonRadiusPx).roundToInt(),
                             )
                         }
-                        .size(ASSIST_SHUTTER_BUTTON_SIZE)
+                        .size(ASSIST_SHUTTER_BUTTON_SIZE).tutorialTarget("camera.assist-shutter")
                         .background(
                             color = DDZColor.Surface,
                             shape = CircleShape,

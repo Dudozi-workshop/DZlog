@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.settings
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,7 +78,7 @@ internal fun CameraSettingsOverlayPanel(
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
     val panelTopPadding = (statusBarPadding.calculateTopPadding() - 1.dp).coerceAtLeast(0.dp)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().padding(bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -194,7 +195,7 @@ private val CompactCameraSegments = DDZSegmentedControlStyles.CameraPanel.copy(
 @Composable
 private fun CompactSettingsRow(label: String, content: @Composable RowScope.() -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT),
+        modifier = Modifier.fillMaxWidth().height(PANEL_SETTING_ROW_HEIGHT).tutorialTarget("camera.settings.$label"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {

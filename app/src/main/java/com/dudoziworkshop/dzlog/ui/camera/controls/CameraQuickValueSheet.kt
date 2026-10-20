@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
 import android.os.Build
 import android.graphics.Rect
 import android.view.WindowManager
@@ -99,12 +100,41 @@ internal fun CameraQuickValueSheet(
     onDismiss: () -> Unit,
     onCommit: (TableTemplateState) -> Unit,
 ) {
+    val readOnlyGuide = LocalTutorialReadOnly.current
+    val guidePage = if (readOnlyGuide) LocalTutorialLocation.current?.pageId else null
+    val guideOn = LocalTutorialDemoProgress.current >= 0.5f
+    val guideType = when (guidePage) {
+        "quick-number" -> TableCellDataType.NUMBER
+        "quick-date" -> TableCellDataType.DATE
+        "quick-time" -> TableCellDataType.TIME
+        "quick-phrase" -> TableCellDataType.ROTATING_TEXT
+        "quick-counter" -> TableCellDataType.COUNTER
+        else -> TableCellDataType.TEXT
+    }
     val draft = remember { QuickValueDraft(template) }
     val previewTemplate = draft.template
     val cells = remember(previewTemplate.cells) { quickSelectableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
     var selectedId by remember(activeTemplateId) {
-        mutableStateOf(selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
+        mutableStateOf(if (readOnlyGuide) cells.firstOrNull { it.dataType == guideType }?.cellId else selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
+    }
+    LaunchedEffect(guidePage, guideOn) {
+        if (!readOnlyGuide) return@LaunchedEffect
+        val selected = template.cells.firstOrNull { it.dataType == guideType }
+        draft.template = when {
+            guidePage == "template" && guideOn -> template.copy(rows = 3, cols = 2,
+                cells = template.cells.mapIndexed { i, c -> c.copy(rowIndex = i / 2, colIndex = i % 2) })
+            guidePage == "quick-date" && selected != null -> template.copy(cells = template.cells.map {
+                if (it.cellId == selected.cellId) it.copy(formatPattern = if (guideOn) "yyMMdd" else "yyyyMMdd") else it })
+            guidePage == "quick-phrase" && selected != null -> template.copy(cells = template.cells.map {
+                if (it.cellId == selected.cellId) it.copy(phraseSetId = if (guideOn) "guide-set-b" else "guide-set-a") else it })
+            guidePage in listOf("quick-text", "quick-number") && selected != null -> {
+                val text = if (guideOn) { if (guideType == TableCellDataType.NUMBER) "15" else "생육 조사" } else selected.rawText
+                values[selected.cellId] = TextFieldValue(text)
+                updateQuickCellValues(template, mapOf(selected.cellId to text))
+            }
+            else -> template
+        }
     }
     var expanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
@@ -131,6 +161,7 @@ internal fun CameraQuickValueSheet(
         includePathInCounterScope, includeFilenameInCounterScope)
     // Read only the draft's counter stream. Camera state and image lookup stay untouched.
     LaunchedEffect(request) {
+        if (readOnlyGuide) { localCounterSeed = 1; localCounterRequest = request; return@LaunchedEffect }
         if (localCounterRequest == request && localCounterSeed != null) return@LaunchedEffect
         delay(250)
         val result = readCameraCounterSafely { withContext(Dispatchers.IO) { facade.read(request) } }
@@ -148,7 +179,7 @@ internal fun CameraQuickValueSheet(
         }
     }
     fun commit() {
-        if (draft.dirty && !switching) { latestCommit.value(draft.template); draft.dirty = false }
+        if (!readOnlyGuide && draft.dirty && !switching) { latestCommit.value(draft.template); draft.dirty = false }
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) commit() }
@@ -167,7 +198,7 @@ internal fun CameraQuickValueSheet(
             }
         ) requester.requestFocus()
     }
-    Dialog(onDismissRequest = { if (!switching) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false,
+    GuideAwareDialog(onDismiss = { if (!switching) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false, dismissOnClickOutside = false)) {
         // Focus belongs to the dialog window; do not retain the camera window's manager.
         val focus = LocalFocusManager.current
@@ -249,7 +280,7 @@ internal fun CameraQuickValueSheet(
         fun dismiss() { inputDone(); commit(); onDismiss() }
         BoxWithConstraints(Modifier.heightIn(max = with(density) { hostHeight.toDp() })
             .fillMaxSize().background(DDZColor.PrimaryDark.copy(alpha = 0.72f))
-            .padding(top = with(density) { safeTop.toDp() },
+            .padding(top = maxOf(with(density) { safeTop.toDp() }, LocalTutorialCardTopSpace.current),
                 bottom = with(density) { safeBottom.toDp() })
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
             // Reserve a table viewport even with the keyboard and manual input expansion.
@@ -268,8 +299,8 @@ internal fun CameraQuickValueSheet(
                 }
                 // Naming and table previews remain available in every keyboard state.
                 CameraQuickNamingPreview(previewTemplate, resolvedCells, selectedId, counterDigits, previewCounter, now, saveMode,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding))
-                CameraQuickTablePreview(previewTemplate, templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = DDZSpacing.screenPadding).tutorialTarget("camera.quick-naming"))
+                CameraQuickTablePreview(previewTemplate, if (readOnlyGuide && guidePage == "template" && guideOn) "다른 표 양식 · 예시" else templateName, resolvedCells, style, captureAspect, tableWidthRatio, tableHeightRatio,
                     selectedId, cells.map { it.cellId }.toSet(), ::selectCell,
                     onLocked = { id -> Toast.makeText(context,
                         listOf("자동으로 표시되는 값이에요. 변경은 표 상세설정에서 가능해요.",
@@ -293,7 +324,7 @@ internal fun CameraQuickValueSheet(
                     },
                     modifier = Modifier.fillMaxWidth().weight(1f)
                         .padding(DDZSpacing.screenPadding))
-                Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface,
+                Surface(Modifier.fillMaxWidth().tutorialTarget("camera.quick-editor"), color = DDZColor.Surface,
                     shape = RoundedCornerShape(topStart = DDZLayout.Radius.Medium, topEnd = DDZLayout.Radius.Medium)) {
                     Column(Modifier
                         .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap)) {
