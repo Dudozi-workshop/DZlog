@@ -366,13 +366,13 @@ fun TableEditorV2Screen(
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp).tutorialTarget("table.preview"),
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             TableEditorTemplateSelector(
-                                modifier = Modifier.weight(1f), name = templateName,
+                                modifier = Modifier.weight(1f).tutorialTarget("table.template"), name = templateName,
                                 enabled = !saveCoordinator.isSaving && templates.any { it.id != templateId },
                                 onClick = { showTemplatePicker = true },
                             )
