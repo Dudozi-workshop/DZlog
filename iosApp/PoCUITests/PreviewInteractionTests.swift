@@ -212,8 +212,11 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(try screenContains("iosqa"), "Typed text must appear in the existing editor")
         // Shared back policy closes the keyboard before changing tabs.
         tapButton("뒤로가기")
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "iosqa")).firstMatch.exists,
+        let editedCell = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "iosqa")).firstMatch
+        XCTAssertTrue(editedCell.waitForExistence(timeout: 10),
                       "Edited contents must remain in the table after keyboard dismissal")
+        let savedCellText = editedCell.label
+        XCTAssertTrue(app.frame.contains(editedCell.frame))
         tapPanelText("구조")
         XCTAssertFalse(text("3행과 4행 높이 조절").exists)
         tapButton("+\n행 추가")
@@ -273,9 +276,18 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--editor-flow"]
         app.launch()
         tapButton("표 편집")
-        XCTAssertTrue(try screenContains("iosqa"), "Saved cell text must survive app relaunch")
+        // Exact rendered cell semantics avoid OCR confusing q/g in mixed Korean/Latin text.
+        let restoredCell = app.buttons.matching(NSPredicate(format: "label == %@", savedCellText)).firstMatch
+        XCTAssertTrue(restoredCell.waitForExistence(timeout: 10), "Exact saved cell text must survive app relaunch")
+        XCTAssertFalse(restoredCell.frame.isEmpty)
+        XCTAssertTrue(app.frame.contains(restoredCell.frame))
+        let restoredReview = XCTAttachment(screenshot: app.screenshot())
+        restoredReview.name = "shared-editor-restored-contents"
+        restoredReview.lifetime = .keepAlways
+        add(restoredReview)
         tapPanelText("구조")
-        XCTAssertTrue(try screenContains("iosqa"), "Structural change must retain edited contents")
+        XCTAssertTrue(restoredCell.exists, "Structural change must retain exact edited contents")
+        XCTAssertTrue(app.frame.contains(restoredCell.frame))
         XCTAssertTrue(text("3행과 4행 높이 조절").exists, "Added row must survive relaunch")
         tapPanelText("스타일")
         XCTAssertFalse(text("배경 투명도").exists, "Saved transparent style must survive relaunch")
