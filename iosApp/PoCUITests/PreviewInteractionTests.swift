@@ -166,7 +166,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("블루베리 관찰 기록")
         XCTAssertTrue(app.buttons["셀 편집 닫기"].waitForExistence(timeout: 10))
         // Selecting the canvas cell opens its panel. Compose 1.7 exposes the unfocused
-        // field as a Button; touch the lower panel field before querying native input.
+        // field as a Button even while focused; touch the lower panel field first.
         let valueField = try XCTUnwrap(app.buttons.matching(NSPredicate(
             format: "label == %@", "블루베리 관찰 기록"
         )).allElementsBoundByIndex.max { $0.frame.midY < $1.frame.midY })
@@ -174,10 +174,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(valueFrame.isEmpty)
         app.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: valueFrame.minX + valueFrame.width * 0.25, dy: valueFrame.midY)).tap()
-        let input = app.textViews.firstMatch.waitForExistence(timeout: 3) ? app.textViews.firstMatch : app.textFields.firstMatch
-        XCTAssertTrue(input.waitForExistence(timeout: 10), "Existing multiline cell field must be editable")
-        input.tap()
-        input.typeText(" iOS QA")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10), "Cell input must open the keyboard")
+        // Compose owns the focused input; no native TextField/TextView AX node is exposed.
+        app.typeText(" iOS QA")
+        XCTAssertTrue(try screenContains("iOS QA"), "Typed text must appear in the existing editor")
         // Shared back policy closes the keyboard before changing tabs.
         tapButton("뒤로가기")
         tapPanelText("구조")
@@ -197,10 +197,9 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("+ 구성요소 추가")
         tapButton("직접입력")
         tapPanelText("값 없음")
-        let filename = app.textFields.firstMatch
-        XCTAssertTrue(filename.waitForExistence(timeout: 10))
-        filename.tap()
-        filename.typeText("ios-review")
+        tapPanelText("파일명 값")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        app.typeText("ios-review")
         tapButton("확인")
         XCTAssertTrue(try screenContains("ios-review"))
         for _ in 0..<3 {
