@@ -29,7 +29,9 @@ object EditorDocumentCodec {
     fun decode(json: String): EditorDocument {
         val root = CompatJsonObject(json)
         require(root.getInt("schema") == 1) { "지원하지 않는 편집 문서입니다." }
-        val template = requireNotNull(savedTableTemplatesFromJson(root.getString("templates"))).single()
+        val templatesJson = root.getString("templates")
+        require(com.dudoziworkshop.dzlog.data.json.CompatJsonArray(templatesJson).length() == 1)
+        val template = requireNotNull(savedTableTemplatesFromJson(templatesJson)).single()
         val next = if (root.opt("next") == null || root.opt("next") == CompatJsonObject.NULL) null
             else root.getInt("next").also { require(it >= 1) }
         val padding = root.getInt("padding").also { require(it in 0..4) }

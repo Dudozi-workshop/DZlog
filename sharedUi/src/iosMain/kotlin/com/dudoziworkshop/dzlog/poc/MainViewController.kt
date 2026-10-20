@@ -27,7 +27,10 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--editor-flow")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
+            HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_NAVIGATION_TEST_KEY,
+                resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-navigation-fixture"))
+        } else if (NSProcessInfo.processInfo.arguments.contains("--editor-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_EDITOR_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-editor-fixture"))
         } else if (NSProcessInfo.processInfo.arguments.contains("--table-structure")) {

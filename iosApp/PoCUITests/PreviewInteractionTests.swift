@@ -110,7 +110,7 @@ final class PreviewInteractionTests: XCTestCase {
         listScreen.name = "shared-template-list"
         listScreen.lifetime = .keepAlways
         add(listScreen)
-        XCTAssertFalse(app.buttons["+ 새 템플릿"].exists, "PoC must not expose unavailable editing")
+        XCTAssertTrue(button("+ 새 템플릿").isEnabled, "Existing catalog management is now connected")
         tapButton("표 확대 보기 · 현장 기록")
         tapButton("닫기")
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
@@ -189,6 +189,64 @@ final class PreviewInteractionTests: XCTestCase {
             app.coordinate(withNormalizedOffset: .zero)
                 .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
         }
+    }
+
+    func testHomeCatalogSettingsAndRelaunch() throws {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("설정")
+        tapPanelText("사진 품질")
+        tapPanelText("화질 우선")
+        XCTAssertTrue(panelText("화질 우선").exists)
+        tapButton("뒤로가기")
+        openHomeTemplates()
+        tapButton("템플릿 메뉴")
+        tapPanelText("복제")
+        XCTAssertTrue(app.buttons["표 확대 보기 · 현장 기록 사본"].waitForExistence(timeout: 10))
+        tapButton("템플릿 메뉴")
+        tapPanelText("이름 변경")
+        XCTAssertTrue(text("템플릿 이름 변경").waitForExistence(timeout: 10))
+        // The existing rename field contains the current template name.
+        let nameField = try XCTUnwrap(app.buttons.matching(NSPredicate(
+            format: "label == %@", "현장 기록 사본"
+        )).allElementsBoundByIndex.first)
+        let nameFrame = nameField.frame
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: nameFrame.minX + nameFrame.width * 0.25, dy: nameFrame.midY)).tap()
+        typeWithVisibleKeyboard("navqa")
+        tapButton("저장")
+        let renamed = app.buttons.matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", "표 확대 보기 · ", "navqa"
+        )).firstMatch
+        XCTAssertTrue(renamed.waitForExistence(timeout: 10))
+        let renamedLabel = renamed.label
+        tapButton("템플릿 메뉴")
+        tapPanelText("삭제")
+        XCTAssertTrue(text("템플릿을 삭제할까요?").waitForExistence(timeout: 10))
+        tapButton("삭제")
+        XCTAssertFalse(app.buttons[renamedLabel].exists)
+        tapButton("+ 새 템플릿")
+        XCTAssertTrue(text("표 편집").waitForExistence(timeout: 10))
+        tapButton("저장")
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
+        tapButton("표 확대 보기 · 새 템플릿")
+        tapButton("이 템플릿 선택")
+        XCTAssertTrue(homeTemplateButton().exists)
+        app.terminate()
+        app.launchArguments = ["--navigation-flow"]
+        app.launch()
+        tapButton("설정")
+        XCTAssertTrue(panelText("화질 우선").waitForExistence(timeout: 10), "Settings must survive relaunch")
+        tapButton("뒤로가기")
+        openHomeTemplates()
+        XCTAssertTrue(app.buttons["표 확대 보기 · 새 템플릿"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["표 확대 보기 · 현장 기록"].exists, "Original template must remain")
+        XCTAssertFalse(app.buttons[renamedLabel].exists, "Deleted copy must remain deleted")
+        let image = XCTAttachment(screenshot: app.screenshot())
+        image.name = "shared-catalog-restored"
+        image.lifetime = .keepAlways
+        add(image)
     }
 
     func testEditorContentStructureStyleSaveAndRelaunch() throws {

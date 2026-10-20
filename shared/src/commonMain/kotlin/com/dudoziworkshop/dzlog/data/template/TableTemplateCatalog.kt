@@ -121,3 +121,23 @@ fun sortTableTemplates(items: List<SavedTableTemplate>, sort: TableTemplateSort)
         TableTemplateSort.USED -> items.sortedWith(compareByDescending<SavedTableTemplate> { it.lastUsedAt }.thenByDescending { it.modifiedAt }.thenBy { it.id })
         TableTemplateSort.NAME -> items.sortedWith(compareBy<SavedTableTemplate> { it.name.lowercase() }.thenBy { it.id })
     }
+
+/** Existing catalog operations used by both platform hosts; Android retains its persistence/quota boundary. */
+fun renameSavedTableTemplate(items: List<SavedTableTemplate>, id: String, name: String,
+    modifiedAt: Long = backupNowMillis()): List<SavedTableTemplate> {
+    val normalized = name.trim()
+    if (normalized.isBlank()) return items
+    return items.map { if (it.id == id) it.copy(name = normalized, modifiedAt = modifiedAt) else it }
+}
+
+fun duplicateSavedTableTemplate(items: List<SavedTableTemplate>, id: String): List<SavedTableTemplate> {
+    val source = items.firstOrNull { it.id == id } ?: return items
+    return listOf(createSavedTableTemplate(duplicateTemplateName(source.name, items),
+        source.templateState, source.styleState)) + items
+}
+
+data class SavedTemplateSelection(val items: List<SavedTableTemplate>, val activeTemplateId: String?)
+fun deleteSavedTableTemplate(items: List<SavedTableTemplate>, activeId: String?, id: String): SavedTemplateSelection {
+    val next = items.filterNot { it.id == id }
+    return SavedTemplateSelection(next, if (activeId != id) activeId else next.firstOrNull()?.id)
+}

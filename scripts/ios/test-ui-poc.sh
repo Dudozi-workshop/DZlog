@@ -4,6 +4,10 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
+  navigation) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch
+  ) ;;
   full) selection=() ;;
   *) echo "Unsupported UI scope: $test_scope" >&2; exit 2 ;;
 esac

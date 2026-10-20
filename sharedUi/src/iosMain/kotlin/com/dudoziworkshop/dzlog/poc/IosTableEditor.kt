@@ -66,3 +66,35 @@ private class IosDraftCounterActions : TableEditorCounterActions {
     override fun reset(session: TableEditorV2SessionState) = session.commitNextCounterChange(1, false)
     override suspend fun sync(session: TableEditorV2SessionState) = Unit
 }
+
+/** New collection key; the validated v1 editor value remains untouched as a recovery source. */
+internal class IosWorkspaceStore(private val legacyKey: String) {
+    private val workspaceKey = "$legacyKey.workspace.v2"
+    fun load(seed: com.dudoziworkshop.dzlog.data.template.SavedTableTemplate): com.dudoziworkshop.dzlog.data.template.EditorWorkspace {
+        NSUserDefaults.standardUserDefaults.stringForKey(workspaceKey)?.let {
+            return com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.decode(it)
+        }
+        val legacy = IosEditorStore(legacyKey).load()
+        return com.dudoziworkshop.dzlog.data.template.editorWorkspaceFromLegacy(legacy, seed)
+    }
+    fun save(value: com.dudoziworkshop.dzlog.data.template.EditorWorkspace): Boolean = runCatching {
+        val encoded = com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.encode(value)
+        val decoded = com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.decode(encoded)
+        check(decoded.documents.map { it.template.id } == value.documents.map { it.template.id })
+        check(decoded.activeTemplateId == value.activeTemplateId && decoded.settings == value.settings)
+        check(decoded.documents.zip(value.documents).all { (a, b) ->
+            a.nextCounter == b.nextCounter && a.usesAutoNext == b.usesAutoNext &&
+                a.counterPadding == b.counterPadding && a.saveMode == b.saveMode &&
+                a.includePathInScope == b.includePathInScope && a.includeFilenameInScope == b.includeFilenameInScope
+        })
+        NSUserDefaults.standardUserDefaults.setObject(encoded, forKey = workspaceKey)
+        NSUserDefaults.standardUserDefaults.synchronize()
+    }.getOrDefault(false)
+    fun resetTestFixture() {
+        check(legacyKey == IOS_EDITOR_TEST_KEY || legacyKey == IOS_NAVIGATION_TEST_KEY)
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(workspaceKey)
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(legacyKey)
+        NSUserDefaults.standardUserDefaults.synchronize()
+    }
+}
+internal const val IOS_NAVIGATION_TEST_KEY = "dzlog.ios.navigation.uitest.v1"

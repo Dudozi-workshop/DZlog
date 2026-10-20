@@ -1,0 +1,455 @@
+package com.dudoziworkshop.dzlog.feature.settings.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+
+private val SettingsGroupShape = RoundedCornerShape(14.dp)
+private val SETTINGS_QUALITY_ITEMS = listOf(
+    QualityUiItem(0, "속도 우선", "빠르게 저장하고 용량을 줄여요"),
+    QualityUiItem(1, "균형", "속도와 화질을 균형 있게 유지해요"),
+    QualityUiItem(2, "화질 우선", "더 선명하지만 저장이 느릴 수 있어요"),
+)
+
+private data class QualityUiItem(
+    val mode: Int,
+    val title: String,
+    val description: String,
+)
+
+@Composable
+fun SettingsRootContent(
+    onBack: () -> Unit,
+    qualityMode: Int,
+    assistShutterEnabled: Boolean,
+    undoSavePathWarningEnabled: Boolean,
+    isQualityExpanded: Boolean,
+    isQualitySaving: Boolean,
+    version: String,
+    onToggleQuality: () -> Unit,
+    onSelectQuality: (Int) -> Unit,
+    onChangeAssistShutter: (Boolean) -> Unit,
+    onChangeUndoWarning: (Boolean) -> Unit,
+    onOpenPermissions: () -> Unit,
+    onOpenCaptureFeedback: () -> Unit,
+    onOpenCredits: () -> Unit,
+    onOpenGuide: () -> Unit,
+    onOpenExport: () -> Unit,
+    onOpenImport: () -> Unit,
+    proSection: @Composable () -> Unit = {},
+) {
+    Scaffold(
+        containerColor = DDZColor.Background,
+        topBar = {
+            DDZTopBar(
+                title = "설정",
+                onBack = {
+                    if (isQualityExpanded) onToggleQuality() else onBack()
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
+            ) {
+                SettingsBrandHeader()
+
+                SettingsSection(title = "앱 환경") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.CheckCircle,
+                            title = "권한 관리",
+                            subtitle = "카메라·사진 접근 및 폴더 연결",
+                            onClick = onOpenPermissions,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        val qualityLabel = SETTINGS_QUALITY_ITEMS
+                            .firstOrNull { it.mode == qualityMode }?.title ?: "균형"
+                        SettingsActionRow(
+                            icon = Icons.Default.Image,
+                            title = "사진 품질",
+                            subtitle = "화질과 저장 성능",
+                            onClick = onToggleQuality,
+                            trailing = {
+                                Text(
+                                    text = qualityLabel,
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.TextSecondary,
+                                )
+                                Icon(
+                                    imageVector = if (isQualityExpanded) {
+                                        Icons.Default.KeyboardArrowUp
+                                    } else {
+                                        Icons.Default.KeyboardArrowDown
+                                    },
+                                    contentDescription = if (isQualityExpanded) "접기" else "펼치기",
+                                    tint = DDZColor.IconMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                        )
+                        if (isQualityExpanded) {
+                            SettingsDivider()
+                            Column(
+                                modifier = Modifier.padding(vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                SETTINGS_QUALITY_ITEMS.forEach { item ->
+                                    QualityInlineOptionRow(
+                                        item = item,
+                                        selected = qualityMode == item.mode,
+                                        enabled = !isQualitySaving,
+                                        onClick = { onSelectQuality(item.mode) },
+                                    )
+                                }
+                            }
+                        }
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.CameraAlt,
+                            title = "플로팅 보조 셔터",
+                            subtitle = "촬영 화면에 보조 버튼 표시",
+                            onClick = {
+                                onChangeAssistShutter(!assistShutterEnabled)
+                            },
+                            trailing = {
+                                Switch(
+                                    checked = assistShutterEnabled,
+                                    onCheckedChange = ::onChangeAssistShutter,
+                                    colors = SwitchDefaults.colors(
+                                        checkedTrackColor = DDZColor.Selected,
+                                        uncheckedTrackColor = DDZColor.Border,
+                                        checkedThumbColor = DDZColor.Surface,
+                                        uncheckedThumbColor = DDZColor.Surface,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+
+                SettingsSection(title = "촬영 설정") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.CameraAlt,
+                            title = "촬영 효과음 및 진동",
+                            subtitle = "효과음 선택·미리 듣기·음량·진동 강도",
+                            onClick = onOpenCaptureFeedback,
+                            trailing = {
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = DDZColor.IconMuted,
+                                )
+                            },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.WarningAmber,
+                            title = "저장경로 변경 시 삭제 경고",
+                            subtitle = "다른 폴더에 저장된 사진을 Undo할 때 확인",
+                            onClick = {
+                                onChangeUndoWarning(!undoSavePathWarningEnabled)
+                            },
+                            trailing = {
+                                Switch(
+                                    checked = undoSavePathWarningEnabled,
+                                    onCheckedChange = { enabled ->
+                                        onChangeUndoWarning(enabled)
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedTrackColor = DDZColor.Selected,
+                                        uncheckedTrackColor = DDZColor.Border,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+
+                SettingsSection(title = "데이터 관리") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.FileDownload,
+                            title = "작업 환경 내보내기",
+                            subtitle = "표 템플릿과 저장 규칙 백업",
+                            onClick = onOpenExport,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.FileUpload,
+                            title = "작업 환경 가져오기",
+                            subtitle = "백업 파일에서 템플릿 추가",
+                            onClick = onOpenImport,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                    }
+                }
+
+                proSection()
+
+                SettingsSection(title = "정보 및 지원") {
+                    SettingsGroup {
+                        SettingsActionRow(
+                            icon = Icons.Default.HelpOutline,
+                            title = "사용법 및 도움말",
+                            subtitle = "처음 사용법 · 기능별 튜토리얼",
+                            onClick = onOpenGuide,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.FavoriteBorder,
+                            title = "도움 주신 분들",
+                            subtitle = "DZlog를 함께 만들어주신 분들",
+                            onClick = onOpenCredits,
+                            trailing = {
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = DDZColor.IconMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(text = "DZlog", style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                Text(text = version, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            }
+        }
+    }
+}
+@Composable
+private fun QualityInlineOptionRow(
+    item: QualityUiItem,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) DDZColor.SelectedSoft.copy(alpha = 0.8f) else DDZColor.Surface,
+    ) {
+        Row(
+            modifier = Modifier
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    style = DDZTypography.Body,
+                    color = DDZColor.TextPrimary,
+                )
+                Text(
+                    text = item.description,
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
+            }
+            Icon(
+                imageVector = if (selected) {
+                    Icons.Default.CheckCircle
+                } else {
+                    Icons.Default.RadioButtonUnchecked
+                },
+                contentDescription = if (selected) "선택됨" else null,
+                tint = if (selected) DDZColor.SelectedDark else DDZColor.IconMuted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsBrandHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = DDZColor.SelectedSoft.copy(alpha = 0.65f),
+            modifier = Modifier.size(52.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    tint = DDZColor.PrimaryDark,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(text = "DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+            Text(text = "일상의 기록을 더 편리하게", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+        }
+    }
+}
+
+@Composable
+fun SettingsSection(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = DDZTypography.Caption,
+            color = DDZColor.PrimaryDark,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        content()
+    }
+}
+
+@Composable
+fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = SettingsGroupShape,
+        color = DDZColor.Surface,
+        border = BorderStroke(1.dp, DDZColor.Border.copy(alpha = 0.75f)),
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+fun SettingsDivider() {
+    HorizontalDivider(
+        thickness = 1.dp,
+        color = DDZColor.Border.copy(alpha = 0.55f),
+        modifier = Modifier.padding(horizontal = 12.dp),
+    )
+}
+
+@Composable
+fun SettingsActionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 66.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = DDZColor.PrimaryDark,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        trailing()
+    }
+}

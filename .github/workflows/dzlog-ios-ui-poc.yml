@@ -15,9 +15,9 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: 'editor = focused development check; full = complete UI regression'
+        description: 'navigation = catalog/settings + editor persistence; editor = editor only; full = all UI'
         type: choice
-        options: [full, editor]
+        options: [full, editor, navigation]
         default: full
 permissions:
   contents: read
@@ -40,12 +40,12 @@ jobs:
             const sameRepoDraft = pr?.draft === true && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             const scope = context.eventName === 'workflow_dispatch'
               ? context.payload.inputs.scope
-              : sameRepoDraft && context.payload.action !== 'ready_for_review' ? 'editor' : 'full';
-            if (!['editor', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
+              : sameRepoDraft && context.payload.action !== 'ready_for_review' ? 'navigation' : 'full';
+            if (!['editor', 'navigation', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
             core.setOutput('value', scope);
             await core.summary.addHeading(`iOS UI scope: ${scope}`)
-              .addRaw(scope === 'editor'
-                ? 'Development check: editor flow only. This is NOT full UI regression approval.\n'
+              .addRaw(scope !== 'full'
+                ? 'Development check: selected feature bundle only. This is NOT full UI regression approval.\n'
                 : 'Complete UI regression checkpoint.\n').write();
       - name: Reuse only identical successful full UI inputs
         id: reuse
@@ -90,6 +90,11 @@ jobs:
         if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'editor'
         env:
           DZLOG_UI_TEST_SCOPE: editor
+        run: bash scripts/ios/test-ui-poc.sh
+      - name: Focused iOS navigation and persistence bundle (partial development check)
+        if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'navigation'
+        env:
+          DZLOG_UI_TEST_SCOPE: navigation
         run: bash scripts/ios/test-ui-poc.sh
       - name: Complete iOS UI suite (no partial selection)
         if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'full'

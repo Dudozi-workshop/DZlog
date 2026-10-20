@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.navigation
 
+import com.dudoziworkshop.dzlog.data.template.renameSavedTableTemplate
+import com.dudoziworkshop.dzlog.data.template.duplicateSavedTableTemplate
+import com.dudoziworkshop.dzlog.data.template.deleteSavedTableTemplate
+
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -504,39 +508,23 @@ fun AppRoot(startOnCamera: Boolean = false) {
     fun renameTemplate(templateId: String, newName: String) {
         val normalized = newName.trim()
         if (normalized.isBlank()) return
-        val next = tableTemplateViewModel.templates.map { item ->
-            if (item.id == templateId) {
-                item.copy(name = normalized, modifiedAt = System.currentTimeMillis())
-            } else {
-                item
-            }
-        }
+        val next = renameSavedTableTemplate(tableTemplateViewModel.templates, templateId, normalized)
         tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
         persistCurrentCatalog()
     }
 
     fun duplicateTemplate(templateId: String) {
         if (!canAddSavedTemplate(TemplateCollectionAction.DUPLICATE)) return
-        val source = tableTemplateViewModel.templates.firstOrNull { it.id == templateId } ?: return
-        val copy = createSavedTableTemplate(
-            name = duplicateTemplateName(source.name, tableTemplateViewModel.templates),
-            templateState = source.templateState,
-            styleState = source.styleState,
-        )
-        val next = listOf(copy) + tableTemplateViewModel.templates
+        if (tableTemplateViewModel.templates.none { it.id == templateId }) return
+        val next = duplicateSavedTableTemplate(tableTemplateViewModel.templates, templateId)
         tableTemplateViewModel.setCatalog(next, tableTemplateViewModel.activeTemplateId)
         persistCurrentCatalog()
     }
 
     fun deleteTemplate(templateId: String) {
-        val next = tableTemplateViewModel.templates.filterNot { it.id == templateId }
-        val nextActiveId = when {
-            tableTemplateViewModel.activeTemplateId != templateId ->
-                tableTemplateViewModel.activeTemplateId
-            next.isNotEmpty() -> next.first().id
-            else -> null
-        }
-        tableTemplateViewModel.setCatalog(next, nextActiveId)
+        val updated = deleteSavedTableTemplate(tableTemplateViewModel.templates,
+            tableTemplateViewModel.activeTemplateId, templateId)
+        tableTemplateViewModel.setCatalog(updated.items, updated.activeTemplateId)
         persistCurrentCatalog()
     }
 
