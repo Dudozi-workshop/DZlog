@@ -128,9 +128,10 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
         }
         if (move || delete) {
             Column(
-                Modifier.align(if (compact) Alignment.TopCenter else Alignment.BottomCenter)
+                Modifier.align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = if (compact) 48.dp else 56.dp)
+                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = if (compact) 16.dp else 40.dp)
+                    .tutorialTarget("guide.dialog")
                     .background(Color.White, RoundedCornerShape(12.dp))
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
