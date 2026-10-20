@@ -1,6 +1,9 @@
 name: DZlog Android CI
 
 on:
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
   push:
     branches:
       - feat/table-editor-v2-ux-mock
