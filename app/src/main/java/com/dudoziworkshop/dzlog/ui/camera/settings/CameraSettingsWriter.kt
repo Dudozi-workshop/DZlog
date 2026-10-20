@@ -33,44 +33,55 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 
 internal class CameraSettingsWriter(
     private val context: Context,
+    private val readOnly: Boolean = false,
 ) {
     suspend fun setCaptureAspect(aspect: CaptureAspect) {
+        if (readOnly) return
         persistCaptureAspect(context, aspect)
     }
 
     suspend fun setSaveMode(mode: SaveMode) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_SAVE_MODE] = mode.v }
     }
 
     suspend fun setContinuousPreviewMode(mode: ContinuousPreviewMode) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_CONTINUOUS_PREVIEW_MODE] = mode.v }
     }
 
     suspend fun setShowGrid(enabled: Boolean) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_CAMERA_GRID_ON] = enabled }
     }
 
     suspend fun setShowWmPreview(enabled: Boolean) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_SHOW_WM_PREVIEW] = if (enabled) 1 else 0 }
     }
 
     suspend fun setVolumeKeyAction(action: VolumeKeyAction) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_VOLUME_KEY_ACTION] = action.v }
     }
 
     suspend fun setZoomTenths(zoomTenths: Int) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_CAMERA_ZOOM_TENTHS] = zoomTenths }
     }
 
     suspend fun setFlashMode(mode: CameraFlashMode) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_CAMERA_FLASH_MODE] = mode.toPrefValue() }
     }
 
     suspend fun setAssistShutterEnabled(enabled: Boolean) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_ASSIST_SHUTTER_ENABLED] = enabled }
     }
 
     suspend fun setAssistShutterPositionRatio(xRatio: Float, yRatio: Float) {
+        if (readOnly) return
         context.dataStore.edit {
             it[KEY_ASSIST_SHUTTER_X_RATIO] = xRatio
             it[KEY_ASSIST_SHUTTER_Y_RATIO] = yRatio
@@ -83,6 +94,7 @@ internal class CameraSettingsWriter(
         x10000: Int,
         y10000: Int,
     ) {
+        if (readOnly) return
         context.dataStore.edit {
             it[KEY_WM_TABLE_WIDTH] = widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
             it[KEY_WM_TABLE_HEIGHT] = heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO)
@@ -95,14 +107,17 @@ internal class CameraSettingsWriter(
     }
 
     suspend fun setWmTableLocked(locked: Boolean) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_WM_TABLE_LOCKED] = locked }
     }
 
     suspend fun setWmRotationCwDeg(rotationCwDeg: Int) {
+        if (readOnly) return
         context.dataStore.edit { it[KEY_WM_ROTATION_CW_90] = if (rotationCwDeg == 90) 90 else 0 }
     }
 
     suspend fun setWmCustomOffsetRatio(x: Int, y: Int) {
+        if (readOnly) return
         val nx = x.coerceIn(0, 100)
         val ny = y.coerceIn(0, 100)
         context.dataStore.edit {
@@ -113,6 +128,7 @@ internal class CameraSettingsWriter(
     }
 
     suspend fun setWmCustomBoundsOffset10000(x10000: Int, y10000: Int) {
+        if (readOnly) return
         val nx10000 = x10000.coerceIn(0, 10000)
         val ny10000 = y10000.coerceIn(0, 10000)
         val nx = (nx10000 / 100f).toInt().coerceIn(0, 100)

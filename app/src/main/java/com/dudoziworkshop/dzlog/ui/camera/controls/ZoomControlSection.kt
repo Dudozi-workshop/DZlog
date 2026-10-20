@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,7 +49,10 @@ internal fun ZoomControlSection(
 ) {
     val haptic = LocalHapticFeedback.current
     val normalizedMaxTenths = maxZoomTenths.coerceIn(10, 100)
-    val normalizedTenths = zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
+    val guideZoom = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "zoom"
+    val fraction = LocalTutorialDemoProgress.current
+    val normalizedTenths = if (guideZoom) (10 + (normalizedMaxTenths.coerceAtMost(40) - 10) * fraction).roundToInt()
+        else zoomRatioTenths.coerceIn(10, normalizedMaxTenths)
     var isScrubbing by remember { mutableStateOf(false) }
 
     Column(
@@ -57,7 +62,7 @@ internal fun ZoomControlSection(
     ) {
         // S1: the moving ruler is shown for a manual expansion or during a chip drag.
         // The bottom three chips remain in place while the ruler grows upwards.
-        if (expanded || isScrubbing) {
+        if (expanded || isScrubbing || (guideZoom && fraction > 0.05f)) {
             ZoomDetailExtraSection(
                 zoomTenths = normalizedTenths,
                 maxZoomTenths = normalizedMaxTenths,
@@ -77,6 +82,7 @@ internal fun ZoomControlSection(
             onDragActiveChange = { isScrubbing = it },
             onToggleExpanded = onToggleExpanded,
         )
+        if (guideZoom && fraction > 0.05f) TutorialDragHint(fraction)
     }
 }
 

@@ -1,5 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -133,11 +137,12 @@ private fun RowScope.ToolMenuChip(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val tourId = when (label) { "초점" -> "focus"; "플래시" -> "flash"; "격자" -> "grid"; "표" -> "table"; else -> "assist" }
     val chipBg = if (selected) DDZColor.SageLight.copy(alpha = 0.74f) else Color.Transparent
     val iconTint = if (selected) DDZColor.SageDarkStrong else DDZColor.SageDark
     Box(
         modifier = Modifier
-            .weight(1f)
+            .weight(1f).tutorialTarget("camera.tool.$tourId")
             .heightIn(min = 48.dp)
             .clip(ToolMenuChipShape)
             .background(chipBg, ToolMenuChipShape)

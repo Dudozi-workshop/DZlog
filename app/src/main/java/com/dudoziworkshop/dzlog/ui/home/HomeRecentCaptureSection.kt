@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.home
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,7 +63,7 @@ internal fun HomeRecentCaptureSection(
             color = DDZColor.TextSecondary,
             modifier = Modifier.weight(1f),
         )
-        AlbumViewAction(onClick = onOpenAlbum)
+        Box(Modifier.tutorialTarget("home.album")) { AlbumViewAction(onClick = onOpenAlbum) }
     }
 
     Spacer(Modifier.height(HomeUiSpec.RecentHeaderToImageGap))
@@ -79,6 +80,7 @@ internal fun HomeRecentCaptureSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(HomeUiSpec.RecentImageAspectRatio)
+                        .tutorialTarget("home.photo")
                         .clip(RoundedCornerShape(HomeUiSpec.RecentImageRadius))
                         .background(DDZColor.Surface)
                         .border(
@@ -118,7 +120,7 @@ internal fun HomeRecentCaptureSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = HomeUiSpec.EmptyStateVerticalPadding),
+                .padding(vertical = HomeUiSpec.EmptyStateVerticalPadding).tutorialTarget("home.photo"),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(HomeUiSpec.EmptyStateGap),
         ) {
