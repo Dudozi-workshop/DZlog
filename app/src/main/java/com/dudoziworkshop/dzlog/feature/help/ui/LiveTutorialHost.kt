@@ -267,17 +267,16 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "filename", "path", "counter" -> "camera.next-info"
         else -> "camera.preview"
     }
-    "settings" -> when {
-        location.pageId == "permission-screen" -> "settings.screen"
-        location.pageId == "export-screen" -> "settings.backup.저장 위치 선택"
-        location.pageId == "import-screen" -> "settings.backup.다른 백업 파일 선택"
-        location.pageId == "import" -> "settings.other.작업 환경 가져오기"
-        location.pageId == "preview" -> "settings.quality-options"
-        parent == "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
-        parent == "help" -> "settings.other.사용법 및 도움말"
-        location.sessionId == "permission" -> "settings.permission"
-        location.sessionId == "data" -> "settings.data"
-        location.sessionId == "feedback" -> "settings.feedback"
+    "settings" -> when (location.pageId) {
+        "permission" -> "settings.permission"
+        "quality" -> "settings.capture"
+        "assist" -> "settings.feedback"
+        "feedback" -> "settings.other.촬영 효과음 및 진동"
+        "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
+        "export" -> "settings.data"
+        "import" -> "settings.other.작업 환경 가져오기"
+        "help" -> "settings.other.사용법 및 도움말"
+        "credits" -> "settings.other.도움 주신 분들"
         else -> "settings.capture"
     }
     "gallery" -> when {
