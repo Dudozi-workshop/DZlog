@@ -8,6 +8,9 @@ on:
       - '.github/workflows/tutorial-gallery-qa-apk.yml'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/help/**'
       - 'app/src/main/res/**'
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
   workflow_dispatch:
 
 permissions:
