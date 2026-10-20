@@ -103,7 +103,7 @@ fun SettingsRootScreen(
     LaunchedEffect(tutorialTarget) {
         if (tutorialTarget != null) {
             kotlinx.coroutines.delay(80)
-            tutorialRequester.bringIntoView()
+            runCatching { tutorialRequester.bringIntoView() }
         }
     }
     var showPermissions by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
