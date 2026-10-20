@@ -160,6 +160,8 @@ jobs:
         run: |
           if [[ "$GITHUB_REF_NAME" == "feat/gallery-v2" ]]; then
             cp app/build/outputs/apk/debug/app-debug.apk DZlog-gallery-dev.apk
+          elif [[ "$GITHUB_REF_NAME" == "feat/tutorial-settings-v2" ]]; then
+            cp app/build/outputs/apk/debug/app-debug.apk DZlog-settings-tutorial-v2.apk
           else
             cp app/build/outputs/apk/debug/app-debug.apk DZlog-v2-test.apk
           fi
@@ -167,8 +169,8 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev-apk' || 'DZlog-v2-test-apk' }}
-          path: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev.apk' || 'DZlog-v2-test.apk' }}
+          name: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev-apk' || github.ref_name == 'feat/tutorial-settings-v2' && 'DZlog-settings-tutorial-v2-apk' || 'DZlog-v2-test-apk' }}
+          path: ${{ github.ref_name == 'feat/gallery-v2' && 'DZlog-gallery-dev.apk' || github.ref_name == 'feat/tutorial-settings-v2' && 'DZlog-settings-tutorial-v2.apk' || 'DZlog-v2-test.apk' }}
           if-no-files-found: error
           retention-days: 14
 
