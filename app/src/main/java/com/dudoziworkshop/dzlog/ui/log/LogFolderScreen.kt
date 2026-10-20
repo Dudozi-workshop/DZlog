@@ -998,8 +998,6 @@ fun LogFolderScreen(
                 onRenameNameChange = { renameName = it; managementConfirmed = false },
                 onChangeDestination = { folderOperationError = null },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
-                confirmed = managementConfirmed,
-                onConfirmedChange = { managementConfirmed = it },
                 busy = folderManagementBusy,
                 error = folderOperationError,
                 onCancel = { manageAction = null },
@@ -1083,13 +1081,11 @@ fun LogFolderScreen(
                     showFolderMovePicker = true
                 },
                 impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts),
-                confirmed = managementConfirmed,
-                onConfirmedChange = { managementConfirmed = it },
                 busy = folderManagementBusy,
                 error = folderOperationError,
                 onCancel = { manageAction = null },
                 onConfirm = {
-                    if (!folderManagementBusy && managementConfirmed && moveTarget in destinationPaths) {
+                    if (!folderManagementBusy && moveTarget in destinationPaths) {
                         val sourcePath = managedFolderPath
                         val destination = moveTarget
                         folderManagementBusy = true
