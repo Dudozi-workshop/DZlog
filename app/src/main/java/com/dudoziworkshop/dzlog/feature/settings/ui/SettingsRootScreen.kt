@@ -8,6 +8,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -88,6 +89,7 @@ private data class QualityUiItem(
     val description: String,
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SettingsRootScreen(
     onBack: () -> Unit,
