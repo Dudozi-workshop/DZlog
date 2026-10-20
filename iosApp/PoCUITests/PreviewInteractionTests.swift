@@ -158,6 +158,29 @@ final class PreviewInteractionTests: XCTestCase {
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
     }
 
+    private func typeWithVisibleKeyboard(_ value: String) {
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
+        // Fresh simulators may show iOS's sliding-keyboard introduction over the keys.
+        let introduction = app.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."]
+        if introduction.waitForExistence(timeout: 2) {
+            let next = app.buttons["Continue"]
+            XCTAssertTrue(next.exists)
+            next.tap()
+            let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: introduction)
+            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        }
+        // Compose 1.7 does not publish native keyboard focus to XCTest's typeText.
+        // Real touches on visible lowercase keys go through the platform input connection.
+        for character in value {
+            let key = app.keyboards.firstMatch.keys[String(character)]
+            XCTAssertTrue(key.waitForExistence(timeout: 5), "Missing visible keyboard key: \(character)")
+            let frame = key.frame
+            XCTAssertFalse(frame.isEmpty)
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+        }
+    }
+
     func testEditorContentStructureStyleSaveAndRelaunch() throws {
         app.launchArguments = ["--editor-flow", "--reset-editor-fixture"]
         app.launch()
@@ -175,9 +198,8 @@ final class PreviewInteractionTests: XCTestCase {
         app.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: valueFrame.minX + valueFrame.width * 0.25, dy: valueFrame.midY)).tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10), "Cell input must open the keyboard")
-        // Compose owns the focused input; no native TextField/TextView AX node is exposed.
-        app.typeText(" iOS QA")
-        XCTAssertTrue(try screenContains("iOS QA"), "Typed text must appear in the existing editor")
+        typeWithVisibleKeyboard("iosqa")
+        XCTAssertTrue(try screenContains("iosqa"), "Typed text must appear in the existing editor")
         // Shared back policy closes the keyboard before changing tabs.
         tapButton("뒤로가기")
         tapPanelText("구조")
@@ -199,9 +221,9 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("값 없음")
         tapPanelText("파일명 값")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
-        app.typeText("ios-review")
+        typeWithVisibleKeyboard("iosreview")
         tapButton("확인")
-        XCTAssertTrue(try screenContains("ios-review"))
+        XCTAssertTrue(try screenContains("iosreview"))
         for _ in 0..<3 {
             if !text("파일명 설정").exists { break }
             tapButton("뒤로가기")
@@ -223,14 +245,14 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--editor-flow"]
         app.launch()
         tapButton("표 편집")
-        XCTAssertTrue(try screenContains("iOS QA"), "Saved cell text must survive app relaunch")
+        XCTAssertTrue(try screenContains("iosqa"), "Saved cell text must survive app relaunch")
         tapPanelText("구조")
-        XCTAssertTrue(try screenContains("iOS QA"), "Structural change must retain edited contents")
+        XCTAssertTrue(try screenContains("iosqa"), "Structural change must retain edited contents")
         XCTAssertTrue(text("3행과 4행 높이 조절").exists, "Added row must survive relaunch")
         tapPanelText("스타일")
         XCTAssertFalse(text("배경 투명도").exists, "Saved transparent style must survive relaunch")
         tapPanelText("저장설정")
-        XCTAssertTrue(try screenContains("ios-review"), "Saved naming rule must survive relaunch")
+        XCTAssertTrue(try screenContains("iosreview"), "Saved naming rule must survive relaunch")
     }
 
     func testHorizontalGestureRevealsLastColumn() throws {
