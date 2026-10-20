@@ -10,6 +10,11 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -91,7 +96,16 @@ fun SettingsRootScreen(
     onOpenSettingsTour: () -> Unit = {},
     onOpenExport: () -> Unit = {},
     onOpenImport: () -> Unit = {},
+    tutorialTarget: String? = null,
+    onTutorialTargetBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
+    val tutorialRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(tutorialTarget) {
+        if (tutorialTarget != null) {
+            kotlinx.coroutines.delay(80)
+            tutorialRequester.bringIntoView()
+        }
+    }
     var showPermissions by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     if (showPermissions) {
         com.dudoziworkshop.dzlog.ui.navigation.PermissionManagementScreen { showPermissions = false }
@@ -179,6 +193,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.CheckCircle,
                             title = "권한 관리",
+                            tutorialModifier = if (tutorialTarget == "권한 관리")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "카메라·사진 접근 및 폴더 연결",
                             onClick = { showPermissions = true },
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
@@ -189,6 +207,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.Image,
                             title = "사진 품질",
+                            tutorialModifier = if (tutorialTarget == "사진 품질")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "화질과 저장 성능",
                             onClick = { isQualityExpanded = !isQualityExpanded },
                             trailing = {
@@ -229,6 +251,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.CameraAlt,
                             title = "플로팅 보조 셔터",
+                            tutorialModifier = if (tutorialTarget == "플로팅 보조 셔터")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "촬영 화면에 보조 버튼 표시",
                             onClick = {
                                 changeAssistShutter(!settings.assistShutterEnabled)
@@ -254,6 +280,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.CameraAlt,
                             title = "촬영 효과음 및 진동",
+                            tutorialModifier = if (tutorialTarget == "촬영 효과음 및 진동")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "효과음 선택·미리 듣기·음량·진동 강도",
                             onClick = { showCaptureFeedbackSettings = true },
                             trailing = {
@@ -268,6 +298,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.WarningAmber,
                             title = "저장경로 변경 시 삭제 경고",
+                            tutorialModifier = if (tutorialTarget == "저장경로 변경 시 삭제 경고")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "다른 폴더에 저장된 사진을 Undo할 때 확인",
                             onClick = {
                                 scope.launch {
@@ -299,6 +333,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.FileDownload,
                             title = "작업 환경 내보내기",
+                            tutorialModifier = if (tutorialTarget == "작업 환경 내보내기")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "표 템플릿과 저장 규칙 백업",
                             onClick = onOpenExport,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
@@ -307,6 +345,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.FileUpload,
                             title = "작업 환경 가져오기",
+                            tutorialModifier = if (tutorialTarget == "작업 환경 가져오기")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "백업 파일에서 템플릿 추가",
                             onClick = onOpenImport,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
@@ -356,6 +398,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.HelpOutline,
                             title = "사용법 및 도움말",
+                            tutorialModifier = if (tutorialTarget == "사용법 및 도움말")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "처음 사용법 · 기능별 튜토리얼",
                             onClick = onOpenGuide,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
@@ -372,6 +418,10 @@ fun SettingsRootScreen(
                         SettingsActionRow(
                             icon = Icons.Default.FavoriteBorder,
                             title = "도움 주신 분들",
+                            tutorialModifier = if (tutorialTarget == "도움 주신 분들")
+                                Modifier.bringIntoViewRequester(tutorialRequester)
+                                    .onGloballyPositioned { onTutorialTargetBounds(it.boundsInWindow()) }
+                            else Modifier,
                             subtitle = "DZlog를 함께 만들어주신 분들",
                             onClick = onOpenCredits,
                             trailing = {
@@ -526,9 +576,10 @@ private fun SettingsActionRow(
     subtitle: String,
     onClick: () -> Unit,
     trailing: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+    tutorialModifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
+        modifier = tutorialModifier
             .fillMaxWidth()
             .heightIn(min = 66.dp)
             .clickable(onClick = onClick)
