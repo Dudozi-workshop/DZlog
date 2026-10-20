@@ -270,6 +270,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "camera.preview"
     }
     "settings" -> when (location.pageId) {
+        "intro" -> "settings.intro.no-target"
         "permission" -> "settings.permission"
         "quality" -> "settings.capture"
         "assist" -> "settings.feedback"
