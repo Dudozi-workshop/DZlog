@@ -60,10 +60,7 @@ internal fun GalleryFolderManagementDialog(
                 modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(spacing.controlGap),
             ) {
-                GalleryFolderInfoCard(
-                    name = sourcePath.trimEnd('/').substringAfterLast('/'),
-                    detail = sourcePath.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
-                )
+                GalleryPathPreviewCard("현재 경로", galleryReadablePath(sourcePath))
                 if (rename) {
                     OutlinedTextField(
                         value = renameName,
@@ -74,11 +71,17 @@ internal fun GalleryFolderManagementDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Text("이동 위치", style = typography.SettingLabel, color = colors.TextPrimary)
-                    GalleryFolderInfoCard(
-                        name = destinationPath.trimEnd('/').substringAfterLast('/').ifBlank { "DZlog" },
-                        detail = destinationPath.removePrefix(GalleryFolderIndexPolicy.ROOT)
-                            .trimEnd('/').ifBlank { "DZlog" },
+                    GalleryPathChangeArrow()
+                    GalleryPathPreviewCard(
+                        "이동 후 경로",
+                        proposed.getOrNull()?.let(::galleryReadablePath) ?: "경로 확인 필요",
+                    )
+                }
+                if (rename) {
+                    GalleryPathChangeArrow()
+                    GalleryPathPreviewCard(
+                        "변경 후 경로",
+                        proposed.getOrNull()?.let(::galleryReadablePath) ?: "새 이름을 입력해 주세요.",
                     )
                 }
                 Text(impactNote, style = typography.Caption, color = colors.TextSecondary)
