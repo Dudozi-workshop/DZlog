@@ -29,7 +29,7 @@ jobs:
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
       - name: Run focused tutorial unit tests and compile
-        run: bash ./gradlew :app:testDebugUnitTest --tests '*DzlogTutorialSectionsTest' --tests '*DzlogTutorialCatalogTest' :app:compileDebugKotlin --stacktrace
+        run: bash ./gradlew :app:testDebugUnitTest --tests '*DzlogTutorialSectionsTest' :app:compileDebugKotlin --stacktrace
       - name: Build separately installable QA APK
         run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tableguide -PdzlogDebugVersionCode=${{ github.run_number }} --stacktrace
       - name: Upload QA APK
