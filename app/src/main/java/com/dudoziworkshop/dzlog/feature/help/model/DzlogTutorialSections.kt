@@ -85,7 +85,7 @@ internal object DzlogTutorialSections {
             from("table-detail", "structure", "행·열과 병합 구조", "structure"),
             from("table-detail", "style", "스타일과 배치", "style"),
             from("table-detail", "save", "저장과 종료", "save").copy(
-                pageOrder = listOf("save/undo", "save/redo", "save", "save/decision")
+                pageOrder = listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision")
             ),
         )),
         TutorialArea("saving", "저장설정", listOf(
