@@ -102,7 +102,10 @@ internal fun LiveTutorialHost(
                     LocalTutorialLocation provides displayLocation,
                     LocalTutorialTarget provides tutorialTarget(displayLocation, if (areaId == "camera") displayLocation.pageId else page.parentId),
                     LocalTutorialCardTopSpace provides (if (areaId == "camera" && !cameraGuideAtBottom(page.id))
-                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp),
+                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else if (areaId == "table-detail" && page.id in setOf("save/template-confirm", "save/decision"))
+                            with(density) { cardHeight.toDp() } + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
                         (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete", "photos/move", "photos/delete")))
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
@@ -167,18 +170,21 @@ internal fun LiveTutorialHost(
                 }
             }
             areaId == "table-detail" -> when (sessionId) {
-                "overview", "structure", "style" -> topY
-                "save" -> bottomY
+                "overview" -> if (page.id == "sections/tabs") topY else bottomY
+                "structure", "style", "cells" -> topY
+                "save" -> if (page.id in setOf("save/template", "save/template-confirm", "save/decision")) topY else bottomY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
             areaId == "saving" -> when (sessionId) {
                 "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
+            // Keep the guide anchored across consecutive steps. The underlying settings
+            // list scrolls to the selected row; the popup no longer chases its position.
             areaId == "settings" -> when (sessionId) {
-                "capture", "feedback", "data" -> topY
-                "permission" -> desiredY.coerceIn(topY, bottomY)
-                else -> desiredY.coerceIn(topY, bottomY)
+                "environment" -> bottomY
+                "capture", "data", "support" -> topY
+                else -> topY
             }
             else -> desiredY.coerceIn(topY, bottomY)
         }
@@ -277,17 +283,17 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "filename", "path", "counter" -> "camera.next-info"
         else -> "camera.preview"
     }
-    "settings" -> when {
-        location.pageId == "permission-screen" -> "settings.screen"
-        location.pageId == "export-screen" -> "settings.backup.저장 위치 선택"
-        location.pageId == "import-screen" -> "settings.backup.다른 백업 파일 선택"
-        location.pageId == "import" -> "settings.other.작업 환경 가져오기"
-        location.pageId == "preview" -> "settings.quality-options"
-        parent == "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
-        parent == "help" -> "settings.other.사용법 및 도움말"
-        location.sessionId == "permission" -> "settings.permission"
-        location.sessionId == "data" -> "settings.data"
-        location.sessionId == "feedback" -> "settings.feedback"
+    "settings" -> when (location.pageId) {
+        "intro" -> "settings.intro.no-target"
+        "permission" -> "settings.permission"
+        "quality" -> "settings.capture"
+        "assist" -> "settings.feedback"
+        "feedback" -> "settings.other.촬영 효과음 및 진동"
+        "warning" -> "settings.other.저장경로 변경 시 삭제 경고"
+        "export" -> "settings.data"
+        "import" -> "settings.other.작업 환경 가져오기"
+        "help" -> "settings.other.사용법 및 도움말"
+        "credits" -> "settings.other.도움 주신 분들"
         else -> "settings.capture"
     }
     "gallery" -> when {
@@ -309,12 +315,21 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     }
     "table-detail" -> when (location.sessionId) {
-        "overview" -> "table.tabs"
+        "overview" -> when (location.pageId) {
+            "sections" -> "table.preview"
+            "sections/template" -> "table.template"
+            else -> "table.tabs"
+        }
         "save" -> when (location.pageId) {
-            "save/decision" -> "guide.dialog"
+            "save/decision", "save/template-confirm", "save/template" -> "guide.dialog"
             "save/undo" -> "table.history.실행 취소"
             "save/redo" -> "table.history.다시 실행"
             else -> "table.save"
+        }
+        "cells" -> when (location.pageId) {
+            "cells/types" -> "guide.dialog"
+            "cells" -> "table.preview"
+            else -> "table.cell-input"
         }
         "structure" -> if ('/' in location.pageId) "table.structure.${location.pageId.substringAfter('/')}" else "table.panel"
         "style" -> when (location.pageId.substringAfter('/')) {

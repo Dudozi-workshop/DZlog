@@ -33,7 +33,7 @@ class DzlogTutorialCatalogTest {
     }
 
     @Test fun approvedDetailedScenesAndModuleLookupRemainAvailable() {
-        assertEquals(6, DzlogTutorialCatalog.module("table-detail")!!.steps[1].scenes.size)
+        assertEquals(7, DzlogTutorialCatalog.module("table-detail")!!.steps[1].scenes.size)
         val saving = DzlogTutorialCatalog.module("saving")!!
         val fileNameScenes = saving.steps.first { it.id == "filename" }.scenes.map { it.id }
         assertTrue(fileNameScenes.containsAll(listOf("parts", "sources", "edit", "order", "remove", "preview", "copy")))

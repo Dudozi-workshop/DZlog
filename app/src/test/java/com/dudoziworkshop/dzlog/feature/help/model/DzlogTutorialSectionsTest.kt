@@ -31,6 +31,29 @@ class DzlogTutorialSectionsTest {
             "recent", "album", "table-settings", "save-info", "settings"),
             home.sessions.flatMap { it.guidePages() }.map { it.id })
     }
+    @Test fun settingsUsesSharedV2FourSessionsAndTenStepsIncludingIntro() {
+        val settings = DzlogTutorialSections.area("settings")!!
+        assertEquals(listOf("environment", "capture", "data", "support"), settings.sessions.map { it.id })
+        assertEquals(
+            listOf("intro", "permission", "quality", "assist", "feedback", "warning",
+                "export", "import", "help", "credits"),
+            settings.sessions.flatMap { it.guidePages() }.map { it.id },
+        )
+        assertFalse(settings.sessions.flatMap { it.guidePages() }
+            .any { it.title.contains("Pro") || it.title.contains("구매") })
+    }
+    @Test fun tableEditorHasApproved28PagesWithTypeChooserBeforeSixTypes() {
+        val area = DzlogTutorialSections.area("table-detail")!!
+        assertEquals(listOf(3, 8, 5, 6, 6), area.sessions.map { it.guidePages().size })
+        assertEquals(28, area.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf("cells", "cells/types", "cells/text", "cells/number",
+            "cells/counter", "cells/date", "cells/time", "cells/rotation"),
+            area.sessions[1].guidePages().map { it.id })
+        assertEquals(listOf("structure", "structure/add", "structure/delete",
+            "structure/merge", "structure/equal"), area.sessions[2].guidePages().map { it.id })
+        assertEquals(listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision"),
+            area.sessions.last().guidePages().map { it.id })
+    }
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
         val sync = pages.first { it.id == "counter/sync" }
