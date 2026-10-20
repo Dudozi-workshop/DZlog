@@ -97,10 +97,16 @@ internal fun GalleryMoveDestinationPicker(
             )
         }
     }
-    val directPhotos = remember(path, allPhotos) {
+    // Match the regular gallery: an originals-only leaf displays its originals directly.
+    // A mixed folder exposes the usual original-photo row for read-only navigation.
+    val originalsInPlace = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
+    val viewingOriginals = GalleryPhotoMovePolicy.isOriginalPath(path)
+    val showingOriginals = originalsInPlace || viewingOriginals
+    val directPhotos = remember(path, allPhotos, showingOriginals) {
+        val photoPath = if (originalsInPlace) path + "original/" else path
         GalleryPhotoSort.NEWEST.sorted(allPhotos.filter {
-            it.relativePath.trimEnd('/') == path.trimEnd('/') &&
-                !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath)
+            it.relativePath.trimEnd('/') == photoPath.trimEnd('/') &&
+                (showingOriginals || !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath))
         })
     }
     val alreadyHere = movingFolderPath == null && allPhotos.any {
@@ -109,11 +115,13 @@ internal fun GalleryMoveDestinationPicker(
                 path + "original" else path.trimEnd('/'))
     }
     val folderValidationError = movingFolderPath?.let { moving ->
-        runCatching { GalleryFolderOperationPolicy.validateMove(moving, path) }
+        if (viewingOriginals) "원본사진 폴더는 이동 위치로 선택할 수 없습니다."
+        else runCatching { GalleryFolderOperationPolicy.validateMove(moving, path) }
             .exceptionOrNull()?.message
             ?: if (path !in knownFolderPaths) "이 위치로는 이동할 수 없습니다." else null
     }
-    val canChoose = if (movingFolderPath == null) selectedIds.isNotEmpty() && !alreadyHere
+    val canChoose = if (movingFolderPath == null)
+        selectedIds.isNotEmpty() && !alreadyHere && !viewingOriginals
         else folderValidationError == null
 
     fun goBack() {
@@ -219,21 +227,26 @@ internal fun GalleryMoveDestinationPicker(
                                 "사진 ${child.totalImageCount}장" else "빈 폴더",
                         ) { path = child.relativePath }
                     }
+                    if (!showingOriginals && index.directOriginalCount > 0) {
+                        item(key = "destination-originals") {
+                            GalleryOriginalRow(index.directOriginalCount) {
+                                // Preview-only: selecting the original directory as a destination is blocked.
+                                path += "original/"
+                            }
+                        }
+                    }
                     item {
-                        GallerySectionTitle("이 폴더의 사진", count = "${directPhotos.size}장")
+                        GallerySectionTitle(
+                            if (showingOriginals) "원본사진" else "이 폴더의 사진",
+                            count = "${directPhotos.size}장",
+                        )
                     }
                     if (directPhotos.isEmpty()) {
                         item { GalleryEmptyText("저장된 사진이 없습니다.") }
                     } else {
-                        items(directPhotos.take(9).chunked(3)) { photos ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                photos.forEach { photo ->
-                                    Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(10.dp))) {
-                                        DzThumbnail(photo.uri.toString())
-                                    }
-                                }
-                                repeat(3 - photos.size) { Box(Modifier.weight(1f)) }
-                            }
+                        items(directPhotos.chunked(3)) { photos ->
+                            // Exact same three-column gallery tile component, without any editing action.
+                            GalleryPhotoRow(photos, onPhotoClick = {})
                         }
                     }
                 }
