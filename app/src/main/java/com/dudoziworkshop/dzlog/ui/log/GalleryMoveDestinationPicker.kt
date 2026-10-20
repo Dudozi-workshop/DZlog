@@ -43,6 +43,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -61,8 +62,9 @@ internal fun GalleryMoveDestinationPicker(
     loadPhysicalChildren: suspend (String) -> List<String>,
     onCancel: () -> Unit,
     onChoose: (String) -> Unit,
+    movingFolderPath: String? = null,
 ) {
-    var path by rememberSaveable { mutableStateOf(initialPath) }
+    var path by rememberSaveable(initialPath, movingFolderPath) { mutableStateOf(initialPath) }
     var physicalPaths by remember(path) { mutableStateOf<List<String>>(emptyList()) }
     var childLoading by remember(path) { mutableStateOf(true) }
     var childError by remember(path) { mutableStateOf<String?>(null) }
@@ -87,9 +89,16 @@ internal fun GalleryMoveDestinationPicker(
             it.relativePath.trimEnd('/') == path.trimEnd('/') && !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath)
         }).take(3)
     }
-    val alreadyHere = allPhotos.any { it.id in selectedIds &&
+    val alreadyHere = movingFolderPath == null && allPhotos.any { it.id in selectedIds &&
         it.relativePath.trimEnd('/') == (if (GalleryPhotoMovePolicy.isOriginalPath(it.relativePath))
             path + "original" else path.trimEnd('/')) }
+    val folderValidationError = movingFolderPath?.let { moving ->
+        runCatching { GalleryFolderOperationPolicy.validateMove(moving, path) }
+            .exceptionOrNull()?.message
+            ?: if (path !in knownFolderPaths) "이 위치는 현재 이동 대상으로 사용할 수 없습니다." else null
+    }
+    val mayChoose = if (movingFolderPath != null) folderValidationError == null
+        else selectedIds.isNotEmpty() && !alreadyHere
     fun goBack() {
         val parent = GalleryFolderIndexPolicy.parentOf(path)
         if (parent == null) onCancel() else path = parent
@@ -101,7 +110,7 @@ internal fun GalleryMoveDestinationPicker(
                 IconButton(onClick = ::goBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "상위 폴더")
                 }
-                Text("이동할 폴더", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                Text(if (movingFolderPath == null) "이동할 폴더" else "폴더 이동 위치", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                 TextButton(onClick = onCancel) { Text("취소") }
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
@@ -131,8 +140,15 @@ internal fun GalleryMoveDestinationPicker(
                         }
                     }
                     item { Text("하위 폴더", fontWeight = FontWeight.SemiBold) }
-                    if (index.children.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
-                    items(index.children, key = { it.relativePath }) { child ->
+                    val visibleChildren = index.children.filter { child ->
+                        movingFolderPath == null || (
+                            child.relativePath != movingFolderPath &&
+                            !child.relativePath.startsWith(movingFolderPath) &&
+                            !GalleryPhotoMovePolicy.isOriginalPath(child.relativePath)
+                        )
+                    }
+                    if (visibleChildren.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
+                    items(visibleChildren, key = { it.relativePath }) { child ->
                         Row(Modifier.fillMaxWidth().clickable { path = child.relativePath }.padding(vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,8 +160,10 @@ internal fun GalleryMoveDestinationPicker(
                 }
             }
             if (alreadyHere) Text("선택한 사진이 이미 이 폴더에 있습니다.", color = DDZColor.TextSecondary)
+            if (movingFolderPath != null && folderValidationError != null)
+                Text(folderValidationError, color = DDZColor.TextSecondary)
             Button(onClick = { onChoose(path) }, enabled = !loading && !childLoading && loadError == null &&
-                childError == null && !alreadyHere && selectedIds.isNotEmpty(),
+                childError == null && mayChoose,
                 modifier = Modifier.fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                     .padding(vertical = 8.dp)) { Text("이 위치로 이동") }
