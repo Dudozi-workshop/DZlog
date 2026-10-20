@@ -146,7 +146,17 @@ internal fun LiveTutorialHost(
                 // If the target is not visible, keep the card in a stable fallback position.
                 val availableBelow = if (target == null) 0f else hostHeight - target.bottom - gap
                 val availableAbove = if (target == null) 0f else target.top - topY - gap
+                val isDialogStep = page.id in setOf(
+                    "folders/new", "folders/rename", "folders/move", "folders/delete",
+                    "photos/move", "photos/delete"
+                )
                 when {
+                    // Real confirmation dialogs take precedence over the tutorial card.
+                    // Place the card entirely below/above the observed dialog when possible.
+                    isDialogStep && target != null && availableBelow >= cardHeight + gap ->
+                        (target.bottom + gap).coerceIn(topY, bottomY)
+                    isDialogStep && target != null && availableAbove >= cardHeight + gap ->
+                        (target.top - cardHeight - gap).coerceIn(topY, bottomY)
                     target == null -> if (sessionId in setOf("viewer", "photos")) topY else bottomY
                     availableBelow >= cardHeight + gap -> bottomY
                     availableAbove >= cardHeight + gap -> topY
@@ -190,8 +200,6 @@ internal fun LiveTutorialHost(
                 if (areaId in setOf("home", "camera")) Box(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
                 } else Text(page.instruction, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                if (location.areaId == "gallery") Text("저장된 사진과 폴더가 있는 경우 해당 항목이 보여요.",
-                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { if (index > 0) pageId = pages[index - 1].id
                         else { val previous = area.sessions[area.sessions.indexOf(session) - 1]; progress.save(TutorialLocation(areaId, previous.id, previous.guidePages().last().id)); select(areaId, previous.id) }
