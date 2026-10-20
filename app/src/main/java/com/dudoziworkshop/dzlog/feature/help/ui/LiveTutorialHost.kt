@@ -141,10 +141,18 @@ internal fun LiveTutorialHost(
             areaId == "home" && page.id in setOf("start", "recent", "album", "table-settings", "save-info") -> topY
             areaId == "home" -> bottomY
             areaId == "camera" -> if (cameraGuideAtBottom(page.id)) bottomY else topY
-            areaId == "gallery" -> when (sessionId) {
-                "overview" -> if (page.parentId == "browse") bottomY else topY
-                "viewer", "photos" -> topY
-                else -> desiredY.coerceIn(topY, bottomY)
+            areaId == "gallery" -> {
+                // Select the side with more room around the actual highlighted control.
+                // If the target is not visible, keep the card in a stable fallback position.
+                val availableBelow = if (target == null) 0f else hostHeight - target.bottom - gap
+                val availableAbove = if (target == null) 0f else target.top - topY - gap
+                when {
+                    target == null -> if (sessionId in setOf("viewer", "photos")) topY else bottomY
+                    availableBelow >= cardHeight + gap -> bottomY
+                    availableAbove >= cardHeight + gap -> topY
+                    availableBelow >= availableAbove -> bottomY
+                    else -> topY
+                }
             }
             areaId == "table-detail" -> when (sessionId) {
                 "overview", "structure", "style" -> topY
