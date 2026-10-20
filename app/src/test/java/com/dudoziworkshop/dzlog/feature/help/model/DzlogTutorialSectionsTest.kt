@@ -33,14 +33,14 @@ class DzlogTutorialSectionsTest {
     }
     @Test fun tableEditorHasApproved26PagesWithTypeChooserBeforeSixTypes() {
         val area = DzlogTutorialSections.area("table-detail")!!
-        assertEquals(listOf(3, 8, 5, 6, 4), area.sessions.map { it.guidePages().size })
-        assertEquals(26, area.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf(3, 8, 5, 6, 6), area.sessions.map { it.guidePages().size })
+        assertEquals(28, area.sessions.sumOf { it.guidePages().size })
         assertEquals(listOf("cells", "cells/types", "cells/text", "cells/number",
             "cells/counter", "cells/date", "cells/time", "cells/rotation"),
             area.sessions[1].guidePages().map { it.id })
         assertEquals(listOf("structure", "structure/add", "structure/delete",
             "structure/merge", "structure/equal"), area.sessions[2].guidePages().map { it.id })
-        assertEquals(listOf("save/undo", "save/redo", "save", "save/decision"),
+        assertEquals(listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision"),
             area.sessions.last().guidePages().map { it.id })
     }
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
