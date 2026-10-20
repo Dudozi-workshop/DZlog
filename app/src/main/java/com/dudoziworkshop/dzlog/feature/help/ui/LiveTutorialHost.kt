@@ -155,6 +155,11 @@ internal fun LiveTutorialHost(
                 "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
+            areaId == "settings" -> when (sessionId) {
+                "capture", "feedback", "data" -> topY
+                "permission" -> desiredY.coerceIn(topY, bottomY)
+                else -> desiredY.coerceIn(topY, bottomY)
+            }
             else -> desiredY.coerceIn(topY, bottomY)
         }
         if (!contents) Surface(modifier = Modifier.padding(horizontal = 16.dp).offset { IntOffset(0, cardY.roundToInt()) }
