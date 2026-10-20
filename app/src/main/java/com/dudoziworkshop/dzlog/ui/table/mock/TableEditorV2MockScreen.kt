@@ -366,7 +366,7 @@ fun TableEditorV2Screen(
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp).tutorialTarget("table.preview"),
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
@@ -387,6 +387,7 @@ fun TableEditorV2Screen(
                                 onClick = { if (session.redo()) selectionState.clearAll() },
                             )
                         }
+                        Box(Modifier.fillMaxSize().tutorialTarget("table.preview")) {
                         MockTableCanvas(
                             cells = cells,
                             rows = rows,
@@ -456,6 +457,7 @@ fun TableEditorV2Screen(
                                 selectionState.clearLayoutSelection()
                             },
                         )
+                        }
 
                     }
                 }
@@ -619,7 +621,7 @@ fun TableEditorV2Screen(
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
                                         onInputFocus = { keyboardPreviewLocked = true },
-                                        modifier = editorPanelModifier,
+                                        modifier = editorPanelModifier.tutorialTarget("table.cell-input"),
                                     )
                                 }
                             } else {
@@ -849,6 +851,21 @@ fun TableEditorV2Screen(
             selectedType = TableEditorCellType.TEXT,
             onSelect = {},
             onDismiss = {},
+        )
+    }
+
+    if (readOnlyTour && tourLocation?.areaId == "table-detail" && tourLocation.pageId == "save/template") {
+        TableEditorTemplatePicker(
+            templates = emptyList(), currentTemplateId = null,
+            onDismiss = {}, onSelect = {}, tutorialDemo = true,
+        )
+    }
+    if (readOnlyTour && tourLocation?.areaId == "table-detail" && tourLocation.pageId == "save/template-confirm") {
+        DDZUnsavedDecisionDialog(
+            title = "템플릿을 교체할까요?",
+            message = "현재 변경사항을 저장한 뒤 교체할 수 있어요.",
+            onCancel = {}, onDiscard = {}, onSave = {},
+            saveText = "저장하고 교체", discardText = "저장 안 하고 교체", verticalActions = true,
         )
     }
 
