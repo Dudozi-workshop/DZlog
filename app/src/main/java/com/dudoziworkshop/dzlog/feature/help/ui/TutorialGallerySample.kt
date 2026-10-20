@@ -32,7 +32,7 @@ import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
 
 /** Read-only demo content. This screen never reads or writes MediaStore or app photo records. */
 internal object TutorialGallerySample {
-    val photos = listOf("단이 산책", "단이 관찰", "제주 여행", "카페 기록", "업무 기록", "단이 기록")
+    val photos = listOf("단이 산책", "제주 여행", "카페 기록", "업무 기록", "단이 기록", "반려동물 기록")
     val folders = listOf("단이 사진", "여행 기록", "일상 기록")
 }
 
@@ -43,11 +43,12 @@ private fun SamplePicture(index: Int, modifier: Modifier = Modifier, result: Boo
     // Photo-only rectangular regions of the previously approved source montage.
     // Kept fully inside this read-only sample; never accesses the user's gallery.
     val regions = listOf(
-        intArrayOf(66, 300, 138, 198),
-        intArrayOf(807, 230, 137, 126),
-        intArrayOf(993, 254, 121, 107),
-        intArrayOf(810, 399, 125, 107),
-        intArrayOf(983, 397, 128, 115),
+        intArrayOf(804, 230, 141, 113), // dog outdoors
+        intArrayOf(988, 250, 121, 110), // coast
+        intArrayOf(806, 409, 128, 103), // coffee
+        intArrayOf(976, 427, 133, 93), // notebook
+        intArrayOf(534, 342, 61, 61), // dog portrait
+        intArrayOf(665, 339, 59, 61), // sleeping cat
     )
     val bitmap = remember(index) {
         val source = BitmapFactory.decodeResource(context.resources, R.drawable.tutorial_dani_reference)
@@ -78,7 +79,6 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
     val folders = location.sessionId == "folders"
     val move = location.pageId == "photos/move"
     val delete = location.pageId == "photos/delete"
-    val result = location.pageId.contains("result", ignoreCase = true)
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFFF8F7F5))) {
         val compact = maxHeight < 560.dp
         Column(Modifier.fillMaxSize().padding(if (compact) 8.dp else 16.dp),
