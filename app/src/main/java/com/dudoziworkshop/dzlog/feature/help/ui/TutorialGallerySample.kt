@@ -1,184 +1,303 @@
 package com.dudoziworkshop.dzlog.feature.help.ui
 
+import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
-import com.dudoziworkshop.dzlog.R
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.R
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
+import com.dudoziworkshop.dzlog.ui.log.GalleryFolderRow
+import com.dudoziworkshop.dzlog.ui.log.GalleryOriginalRow
+import com.dudoziworkshop.dzlog.ui.log.GalleryPathChangeArrow
+import com.dudoziworkshop.dzlog.ui.log.GalleryPathPreviewCard
+import com.dudoziworkshop.dzlog.ui.log.GalleryPhotoRow
+import com.dudoziworkshop.dzlog.ui.log.GallerySectionTitle
+import com.dudoziworkshop.dzlog.ui.log.GalleryTab
+import com.dudoziworkshop.dzlog.ui.log.LogGalleryHomeContent
+import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
-/** Read-only demo content. This screen never reads or writes MediaStore or app photo records. */
+/**
+ * Demonstration records reference bundled resources only. No MediaStore, SAF, folder repository,
+ * user favorites or camera preferences are queried or modified here.
+ */
 internal object TutorialGallerySample {
-    val photos = listOf("단이 산책", "제주 여행", "카페 기록", "업무 기록", "단이 기록", "반려동물 기록")
-    val folders = listOf("단이 사진", "여행 기록", "일상 기록")
+    const val ROOT = "Pictures/DZlog/"
+    val folders = listOf(ROOT + "단이 사진/", ROOT + "여행 기록/", ROOT + "업무 기록/",
+        ROOT + "단이 사진/산책/")
+    fun photos(packageName: String): List<MediaImageItem> {
+        val imageIds = listOf(R.drawable.onboarding_gallery_photo, R.drawable.onboarding_hero_photo,
+            R.drawable.onboarding_starter_photo)
+        val directories = listOf(ROOT, ROOT + "단이 사진/", ROOT + "여행 기록/",
+            ROOT + "단이 사진/산책/", ROOT + "업무 기록/", ROOT + "단이 사진/original/")
+        return directories.mapIndexed { index, directory ->
+            MediaImageItem(
+                id = -(index + 100L),
+                uri = Uri.parse("android.resource://" + packageName + "/" + imageIds[index % imageIds.size]),
+                displayName = "DZlog_예시_" + (index + 1) + ".jpg",
+                relativePath = directory,
+                dateAddedSeconds = 1780000000L - index * 60L,
+            )
+        }
+    }
 }
 
-/** Bundled onboarding photos; never reads user media or external storage. */
+/**
+ * Real gallery presentation primitives backed by the same in-memory tutorial dataset.
+ * The guide's pointer shield consumes all touches; all callbacks here are also inert.
+ */
 @Composable
-private fun SamplePicture(index: Int, modifier: Modifier = Modifier, result: Boolean = false) {
-    val images = listOf(
-        R.drawable.onboarding_gallery_photo,
-        R.drawable.onboarding_hero_photo,
-        R.drawable.onboarding_starter_photo,
-    )
-    Box(modifier.background(Color(0xFFE8E2D6), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-        Image(
-            painter = painterResource(images[index % images.size]),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-        if (result) {
-            Text("DZlog  |  예시 기록", modifier = Modifier.align(Alignment.BottomStart)
-                .fillMaxWidth().background(Color(0xCCFFFFFF)).padding(6.dp),
-                color = Color(0xFF3F342A), fontWeight = FontWeight.Medium)
+internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
+    val context = LocalContext.current
+    val images = remember(context.packageName) { TutorialGallerySample.photos(context.packageName) }
+    val folders = TutorialGallerySample.folders
+    val root = TutorialGallerySample.ROOT
+    val index = remember(images) {
+        GalleryFolderIndexPolicy.index(root, images.map { it.relativePath }, folders)
+    }
+    val summaries = remember(images) {
+        index.children.associate { folder ->
+            val matches = images.filter { it.relativePath.startsWith(folder.relativePath) }
+            folder.relativePath to GalleryFolderSummary(
+                totalPhotoCount = matches.size,
+                directPhotoCount = matches.count { it.relativePath == folder.relativePath },
+                originalPhotoCount = matches.count { it.relativePath.endsWith("original/") },
+                directChildFolderCount = folders.count {
+                    it.startsWith(folder.relativePath) && it != folder.relativePath &&
+                        !it.removePrefix(folder.relativePath).trimEnd('/').contains('/')
+                },
+                latestPhotoEpochMillis = matches.maxOfOrNull { it.dateAddedSeconds * 1000L },
+                coverImageId = matches.firstOrNull()?.id?.toString(),
+            )
+        }
+    }
+    val session = location.sessionId
+    val step = location.pageId
+    val isDestination = step.endsWith("/destination")
+    val isConfirmation = step in setOf("folders/rename", "folders/move", "folders/delete",
+        "photos/move", "photos/delete")
+    val isViewer = session == "viewer"
+    val showFolder = session == "folders" || step == "browse"
+    val isPhotoSession = session == "photos"
+    val selected = if (isPhotoSession) setOf(images[1].id) else emptySet()
+    var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
+
+    Column(
+        Modifier.fillMaxSize().background(DDZColor.Background).statusBarsPadding()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = {}) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
+            }
+            Text(
+                when {
+                    isDestination -> "이동할 위치 선택"
+                    isViewer -> "사진 보기"
+                    isPhotoSession -> "최근 촬영"
+                    showFolder -> "단이 사진"
+                    else -> "갤러리"
+                },
+                Modifier.weight(1f), style = DDZTypography.ScreenTitle,
+                color = DDZColor.TextPrimary,
+            )
+            Text(
+                "안내 예시", style = DDZTypography.Caption,
+                color = DDZColor.TextSecondary,
+            )
+        }
+
+        when {
+            isDestination -> {
+                DestinationExample(images, folders, step == "folders/destination",
+                    Modifier.weight(1f).tutorialTarget("guide.dialog"))
+            }
+            isViewer -> {
+                Box(Modifier.weight(1f).tutorialTarget("gallery.content")) {
+                    DzThumbnail(images[1].uri.toString())
+                }
+                Row(
+                    Modifier.fillMaxWidth().tutorialTarget("gallery.viewer-actions"),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    Text("즐겨찾기", color = DDZColor.TextPrimary)
+                    Text("공유", color = DDZColor.TextPrimary)
+                    Text("정보", color = DDZColor.TextPrimary)
+                    Text("삭제", color = DDZColor.TextPrimary)
+                }
+            }
+            !showFolder && !isPhotoSession -> {
+                Box(Modifier.weight(1f).tutorialTarget("gallery.content")) {
+                    LogGalleryHomeContent(
+                        selectedTab = selectedTab,
+                        onTabChange = { selectedTab = it },
+                        folderIndex = index,
+                        summariesByPath = summaries,
+                        allImages = images,
+                        favoriteIds = emptySet(),
+                        showCounterBadges = false,
+                        onOpenFolder = {},
+                        onOpenPhoto = { _, _ -> },
+                        onOpenOriginal = {},
+                        onOpenRecentPhotos = {},
+                        onOpenDefaultPhotos = {},
+                        onSelectDefaultPhotos = {},
+                        onManageFolder = { _, _ -> },
+                        canManageFolders = true,
+                        onCreateFolder = {},
+                    )
+                }
+            }
+            else -> {
+                val folderPath = TutorialGallerySample.ROOT + "단이 사진/"
+                Row(
+                    Modifier.fillMaxWidth().tutorialTarget("gallery.breadcrumbs"),
+                ) {
+                    GalleryFolderIndexPolicy.breadcrumbs(folderPath).forEachIndexed { n, crumb ->
+                        if (n > 0) Text(" / ", color = DDZColor.TextSecondary)
+                        Text(crumb.label, color = DDZColor.PrimaryDark,
+                            style = DDZTypography.Caption)
+                    }
+                }
+                Box(Modifier.weight(1f).tutorialTarget("gallery.content")) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (showFolder) {
+                            item { GallerySectionTitle("하위 폴더") }
+                            item {
+                                val child = GalleryFolderIndexPolicy.index(folderPath,
+                                    images.map { it.relativePath }, folders).children.first()
+                                GalleryFolderRow(child, null, null, canManage = true,
+                                    onManage = {}, onClick = {})
+                            }
+                            item {
+                                GalleryOriginalRow(1, onClick = {})
+                            }
+                        }
+                        item { GallerySectionTitle(if (isPhotoSession) "최근 촬영" else "이 폴더의 사진") }
+                        items(images.chunked(3)) { row ->
+                            GalleryPhotoRow(row, selectedIds = selected, selectionActive = isPhotoSession,
+                                showCounterBadges = false, onPhotoClick = {})
+                        }
+                    }
+                }
+                if (isPhotoSession) {
+                    Row(
+                        Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions"),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        listOf("이동", "공유", "삭제").forEachIndexed { index, title ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    when (index) {
+                                        0 -> Icons.Default.DriveFileMove
+                                        1 -> Icons.Default.Share
+                                        else -> Icons.Default.Delete
+                                    },
+                                    contentDescription = null,
+                                    tint = DDZColor.TextPrimary,
+                                )
+                                Text(title, color = DDZColor.TextPrimary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isConfirmation) {
+            GalleryOperationPreview(step, Modifier.fillMaxWidth().tutorialTarget("guide.dialog"))
         }
     }
 }
 
 @Composable
-internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
-    val viewer = location.sessionId == "viewer"
-    val selection = location.sessionId == "photos"
-    val folders = location.sessionId == "folders"
-    val move = location.pageId == "photos/move"
-    val destination = location.pageId in setOf("photos/destination", "folders/destination")
-    val delete = location.pageId == "photos/delete"
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFFF8F7F5))) {
-        val compact = maxHeight < 560.dp
-        Column(Modifier.fillMaxSize().padding(if (compact) 8.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("전체 사진", fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
-                Text("튜토리얼 예시", color = Color(0xFF806B59))
-            }
-            if (viewer) {
-                Column(Modifier.fillMaxWidth().weight(1f).tutorialTarget("gallery.content"),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("원본", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
-                            SamplePicture(0, Modifier.fillMaxWidth().weight(1f), result = false)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("결과", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
-                            SamplePicture(0, Modifier.fillMaxWidth().weight(1f), result = true)
-                        }
-                    }
-                    Text("같은 사진에 기록 표기가 적용된 모습을 비교합니다.", color = Color(0xFF806B59))
-                }
-                Row(Modifier.fillMaxWidth().tutorialTarget("gallery.viewer-actions"),
-                    horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Text("원본 보기", color = Color(0xFF4B3829))
-                    Text("결과 보기", color = Color(0xFF4B3829))
-                    Text("공유", color = Color(0xFF4B3829))
-                }
-            } else {
-                if (folders) {
-                    Column(Modifier.fillMaxWidth().tutorialTarget("gallery.breadcrumbs"),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("전체 사진 / 단이 사진", color = Color(0xFF806B59))
-                        TutorialGallerySample.folders.forEach { folder ->
-                            Text("▸  $folder", modifier = Modifier.fillMaxWidth()
-                                .background(Color(0xFFEEE9E2), RoundedCornerShape(8.dp)).padding(6.dp),
-                                color = Color(0xFF4B3829))
-                        }
-                    }
-                } else {
-                    Text("전체 / 최근 촬영 / 원본 / 결과", color = Color(0xFF806B59),
-                        modifier = Modifier.tutorialTarget("gallery.breadcrumbs"))
-                }
-                LazyVerticalGrid(columns = GridCells.Fixed(3),
-                    modifier = Modifier.fillMaxWidth().weight(1f).tutorialTarget("gallery.content"),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    itemsIndexed(TutorialGallerySample.photos) { index, label ->
-                        Box {
-                            SamplePicture(index, Modifier.fillMaxWidth().aspectRatio(1f), result = index % 2 == 1)
-                            Text((if (selection && index == 0) "☑ " else "") + label,
-                                color = Color.White, modifier = Modifier.align(Alignment.BottomStart)
-                                    .background(Color(0x99000000)).padding(3.dp))
-                        }
-                    }
-                }
-            }
-            if (selection) {
-                Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions"),
-                    horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Text("선택 1개")
-                    Text("이동")
-                    Text("삭제")
-                    Text("공유")
-                }
-            }
-            if (!compact) {
-                Text("안내용 화면입니다. 실제 사진과 폴더는 변경되지 않습니다.",
-                    color = Color(0xFF806B59))
+private fun DestinationExample(
+    images: List<MediaImageItem>,
+    folderPaths: List<String>,
+    movingFolder: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val path = TutorialGallerySample.ROOT + "단이 사진/"
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Text("DZlog / 단이 사진", color = DDZColor.PrimaryDark, style = DDZTypography.Body)
+        }
+        item { GallerySectionTitle("하위 폴더") }
+        val descendants = GalleryFolderIndexPolicy.index(path, images.map { it.relativePath }, folderPaths).children
+        items(descendants) { folder ->
+            GalleryFolderRow(folder, null, null, canManage = false, showManagement = false,
+                onManage = {}, onClick = {})
+        }
+        item { GallerySectionTitle("이 폴더의 사진") }
+        val photos = images.filter { it.relativePath == path }
+        items(photos.chunked(3)) { row ->
+            GalleryPhotoRow(row, showCounterBadges = false, onPhotoClick = {})
+        }
+        item {
+            Button(onClick = {}, modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark)) {
+                Text("이 위치로 이동")
             }
         }
-        if (destination) {
-            Column(
-                Modifier.align(Alignment.TopCenter).fillMaxWidth()
-                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = 20.dp)
-                    .tutorialTarget("guide.dialog")
-                    .background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("이동할 위치 선택", fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
-                Text("Pictures / DZlog / 단이 사진", color = Color(0xFF806B59))
-                TutorialGallerySample.folders.forEach { folder ->
-                    Text("▸  $folder", Modifier.fillMaxWidth()
-                        .background(Color(0xFFEEE9E2), RoundedCornerShape(8.dp)).padding(8.dp),
-                        color = Color(0xFF4B3829))
-                }
-                Text("폴더 및 사진 미리보기", color = Color(0xFF806B59))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    repeat(3) { index -> SamplePicture(index, Modifier.weight(1f).aspectRatio(1f)) }
-                }
-                Text("이 위치로 이동 (안내 전용)", color = Color(0xFF4B3829),
-                    modifier = Modifier.align(Alignment.CenterHorizontally))
-            }
+        if (movingFolder) item {
+            Text("현재 폴더와 하위 폴더는 이동 대상으로 선택할 수 없어요.",
+                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
         }
-        if (move || delete) {
-            Column(
-                Modifier.align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = if (compact) 8.dp else 16.dp, vertical = if (compact) 16.dp else 40.dp)
-                    .tutorialTarget("guide.dialog")
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(if (move) "사진 이동 예시" else "사진 삭제 예시",
-                    fontWeight = FontWeight.Bold, color = Color(0xFF4B3829))
-                Text(if (move) "선택한 사진 1장 → 단이 사진 폴더"
-                    else "선택한 사진 1장을 삭제하기 전 확인하는 단계입니다.",
-                    color = Color(0xFF806B59))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Text("취소", color = Color(0xFF806B59), modifier = Modifier.padding(end = 24.dp))
-                    Text("확인 (예시)", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
-                }
-            }
+    }
+}
+
+@Composable
+private fun GalleryOperationPreview(step: String, modifier: Modifier = Modifier) {
+    val isFolder = step.startsWith("folders/")
+    val oldPath = "DZlog / 단이 사진"
+    val newPath = when (step) {
+        "folders/rename" -> "DZlog / 단이 기록"
+        "folders/move" -> "DZlog / 업무 기록 / 단이 사진"
+        "photos/move" -> "DZlog / 업무 기록"
+        else -> oldPath
+    }
+    Surface(modifier, color = DDZColor.Surface,
+        shape = RoundedCornerShape(14.dp), shadowElevation = 4.dp) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(if (isFolder) "폴더 변경 확인" else "사진 이동·삭제 확인",
+                style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+            GalleryPathPreviewCard("현재 경로", oldPath)
+            GalleryPathChangeArrow()
+            GalleryPathPreviewCard(
+                if (step.endsWith("delete")) "삭제 대상 경로" else "변경 후 경로",
+                newPath,
+            )
+            Text("안내 화면에서 실제 파일은 변경되지 않습니다.",
+                color = DDZColor.TextSecondary, style = DDZTypography.Caption)
         }
     }
 }
