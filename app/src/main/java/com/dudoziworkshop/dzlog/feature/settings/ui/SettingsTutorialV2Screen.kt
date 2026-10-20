@@ -8,6 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
+import kotlin.math.roundToInt
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
@@ -68,7 +78,13 @@ internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
     var targetBounds by remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val density = androidx.compose.ui.platform.LocalDensity.current
     BackHandler { onBack() }
-    Box(modifier = Modifier.fillMaxSize()) {
+    var rootBounds by remember { androidx.compose.runtime.mutableStateOf<Rect?>(null) }
+    androidx.compose.runtime.LaunchedEffect(index) { targetBounds = null }
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().onGloballyPositioned { rootBounds = it.boundsInWindow() }) {
+        val availableHeight = with(density) { maxHeight.toPx() }
+        val localTarget = targetBounds?.let { target -> rootBounds?.let { root -> target.translate(Offset(-root.left, -root.top)) } }
+        val popupAbove = localTarget?.center?.y?.let { it > availableHeight / 2f } ?: (index >= 4)
+
         // Render the actual settings screen. The transparent input shield consumes all
         // touches so settings, permissions, purchases and backup pickers cannot run.
         SettingsRootScreen(
@@ -93,6 +109,14 @@ internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
                     }
                 },
         )
+        if (localTarget != null && localTarget.width > 0f && localTarget.height > 0f) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(localTarget.left.roundToInt(), localTarget.top.roundToInt()) }
+                    .size(with(density) { localTarget.width.toDp() }, with(density) { localTarget.height.toDp() })
+                    .border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(10.dp)),
+            )
+        }
         Column(
             modifier = Modifier.align(Alignment.TopCenter)
                 .fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -117,10 +141,9 @@ internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
                 }
             }
         }
-        val popupAbove = targetBounds?.center?.y?.let { it > with(density) { 390.dp.toPx() } } ?: (index >= 4)
         Surface(
             modifier = Modifier.align(if (popupAbove) Alignment.TopCenter else Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 76.dp),
+                .padding(horizontal = 16.dp, vertical = if (popupAbove) 74.dp else 18.dp),
             shape = RoundedCornerShape(16.dp),
             color = DDZColor.Surface,
             border = BorderStroke(2.dp, DDZColor.PrimaryDark),
