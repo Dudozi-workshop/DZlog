@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlin.math.roundToInt
 
 @Composable
-internal fun TableEditorStylePanel(
+fun TableEditorStylePanel(
     draft: TableStyleState,
     onDraftChange: (TableStyleState) -> Unit,
     modifier: Modifier = Modifier,

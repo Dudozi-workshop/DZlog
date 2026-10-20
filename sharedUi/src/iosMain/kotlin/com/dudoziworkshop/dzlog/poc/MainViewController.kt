@@ -27,7 +27,9 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--home-navigation")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--table-style")) {
+            TableStylePoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--home-navigation")) {
             HomeNavigationPoc(remember { previewFixture() })
         } else {
         val template = remember {

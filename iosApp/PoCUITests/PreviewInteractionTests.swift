@@ -148,6 +148,32 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("ios-sample_0001").exists)
     }
 
+    func testTableStyleChangesAndRetainsDraft() {
+        app.launchArguments = ["--table-style"]
+        app.launch()
+        tapButton("표 스타일 열기")
+        XCTAssertTrue(text("배경 투명도").waitForExistence(timeout: 10))
+        for label in ["어둡게", "오른쪽"] {
+            let element = text(label)
+            XCTAssertTrue(element.waitForExistence(timeout: 10))
+            let frame = element.frame
+            XCTAssertFalse(frame.isEmpty)
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+        }
+        XCTAssertTrue(text("임시 상태: 배경 0 / 정렬 2").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        tapButton("표 스타일 열기")
+        XCTAssertTrue(text("임시 상태: 배경 0 / 정렬 2").exists)
+        let transparent = text("투명")
+        let frame = transparent.frame
+        XCTAssertFalse(frame.isEmpty)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+        XCTAssertTrue(text("임시 상태: 배경 2 / 정렬 2").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("배경 투명도").exists, "Preserve the original transparent-background behavior")
+    }
+
     func testHorizontalGestureRevealsLastColumn() throws {
         app.launchArguments = ["--large-table"]
         app.launch()
