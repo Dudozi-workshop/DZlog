@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,7 +30,6 @@ internal fun GalleryFolderManagementDialog(
     renameName: String,
     destinationPath: String,
     onRenameNameChange: (String) -> Unit,
-    onChangeDestination: () -> Unit,
     impact: CapturePathImpact,
     busy: Boolean,
     error: String?,
@@ -76,11 +74,7 @@ internal fun GalleryFolderManagementDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("이동 위치", modifier = Modifier.weight(1f),
-                            style = typography.SettingLabel, color = colors.TextPrimary)
-                        TextButton(onClick = onChangeDestination, enabled = !busy) { Text("위치 변경") }
-                    }
+                    Text("이동 위치", style = typography.SettingLabel, color = colors.TextPrimary)
                     GalleryFolderInfoCard(
                         name = destinationPath.trimEnd('/').substringAfterLast('/').ifBlank { "DZlog" },
                         detail = destinationPath.removePrefix(GalleryFolderIndexPolicy.ROOT)
