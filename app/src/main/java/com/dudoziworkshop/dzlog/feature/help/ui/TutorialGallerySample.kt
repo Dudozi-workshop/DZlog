@@ -32,11 +32,11 @@ import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
 
 /** Read-only demo content. This screen never reads or writes MediaStore or app photo records. */
 internal object TutorialGallerySample {
-    val photos = listOf("블루베리 01", "배양 기록 02", "육묘 기록 03", "블루베리 04", "측정 기록 05", "재배 기록 06")
-    val folders = listOf("블루베리 관찰", "생육 조사", "배양 기록")
+    val photos = listOf("단이 산책", "단이 관찰", "제주 여행", "카페 기록", "업무 기록", "단이 기록")
+    val folders = listOf("단이 사진", "여행 기록", "일상 기록")
 }
 
-/** Bundled illustration placeholders: replace with licensed local photographic drawables before final visual QA. */
+/** Bundled crops from the previously approved photo reference; tutorial only. */
 @Composable
 private fun SamplePicture(index: Int, modifier: Modifier = Modifier, result: Boolean = false) {
     val context = LocalContext.current
@@ -112,7 +112,7 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
                 if (folders) {
                     Column(Modifier.fillMaxWidth().tutorialTarget("gallery.breadcrumbs"),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("전체 사진 / 블루베리 관찰", color = Color(0xFF806B59))
+                        Text("전체 사진 / 단이 사진", color = Color(0xFF806B59))
                         TutorialGallerySample.folders.forEach { folder ->
                             Text("▸  $folder", modifier = Modifier.fillMaxWidth()
                                 .background(Color(0xFFEEE9E2), RoundedCornerShape(8.dp)).padding(6.dp),
