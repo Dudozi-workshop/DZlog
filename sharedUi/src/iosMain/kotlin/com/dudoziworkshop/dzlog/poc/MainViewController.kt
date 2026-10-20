@@ -13,9 +13,11 @@ import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateReadOnlyPreviewDialog
+import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListContent
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.theme.*
 import platform.UIKit.UIViewController
-import platform.Foundation.NSProcessInfo
+import platform.Foundation.*
 
 /** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
 @OptIn(ExperimentalComposeApi::class)
@@ -28,9 +30,20 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
         val template = remember {
             if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()
         }
-        var open by remember { mutableStateOf(true) }
+        var open by remember { mutableStateOf(!NSProcessInfo.processInfo.arguments.contains("--template-navigation")) }
+        var showList by remember { mutableStateOf(false) }
         var selected by remember { mutableStateOf(false) }
-        Column(
+        if (showList) {
+            TableTemplateListContent(
+                templates = listOf(template), activeTemplateId = if (selected) template.id else null,
+                onBack = { showList = false },
+                onSelectTemplate = { selected = true; showList = false },
+                // This memory-only PoC exposes selection/preview; persistence/editing remain later work.
+                allowManagement = false,
+                onOpenTemplate = {}, onCreateTemplate = {}, onRenameTemplate = { _, _ -> },
+                onDuplicateTemplate = {}, onDeleteTemplate = {}, formatDate = ::formatPocTemplateDate,
+            )
+        } else Column(
             Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -39,6 +52,7 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
             Text(if (selected) "선택한 템플릿 · ${template.name}" else "템플릿을 선택해 주세요.",
                 style = DDZTypography.Body, color = DDZColor.TextSecondary)
             Button(onClick = { open = true }) { Text("표 미리보기", style = DDZTypography.ButtonText) }
+            DDZButton(text = "템플릿 목록", onClick = { showList = true })
         }
         if (open) TableTemplateReadOnlyPreviewDialog(
             template = template,
@@ -85,4 +99,12 @@ private fun previewFixture(): SavedTableTemplate {
             phraseSets = listOf(RotatingPhraseSet("poc-phrases", "처리", listOf("처리 A", "처리 B")))),
         styleState = TableStyleState(),
     )
+}
+
+/** Platform date presentation stays outside the shared screen, as on Android. */
+private fun formatPocTemplateDate(timestamp: Long, used: Boolean): String {
+    if (timestamp <= 0L) return if (used) "사용 기록 없음" else "수정일 없음"
+    val formatter = NSDateFormatter().apply { dateFormat = "yyyy.MM.dd" }
+    return (if (used) "사용 " else "수정 ") + formatter.stringFromDate(
+        NSDate.dateWithTimeIntervalSince1970(timestamp / 1000.0))
 }
