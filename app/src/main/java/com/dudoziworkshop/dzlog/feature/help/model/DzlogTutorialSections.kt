@@ -95,6 +95,7 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("settings", "앱 설정", listOf(
             custom("environment", "앱 환경",
+                Triple("intro", "전체 설정 둘러보기", "DZlog의 촬영 환경과 앱 사용에 필요한 설정을 관리하는 화면이에요. 각 메뉴에서 어떤 기능을 설정할 수 있는지 하나씩 살펴볼게요."),
                 Triple("permission", "권한 관리", "카메라와 사진 접근 권한을 확인하고 관리할 수 있어요. 사진 저장에 필요한 권한이나 폴더 연결 상태도 여기에서 확인해요."),
                 Triple("quality", "사진 품질", "사진 저장 품질을 속도 우선, 균형, 화질 우선 중에서 선택할 수 있어요. 화질이 높을수록 저장 시간이 길어질 수 있어요."),
                 Triple("assist", "플로팅 보조 셔터", "촬영 화면에 표시되는 보조 셔터 버튼을 켜거나 끌 수 있어요. 원하는 위치에서 편리하게 촬영할 때 사용하는 기능이에요.")),
