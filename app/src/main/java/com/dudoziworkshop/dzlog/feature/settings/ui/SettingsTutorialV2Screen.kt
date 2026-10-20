@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.settings.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,101 +65,86 @@ internal val SETTINGS_GUIDE_ITEMS = listOf(
 internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
     var index by rememberSaveable { mutableIntStateOf(0) }
     val current = SETTINGS_GUIDE_ITEMS[index]
-    val listState = rememberLazyListState()
-    LaunchedEffect(index) { listState.animateScrollToItem(index) }
     BackHandler { onBack() }
-
-    Scaffold(
-        containerColor = DDZColor.Background,
-        topBar = { DDZTopBar(title = "전체 설정 둘러보기", onBack = onBack) },
-        bottomBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().background(DDZColor.Background)
-                    .padding(horizontal = DDZSpacing.screenPadding, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    enabled = index > 0,
-                    onClick = { index-- },
-                ) { Text("이전") }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (index == SETTINGS_GUIDE_ITEMS.lastIndex) onBack() else index++
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
-                ) { Text(if (index == SETTINGS_GUIDE_ITEMS.lastIndex) "마치기" else "다음") }
-            }
-        },
-    ) { insets ->
-        Box(modifier = Modifier.fillMaxSize().padding(insets)) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = DDZSpacing.screenPadding, end = DDZSpacing.screenPadding,
-                    top = 94.dp, bottom = 110.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(9.dp),
-            ) {
-                itemsIndexed(SETTINGS_GUIDE_ITEMS) { itemIndex, item ->
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (itemIndex == 0 || SETTINGS_GUIDE_ITEMS[itemIndex - 1].section != item.section) {
-                            Text(
-                                item.section,
-                                style = DDZTypography.SettingLabel,
-                                color = DDZColor.PrimaryDark,
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
-                        }
-                        Surface(
-                            color = DDZColor.Surface,
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(
-                                if (itemIndex == index) 2.dp else 1.dp,
-                                if (itemIndex == index) DDZColor.PrimaryDark else DDZColor.Border,
-                            ),
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(item.title, style = DDZTypography.Body, color = DDZColor.TextPrimary)
-                                Text(
-                                    item.description,
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.TextSecondary,
-                                )
-                            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Render the actual settings screen. The transparent input shield consumes all
+        // touches so settings, permissions, purchases and backup pickers cannot run.
+        SettingsRootScreen(
+            onBack = {},
+            onOpenCredits = {},
+            onOpenGuide = {},
+            onOpenSettingsTour = {},
+            onOpenExport = {},
+            onOpenImport = {},
+        )
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.20f))
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                            event.changes.forEach { it.consume() }
                         }
                     }
-                }
-            }
-            val popupAtTop = index >= 4
+                },
+        )
+        Column(
+            modifier = Modifier.align(Alignment.TopCenter)
+                .fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Surface(
-                modifier = Modifier.fillMaxWidth()
-                    .align(if (popupAtTop) Alignment.TopCenter else Alignment.BottomCenter)
-                    .padding(horizontal = 18.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = DDZColor.Surface,
-                border = BorderStroke(1.dp, DDZColor.PrimaryDark),
-                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, DDZColor.Border),
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "전체 설정  ·  ${index + 1}/${SETTINGS_GUIDE_ITEMS.size}",
-                        style = DDZTypography.Caption, color = DDZColor.PrimaryDark,
+                        "전체 설정 · ${index + 1}/${SETTINGS_GUIDE_ITEMS.size}",
+                        style = DDZTypography.SettingLabel,
+                        color = DDZColor.PrimaryDark,
                     )
-                    Text(current.title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
-                    Text(current.description, style = DDZTypography.Body, color = DDZColor.TextSecondary)
-                    Text(
-                        "안내 전용 화면 · 설정값은 바뀌지 않아요.",
-                        style = DDZTypography.Caption, color = DDZColor.TextSecondary,
-                    )
+                    androidx.compose.material3.TextButton(onClick = onBack) { Text("닫기") }
+                }
+            }
+        }
+        Surface(
+            modifier = Modifier.align(if (index < 4) Alignment.BottomCenter else Alignment.Center)
+                .padding(horizontal = 16.dp, vertical = 76.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = DDZColor.Surface,
+            border = BorderStroke(2.dp, DDZColor.PrimaryDark),
+            shadowElevation = 8.dp,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(current.section, style = DDZTypography.Caption, color = DDZColor.PrimaryDark)
+                Text(current.title, style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                Text(current.description, style = DDZTypography.Body, color = DDZColor.TextSecondary)
+                Text(
+                    "실제 설정 화면을 보여주는 읽기 전용 안내입니다.",
+                    style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        enabled = index > 0,
+                        onClick = { index-- },
+                    ) { Text("이전") }
+                    Button(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            if (index == SETTINGS_GUIDE_ITEMS.lastIndex) onBack() else index++
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DDZColor.PrimaryDark),
+                    ) { Text(if (index == SETTINGS_GUIDE_ITEMS.lastIndex) "마치기" else "다음") }
                 }
             }
         }
