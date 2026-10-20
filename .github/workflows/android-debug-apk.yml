@@ -19,6 +19,11 @@ on:
         type: boolean
         required: false
         default: false
+      run_tutorial_qa:
+        description: "Run the full six-area Android emulator tutorial QA"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -81,7 +86,7 @@ jobs:
 
   debug-apk:
     if: >-
-      github.ref_name != 'feat/gallery-v2' || (github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && github.event.head_commit.message == 'ci(gallery): build requested device QA APK')
+      (github.ref_name != 'feat/gallery-v2' && github.ref_name != 'feat/interactive-tutorial-v1') || (github.event_name == 'workflow_dispatch' && (inputs.build_apk || (github.ref_name == 'feat/interactive-tutorial-v1' && inputs.run_tutorial_qa))) || (github.ref_name == 'feat/gallery-v2' && github.event_name == 'push' && github.event.head_commit.message == 'ci(gallery): build requested device QA APK')
     needs: unit-test
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -174,7 +179,7 @@ jobs:
 
 
   tutorial-ui-qa:
-    if: github.ref_name == 'feat/interactive-tutorial-v1'
+    if: github.ref_name == 'feat/interactive-tutorial-v1' && github.event_name == 'workflow_dispatch' && inputs.run_tutorial_qa
     needs: debug-apk
     runs-on: ubuntu-latest
     timeout-minutes: 35
