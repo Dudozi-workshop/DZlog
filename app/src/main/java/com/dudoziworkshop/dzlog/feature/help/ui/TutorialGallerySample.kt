@@ -92,7 +92,20 @@ internal fun TutorialGallerySampleScreen(location: TutorialLocation) {
                 Text("튜토리얼 예시", color = Color(0xFF806B59))
             }
             if (viewer) {
-                SamplePicture(0, Modifier.fillMaxWidth().weight(1f).tutorialTarget("gallery.content"), result)
+                Column(Modifier.fillMaxWidth().weight(1f).tutorialTarget("gallery.content"),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("원본", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
+                            SamplePicture(0, Modifier.fillMaxWidth().weight(1f), result = false)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("결과", color = Color(0xFF4B3829), fontWeight = FontWeight.Bold)
+                            SamplePicture(0, Modifier.fillMaxWidth().weight(1f), result = true)
+                        }
+                    }
+                    Text("같은 사진에 기록 표기가 적용된 모습을 비교합니다.", color = Color(0xFF806B59))
+                }
                 Row(Modifier.fillMaxWidth().tutorialTarget("gallery.viewer-actions"),
                     horizontalArrangement = Arrangement.SpaceEvenly) {
                     Text("원본 보기", color = Color(0xFF4B3829))
