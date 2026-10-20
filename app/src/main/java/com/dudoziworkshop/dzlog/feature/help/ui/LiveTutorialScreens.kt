@@ -101,7 +101,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     }
     // Empty installations use a self-contained illustration, never seeded MediaStore data.
     if (viewerPhotos.isEmpty() && location.pageId != "home") {
-        TutorialGallerySampleScreen(showViewer = location.sessionId == "viewer")
+        TutorialGallerySampleScreen(location)
         return
     }
     if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
