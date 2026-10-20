@@ -1,27 +1,26 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,18 +36,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
-import com.dudoziworkshop.dzlog.ui.common.dzScreen
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.CancellationException
 
-/** Browse a destination independently of the gallery route and its selection state. */
+/** Same gallery folder cards and photo grid for photo and folder destination selection. */
 @Composable
 internal fun GalleryMoveDestinationPicker(
     allPhotos: List<MediaImageItem>,
@@ -61,8 +63,11 @@ internal fun GalleryMoveDestinationPicker(
     loadPhysicalChildren: suspend (String) -> List<String>,
     onCancel: () -> Unit,
     onChoose: (String) -> Unit,
+    movingFolderPath: String? = null,
 ) {
-    var path by rememberSaveable { mutableStateOf(initialPath) }
+    var path by rememberSaveable(initialPath, movingFolderPath) { mutableStateOf(initialPath) }
+    var folderFilter by remember { mutableStateOf(GalleryFolderFilter.ALL) }
+    var folderSort by remember { mutableStateOf(GalleryFolderSort.NAME) }
     var physicalPaths by remember(path) { mutableStateOf<List<String>>(emptyList()) }
     var childLoading by remember(path) { mutableStateOf(true) }
     var childError by remember(path) { mutableStateOf<String?>(null) }
@@ -79,76 +84,195 @@ internal fun GalleryMoveDestinationPicker(
         }
         childLoading = false
     }
+
     val index = remember(path, allPhotos, knownFolderPaths, physicalPaths) {
         GalleryFolderIndexPolicy.index(path, allPhotos.map { it.relativePath }, knownFolderPaths + physicalPaths)
     }
-    val preview = remember(path, allPhotos) {
-        GalleryPhotoSort.NEWEST.sorted(allPhotos.filter {
-            it.relativePath.trimEnd('/') == path.trimEnd('/') && !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath)
-        }).take(3)
+    val folderChildren = remember(index.children, movingFolderPath) {
+        index.children.filter { child ->
+            movingFolderPath == null || (
+                child.relativePath != movingFolderPath &&
+                !child.relativePath.startsWith(movingFolderPath) &&
+                !GalleryPhotoMovePolicy.isOriginalPath(child.relativePath)
+            )
+        }
     }
-    val alreadyHere = allPhotos.any { it.id in selectedIds &&
-        it.relativePath.trimEnd('/') == (if (GalleryPhotoMovePolicy.isOriginalPath(it.relativePath))
-            path + "original" else path.trimEnd('/')) }
+    // Match the regular gallery: an originals-only leaf displays its originals directly.
+    // A mixed folder exposes the usual original-photo row for read-only navigation.
+    val originalsInPlace = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
+    val viewingOriginals = GalleryPhotoMovePolicy.isOriginalPath(path)
+    val showingOriginals = originalsInPlace || viewingOriginals
+    val directPhotos = remember(path, allPhotos, showingOriginals) {
+        val photoPath = if (originalsInPlace) path + "original/" else path
+        GalleryPhotoSort.NEWEST.sorted(allPhotos.filter {
+            it.relativePath.trimEnd('/') == photoPath.trimEnd('/') &&
+                (showingOriginals || !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath))
+        })
+    }
+    val alreadyHere = movingFolderPath == null && allPhotos.any {
+        it.id in selectedIds && it.relativePath.trimEnd('/') ==
+            (if (GalleryPhotoMovePolicy.isOriginalPath(it.relativePath))
+                path + "original" else path.trimEnd('/'))
+    }
+    val folderValidationError = movingFolderPath?.let { moving ->
+        if (viewingOriginals) "원본사진 폴더는 이동 위치로 선택할 수 없습니다."
+        else runCatching { GalleryFolderOperationPolicy.validateMove(moving, path) }
+            .exceptionOrNull()?.message
+            ?: if (path !in knownFolderPaths) "이 위치로는 이동할 수 없습니다." else null
+    }
+    val canChoose = if (movingFolderPath == null)
+        selectedIds.isNotEmpty() && !alreadyHere && !viewingOriginals
+        else folderValidationError == null
+
     fun goBack() {
         val parent = GalleryFolderIndexPolicy.parentOf(path)
         if (parent == null) onCancel() else path = parent
     }
-    Dialog(onDismissRequest = ::goBack,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        Column(Modifier.dzScreen().padding(horizontal = 16.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = ::goBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "상위 폴더")
+
+    Dialog(
+        onDismissRequest = ::goBack,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        // The footer is outside the scrolling content; system bars never overlap the action.
+        Column(
+            Modifier.fillMaxSize().background(DDZColor.Background)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(horizontal = DDZSpacing.screenPadding)
+                .padding(bottom = 48.dp),
+        ) {
+            Box(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween) {
+                    IconButton(onClick = ::goBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "상위 폴더")
+                    }
+                    TextButton(onClick = onCancel) { Text("취소") }
                 }
-                Text("이동할 폴더", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onCancel) { Text("취소") }
+                Text(
+                    "이동할 위치 선택",
+                    modifier = Modifier.align(Alignment.Center),
+                    style = DDZTypography.ScreenTitle,
+                    color = DDZColor.TextPrimary,
+                )
             }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    .padding(bottom = DDZSpacing.itemGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 GalleryFolderIndexPolicy.breadcrumbs(path).forEachIndexed { i, crumb ->
                     if (i > 0) Text(" / ", color = DDZColor.TextSecondary)
-                    Text(crumb.label, color = DDZColor.Primary,
-                        modifier = Modifier.clickable { path = crumb.relativePath }.padding(vertical = 4.dp))
+                    Text(
+                        crumb.label,
+                        color = if (crumb.relativePath == path) DDZColor.TextPrimary else DDZColor.Primary,
+                        modifier = Modifier.clickable { path = crumb.relativePath }.padding(vertical = 5.dp),
+                    )
                 }
             }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap),
+                contentPadding = PaddingValues(bottom = DDZSpacing.sectionGap),
+            ) {
                 if (loading || childLoading) {
                     item { CircularProgressIndicator() }
                 } else if (loadError != null || childError != null) {
                     item {
                         Text(loadError ?: childError.orEmpty(), color = DDZColor.Destructive)
-                        TextButton(onClick = { if (loadError != null) onRetry() else retryKey++ }) { Text("다시 시도") }
+                        TextButton(onClick = {
+                            if (loadError != null) onRetry() else retryKey++
+                        }) { Text("다시 시도") }
                     }
                 } else {
-                    item { Text("이 폴더의 사진", fontWeight = FontWeight.SemiBold) }
-                    item {
-                        if (preview.isEmpty()) GalleryEmptyText("이 폴더에 저장된 사진이 없습니다.")
-                        else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            preview.forEach { photo ->
-                                Box(Modifier.weight(1f).aspectRatio(1f)) { DzThumbnail(photo.uri.toString()) }
+                    if (path == GalleryFolderIndexPolicy.ROOT) {
+                        item { GallerySectionTitle("최근 촬영") }
+                        val recent = GalleryPhotoSort.NEWEST.sorted(allPhotos).take(9)
+                        if (recent.isEmpty()) {
+                            item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                        } else {
+                            item {
+                                androidx.compose.foundation.lazy.LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    items(recent, key = { it.id }) { photo ->
+                                        Box(Modifier.fillParentMaxWidth(0.31f).aspectRatio(1f)
+                                            .clip(RoundedCornerShape(10.dp))) {
+                                            DzThumbnail(photo.uri.toString())
+                                        }
+                                    }
+                                }
                             }
-                            repeat(3 - preview.size) { Box(Modifier.weight(1f)) }
                         }
                     }
-                    item { Text("하위 폴더", fontWeight = FontWeight.SemiBold) }
-                    if (index.children.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
-                    items(index.children, key = { it.relativePath }) { child ->
-                        Row(Modifier.fillMaxWidth().clickable { path = child.relativePath }.padding(vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
-                            Text(child.name, modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기")
+                    item { GallerySectionTitle(if (path == GalleryFolderIndexPolicy.ROOT) "저장 폴더" else "하위 폴더") }
+                    if (path == GalleryFolderIndexPolicy.ROOT) {
+                        item { GalleryFolderFilterControls(folderFilter, folderSort, true,
+                            { folderFilter = it }, { folderSort = it }) }
+                    }
+                    val visibleFolders = filterGalleryFolders(folderChildren, emptyMap(), folderFilter, folderSort)
+                    if (visibleFolders.isEmpty()) item { GalleryEmptyText("하위 폴더가 없습니다.") }
+                    items(visibleFolders, key = { it.relativePath }) { child ->
+                        val cover = allPhotos.firstOrNull {
+                            it.relativePath.startsWith(child.relativePath) &&
+                                !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath)
+                        }
+                        GalleryFolderRow(
+                            folder = child,
+                            summary = null,
+                            coverImage = cover,
+                            canManage = false,
+                            onManage = {},
+                            showManagement = false,
+                            detailOverride = if (child.totalImageCount > 0)
+                                "사진 ${child.totalImageCount}장" else "빈 폴더",
+                        ) { path = child.relativePath }
+                    }
+                    if (!showingOriginals && index.directOriginalCount > 0) {
+                        item(key = "destination-originals") {
+                            GalleryOriginalRow(index.directOriginalCount) {
+                                // Preview-only: selecting the original directory as a destination is blocked.
+                                path += "original/"
+                            }
+                        }
+                    }
+                    item {
+                        GallerySectionTitle(
+                            if (showingOriginals) "원본사진" else "이 폴더의 사진",
+                            count = "${directPhotos.size}장",
+                        )
+                    }
+                    if (directPhotos.isEmpty()) {
+                        item { GalleryEmptyText("저장된 사진이 없습니다.") }
+                    } else {
+                        items(directPhotos.chunked(3)) { photos ->
+                            // Exact same three-column gallery tile component, without any editing action.
+                            GalleryPhotoRow(photos, onPhotoClick = {})
                         }
                     }
                 }
             }
-            if (alreadyHere) Text("선택한 사진이 이미 이 폴더에 있습니다.", color = DDZColor.TextSecondary)
-            Button(onClick = { onChoose(path) }, enabled = !loading && !childLoading && loadError == null &&
-                childError == null && !alreadyHere && selectedIds.isNotEmpty(),
+            Column(
                 modifier = Modifier.fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                    .padding(vertical = 8.dp)) { Text("이 위치로 이동") }
+                    .background(DDZColor.Surface)
+                    .padding(top = 8.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (alreadyHere) {
+                    Text("선택한 사진이 이미 이 폴더에 있습니다.", color = DDZColor.TextSecondary,
+                        style = DDZTypography.Caption)
+                }
+                if (movingFolderPath != null && folderValidationError != null) {
+                    Text(folderValidationError, color = DDZColor.TextSecondary,
+                        style = DDZTypography.Caption)
+                }
+                DDZButton(
+                    text = "이 위치로 이동",
+                    onClick = { onChoose(path) },
+                    enabled = !loading && !childLoading && loadError == null &&
+                        childError == null && canChoose,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

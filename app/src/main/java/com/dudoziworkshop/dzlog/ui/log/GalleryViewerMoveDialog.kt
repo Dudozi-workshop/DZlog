@@ -170,7 +170,6 @@ internal fun GalleryViewerMoveDialog(
             allPhotos = snapshot,
             destinationPath = destination,
             busy = false,
-            onChangeDestination = { picking = true },
             onCancel = onClose,
             onConfirm = ::request,
         )

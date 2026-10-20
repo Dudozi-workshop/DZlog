@@ -25,6 +25,29 @@ class GalleryFolderOperationPolicyTest {
         GalleryFolderOperationPolicy.validateMove("Pictures/DZlog/A/", "Pictures/DZlog/B/")
     }
     @Test
+    fun folder_move_destination_navigation_respects_same_parent_root_and_nested_limits() {
+        val root = GalleryFolderIndexPolicy.ROOT
+        val source = root + "A/B/"
+        val destinations = listOf(root, root + "C/", root + "A/C/")
+
+        destinations.forEach { destination ->
+            val target = GalleryFolderOperationPolicy.movedPath(source, destination)
+            org.junit.Assert.assertEquals(destination + "B/", target)
+        }
+        listOf(source, source + "Child/", root + "A/").forEach { forbidden ->
+            assertThrows(IllegalArgumentException::class.java) {
+                GalleryFolderOperationPolicy.validateMove(source, forbidden)
+            }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            GalleryFolderOperationPolicy.validateMove(root, root + "A/")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            GalleryFolderOperationPolicy.validateMove(source + "original/", root + "C/")
+        }
+    }
+
+    @Test
     fun renamed_path_keeps_parent_and_rejects_original() {
         org.junit.Assert.assertEquals(
             "Pictures/DZlog/A/New/",

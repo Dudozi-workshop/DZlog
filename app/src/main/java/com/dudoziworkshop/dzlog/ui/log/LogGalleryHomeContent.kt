@@ -297,6 +297,8 @@ internal fun GalleryFolderRow(
     coverImage: MediaImageItem?,
     canManage: Boolean,
     onManage: (String) -> Unit,
+    showManagement: Boolean = true,
+    detailOverride: String? = null,
     onClick: () -> Unit,
 ) {
     var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
@@ -323,7 +325,7 @@ internal fun GalleryFolderRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val details = if (summary == null) "집계 정보 없음" else buildList {
+            val details = detailOverride ?: if (summary == null) "집계 정보 없음" else buildList {
                 val results = summary.totalPhotoCount - summary.originalPhotoCount
                 if (results > 0) add("사진 ${results}장")
                 if (summary.originalPhotoCount > 0) add("원본 ${summary.originalPhotoCount}장")
@@ -331,6 +333,7 @@ internal fun GalleryFolderRow(
             }.joinToString(" · ")
             if (details.isNotEmpty()) Text(details, color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
         }
+        if (showManagement) {
         Box {
             IconButton(onClick = { menuExpanded = true }) {
                 Icon(
@@ -348,6 +351,9 @@ internal fun GalleryFolderRow(
                 DropdownMenuItem(text = { Text("삭제", color = DDZColor.Destructive) }, enabled = canManage,
                     onClick = { menuExpanded = false; onManage("delete") })
             }
+        }
+        } else {
+            Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)
         }
     }
 }

@@ -128,7 +128,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
         "photos/move" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
             selected = selected, allPhotos = viewerPhotos,
             destinationPath = GalleryFolderIndexPolicy.ROOT + "안내 예시/", busy = false,
-            onChangeDestination = {}, onCancel = {}, onConfirm = {},
+            onCancel = {}, onConfirm = {},
         )
         "photos/delete" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
             selected = selected, allPhotos = viewerPhotos, busy = false, onCancel = {}, onConfirm = {},
