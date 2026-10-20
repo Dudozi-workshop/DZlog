@@ -151,12 +151,13 @@ internal fun LiveTutorialHost(
                     "photos/move", "photos/delete"
                 )
                 when {
-                    // Real confirmation dialogs take precedence over the tutorial card.
-                    // Place the card entirely below/above the observed dialog when possible.
-                    isDialogStep && target != null && availableBelow >= cardHeight + gap ->
-                        (target.bottom + gap).coerceIn(topY, bottomY)
-                    isDialogStep && target != null && availableAbove >= cardHeight + gap ->
-                        (target.top - cardHeight - gap).coerceIn(topY, bottomY)
+                    // Keep gallery overview, folder browsing and photo selection guidance low.
+                    page.id in setOf("home", "browse", "photos/select") -> bottomY
+                    // Selected-photo actions need a central card, clear of bottom controls.
+                    page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
+                    // Dialogs should be shifted upward by their owners; reserve the bottom
+                    // for the guide rather than moving the guide over the dialog.
+                    isDialogStep -> bottomY
                     target == null -> if (sessionId in setOf("viewer", "photos")) topY else bottomY
                     availableBelow >= cardHeight + gap -> bottomY
                     availableAbove >= cardHeight + gap -> topY
