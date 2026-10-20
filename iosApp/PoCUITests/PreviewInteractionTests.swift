@@ -125,6 +125,29 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(try screenContains("다음 촬영 번호 0001"))
     }
 
+    func testHomeSaveInfoDisplaysAndDismisses() throws {
+        app.launchArguments = ["--home-navigation"]
+        app.launch()
+        tapButton("저장 정보")
+        XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("ios-sample_0001").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("ios-sample_0001.jpg").exists, "Keep existing extension-free display")
+        XCTAssertTrue(text("PoC/현장 기록/").exists)
+        XCTAssertTrue(text("PoC/보관/").exists)
+        XCTAssertFalse(button("저장 설정 열기").isEnabled, "Unavailable settings must stay disabled")
+        let sheet = XCTAttachment(screenshot: app.screenshot())
+        sheet.name = "shared-home-save-info"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+        // Tap the visible scrim above the bottom sheet, then verify actual dismissal.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        XCTAssertTrue(homeTemplateButton().exists)
+        XCTAssertFalse(text("다음 촬영 저장 정보").exists)
+        tapButton("저장 정보")
+        XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("ios-sample_0001").exists)
+    }
+
     func testHorizontalGestureRevealsLastColumn() throws {
         app.launchArguments = ["--large-table"]
         app.launch()

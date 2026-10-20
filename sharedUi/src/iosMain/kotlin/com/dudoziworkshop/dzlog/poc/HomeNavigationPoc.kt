@@ -19,6 +19,7 @@ import platform.Foundation.*
 @Composable
 internal fun HomeNavigationPoc(template: SavedTableTemplate) {
     var showList by remember { mutableStateOf(false) }
+    var showSaveInfo by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(false) }
     val leaf = rememberHomeLeafPainter()
     if (showList) {
@@ -35,11 +36,11 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate) {
             templateName = if (selected) template.name else "기본 촬영",
             labels = HomeLabels("설정", "현재 템플릿", "다음 촬영 번호 0001", "촬영 시작", "표 편집", "저장 정보"),
             onManageTemplates = { showList = true }, onOpenSettings = {}, onStartCamera = {},
-            onOpenTableEditor = {}, onOpenSaveInfo = {},
+            onOpenTableEditor = {}, onOpenSaveInfo = { showSaveInfo = true },
             modifier = Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
             bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding(),
-            captureEnabled = false, settingsEnabled = false, editingEnabled = false, saveInfoEnabled = false,
+            captureEnabled = false, settingsEnabled = false, editingEnabled = false, saveInfoEnabled = true,
             background = { HomeAmbientContent(painter = leaf) },
             recentCapture = {
                 HomeRecentCaptureContent(
@@ -48,6 +49,15 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate) {
                     onOpenAlbum = {}, onOpenImage = {}, albumEnabled = false,
                 )
             },
+        )
+    }
+    if (showSaveInfo) {
+        // Synthetic display data only: no Photos/MediaStore destination or save side effect.
+        HomeSaveInfoSheet(
+            fileName = "ios-sample_0001.jpg",
+            relativePaths = listOf("PoC/현장 기록/", "PoC/보관/"),
+            onOpenSaveSettings = {}, onDismiss = { showSaveInfo = false },
+            settingsEnabled = false,
         )
     }
 }

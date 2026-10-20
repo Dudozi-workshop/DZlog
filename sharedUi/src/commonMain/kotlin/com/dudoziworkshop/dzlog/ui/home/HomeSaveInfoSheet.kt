@@ -12,7 +12,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -21,11 +20,12 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun HomeSaveInfoSheet(
+fun HomeSaveInfoSheet(
     fileName: String?,
     relativePaths: List<String>,
     onOpenSaveSettings: () -> Unit,
     onDismiss: () -> Unit,
+    settingsEnabled: Boolean = true,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -50,6 +50,7 @@ internal fun HomeSaveInfoSheet(
                 text = "저장 설정 열기",
                 leadingIcon = Icons.Default.Settings,
                 onClick = onOpenSaveSettings,
+                enabled = settingsEnabled,
                 modifier = Modifier.fillMaxWidth(),
                 style = DDZButtonStyle.Secondary,
                 shape = RoundedCornerShape(14.dp),

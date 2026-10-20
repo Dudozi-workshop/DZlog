@@ -23,7 +23,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /** Shared read-only filename and physical destination cards for camera and home. */
 @Composable
-internal fun NextCaptureInfoFields(
+fun NextCaptureInfoFields(
     fileName: String,
     relativePaths: List<String>,
 ) {
