@@ -843,6 +843,15 @@ fun TableEditorV2Screen(
         )
     }
 
+    // Present the real six-type selector in the full-screen passive tutorial layer.
+    if (readOnlyTour && tourLocation?.areaId == "table-detail" && tourLocation.pageId == "cells/types") {
+        TableEditorCellTypeSheet(
+            selectedType = TableEditorCellType.TEXT,
+            onSelect = {},
+            onDismiss = {},
+        )
+    }
+
     if (tourLocation?.areaId == "table-detail" && tourLocation.pageId == "save/decision") {
         DDZUnsavedDecisionDialog(
             title = "변경사항을 저장할까요?",
