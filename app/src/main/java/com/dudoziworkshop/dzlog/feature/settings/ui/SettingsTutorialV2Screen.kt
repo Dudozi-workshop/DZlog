@@ -65,6 +65,8 @@ internal val SETTINGS_GUIDE_ITEMS = listOf(
 internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
     var index by rememberSaveable { mutableIntStateOf(0) }
     val current = SETTINGS_GUIDE_ITEMS[index]
+    var targetBounds by remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
     BackHandler { onBack() }
     Box(modifier = Modifier.fillMaxSize()) {
         // Render the actual settings screen. The transparent input shield consumes all
@@ -76,6 +78,8 @@ internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
             onOpenSettingsTour = {},
             onOpenExport = {},
             onOpenImport = {},
+            tutorialTarget = current.title,
+            onTutorialTargetBounds = { targetBounds = it },
         )
         Box(
             modifier = Modifier.fillMaxSize()
@@ -113,8 +117,9 @@ internal fun SettingsTutorialV2Screen(onBack: () -> Unit) {
                 }
             }
         }
+        val popupAbove = targetBounds?.center?.y?.let { it > with(density) { 390.dp.toPx() } } ?: (index >= 4)
         Surface(
-            modifier = Modifier.align(if (index < 4) Alignment.BottomCenter else Alignment.Center)
+            modifier = Modifier.align(if (popupAbove) Alignment.TopCenter else Alignment.BottomCenter)
                 .padding(horizontal = 16.dp, vertical = 76.dp),
             shape = RoundedCornerShape(16.dp),
             color = DDZColor.Surface,
