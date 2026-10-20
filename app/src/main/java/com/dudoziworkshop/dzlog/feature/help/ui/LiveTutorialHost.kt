@@ -163,10 +163,12 @@ internal fun LiveTutorialHost(
                 "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
+            // Keep the guide anchored across consecutive steps. The underlying settings
+            // list scrolls to the selected row; the popup no longer chases its position.
             areaId == "settings" -> when (sessionId) {
-                "capture", "feedback", "data" -> topY
-                "permission" -> desiredY.coerceIn(topY, bottomY)
-                else -> desiredY.coerceIn(topY, bottomY)
+                "environment" -> bottomY
+                "capture", "data", "support" -> topY
+                else -> topY
             }
             else -> desiredY.coerceIn(topY, bottomY)
         }
