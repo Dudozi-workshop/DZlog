@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -117,7 +118,7 @@ internal fun QuickResultsScreen(
 
         if (captures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
+                Text("이번 촬영 사진이 없습니다.", modifier = Modifier.tutorialTarget("camera.results"), color = DDZColor.TextSecondary)
             }
         } else if (visibleCaptures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

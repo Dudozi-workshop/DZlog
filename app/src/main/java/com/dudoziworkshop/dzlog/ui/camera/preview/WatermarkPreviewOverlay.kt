@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
 import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
@@ -135,7 +136,7 @@ internal fun WatermarkPreviewOverlay(
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(1f)
+            .zIndex(1f).tutorialRegion("camera.watermark", androidx.compose.ui.geometry.Rect(visibleBounds.left, visibleBounds.top, visibleBounds.right, visibleBounds.bottom))
     ) {
         drawIntoCanvas { canvas ->
             TableRenderAdapter.drawScene(
@@ -199,5 +200,13 @@ internal fun WatermarkPreviewOverlay(
             }
         }
     }
+    val guidePage = if (LocalTutorialReadOnly.current) LocalTutorialLocation.current?.pageId else null
+    if (guidePage in listOf("move", "corner-size")) Canvas(Modifier.fillMaxSize().zIndex(2f)) {
+        val finger = if (guidePage == "corner-size") Offset(visibleBounds.right, visibleBounds.bottom)
+            else Offset(visibleBounds.centerX(), visibleBounds.centerY())
+        drawCircle(DDZColor.Surface.copy(alpha = 0.85f), 11.dp.toPx(), finger)
+        drawCircle(DDZColor.PrimaryDark, 11.dp.toPx(), finger, style = Stroke(2.dp.toPx()))
+    }
+
 }
 

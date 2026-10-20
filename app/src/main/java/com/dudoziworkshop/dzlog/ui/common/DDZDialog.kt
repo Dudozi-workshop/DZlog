@@ -1,9 +1,12 @@
 package com.dudoziworkshop.dzlog.ui.common
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
@@ -41,7 +44,29 @@ fun DDZAlertDialog(
     tonalElevation: Dp = 0.dp,
     properties: DialogProperties = DialogProperties(),
 ) {
-    MaterialAlertDialog(onDismissRequest = onDismissRequest, confirmButton = confirmButton,
+    if (LocalTutorialReadOnly.current) {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()
+                .padding(top = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardTopSpace.current,
+                    bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)
+                .padding(horizontal = 24.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Surface(modifier.tutorialTarget("guide.dialog"), shape = shape, color = containerColor, tonalElevation = tonalElevation) {
+                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    icon?.invoke()
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides titleContentColor) {
+                        androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.headlineSmall) { title?.invoke() }
+                    }
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides textContentColor) {
+                        androidx.compose.material3.ProvideTextStyle(MaterialTheme.typography.bodyMedium) { text?.invoke() }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        dismissButton?.invoke()
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    } else MaterialAlertDialog(onDismissRequest = onDismissRequest, confirmButton = confirmButton,
         modifier = modifier, dismissButton = dismissButton, icon = icon, title = title, text = text,
         shape = shape, containerColor = containerColor, iconContentColor = iconContentColor,
         titleContentColor = titleContentColor, textContentColor = textContentColor,
@@ -157,12 +182,15 @@ fun DDZContentDialog(
     content: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit,
     properties: DialogProperties = DialogProperties(),
+    inlinePreview: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
 
-    Dialog(onDismissRequest = onDismiss, properties = properties) {
+    val dialogContent: @Composable () -> Unit = {
         Surface(
+            modifier = modifier.tutorialTarget("guide.dialog"),
             color = colors.Surface,
             shape = MaterialTheme.shapes.large,
             shadowElevation = 4.dp,
@@ -188,6 +216,16 @@ fun DDZContentDialog(
             }
         }
     }
+    if (inlinePreview || LocalTutorialReadOnly.current) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.fillMaxSize()
+                .padding(top = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardTopSpace.current,
+                    bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)
+                .padding(horizontal = 24.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) { dialogContent() }
+    } else Dialog(onDismissRequest = onDismiss, properties = properties) { dialogContent() }
+
 }
 
 /**

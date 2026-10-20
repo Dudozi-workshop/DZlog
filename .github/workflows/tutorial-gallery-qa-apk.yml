@@ -1,0 +1,42 @@
+name: DZlog Tutorial Gallery QA APK
+
+on:
+  push:
+    branches:
+      - feat/interactive-tutorial-v1
+    paths:
+      - '.github/workflows/tutorial-gallery-qa-apk.yml'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/help/**'
+      - 'app/src/main/res/**'
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-gallery-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android API 36
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+      - name: Build isolated tutorial QA APK
+        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tutorial -PdzlogDebugVersionCode=${{ github.run_number }} --stacktrace
+      - name: Upload isolated QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-gallery-tutorial-qa-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

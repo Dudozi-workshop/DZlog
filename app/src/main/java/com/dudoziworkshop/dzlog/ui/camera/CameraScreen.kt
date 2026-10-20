@@ -5,6 +5,20 @@
 
 package com.dudoziworkshop.dzlog.ui.camera
 
+import com.dudoziworkshop.dzlog.feature.help.ui.guideAspect
+import com.dudoziworkshop.dzlog.feature.help.ui.guideSaveMode
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePreviewMode
+import com.dudoziworkshop.dzlog.feature.help.ui.guideCycleIndex
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePendingCount
+import com.dudoziworkshop.dzlog.feature.help.ui.TutorialCapturePreview
+import com.dudoziworkshop.dzlog.ui.camera.controls.SaveStatusDetails
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.guideQuickTemplate
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePreviewArgs
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.Manifest
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -23,6 +37,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
+import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -130,12 +146,14 @@ fun CameraScreen(
     onCaptureCommitted: () -> Unit = {},
     onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
     onFirstQuickEditOpened: () -> Unit = {},
+    tutorialFocus: com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase? = null,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
+    val readOnlyTour = LocalTutorialReadOnly.current
     val context = LocalContext.current
 
     var hasPermission by remember {
@@ -155,7 +173,7 @@ fun CameraScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (!hasPermission) launcher.launch(Manifest.permission.CAMERA)
+        if (!hasPermission && !readOnlyTour) launcher.launch(Manifest.permission.CAMERA)
     }
 
     Box(modifier = Modifier.dzScreen()) {
@@ -179,6 +197,7 @@ fun CameraScreen(
                 onCaptureCommitted = onCaptureCommitted,
                 onFirstCaptureReceipt = onFirstCaptureReceipt,
                 onFirstQuickEditOpened = onFirstQuickEditOpened,
+                tutorialFocus = tutorialFocus,
             )
         } else {
             Text(
@@ -210,18 +229,20 @@ fun CameraPreview(
     onCaptureCommitted: () -> Unit = {},
     onFirstCaptureReceipt: (String, String) -> Unit = { _, _ -> },
     onFirstQuickEditOpened: () -> Unit = {},
+    tutorialFocus: com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase? = null,
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
+    val readOnlyTour = LocalTutorialReadOnly.current
     val context = LocalContext.current
     // Recovery and live completion are reconciled by a single durable state observer.
     val lifecycleOwner = LocalContext.current as? LifecycleOwner ?: return
     val scope = rememberCoroutineScope()
     val cameraViewModel: CameraViewModel = viewModel()
-    val settingsWriter = remember(context) { CameraSettingsWriter(context) }
+    val settingsWriter = remember(context, readOnlyTour) { CameraSettingsWriter(context, readOnly = readOnlyTour) }
     val repository: DzlogRepositoryImpl = remember {
         DzlogRepositoryImpl(
             saver = MediaStoreSaverImpl(),
@@ -250,7 +271,11 @@ fun CameraPreview(
     val asyncCaptureService = remember(context.applicationContext) {
         CaptureAsyncRuntime.get(context.applicationContext, repository)
     }
-    val pendingProjection = remember(asyncCaptureService) { asyncCaptureService.pendingProjection }
+    val pendingProjection = remember(asyncCaptureService, readOnlyTour) {
+        com.dudoziworkshop.dzlog.feature.help.model.tutorialCaptureProjection(
+            asyncCaptureService.pendingProjection, readOnlyTour,
+        )
+    }
     val templateSessionSafe = remember(asyncCaptureService, quickTemplateId) {
         pendingProjection.bindTemplate(quickTemplateId)
     }
@@ -268,14 +293,23 @@ fun CameraPreview(
     var cornerResizeBaseline by remember { mutableStateOf<CameraTableResizeBaseline?>(null) }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
     val ui = cameraViewModel.ui
+    val tourLocation = LocalTutorialLocation.current
+    val tourProgress = LocalTutorialDemoProgress.current
+    LaunchedEffect(tourLocation) {
+        if (readOnlyTour) {
+            ui.showWizard = tourLocation?.sessionId == "settings" && tourLocation.pageId in listOf("ratio", "quality", "capture-confirmation", "sound", "haptic", "feedback", "controls")
+            ui.isTableSelected = tourLocation?.sessionId == "table" && tourLocation.pageId in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")
+        }
+    }
     LaunchedEffect(templateSessionSafe) {
-        if (!templateSessionSafe) ui.capture.pendingSaveError = true
+        if (!readOnlyTour && !templateSessionSafe) ui.capture.pendingSaveError = true
     }
 
     // StateFlow delivers the current version after a screen recreation, even if
     // the original SharedFlow completion event was missed while off-screen.
     // The journal, not the event, is authoritative about committed media.
     LaunchedEffect(asyncCaptureService, quickTemplateId) {
+        if (readOnlyTour) return@LaunchedEffect
         // Wait until navigation has restored the active catalog. Writing a
         // receipt against an uninitialized template would corrupt progress.
         if (quickTemplateId == null) return@LaunchedEffect
@@ -635,12 +669,12 @@ fun CameraPreview(
 
     DisposableEffect(Unit) {
         onDispose {
-            resetZoomToDefault()
+            if (!readOnlyTour) resetZoomToDefault()
         }
     }
 
     CameraVolumeKeyEffect(
-        volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
+        volumeKeyAction = if (readOnlyTour || showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
         onCapture = {
             ui.dismissCameraInteractions()
             triggerCapture()
@@ -651,6 +685,7 @@ fun CameraPreview(
     )
 
     LaunchedEffect(boundImageCapture, ui.prefs.flashMode) {
+        if (readOnlyTour) return@LaunchedEffect
         val capture = boundImageCapture ?: return@LaunchedEffect
         // 바인딩된 ImageCapture 인스턴스가 교체되어도 선택된 flash mode를 즉시 유지한다.
         capture.flashMode = when (ui.prefs.flashMode) {
@@ -681,6 +716,7 @@ fun CameraPreview(
         ) {
             CameraTopBar(
                 topDisplayName = topDisplayName,
+                tutorialFocus = tutorialFocus,
                 hasAutoCounter = displayCounter != null,
                 onOpenCaptureInfo = {
                     ui.isTableSelected = false
@@ -701,7 +737,7 @@ fun CameraPreview(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxWidth().tutorialTarget("camera.preview")
             ) {
                 val previewAreaArgs = rememberCameraPreviewAreaArgs(
                     context = context,
@@ -731,9 +767,9 @@ fun CameraPreview(
                 )
 
                 CameraPreviewArea(
-                    args = previewAreaArgs,
+                    args = if (readOnlyTour) guidePreviewArgs(previewAreaArgs, tourLocation?.pageId, tourProgress) else previewAreaArgs,
                     isTableSelected = ui.isTableSelected,
-                    isTableLocked = ui.prefs.wmTableLocked,
+                    isTableLocked = if (readOnlyTour && tourLocation?.pageId in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "lock", "details")) tourLocation?.pageId == "lock" && tourProgress in 0.33f..0.75f else ui.prefs.wmTableLocked,
                     onTableSelectionChange = { selected ->
                         if (selected) ui.dismissToolOverlays()
                         ui.isTableSelected = selected
@@ -778,6 +814,9 @@ fun CameraPreview(
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it }
                 )
 
+                if (readOnlyTour && tourLocation?.pageId == "preview") {
+                    TutorialCapturePreview(tourProgress, ui.prefs.captureAspect.ratioF)
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -793,7 +832,7 @@ fun CameraPreview(
                         scope = scope,
                         ui = ui,
                         settingsWriter = settingsWriter,
-                        captureReady = canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete && undoPathWarning == null &&
+                        captureReady = !readOnlyTour && canTriggerCapture && !undoDeleteController.isBusy && !undoPhraseSaving && !undoDeletionIncomplete && undoPathWarning == null &&
                             ui.capture.pendingPreviewCaptureId == null &&
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
@@ -813,7 +852,7 @@ fun CameraPreview(
                         sessionCaptureStack = sessionCaptureStack,
                         undoPending = undoDeleteController.isBusy || undoPhraseSaving || ui.capture.pendingSaveCount > 0 || undoPathWarning != null,
                         onUndoDelete = {
-                            if (ui.capture.pendingSaveCount == 0 && !undoPhraseSaving) {
+                            if (!readOnlyTour && ui.capture.pendingSaveCount == 0 && !undoPhraseSaving) {
                                 val lastUris = sessionCaptureStack.lastOrNull().orEmpty()
                                 if (phraseUndoHistory.canUndo(lastUris.map(Uri::toString), quickTemplateId)) {
                                     val savedPath = phraseUndoHistory.pathForUndo(lastUris.map(Uri::toString))
@@ -834,10 +873,10 @@ fun CameraPreview(
                             }
                         },
                         onTriggerCapture = {
-                            ui.dismissCameraInteractions()
-                            triggerCapture()
+                            if (!readOnlyTour) { ui.dismissCameraInteractions(); triggerCapture() }
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
+                        tutorialFocus = tutorialFocus,
                         onOpenQuickValues = {
                             if (ui.capture.pendingSaveCount == 0) {
                                 ui.dismissCameraInteractions()
@@ -861,9 +900,9 @@ fun CameraPreview(
                 }
 
                 FloatingAssistShutterButton(
-                    enabled = ui.prefs.assistShutterEnabled,
-                    xRatio = ui.prefs.assistShutterXRatio,
-                    yRatio = ui.prefs.assistShutterYRatio,
+                    enabled = if (readOnlyTour && tourLocation?.pageId == "assist") tourProgress >= 0.15f else ui.prefs.assistShutterEnabled,
+                    xRatio = if (readOnlyTour && tourLocation?.pageId == "assist") 0.25f + 0.5f * tourProgress else ui.prefs.assistShutterXRatio,
+                    yRatio = if (readOnlyTour && tourLocation?.pageId == "assist") 0.65f - 0.15f * tourProgress else ui.prefs.assistShutterYRatio,
                     onPositionRatioChange = { xRatio, yRatio ->
                         ui.prefs.assistShutterXRatio = xRatio
                         ui.prefs.assistShutterYRatio = yRatio
@@ -884,11 +923,18 @@ fun CameraPreview(
                 )
             }
         }
-        if (showQuickValueSheet) {
+        if (readOnlyTour && tourLocation?.pageId == "saving") Box(
+            Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 180.dp),
+        ) {
+            SaveStatusDetails(guidePendingCount(tourProgress), false, {}, Modifier.tutorialTarget("camera.save-detail"))
+        }
+        val guideQuick = readOnlyTour && ((tourLocation?.pageId?.startsWith("quick") == true && tourLocation?.pageId != "quick-button") || tourLocation?.pageId in listOf("template-name", "template"))
+        if (showQuickValueSheet || guideQuick) {
+            key(if (guideQuick) tourLocation?.pageId else null) {
             key(quickTemplateId) {
                 CameraQuickValueSheet(
-                    template = tableTemplateState,
-                    templateName = quickTemplateName,
+                    template = if (guideQuick) remember { guideQuickTemplate() } else tableTemplateState,
+                    templateName = if (guideQuick) "기능 안내 예시" else quickTemplateName,
                     counterDigits = ui.prefs.counterDigits,
                     counterSeed = ui.counter.scopeNextCounter,
                     counterRequest = ui.counter.syncedRequest,
@@ -908,9 +954,10 @@ fun CameraPreview(
                     selectionMemory = quickEditSelectionMemory,
                     onTemplateSelect = onQuickTemplateSelect,
                     onDismiss = { showQuickValueSheet = false },
-                    onCommit = onTemplateChange,
+                    onCommit = if (guideQuick) ({ _: TableTemplateState -> }) else onTemplateChange,
                 )
             }
+        }
         }
 
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode != ContinuousPreviewMode.OFF) {
@@ -947,7 +994,14 @@ fun CameraPreview(
             )
         }
 
-        if (showNextCaptureInfo) {
+        if (readOnlyTour && tourLocation?.pageId == "warning") {
+            CameraUndoPathWarningDialog(
+                capturedFolder = "Pictures/DZlog/예시/이전 폴더/",
+                currentFolder = "Pictures/DZlog/예시/현재 폴더/",
+                onCancel = {}, onConfirm = {},
+            )
+        }
+        if (showNextCaptureInfo || (readOnlyTour && tourLocation?.pageId in listOf("filename", "path", "counter"))) {
             CameraNextCaptureInfoPopup(
                 nextFileName = topDisplayName,
                 relativePaths = capturePhysicalSavePaths(
@@ -968,7 +1022,7 @@ fun CameraPreview(
 
         if (ui.showWizard) {
             CameraSettingsOverlayPanel(
-                captureAspect = ui.prefs.captureAspect,
+                captureAspect = if (readOnlyTour && tourLocation?.pageId == "ratio") guideAspect(tourProgress) else ui.prefs.captureAspect,
                 onCaptureAspectChange = { aspect ->
                     val current = ui.prefs.captureAspect
                     if (aspect != current) {
@@ -1001,25 +1055,25 @@ fun CameraPreview(
                         }
                     }
                 },
-                saveMode = ui.prefs.saveMode,
+                saveMode = if (readOnlyTour && tourLocation?.pageId == "quality") guideSaveMode(tourProgress) else ui.prefs.saveMode,
                 onSaveModeChange = { mode ->
                     ui.prefs.saveMode = mode
                     scope.launch { settingsWriter.setSaveMode(mode) }
                 },
-                continuousPreviewMode = ui.prefs.continuousPreviewMode,
+                continuousPreviewMode = if (readOnlyTour && tourLocation?.pageId == "capture-confirmation") guidePreviewMode(tourProgress) else ui.prefs.continuousPreviewMode,
                 onContinuousPreviewModeChange = { mode ->
                     ui.prefs.continuousPreviewMode = mode
                     scope.launch { settingsWriter.setContinuousPreviewMode(mode) }
                 },
-                captureSoundEnabled = appSettings.captureSoundEnabled,
+                captureSoundEnabled = if (readOnlyTour && tourLocation?.pageId == "sound") tourProgress >= 0.34f else appSettings.captureSoundEnabled,
                 onCaptureSoundChange = { checked ->
-                    scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
+                    if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureSoundEnabled(context, checked) }
                 },
-                captureHapticEnabled = appSettings.captureHapticEnabled,
+                captureHapticEnabled = if (readOnlyTour && tourLocation?.pageId == "haptic") tourProgress >= 0.5f else appSettings.captureHapticEnabled,
                 onCaptureHapticChange = { checked ->
-                    scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
+                    if (!readOnlyTour) scope.launch { AppSettingsStore.setCaptureHapticEnabled(context, checked) }
                 },
-                volumeKeyAction = if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
+                volumeKeyAction = if (readOnlyTour && tourLocation?.pageId == "controls") listOf(VolumeKeyAction.NONE, VolumeKeyAction.ZOOM, VolumeKeyAction.CAPTURE)[guideCycleIndex(tourProgress, 3)] else if (showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
                 onVolumeKeyActionChange = { action ->
                     scope.launch { settingsWriter.setVolumeKeyAction(action) }
                 },

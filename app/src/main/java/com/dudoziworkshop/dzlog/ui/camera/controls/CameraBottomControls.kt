@@ -2,6 +2,12 @@
 
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.guidePendingCount
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +58,7 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
 import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
+import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -90,6 +97,7 @@ internal fun CameraBottomControls(
     onTriggerCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
     onOpenTableEditor: () -> Unit,
+    tutorialFocus: FirstCaptureGuidePhase? = null,
     onShutterButtonTopYChange: (Float?) -> Unit,
     hapticEnabled: Boolean,
 ) {
@@ -102,8 +110,12 @@ internal fun CameraBottomControls(
     }
 
     val showToolMenu = ui.showToolMenu
-    val selectedTool = ui.selectedTool
-    val isToolPanelExpanded = ui.isToolPanelExpanded
+    val guidePage = if (LocalTutorialReadOnly.current) LocalTutorialLocation.current?.pageId else null
+    val fraction = LocalTutorialDemoProgress.current
+    val guideOn = fraction >= 0.5f
+    val guideTool = when (guidePage) { "manual-focus" -> CameraOverlayTool.FOCUS; "flash" -> CameraOverlayTool.FLASH; else -> null }
+    val selectedTool = guideTool ?: ui.selectedTool
+    val isToolPanelExpanded = guideTool != null || ui.isToolPanelExpanded
     val compactTool = if (ui.isPinchZoomActive) null else selectedTool
     val showDismissLayer = showToolMenu || isToolPanelExpanded || ui.isZoomChipExpanded
 
@@ -130,12 +142,47 @@ internal fun CameraBottomControls(
             onTriggerCapture = onTriggerCapture,
             onUndoDelete = onUndoDelete,
             onShutterButtonTopYChange = onShutterButtonTopYChange,
+            tutorialFocus = tutorialFocus,
             onOpenQuickValues = {
                 ui.dismissCameraInteractions()
                 onOpenQuickValues()
             },
             onBottomBarHeightChange = { bottomBarHeightPx = it }
         )
+
+        // Passive preview of the real tools menu: no preference writes or camera commands.
+        // It intentionally disappears if the user opens the normal interactive menu.
+        val tutorialTarget = LocalTutorialTarget.current
+        val showPassiveToolMenu = (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
+            tutorialTarget?.startsWith("camera.tool.") == true ||
+            (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId in listOf("menu", "assist"))) &&
+            !showToolMenu && selectedTool == null && !isToolPanelExpanded
+        if (showPassiveToolMenu) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        bottom = DDZSpacing.screenPadding + with(density) {
+                            bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
+                        }
+                    ),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                CameraToolMenuSection(
+                    selectedTool = null,
+                    flashMode = if (guidePage == "flash") when { fraction < 0.33f -> CameraFlashMode.OFF; fraction < 0.66f -> CameraFlashMode.AUTO; else -> CameraFlashMode.ON } else ui.prefs.flashMode,
+                    focusMode = if (guidePage == "manual-focus") { if (guideOn) CameraFocusMode.MANUAL else CameraFocusMode.AUTO } else ui.focusMode,
+                    showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
+                    showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
+                    assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
+                    onSelectTool = {},
+                    onToggleGrid = {},
+                    onToggleTable = {},
+                    onToggleAssistShutter = {},
+                )
+            }
+        }
 
         CameraToolOverlayPanel(
             showToolMenu = showToolMenu,
@@ -145,11 +192,11 @@ internal fun CameraBottomControls(
             isPinchZoomActive = ui.isPinchZoomActive,
             zoomRatioTenths = ui.capture.actualZoomTenths,
             maxZoomTenths = ui.capture.maxZoomTenths,
-            flashMode = ui.prefs.flashMode,
-            focusMode = ui.focusMode,
-            focusUiValue = ui.focusUiValue,
-            showGrid = ui.prefs.showGrid,
-            showTable = ui.prefs.showWmPreview,
+            flashMode = if (guidePage == "flash") when { fraction < 0.33f -> CameraFlashMode.OFF; fraction < 0.66f -> CameraFlashMode.AUTO; else -> CameraFlashMode.ON } else ui.prefs.flashMode,
+            focusMode = if (guidePage == "manual-focus") { if (guideOn) CameraFocusMode.MANUAL else CameraFocusMode.AUTO } else ui.focusMode,
+            focusUiValue = if (guidePage == "manual-focus") fraction else ui.focusUiValue,
+            showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
+            showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
             onSelectTool = { selectedTool ->
                 ui.dismissTableSelection()
@@ -185,7 +232,7 @@ internal fun CameraBottomControls(
                 ui.prefs.showWmPreview = next
                 scope.launch { settingsWriter.setShowWmPreview(next) }
             },
-            assistShutterEnabled = ui.prefs.assistShutterEnabled,
+            assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
             onToggleAssistShutter = {
                 val next = !ui.prefs.assistShutterEnabled
                 ui.prefs.assistShutterEnabled = next
@@ -203,18 +250,23 @@ internal fun CameraBottomControls(
                     }),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val baseline = resizeBaseline
-                if (baseline != null && ui.isTableResizePanelOpen && !ui.prefs.wmTableLocked) {
+                val guideResize = guidePage == "size"
+                val baseline = if (guideResize) CameraTableResizeBaseline(
+                    widthRatio = 35, heightRatio = 18, rotationCwDeg = 0,
+                    anchor = WatermarkTableAnchor.CUSTOM, x10000 = 3500, y10000 = 4000,
+                    photoAspect = ui.prefs.captureAspect.ratioF,
+                ) else resizeBaseline
+                if (baseline != null && (guideResize || ui.isTableResizePanelOpen) && (guideResize || !ui.prefs.wmTableLocked)) {
                     val sliderRange = cameraTableScaleRange(baseline)
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth(0.85f)
+                            .fillMaxWidth(0.85f).tutorialTarget("camera.table-size-panel")
                             .background(DDZColor.Surface.copy(alpha = 0.88f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                     ) {
-                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
+                        Text("표 크기 · 사진 맞춤 · ${cameraTableFitPercent(baseline, if (guideResize) (35 + 20 * fraction).toInt() else ui.prefs.wmTableWidthRatio)}%", color = DDZColor.SageDarkStrong)
                         Slider(
-                            value = (ui.prefs.wmTableWidthRatio.toFloat() / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
+                            value = ((if (guideResize) 35f + 20f * fraction else ui.prefs.wmTableWidthRatio.toFloat()) / baseline.widthRatio / sliderRange.endInclusive).coerceIn(sliderRange.start / sliderRange.endInclusive, 1f),
                             onValueChange = { next ->
                                 val resized = resizeCameraTableKeepingCenter(baseline, next * sliderRange.endInclusive)
                                 ui.prefs.wmTableWidthRatio = resized.widthRatio
@@ -281,7 +333,7 @@ internal fun CameraBottomControls(
                         }
                         }
                     },
-                    isLocked = ui.prefs.wmTableLocked,
+                    isLocked = if (guidePage == "lock") fraction in 0.33f..0.75f else if (guidePage in listOf("select-table", "select", "move", "resize-button", "size", "corner-size", "rotation", "details")) false else ui.prefs.wmTableLocked,
                     onToggleLock = {
                         val next = !ui.prefs.wmTableLocked
                         ui.prefs.wmTableLocked = next
@@ -313,13 +365,16 @@ internal fun CameraBottomControls(
         }
 
         // Keep zoom near the shutter and out of the expanded tool panels.
-        if (!showToolMenu && selectedTool == null && !ui.isTableSelected) {
+        if (!showToolMenu && !showPassiveToolMenu && selectedTool == null && !ui.isTableSelected) {
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = DDZSpacing.screenPadding + with(density) {
                     bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing
-                }),
+                })
+                .tutorialTarget("camera.zoom").then(if (tutorialFocus == FirstCaptureGuidePhase.ZOOM_CHIP)
+                    Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                else Modifier),
             contentAlignment = Alignment.Center,
         ) {
             ZoomControlSection(
@@ -368,11 +423,11 @@ internal fun CameraBottomControls(
         // anchored to this badge; its position provider clamps within the window.
         // Calculate against the real screen width and measured bottom row height;
         // do not alter the row's buttons or the center zoom/tool overlays.
-        if (ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
+        if (guidePage in listOf("save-badge", "saving") || ui.capture.pendingSaveCount > 0 || ui.capture.pendingSaveError) {
             val undoCenter = BottomControlsHorizontalPadding +
                 (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.91f
             CaptureSaveStatusIndicator(
-                pendingCount = ui.capture.pendingSaveCount,
+                pendingCount = if (guidePage in listOf("save-badge", "saving")) guidePendingCount(fraction) else ui.capture.pendingSaveCount,
                 hasError = ui.capture.pendingSaveError,
                 detailsAllowed = !showDismissLayer && !ui.isTableSelected,
                 modifier = Modifier
@@ -382,7 +437,7 @@ internal fun CameraBottomControls(
                         bottom = DDZSpacing.screenPadding + with(density) {
                             bottomBarHeightPx.toDp()
                         } - 4.dp,
-                    ),
+                    ).tutorialTarget("camera.save-badge"),
             )
         }
     }
@@ -401,6 +456,7 @@ private fun BoxScope.CameraBottomBarRow(
     onUndoDelete: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
     onOpenQuickValues: () -> Unit,
+    tutorialFocus: FirstCaptureGuidePhase?,
     onBottomBarHeightChange: (Int) -> Unit,
 ) {
     Box(
@@ -416,7 +472,7 @@ private fun BoxScope.CameraBottomBarRow(
                 .onSizeChanged { onBottomBarHeightChange(it.height) },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f).tutorialTarget("camera.recent"), contentAlignment = Alignment.Center) {
                 RecentCaptureThumbButton(
                     latestImage = latestImage,
                     onClick = {
@@ -437,7 +493,15 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(18f).tutorialTarget("camera.tools").then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.TOOLS ||
+                        tutorialFocus == FirstCaptureGuidePhase.ZOOM_FOCUS)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 CameraToolEntryButton(
                     onClick = {
                         ui.dismissTableSelection()
@@ -454,7 +518,14 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(28f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(28f).tutorialTarget("camera.shutter").then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.SHUTTER)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 CaptureButtonSection(
                     ready = enabledNow,
                     onClick = {
@@ -466,11 +537,22 @@ private fun BoxScope.CameraBottomBarRow(
                 )
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.weight(18f).tutorialTarget("camera.quick").then(
+                    if (tutorialFocus == FirstCaptureGuidePhase.QUICK_EDIT)
+                        Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                    else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 QuickValueButton(onClick = onOpenQuickValues)
             }
 
-            Box(modifier = Modifier.weight(18f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(18f).tutorialTarget("camera.undo").then(
+                if (tutorialFocus == FirstCaptureGuidePhase.UNDO)
+                    Modifier.border(3.dp, DDZColor.PrimaryDark, RoundedCornerShape(16.dp))
+                else Modifier
+            ), contentAlignment = Alignment.Center) {
                 UndoCaptureButton(
                     enabled = sessionCaptureStack.isNotEmpty() && !undoPending && !ui.capture.isCapturing,
                     onClick = {
@@ -517,7 +599,7 @@ private fun BoxScope.CameraToolOverlayPanel(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .padding(bottom = DDZSpacing.screenPadding + bottomOffset),
+            .padding(bottom = DDZSpacing.screenPadding + bottomOffset).tutorialTarget("camera.tool-detail"),
         contentAlignment = Alignment.BottomCenter
     ) {
         when {

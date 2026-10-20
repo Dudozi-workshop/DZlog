@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -75,6 +77,8 @@ internal fun CameraQuickNamingPreview(
 @Composable
 private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ranges: List<IntRange>) {
     var expanded by remember { mutableStateOf(false) }
+    val guideExpanded = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId ==
+        (if (label == "파일명") "quick-filename" else "quick-path")
     var anchorWidth by remember { mutableStateOf(0) }
     val density = LocalDensity.current
     BackHandler(enabled = expanded) { expanded = false }
@@ -111,14 +115,7 @@ private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ra
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = fullText })
             }
         }
-        if (expanded) Popup(popupPositionProvider = remember { object : PopupPositionProvider {
-            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
-                layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset = IntOffset(
-                    anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
-                    anchorBounds.bottom.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)))
-        } },
-            onDismissRequest = { expanded = false },
-            properties = PopupProperties(focusable = false, dismissOnClickOutside = true)) {
+        val expandedContent: @Composable () -> Unit = {
             Surface(Modifier.width(with(density) { anchorWidth.toDp() }).heightIn(max = DDZLayout.QuickInput.MaxListHeight),
                 color = DDZColor.Surface, shape = RoundedCornerShape(DDZLayout.Radius.Small),
                 shadowElevation = DDZSpacing.xs) {
@@ -129,5 +126,13 @@ private fun PreviewRow(icon: ImageVector, label: String, texts: List<String>, ra
                 }
             }
         }
+        if (guideExpanded) Column(Modifier.padding(top = 30.dp)) { expandedContent() }
+        else if (expanded) Popup(popupPositionProvider = remember { object : PopupPositionProvider {
+            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
+                layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset = IntOffset(
+                    anchorBounds.left.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                    anchorBounds.bottom.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)))
+        } }, onDismissRequest = { expanded = false },
+            properties = PopupProperties(focusable = false, dismissOnClickOutside = true)) { expandedContent() }
     }
 }

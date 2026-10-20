@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.settings.ui
 
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,13 +15,29 @@ import com.dudoziworkshop.dzlog.feature.help.ui.DzlogHelpScreen
 fun SettingsScreen(
     onBack: () -> Unit,
     startWithHelp: Boolean = false,
+    tutorialTemplate: com.dudoziworkshop.dzlog.domain.model.TableTemplateState? = null,
+    tutorialStyle: com.dudoziworkshop.dzlog.feature.table.model.TableStyleState = com.dudoziworkshop.dzlog.feature.table.model.TableStyleState(),
+    tutorialTemplateName: String = "",
     onOpenCredits: () -> Unit = {},
     onImported: (LocalTemplateMergeResult) -> Unit = {},
 ) {
     var backupMode by remember { mutableStateOf<BackupScreenMode?>(null) }
     // index -> one of five module IDs -> index; intro reuses the read-only onboarding.
     var helpRoute by rememberSaveable { mutableStateOf<String?>(if (startWithHelp) "index" else null) }
-    if (helpRoute == "intro") {
+    var liveArea by rememberSaveable { mutableStateOf<String?>(null) }
+    var liveSession by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings by com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore.flow(context)
+        .collectAsState(initial = com.dudoziworkshop.dzlog.data.datastore.AppSettings.Default)
+    if (liveArea != null && liveSession != null && tutorialTemplate != null) {
+        com.dudoziworkshop.dzlog.feature.help.ui.LiveTutorialHost(
+            initialAreaId = requireNotNull(liveArea), initialSessionId = requireNotNull(liveSession),
+            onClose = { liveArea = null; liveSession = null },
+        ) { location ->
+            com.dudoziworkshop.dzlog.feature.help.ui.LiveTutorialScreens(location, tutorialTemplate,
+                tutorialStyle, settings, tutorialTemplateName)
+        }
+    } else if (helpRoute == "intro") {
         OnboardingFlowScreen(
             busy = false,
             onChoose = {},
@@ -33,6 +50,7 @@ fun SettingsScreen(
             moduleId = helpRoute?.takeUnless { it == "index" },
             onOpenModule = { helpRoute = it },
             onOpenIntroduction = { helpRoute = "intro" },
+            onOpenLiveSession = { area, session -> liveArea = area; liveSession = session },
             onBack = { helpRoute = if (helpRoute == "index") null else "index" },
         )
     } else if (backupMode == null) {

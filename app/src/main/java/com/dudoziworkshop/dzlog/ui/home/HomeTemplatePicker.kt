@@ -32,10 +32,7 @@ internal fun HomeTemplatePicker(
     onManage: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = DDZColor.Background,
-    ) {
+    HomeGuideSheet(onDismiss) {
         Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)) {
             Text(
                 text = "촬영 템플릿 선택",

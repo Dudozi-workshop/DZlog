@@ -1,5 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -160,7 +165,18 @@ fun TableEditorV2Screen(
         )
     }
     val draftTemplateState = session.draftTemplateState
-    val draftStyleState = session.draftStyleState
+    val styleGuide = LocalTutorialLocation.current?.takeIf { it.areaId == "table-detail" && it.sessionId == "style" }
+    val guideProgress = LocalTutorialDemoProgress.current
+    val draftStyleState = if (styleGuide == null) session.draftStyleState else session.draftStyleState.let { original ->
+        when (styleGuide.pageId) {
+            "style/background" -> original.copy(bgStyle = if (guideProgress < 0.5f) 1 else 0)
+            "style/opacity" -> original.copy(bgStyle = 1, bgAlpha = (255 - 150 * guideProgress).toInt())
+            "style/text" -> original.copy(valueScale = (80 + 60 * guideProgress).toInt())
+            "style/alignment" -> original.copy(textAlign = (guideProgress * 3).toInt().coerceAtMost(2))
+            "style/border" -> original.copy(gridEnabled = guideProgress >= 0.5f)
+            else -> original
+        }
+    }
     val saveRulesDraft = session.saveRulesDraft
 
     val rows = draftTemplateState.rows
@@ -174,6 +190,34 @@ fun TableEditorV2Screen(
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
     var saveDetailTrail by remember { mutableStateOf(emptyList<TableEditorSaveDetail>()) }
     val saveDetail = saveDetailTrail.lastOrNull()
+    val readOnlyTour = LocalTutorialReadOnly.current
+    val tourLocation = LocalTutorialLocation.current
+    LaunchedEffect(tourLocation) {
+        if (tourLocation != null) {
+            val saving = tourLocation.areaId == "saving"
+            mode = if (!saving && tourLocation.sessionId == "structure") MockMode.LAYOUT else MockMode.EDIT
+            showStyle = !saving && tourLocation.sessionId == "style"
+            showSaveRules = saving && tourLocation.sessionId != "rotation"
+            saveDetailTrail = if (saving && tourLocation.sessionId != "rotation") listOf(when (tourLocation.sessionId) {
+                "filename" -> TableEditorSaveDetail.FILE_NAME
+                "folder" -> if (tourLocation.pageId == "advanced") TableEditorSaveDetail.SAVE_MODE else TableEditorSaveDetail.SAVE_PATH
+                "counter" -> if (tourLocation.pageId.endsWith("/scope")) TableEditorSaveDetail.AUTO_NUMBER_ADVANCED else TableEditorSaveDetail.AUTO_NUMBER
+                else -> TableEditorSaveDetail.FILE_NAME
+            }) else emptyList()
+            if (tourLocation.areaId == "table-detail" && tourLocation.sessionId == "structure") {
+                val exampleCells = draftTemplateState.cells
+                if (exampleCells.size >= 2) selectionState.selectLayoutRange(draftTemplateState, exampleCells[0].cellId, exampleCells[1].cellId)
+            }
+            if ((!saving && tourLocation.sessionId == "cells") || (saving && tourLocation.sessionId == "rotation")) {
+                val typeName = if (saving) "ROTATING_TEXT" else when (tourLocation.pageId.substringAfter('/')) {
+                    "text" -> "TEXT"; "number" -> "NUMBER"; "counter" -> "COUNTER"
+                    "date" -> "DATE"; "time" -> "TIME"; "rotation" -> "ROTATING_TEXT"; else -> ""
+                }
+                (draftTemplateState.cells.firstOrNull { it.dataType.name == typeName }
+                    ?: draftTemplateState.cells.firstOrNull())?.cellId?.let(selectionState::selectEditCell)
+            }
+        }
+    }
     var showCounterResetDialog by remember { mutableStateOf(false) }
     var showBackSaveDialog by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
@@ -256,6 +300,7 @@ fun TableEditorV2Screen(
                 actions = {
                     DDZButton(
                         text = if (mode == MockMode.LAYOUT) "완료" else "저장",
+                        modifier = Modifier.tutorialTarget("table.save"),
                         enabled = !saveCoordinator.isSaving,
                         minHeight = 40.dp,
                         onClick = {
@@ -271,7 +316,7 @@ fun TableEditorV2Screen(
             )
         },
         bottomBar = {
-            if (!imeVisible) Column {
+            if (!imeVisible) Column(Modifier.tutorialTarget("table.tabs")) {
                 HorizontalDivider(color = DDZColor.BorderStrong)
                 MockBottomBar(
                     active = activeTab,
@@ -428,7 +473,7 @@ fun TableEditorV2Screen(
                 )
 
                 TableEditorWorkPanel(
-                    Modifier.fillMaxWidth()
+                    Modifier.fillMaxWidth().tutorialTarget("table.panel")
                         .then(if (imeVisible) Modifier else Modifier.height(panelHeight)),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
@@ -773,14 +818,14 @@ fun TableEditorV2Screen(
         )
     }
 
-    if (showCounterResetDialog) {
+    if (showCounterResetDialog || (tourLocation?.areaId == "saving" && tourLocation.pageId == "counter/reset")) {
         DDZConfirmDialog(
             title = "자동번호를 초기화할까요?",
             message = "다음 번호가 ${formatMockCounter(1, session.draftCounterPadding)}로 변경됩니다. 저장된 사진의 번호는 변경되지 않습니다.",
             confirmText = "초기화",
             dismissText = "취소",
             onConfirm = {
-                counterController.reset(session)
+                if (!readOnlyTour) counterController.reset(session)
                 showCounterResetDialog = false
             },
             onDismiss = { showCounterResetDialog = false },
@@ -795,6 +840,14 @@ fun TableEditorV2Screen(
             dismissText = "닫기",
             onConfirm = { saveCoordinator.clearError() },
             onDismiss = { saveCoordinator.clearError() },
+        )
+    }
+
+    if (tourLocation?.areaId == "table-detail" && tourLocation.pageId == "save/decision") {
+        DDZUnsavedDecisionDialog(
+            title = "변경사항을 저장할까요?",
+            message = "저장하지 않으면 이번 편집 내용은 모두 사라집니다.",
+            onCancel = {}, onDiscard = {}, onSave = {},
         )
     }
 
@@ -830,7 +883,7 @@ fun TableEditorV2Screen(
 @Composable
 private fun CompactHistoryButton(icon: ImageVector, contentDescription: String,
     enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp)) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(40.dp).tutorialTarget("table.history.$contentDescription")) {
         Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(18.dp),
             tint = if (enabled) DDZColor.TextPrimary else DDZColor.TextDisabled)
     }
