@@ -127,19 +127,23 @@ internal fun GalleryMoveDestinationPicker(
         Column(
             Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = DDZSpacing.screenPadding),
+                .padding(horizontal = DDZSpacing.screenPadding)
+                .padding(bottom = 48.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = ::goBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "상위 폴더")
+            Box(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween) {
+                    IconButton(onClick = ::goBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "상위 폴더")
+                    }
+                    TextButton(onClick = onCancel) { Text("취소") }
                 }
                 Text(
                     "이동할 위치 선택",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.align(Alignment.Center),
                     style = DDZTypography.ScreenTitle,
                     color = DDZColor.TextPrimary,
                 )
-                TextButton(onClick = onCancel) { Text("취소") }
             }
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
