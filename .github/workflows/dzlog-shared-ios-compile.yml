@@ -5,14 +5,21 @@ on:
     branches:
       - milestone/dzlog-pre-onboarding-20261017
     paths:
-      - 'shared/**'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'gradle/**'
+      - '**'
+      - '!app/**'
+      - '!sharedUi/**'
+      - '!iosApp/**'
+      - '!scripts/**'
+      - '!billing-server/**'
+      - '!docs/**'
+      - '!README.md'
+      - '!.github/**'
       - '.github/workflows/dzlog-shared-ios-compile.yml'
+      - '.github/scripts/dzlog_ci_reuse*'
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: dzlog-shared-ios-${{ github.event.pull_request.number }}
@@ -24,17 +31,28 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Reuse only identical successful core inputs
+        id: reuse
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.setOutput('run', 'true');
+            await require('./.github/scripts/dzlog_ci_reuse.cjs')({github, context, core, platform: 'core'});
       - uses: actions/setup-java@v4
+        if: steps.reuse.outputs.run != 'false'
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.reuse.outputs.run != 'false'
       - name: Compile shared core and run Apple Silicon simulator tests
+        if: steps.reuse.outputs.run != 'false'
         run: |
           chmod +x ./gradlew
           ./gradlew -PdzlogSharedOnly=true :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :shared:compileTestKotlinIosSimulatorArm64 :shared:iosSimulatorArm64Test --stacktrace
       - name: Preserve native test reports
-        if: always()
+        if: always() && steps.reuse.outputs.run != 'false'
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-shared-ios-test-reports

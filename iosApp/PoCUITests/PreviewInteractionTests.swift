@@ -59,6 +59,11 @@ final class PreviewInteractionTests: XCTestCase {
 
     func testCloseReopenSelectAndRetainSelection() {
         app.launch()
+        XCTAssertEqual(app.state, .runningForeground)
+        let initial = XCTAttachment(screenshot: app.screenshot())
+        initial.name = "template-preview-first-launch"
+        initial.lifetime = .keepAlways
+        add(initial)
         tapButton("닫기")
         XCTAssertTrue(text("템플릿을 선택해 주세요.").waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["이 템플릿 선택"].exists)

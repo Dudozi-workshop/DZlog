@@ -6,15 +6,16 @@ on:
       - milestone/dzlog-pre-onboarding-20261017
     paths-ignore:
       - 'docs/**'
-      - '**/*.md'
+      - 'README.md'
   push:
     branches:
       - milestone/dzlog-pre-onboarding-20261017
     paths-ignore:
       - 'docs/**'
-      - '**/*.md'
+      - 'README.md'
 permissions:
   contents: read
+  actions: read
 
 # Cancel superseded runs for the same PR or milestone branch.
 concurrency:
@@ -27,12 +28,25 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Verify CI reuse policy
+        run: node --test .github/scripts/dzlog_ci_reuse.test.cjs
+      - name: Reuse only identical successful Android inputs
+        id: reuse
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.setOutput('run', 'true');
+            await require('./.github/scripts/dzlog_ci_reuse.cjs')({github, context, core, platform: 'android'});
       - uses: actions/setup-java@v4
+        if: steps.reuse.outputs.run != 'false'
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.reuse.outputs.run != 'false'
       - name: Install Android API 36
+        if: steps.reuse.outputs.run != 'false'
         shell: bash
         run: |
           set -euo pipefail
@@ -42,16 +56,18 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Complete Android unit suite (no partial selection)
+        if: steps.reuse.outputs.run != 'false'
         shell: bash
         run: |
           set -euo pipefail
           chmod +x ./gradlew
           ./gradlew :shared:jvmTest :app:testDebugUnitTest --stacktrace
       - name: Verify dormant billing backend
+        if: steps.reuse.outputs.run != 'false'
         shell: bash
         run: node --test billing-server/test/*.test.mjs
       - name: Preserve unit test reports
-        if: always()
+        if: always() && steps.reuse.outputs.run != 'false'
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-mainline-unit-reports

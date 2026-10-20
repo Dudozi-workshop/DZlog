@@ -2,9 +2,18 @@ name: DZlog M2 Shared UI PoC
 on:
   pull_request:
     branches: [milestone/dzlog-pre-onboarding-20261017]
-    paths: ['sharedUi/**', 'shared/**', 'iosApp/**', 'scripts/ios/**', 'build.gradle.kts', 'settings.gradle.kts', '.github/workflows/dzlog-ios-ui-poc.yml']
+    paths:
+      - '**'
+      - '!app/**'
+      - '!billing-server/**'
+      - '!docs/**'
+      - '!README.md'
+      - '!.github/**'
+      - '.github/scripts/dzlog_ci_reuse*'
+      - '.github/workflows/dzlog-ios-ui-poc.yml'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: dzlog-ios-ui-poc-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -14,21 +23,50 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      - name: Reuse only identical successful UI inputs
+        id: reuse
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.setOutput('run', 'true');
+            await require('./.github/scripts/dzlog_ci_reuse.cjs')({github, context, core, platform: 'ui'});
       - uses: actions/setup-java@v4
+        if: steps.reuse.outputs.run != 'false'
         with:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.reuse.outputs.run != 'false'
+      - name: Identify native toolchain
+        id: toolchain
+        if: steps.reuse.outputs.run != 'false'
+        run: |
+          toolchain_key="$({ xcodebuild -version; java -version 2>&1; } | shasum -a 256 | cut -d' ' -f1)"
+          echo "key=$toolchain_key" >> "$GITHUB_OUTPUT"
+      - name: Restore exact native framework
+        id: framework-cache
+        continue-on-error: true
+        if: steps.reuse.outputs.run != 'false' && steps.reuse.outputs.framework != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
+          key: dzlog-ui-framework-v1-${{ github.event.pull_request.number }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ steps.reuse.outputs.framework }}
       - name: Build existing shared UI for iPhone and simulator
+        if: steps.reuse.outputs.run != 'false' && steps.framework-cache.outputs.cache-hit != 'true'
         run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:compileKotlinIosArm64 :sharedUi:linkDebugFrameworkIosSimulatorArm64 --stacktrace
-      - name: Build minimal UIKit host
-        run: bash scripts/ios/build-ui-poc.sh
-      - name: Launch Compose UI and capture actual simulator screen
-        run: bash scripts/ios/smoke-ui-poc.sh
-      - name: Test actual close/select and horizontal/vertical gestures
+      - name: Save compiled framework even if later UI tests fail
+        if: steps.reuse.outputs.run != 'false' && steps.reuse.outputs.framework != '' && steps.framework-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
+          key: ${{ steps.framework-cache.outputs.cache-primary-key }}
+      - name: Build UIKit host, capture first screen, and test actual gestures once
+        if: steps.reuse.outputs.run != 'false'
         run: bash scripts/ios/test-ui-poc.sh
       - name: Preserve UI evidence
-        if: always()
+        if: always() && steps.reuse.outputs.run != 'false'
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-ios-ui-poc-evidence
