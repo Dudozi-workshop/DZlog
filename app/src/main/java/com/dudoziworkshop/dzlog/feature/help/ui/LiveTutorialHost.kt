@@ -151,8 +151,8 @@ internal fun LiveTutorialHost(
                 val availableBelow = if (target == null) 0f else hostHeight - target.bottom - gap
                 val availableAbove = if (target == null) 0f else target.top - topY - gap
                 val isDialogStep = page.id in setOf(
-                    "folders/new", "folders/rename", "folders/move", "folders/delete",
-                    "photos/move", "photos/delete"
+                    "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete",
+                    "photos/move", "photos/destination", "photos/delete"
                 )
                 when {
                     // Keep gallery overview, folder browsing and photo selection guidance low.
@@ -298,7 +298,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
     }
     "gallery" -> when {
         location.sessionId == "viewer" -> "gallery.viewer-actions"
-        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
+        location.pageId in setOf("photos/move", "photos/destination", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete") -> "guide.dialog"
         location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
