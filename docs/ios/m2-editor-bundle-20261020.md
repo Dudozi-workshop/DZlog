@@ -73,3 +73,16 @@
 - isImeVisible 및 DialogProperties.decorFitsSystemWindows는 Android actual로 보존한다.
   iOS는 IME inset으로 표시 여부를 구하고 지원되는 공통 full-width DialogProperties를 사용한다.
 - 수정 후 재검사 전이며 전체 표 편집 흐름은 미검증이다. 동일 Draft #76 유지.
+
+### c930e078 결과 / 편집 검사 동선 수정
+
+- Android 39412082095: 실제 전체 unit step 및 billing 검증 성공.
+- iOS core 39412082242: 실제 컴파일/시뮬레이터 테스트 step 성공.
+- UI 39412082263: iPhone/시뮬레이터 shared UI framework 및 UIKit host 빌드 성공, PNG cmp 유지.
+  실제 조작6개 중5개 성공, 편집 묶음1개 실패. artifact12259793923.
+- 실패 위치 Swift168: 셀 선택으로 패널을 연 뒤 실제 입력칸을 누르기 전에 native
+  TextView/TextField를 찾았다. AX 기록에는 셀과 하단 입력칸이 같은 label의 Button으로
+  각각 있고 셀 편집 닫기/입력창 확대도 표시되어 있다. 입력 전 실제 하단 입력칸을 터치하도록
+  검사 동선만 수정한다. 앱 코드는 바꾸지 않는다. 입력·구조·스타일·저장/재실행은 아직 미검증.
+- 변경은 iOS 검사/기록뿐이므로 Android/core는 동일 입력 성공 근거 재사용 대상이다.
+  UI 재검사는 기존 정확한 framework 캐시를 사용 가능하며 최종 결과 전 PASS 처리하지 않는다.

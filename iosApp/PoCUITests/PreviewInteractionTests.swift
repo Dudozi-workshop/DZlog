@@ -164,6 +164,16 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("표 편집")
         XCTAssertTrue(text("표 편집").waitForExistence(timeout: 15))
         tapPanelText("블루베리 관찰 기록")
+        XCTAssertTrue(app.buttons["셀 편집 닫기"].waitForExistence(timeout: 10))
+        // Selecting the canvas cell opens its panel. Compose 1.7 exposes the unfocused
+        // field as a Button; touch the lower panel field before querying native input.
+        let valueField = try XCTUnwrap(app.buttons.matching(NSPredicate(
+            format: "label == %@", "블루베리 관찰 기록"
+        )).allElementsBoundByIndex.max { $0.frame.midY < $1.frame.midY })
+        let valueFrame = valueField.frame
+        XCTAssertFalse(valueFrame.isEmpty)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: valueFrame.minX + valueFrame.width * 0.25, dy: valueFrame.midY)).tap()
         let input = app.textViews.firstMatch.waitForExistence(timeout: 3) ? app.textViews.firstMatch : app.textFields.firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 10), "Existing multiline cell field must be editable")
         input.tap()
