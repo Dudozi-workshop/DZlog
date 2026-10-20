@@ -18,6 +18,12 @@
 - Compose 1.7의 기본 접근성 동기화는 서비스 실행 여부에 의존한다. 화면은 표시되지만
   XCTest 계층이 비는 것을 확인해 PoC 호스트에 Always 동기화를 명시한다.
   Android 및 공통 dialog/theme에는 적용하지 않는다. 프로젝트는 arm64 simulator 전용이다.
+- Always 설정 후에도 팝업 자식 노드가 비는 현상을 확인했다. upstream CMP-6938의
+  layout invalidation 수정이 포함된 `org.jetbrains.compose.ui:ui:1.7.1`을 iosMain에만
+  명시한다. Compose plugin/Kotlin/Android BOM 및 공통 UI 소스는 유지한다.
+- 회귀 중 SignedProGrantVerifierTest의 고정 Base64 끝 문자 교체가 동일 바이트로
+  디코딩되어 간헐 실패함을 재현했다(`xw`→`xy`). 서명 바이트의 bit를 반전하도록
+  해당 테스트만 수정한다. 앱 서명 검증/과금 운영 코드는 변경하지 않는다.
 
 실행 순서:
 
@@ -32,3 +38,4 @@ Xcode에서 `iosApp/DZlogUiPoc.xcodeproj` → `DZlogUiPoc` scheme을 열어 simu
 참고: [Compose 접근성/XCTest 연계](https://blog.jetbrains.com/kotlin/2024/02/compose-multiplatform-1-6-0-release/),
 [Apple XCUIElement](https://developer.apple.com/documentation/xcuiautomation/xcuielement).
 [Compose 1.7 접근성 동기화 설정](https://kotlinlang.org/docs/multiplatform/compose-ios-accessibility.html#choose-the-tree-synchronization-option).
+[Upstream 1.7.0→1.7.1 팝업 접근성 수정](https://github.com/JetBrains/compose-multiplatform-core/compare/v1.7.0...v1.7.1).

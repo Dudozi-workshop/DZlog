@@ -59,7 +59,11 @@ class SignedProGrantVerifierTest {
     @Test
     fun `forged proof foreign package and clock rollback are rejected`() {
         val signed = makeGrant()
-        assertNull(SignedProGrantVerifier.verify(signed.dropLast(2) + "xy",
+        // Mutate a decoded bit: replacing trailing Base64 characters can preserve the bytes.
+        val signature = Base64.decode(signed.substringAfterLast('.'), Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        signature[0] = (signature[0].toInt() xor 1).toByte()
+        val forged = signed.substringBeforeLast('.') + "." + b64(signature)
+        assertNull(SignedProGrantVerifier.verify(forged,
             publicPem, nowSeconds * 1000L))
         assertNull(SignedProGrantVerifier.verify(
             makeGrant(audience = "invalid.package"), publicPem, nowSeconds * 1000L))

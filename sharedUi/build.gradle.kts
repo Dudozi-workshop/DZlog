@@ -30,6 +30,11 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
         }
+        iosMain.dependencies {
+            // 1.7.1 fixes CMP-6938: dialog semantics can remain an empty root in 1.7.0.
+            // Keep the plugin/common declarations and Android dependency baseline unchanged.
+            implementation("org.jetbrains.compose.ui:ui:1.7.1")
+        }
     }
 }
 
