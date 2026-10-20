@@ -11,6 +11,7 @@ on:
       - feat/home-c1-layout
       - integration/dzlog-20261010
       - feat/gallery-folder-guidance-popup
+      - feat/tutorial-settings-v2
   workflow_dispatch:
     inputs:
       build_apk:
