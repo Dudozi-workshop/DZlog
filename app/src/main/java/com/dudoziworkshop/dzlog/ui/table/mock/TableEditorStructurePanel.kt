@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +50,7 @@ internal fun MockLayoutPanel(
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState())
         .background(DDZColor.Surface).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().tutorialTarget("table.structure.add"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream,
                 if (rows >= TableEditorPolicy.MAX_ROWS) "최대 ${TableEditorPolicy.MAX_ROWS}행" else "행 추가",
                 operation = "+", enabled = rows < TableEditorPolicy.MAX_ROWS, onClick = onAddRow)
@@ -57,17 +58,17 @@ internal fun MockLayoutPanel(
                 if (cols >= TableEditorPolicy.MAX_COLS) "최대 ${TableEditorPolicy.MAX_COLS}열" else "열 추가",
                 operation = "+", enabled = cols < TableEditorPolicy.MAX_COLS, onClick = onAddCol)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().tutorialTarget("table.structure.delete"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 삭제",
                 operation = "−", enabled = selectedCount > 0 && rows > 1, danger = true, onClick = onDeleteRows)
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 삭제",
                 operation = "−", enabled = selectedCount > 0 && cols > 1, danger = true, onClick = onDeleteColumns)
         }
-        StructureActionButton(Modifier.fillMaxWidth(), Icons.Filled.GridView,
+        StructureActionButton(Modifier.fillMaxWidth().tutorialTarget("table.structure.merge"), Icons.Filled.GridView,
             if (mergedSelection) "병합 해제" else "병합", enabled = selectedCount > 1 || mergedSelection,
             onClick = onMergeSelection)
         HorizontalDivider(color = DDZColor.Border)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().tutorialTarget("table.structure.equal"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 높이 균등",
                 enabled = rows > 1, onClick = onEqualizeRows)
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 너비 균등",

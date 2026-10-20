@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -139,7 +140,7 @@ internal fun TableEditorRuleListEditor(
         emitCompacted(reordered)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.tutorialTarget("saving.rules"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     if (compactItems.isNotEmpty()) Text("항목을 왼쪽으로 밀면 삭제할 수 있어요.",
         style = DDZTypography.Caption, color = DDZColor.TextMuted)
     LazyColumn(
@@ -264,7 +265,7 @@ internal fun TableEditorRuleListEditor(
 
     DDZButton(
         text = if (isFileName) "+ 구성요소 추가" else "+ 폴더 추가",
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().tutorialTarget("saving.add"),
         style = DDZButtonStyle.Secondary,
         enabled = compactItems.size < items.size,
         onClick = {

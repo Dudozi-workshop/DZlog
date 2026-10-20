@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.*
 import android.graphics.RectF
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -92,6 +93,8 @@ internal fun CameraQuickTablePreview(
     onTemplateSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val guideTemplatePage = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId in listOf("template-name", "template")
+    val guideTemplateMenu = guideTemplatePage && LocalTutorialLocation.current?.pageId == "template" && LocalTutorialDemoProgress.current < 0.5f
     val density = LocalDensity.current
     var showPicker by remember { mutableStateOf(false) }
     var zoomFactor by remember { mutableStateOf(1f) }
@@ -155,7 +158,7 @@ internal fun CameraQuickTablePreview(
         }
         val markerPx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
         val gapPx = with(density) { DDZSpacing.xs.toPx() }
-        Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight),
+        Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight).tutorialTarget("camera.quick-table"),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {
                 // DZQ-002 device feedback: keep this a flat, compact toolbar.
@@ -163,8 +166,8 @@ internal fun CameraQuickTablePreview(
                 Box(Modifier.fillMaxWidth().height(headingHeight)) {
                     Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                         Row(
-                            Modifier.weight(1f).fillMaxHeight()
-                                .clickable(enabled = templates.isNotEmpty() && !switching) { showPicker = true }
+                            Modifier.weight(1f).fillMaxHeight().tutorialTarget("camera.quick-template-name")
+                                .clickable(enabled = (templates.isNotEmpty() || guideTemplatePage) && !switching) { showPicker = true }
                                 .padding(start = DDZSpacing.xs, end = DDZSpacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
@@ -177,7 +180,7 @@ internal fun CameraQuickTablePreview(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f))
-                            if (templates.isNotEmpty()) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
+                            if (templates.isNotEmpty() || guideTemplatePage) Icon(Icons.Filled.ExpandMore, "템플릿 변경",
                                 Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.PrimaryDark)
                         }
                         Box(Modifier.width(1.dp).height(headingHeight - 10.dp)
@@ -194,8 +197,12 @@ internal fun CameraQuickTablePreview(
                                 Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.TextSecondary)
                         }
                     }
-                    DropdownMenu(expanded = showPicker, onDismissRequest = { showPicker = false },
-                        modifier = Modifier.heightIn(max = DDZLayout.QuickInput.MaxListHeight)) {
+                    QuickTemplateMenu(expanded = showPicker, guideExpanded = guideTemplateMenu,
+                        onDismiss = { showPicker = false }) {
+                        if (guideTemplateMenu) {
+                            DropdownMenuItem(text = { Text("기능 안내 예시") }, onClick = {})
+                            DropdownMenuItem(text = { Text("다른 표 양식 · 예시") }, onClick = {})
+                        }
                         templates.forEach { item ->
                             DropdownMenuItem(text = { Text(item.name, style = DDZTypography.Body,
                                 color = if (item.id == activeTemplateId) DDZColor.SageDarkStrong else DDZColor.TextPrimary) },
@@ -311,4 +318,13 @@ private fun QuickPreviewScrollIndicators(horizontal: ScrollState, vertical: Scro
             }
         }
     }
+}
+
+@Composable
+private fun QuickTemplateMenu(expanded: Boolean, guideExpanded: Boolean, onDismiss: () -> Unit,
+    content: @Composable () -> Unit) {
+    if (guideExpanded) Surface(Modifier.tutorialTarget("camera.quick-template"), color = DDZColor.Surface, shadowElevation = 4.dp) {
+        Column { content() }
+    } else DropdownMenu(expanded = expanded, onDismissRequest = onDismiss,
+        modifier = Modifier.heightIn(max = DDZLayout.QuickInput.MaxListHeight)) { content() }
 }

@@ -7,6 +7,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -328,7 +329,7 @@ fun LogViewerScreen(
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
+                .fillMaxWidth().tutorialTarget("gallery.viewer-actions")
         ) {
             Box(
                 modifier = Modifier

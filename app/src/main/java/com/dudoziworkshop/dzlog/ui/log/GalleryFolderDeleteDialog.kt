@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ internal fun GalleryFolderDeleteDialog(
     onChanged: () -> Unit,
     onDeleted: () -> Unit,
 ) {
+    val readOnlyTour = LocalTutorialReadOnly.current
     val scope = rememberCoroutineScope()
     var version by remember(path) { mutableIntStateOf(0) }
     var busy by remember(path) { mutableStateOf(true) }
@@ -102,7 +104,7 @@ internal fun GalleryFolderDeleteDialog(
                 style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Primary,
                 containerColorOverride = if (confirmed == null) null else colors.Destructive,
                 enabled = !busy, onClick = {
-                if (busy) return@DDZButton
+                if (busy || readOnlyTour) return@DDZButton
                 if (confirmed == null) {
                     busy = true
                     error = null

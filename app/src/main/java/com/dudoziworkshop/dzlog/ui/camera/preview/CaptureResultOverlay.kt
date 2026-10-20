@@ -41,9 +41,11 @@ fun CaptureResultOverlay(
     capturedUri: Uri?,
     continuousPreviewMode: ContinuousPreviewMode,
     aspectRatio: Float,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    emptyPreviewHint: String? = null,
+    photoModifier: Modifier = Modifier,
 ) {
-    if (capturedUri == null) return
+    if (capturedUri == null && emptyPreviewHint == null) return
     if (continuousPreviewMode == ContinuousPreviewMode.OFF) return
 
     Box(
@@ -60,13 +62,14 @@ fun CaptureResultOverlay(
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.72f)
+                    .then(photoModifier).fillMaxWidth(0.72f)
                     .aspectRatio(aspectRatio)
                     .clip(RoundedCornerShape(8.dp))
                     .border(2.dp, Color.White, RoundedCornerShape(8.dp))
                     .background(Color.Black)
             ) {
-                AsyncImage(
+                if (capturedUri == null) Text(emptyPreviewHint.orEmpty(), Modifier.align(Alignment.Center).padding(16.dp), color = Color.White)
+                else AsyncImage(
                     model = capturedUri,
                     contentDescription = stringResource(R.string.camera_captured_result),
                     modifier = Modifier.fillMaxSize(),

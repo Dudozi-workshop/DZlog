@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,23 +45,24 @@ internal fun CameraTableSelectionToolbar(
 ) {
     Row(
         modifier = Modifier
-            .clip(ToolbarShape)
+            .tutorialTarget("camera.table-toolbar").clip(ToolbarShape)
             .background(DDZColor.Surface.copy(alpha = 0.96f))
             .border(1.dp, DDZColor.SageBorder, ToolbarShape)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CameraTableAction("상세", Icons.Default.Edit, true, onOpenDetails)
-        CameraTableAction("크기", Icons.Default.AspectRatio, !isLocked, onResize)
-        CameraTableAction("회전", Icons.AutoMirrored.Filled.RotateRight, !isLocked, onRotate)
-        CameraTableAction(if (isLocked) "잠금 해제" else "잠금", if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock, true, onToggleLock)
+        CameraTableAction("상세", "details", Icons.Default.Edit, true, onOpenDetails)
+        CameraTableAction("크기", "size", Icons.Default.AspectRatio, !isLocked, onResize)
+        CameraTableAction("회전", "rotation", Icons.AutoMirrored.Filled.RotateRight, !isLocked, onRotate)
+        CameraTableAction(if (isLocked) "잠금 해제" else "잠금", "lock", if (isLocked) Icons.Default.LockOpen else Icons.Default.Lock, true, onToggleLock)
     }
 }
 
 @Composable
 private fun CameraTableAction(
     label: String,
+    target: String,
     icon: ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -68,7 +70,7 @@ private fun CameraTableAction(
     val tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.TextMuted
     Column(
         modifier = Modifier
-            .width(66.dp)
+            .tutorialTarget("camera.table-$target").width(66.dp)
             .height(54.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)

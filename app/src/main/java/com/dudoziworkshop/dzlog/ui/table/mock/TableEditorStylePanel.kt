@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -74,7 +75,7 @@ internal fun TableEditorStylePanel(
 
 @Composable
 private fun CompactStyleRow(label: String, content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.fillMaxWidth().tutorialTarget("table.style.$label").heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, modifier = Modifier.width(80.dp), style = DDZTypography.Caption, color = DDZColor.TextPrimary)
         content()
