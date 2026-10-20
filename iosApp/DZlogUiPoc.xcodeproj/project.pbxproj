@@ -157,6 +157,8 @@
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
 				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc";
 				"INFOPLIST_FILE" = "PoCApp/Info.plist";
+                "COMPRESS_PNG_FILES" = "NO";
+                "REMOVE_TEXT_METADATA_FROM_PNG_FILES" = "NO";
 				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../sharedUi/build/bin/iosSimulatorArm64/debugFramework");
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
 			};

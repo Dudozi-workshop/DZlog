@@ -15,3 +15,8 @@ xcodebuild test \
   -resultBundlePath "$evidence_dir/interaction.xcresult" \
   -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
   | tee "$evidence_dir/interaction-build.log"
+
+# Skia reads standard PNG bytes; Xcode must not rewrite this shared Android asset to CgBI.
+bundled_png="$repo_root/build/ios-poc/DerivedData/Build/Products/Debug-iphonesimulator/DZlogUiPoc.app/home_leaf_shadow_c.png"
+cmp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$bundled_png"
+shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
