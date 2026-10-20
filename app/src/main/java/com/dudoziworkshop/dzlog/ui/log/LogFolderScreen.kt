@@ -968,7 +968,7 @@ fun LogFolderScreen(
                 },
             )
         }
-        if (manageAction != null && manageAction != "delete") {
+        if (manageAction == "rename") {
             GalleryFolderManagementDialog(
                 action = requireNotNull(manageAction),
                 sourcePath = managedFolderPath,
@@ -1013,6 +1013,94 @@ fun LogFolderScreen(
                                 reloadKey++
                             }
                         }
+                },
+            )
+        }
+        if (manageAction == "move") {
+            AlertDialog(
+                onDismissRequest = { if (!folderManagementBusy) manageAction = null },
+                title = { Text(if (manageAction == "rename") "폴더 이름 변경" else "폴더 이동") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(managedFolderPath.removePrefix(GalleryFolderIndexPolicy.ROOT),
+                            color = DDZColor.TextSecondary)
+                        folderOperationError?.let { Text(it, color = DDZColor.Destructive) }
+                        if (manageAction == "rename") {
+                            OutlinedTextField(
+                                enabled = !folderManagementBusy,
+                                value = renameName,
+                                onValueChange = { renameName = it },
+                                label = { Text("새 폴더 이름") },
+                                singleLine = true,
+                            )
+                        } else {
+                            Text("이동할 위치를 선택하세요.")
+                            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                                .verticalScroll(rememberScrollState())) {
+                                destinationPaths.forEach { destination ->
+                                    OutlinedButton(enabled = !folderManagementBusy, onClick = { moveTarget = destination }) {
+                                        val label = destination.removePrefix(GalleryFolderIndexPolicy.ROOT)
+                                            .ifBlank { "DZlog" }
+                                        Text(if (moveTarget == destination) "✓ $label" else label)
+                                    }
+                                }
+                            }
+                        }
+                        val impact = GalleryFolderOperationPolicy.captureImpact(managedFolderPath, capturePathDrafts)
+                        Text(
+                            when (impact) {
+                                CapturePathImpact.MATCH -> "이 폴더는 현재 저장설정의 촬영 경로입니다. 변경 후 촬영 사진은 기존 설정 경로에 저장될 수 있습니다."
+                                CapturePathImpact.POSSIBLE -> "날짜·표 값 등의 가변 저장경로가 이 폴더를 사용할 수 있습니다."
+                                CapturePathImpact.NONE -> "폴더 안의 사진·원본·하위 폴더가 함께 이동합니다. 촬영 저장설정은 변경하지 않습니다."
+                            },
+                            color = DDZColor.TextSecondary,
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            androidx.compose.material3.Checkbox(
+                                enabled = !folderManagementBusy,
+                                checked = managementConfirmed,
+                                onCheckedChange = { managementConfirmed = it },
+                            )
+                            Text("파일과 저장경로 영향을 확인했습니다.")
+                        }
+                    }
+                },
+                confirmButton = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, enabled = !folderManagementBusy && managementConfirmed && (manageAction != "move" || destinationPaths.contains(moveTarget)), onClick = {
+                        val action = manageAction
+                        val sourcePath = managedFolderPath
+                        val requestedName = renameName
+                        val destination = moveTarget
+                        folderManagementBusy = true
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                runCatching {
+                                    val targetPath = if (action == "rename")
+                                        GalleryFolderOperationPolicy.renamedPath(sourcePath, requestedName)
+                                    else GalleryFolderOperationPolicy.movedPath(sourcePath, destination)
+                                    folderCatalog.relocateFolder(sourcePath, targetPath) {
+                                        if (action == "rename")
+                                            folderStorage.renameFolder(sourcePath, requestedName)
+                                        else folderStorage.moveFolder(sourcePath, destination)
+                                    }
+                                }
+                            }
+                            folderManagementBusy = false
+                            GallerySnapshotMemory.cache.invalidate()
+                            result.onSuccess { newPath ->
+                                manageAction = null
+                                folderOperationError = null
+                                if (sourcePath == relativePath) onOpenFolder(newPath)
+                                reloadKey++
+                            }.onFailure {
+                                folderOperationError = it.message ?: "폴더 관리 실패"
+                                reloadKey++
+                            }
+                        }
+                    }) { Text("변경") }
+                },
+                dismissButton = {
+                    DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !folderManagementBusy, onClick = { manageAction = null }) { Text("취소") }
                 },
             )
         }
