@@ -32,7 +32,7 @@ jobs:
           yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
       - name: Build isolated tutorial QA APK
-        run: ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tutorial -PdzlogDebugVersionCode=${{ github.run_number }} --stacktrace
+        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tutorial -PdzlogDebugVersionCode=${{ github.run_number }} --stacktrace
       - name: Upload isolated QA APK
         uses: actions/upload-artifact@v4
         with:
