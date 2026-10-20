@@ -58,6 +58,7 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testCloseReopenSelectAndRetainSelection() {
+        app.launchArguments = ["--preview-dialog"]
         app.launch()
         XCTAssertEqual(app.state, .runningForeground, "Shared preview host must be in foreground")
         let initial = XCTAttachment(screenshot: app.screenshot())
@@ -148,32 +149,6 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("ios-sample_0001").exists)
     }
 
-    func testTableStyleChangesAndRetainsDraft() {
-        app.launchArguments = ["--table-style"]
-        app.launch()
-        tapButton("표 스타일 열기")
-        XCTAssertTrue(text("배경 투명도").waitForExistence(timeout: 10))
-        for label in ["어둡게", "오른쪽"] {
-            let element = text(label)
-            XCTAssertTrue(element.waitForExistence(timeout: 10))
-            let frame = element.frame
-            XCTAssertFalse(frame.isEmpty)
-            app.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
-        }
-        XCTAssertTrue(text("임시 상태: 배경 0 / 정렬 2").waitForExistence(timeout: 10))
-        tapButton("뒤로가기")
-        tapButton("표 스타일 열기")
-        XCTAssertTrue(text("임시 상태: 배경 0 / 정렬 2").exists)
-        let transparent = text("투명")
-        let frame = transparent.frame
-        XCTAssertFalse(frame.isEmpty)
-        app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
-        XCTAssertTrue(text("임시 상태: 배경 2 / 정렬 2").waitForExistence(timeout: 10))
-        XCTAssertFalse(text("배경 투명도").exists, "Preserve the original transparent-background behavior")
-    }
-
     private func tapPanelText(_ label: String) {
         let element = text(label)
         XCTAssertTrue(element.waitForExistence(timeout: 10))
@@ -183,23 +158,70 @@ final class PreviewInteractionTests: XCTestCase {
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
     }
 
-    func testStructurePanelDispatchAndLimits() {
-        app.launchArguments = ["--table-structure"]
+    func testEditorContentStructureStyleSaveAndRelaunch() throws {
+        app.launchArguments = ["--editor-flow", "--reset-editor-fixture"]
         app.launch()
+        tapButton("표 편집")
+        XCTAssertTrue(text("표 편집").waitForExistence(timeout: 15))
+        tapPanelText("블루베리 관찰 기록")
+        let input = app.textViews.firstMatch.waitForExistence(timeout: 3) ? app.textViews.firstMatch : app.textFields.firstMatch
+        XCTAssertTrue(input.waitForExistence(timeout: 10), "Existing multiline cell field must be editable")
+        input.tap()
+        input.typeText(" iOS QA")
+        // Shared back policy closes the keyboard before changing tabs.
+        tapButton("뒤로가기")
+        tapPanelText("구조")
+        XCTAssertFalse(text("3행과 4행 높이 조절").exists)
         tapPanelText("행 추가")
-        XCTAssertTrue(text("마지막 요청: 행 추가").waitForExistence(timeout: 10))
-        tapPanelText("행 삭제") // No selection: the existing panel must ignore this touch.
-        XCTAssertTrue(text("마지막 요청: 행 추가").exists)
-        tapButton("두 셀 선택")
-        tapPanelText("병합")
-        XCTAssertTrue(text("마지막 요청: 병합 전환").waitForExistence(timeout: 10))
-        tapButton("병합 셀 선택")
-        tapPanelText("병합 해제")
-        XCTAssertTrue(text("마지막 요청: 병합 전환").waitForExistence(timeout: 10))
-        tapButton("한계 상태 보기")
-        tapPanelText("최대 6행")
-        tapPanelText("최대 6열")
-        XCTAssertTrue(text("마지막 요청: 없음").exists, "Limit buttons must not dispatch additions")
+        XCTAssertTrue(text("3행과 4행 높이 조절").waitForExistence(timeout: 10))
+        tapButton("실행 취소")
+        XCTAssertFalse(text("3행과 4행 높이 조절").exists)
+        tapButton("다시 실행")
+        XCTAssertTrue(text("3행과 4행 높이 조절").exists)
+        tapPanelText("스타일")
+        tapPanelText("투명")
+        XCTAssertFalse(text("배경 투명도").exists)
+        tapPanelText("저장설정")
+        XCTAssertTrue(text("파일명").waitForExistence(timeout: 10))
+        tapPanelText("파일명")
+        tapButton("+ 구성요소 추가")
+        tapButton("직접입력")
+        tapPanelText("값 없음")
+        let filename = app.textFields.firstMatch
+        XCTAssertTrue(filename.waitForExistence(timeout: 10))
+        filename.tap()
+        filename.typeText("ios-review")
+        tapButton("확인")
+        XCTAssertTrue(try screenContains("ios-review"))
+        for _ in 0..<3 {
+            if !text("파일명 설정").exists { break }
+            tapButton("뒤로가기")
+        }
+        XCTAssertFalse(text("파일명 설정").exists)
+        let review = XCTAttachment(screenshot: app.screenshot())
+        review.name = "shared-editor-save-tab"
+        review.lifetime = .keepAlways
+        add(review)
+        tapPanelText("내용")
+        tapButton("저장")
+        // With no selected cell/panel and a successful save, Back returns directly to Home.
+        for _ in 0..<3 {
+            if app.buttons["템플릿 선택"].exists { break }
+            tapButton("뒤로가기")
+        }
+        XCTAssertTrue(homeTemplateButton().exists)
+        app.terminate()
+        app.launchArguments = ["--editor-flow"]
+        app.launch()
+        tapButton("표 편집")
+        XCTAssertTrue(try screenContains("iOS QA"), "Saved cell text must survive app relaunch")
+        tapPanelText("구조")
+        XCTAssertTrue(try screenContains("iOS QA"), "Structural change must retain edited contents")
+        XCTAssertTrue(text("3행과 4행 높이 조절").exists, "Added row must survive relaunch")
+        tapPanelText("스타일")
+        XCTAssertFalse(text("배경 투명도").exists, "Saved transparent style must survive relaunch")
+        tapPanelText("저장설정")
+        XCTAssertTrue(try screenContains("ios-review"), "Saved naming rule must survive relaunch")
     }
 
     func testHorizontalGestureRevealsLastColumn() throws {

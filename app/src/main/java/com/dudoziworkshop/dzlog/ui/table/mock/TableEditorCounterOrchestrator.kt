@@ -17,10 +17,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.util.Date
 
-internal class TableEditorCounterOrchestrator {
-    var busy by mutableStateOf(false)
+internal class TableEditorCounterOrchestrator(private val context: Context) : TableEditorCounterActions {
+    override var busy by mutableStateOf(false)
         private set
-    var status by mutableStateOf<String?>(null)
+    override var status by mutableStateOf<String?>(null)
         private set
 
     private fun streamSnapshot(session: TableEditorV2SessionState) = session.currentSnapshot().copy(
@@ -45,6 +45,8 @@ internal class TableEditorCounterOrchestrator {
         }
     }
 
+    override suspend fun sync(session: TableEditorV2SessionState) = sync(context, session)
+
     suspend fun sync(context: Context, session: TableEditorV2SessionState) {
         if (busy) return
         val snapshot = streamSnapshot(session)
@@ -66,12 +68,12 @@ internal class TableEditorCounterOrchestrator {
         }
     }
 
-    fun edit(session: TableEditorV2SessionState, next: Int) {
+    override fun edit(session: TableEditorV2SessionState, next: Int) {
         session.commitNextCounterChange(next, usesAutoNext = false)
         status = null
     }
 
-    fun reset(session: TableEditorV2SessionState) {
+    override fun reset(session: TableEditorV2SessionState) {
         session.commitNextCounterChange(1, usesAutoNext = false)
         status = "다음 번호를 ${formatMockCounter(1, session.draftCounterPadding)}로 변경했습니다."
     }
@@ -80,7 +82,7 @@ internal class TableEditorCounterOrchestrator {
 @Composable
 internal fun rememberTableEditorCounterOrchestrator(context: Context, session: TableEditorV2SessionState,
     active: Boolean): TableEditorCounterOrchestrator {
-    val controller = remember { TableEditorCounterOrchestrator() }
+    val controller = remember { TableEditorCounterOrchestrator(context) }
     LaunchedEffect(active, session.draftNextCounter, session.draftSaveMode, session.draftCounterPadding,
         session.saveRulesDraft.includePathInScope, session.saveRulesDraft.includeFilenameInScope,
         session.draftTemplateState) {
