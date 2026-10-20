@@ -31,11 +31,11 @@ class DzlogTutorialSectionsTest {
             "recent", "album", "table-settings", "save-info", "settings"),
             home.sessions.flatMap { it.guidePages() }.map { it.id })
     }
-    @Test fun settingsUsesSharedV2FourSessionsAndNineApprovedSteps() {
+    @Test fun settingsUsesSharedV2FourSessionsAndTenStepsIncludingIntro() {
         val settings = DzlogTutorialSections.area("settings")!!
         assertEquals(listOf("environment", "capture", "data", "support"), settings.sessions.map { it.id })
         assertEquals(
-            listOf("permission", "quality", "assist", "feedback", "warning",
+            listOf("intro", "permission", "quality", "assist", "feedback", "warning",
                 "export", "import", "help", "credits"),
             settings.sessions.flatMap { it.guidePages() }.map { it.id },
         )
