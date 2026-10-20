@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
+import androidx.compose.ui.platform.AccessibilitySyncOptions
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -17,7 +18,12 @@ import platform.UIKit.UIViewController
 import platform.Foundation.NSProcessInfo
 
 /** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
-fun MainViewController(): UIViewController = ComposeUIViewController {
+@OptIn(ExperimentalComposeApi::class)
+fun MainViewController(): UIViewController = ComposeUIViewController(configure = {
+    // Compose 1.7 requires explicit synchronization for XCTest without VoiceOver.
+    // This host is PoC-only; Android and the shared dialog implementation are unchanged.
+    accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
+}) {
     DDZTheme {
         val template = remember {
             if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()

@@ -15,6 +15,9 @@
   VoiceOver·다기기·실기기·사용자 시각 승인·전체 화면 이동 완료와 구분한다.
 - CI에서 xcresult(스크린샷/접근성 계층 포함) 및 실행 로그를 보관한다.
   최종 PASS/FAIL 근거와 HEAD는 PR/기존 Notion 문서에 기록한다. Draft·미병합 유지.
+- Compose 1.7의 기본 접근성 동기화는 서비스 실행 여부에 의존한다. 화면은 표시되지만
+  XCTest 계층이 비는 것을 확인해 PoC 호스트에 Always 동기화를 명시한다.
+  Android 및 공통 dialog/theme에는 적용하지 않는다. 프로젝트는 arm64 simulator 전용이다.
 
 실행 순서:
 
@@ -28,3 +31,4 @@ Xcode에서 `iosApp/DZlogUiPoc.xcodeproj` → `DZlogUiPoc` scheme을 열어 simu
 
 참고: [Compose 접근성/XCTest 연계](https://blog.jetbrains.com/kotlin/2024/02/compose-multiplatform-1-6-0-release/),
 [Apple XCUIElement](https://developer.apple.com/documentation/xcuiautomation/xcuielement).
+[Compose 1.7 접근성 동기화 설정](https://kotlinlang.org/docs/multiplatform/compose-ios-accessibility.html#choose-the-tree-synchronization-option).

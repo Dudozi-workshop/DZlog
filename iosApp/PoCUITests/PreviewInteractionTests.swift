@@ -14,6 +14,7 @@ final class PreviewInteractionTests: XCTestCase {
         image.lifetime = .keepAlways
         add(image)
         let hierarchy = XCTAttachment(string: app.debugDescription)
+        print("UI_HIERARCHY: \(app.debugDescription)")
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
         app.terminate()
