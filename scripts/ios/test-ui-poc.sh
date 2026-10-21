@@ -40,5 +40,5 @@ case "$test_scope" in
 esac
 python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \
-  xcodebuild test-without-building "${xcode_args[@]}" "${selection[@]}" \
+  xcodebuild test-without-building "${xcode_args[@]}" ${selection[@]+"${selection[@]}"} \
     -resultBundlePath "$evidence_dir/interaction.xcresult"
