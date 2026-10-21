@@ -11,7 +11,6 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 import platform.Foundation.NSData
 import platform.Foundation.NSMutableArray
-import platform.Foundation.NSMutableData
 import platform.Foundation.create
 import platform.Photos.PHAccessLevelReadWrite
 import platform.Photos.PHAsset
@@ -123,20 +122,32 @@ internal class PhotoKitAssetAccess {
         val resource = resources.firstOrNull { it.type == PHAssetResourceTypePhoto }
             ?: resources.firstOrNull() ?: return null
         val options = PHAssetResourceRequestOptions().apply { networkAccessAllowed = true }
-        val buffer = NSMutableData()
+        // PhotoKit delivers nullable NSData chunks; Kotlin/Native does not expose
+        // NSMutableData.appendBytes/appendData on this interop surface.
+        val chunks = mutableListOf<ByteArray>()
         return suspendCoroutine { continuation ->
             PHAssetResourceManager.defaultManager().requestDataForAssetResource(
                 resource = resource,
                 options = options,
-                dataReceivedHandler = { chunk -> buffer.appendBytes(chunk.bytes, chunk.length) },
+                dataReceivedHandler = { chunk ->
+                    if (chunk != null && chunk.length > 0uL) {
+                        chunks += chunk.bytes!!.readBytes(chunk.length.toInt())
+                    }
+                },
                 completionHandler = { error ->
                     if (error != null) {
                         continuation.resumeWithException(
                             IllegalStateException("PhotoKit could not read asset: ${error.localizedDescription}"),
                         )
                     } else {
-                        val length = buffer.length.toInt()
-                        continuation.resume(if (length == 0) byteArrayOf() else buffer.bytes!!.readBytes(length))
+                        val size = chunks.sumOf { it.size }
+                        val combined = ByteArray(size)
+                        var offset = 0
+                        for (part in chunks) {
+                            part.copyInto(combined, destinationOffset = offset)
+                            offset += part.size
+                        }
+                        continuation.resume(combined)
                     }
                 },
             )
