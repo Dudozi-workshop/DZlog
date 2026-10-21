@@ -2,7 +2,7 @@ name: DZlog M2 Shared UI PoC
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [milestone/dzlog-pre-onboarding-20261017]
+    branches: [milestone/dzlog-pre-onboarding-20261017, 'integration/ios-*']
     paths:
       - '**'
       - '!app/**'
