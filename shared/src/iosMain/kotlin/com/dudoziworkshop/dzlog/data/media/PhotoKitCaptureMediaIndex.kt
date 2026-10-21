@@ -12,20 +12,70 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import platform.Foundation.NSUserDefaults
 
+internal data class IndexedCaptureMedia(
+    val captureId: String,
+    val asset: PersistedCaptureAsset,
+)
+
 /**
- * App-private logical folder/capture index. Photos asset IDs are NOT filesystem paths.
- * The index is durable across process relaunch; a missing/deleted Photos asset stays
- * indexed so the gallery can present a recoverable missing-photo state.
+ * A durable, app-private mapping, NOT a Photos folder or filepath.
+ * An in-flight journal stores placeholders inside PhotoKit's change block; after an
+ * interrupted save the next gallery lookup can reconcile committed asset IDs.
+ * One outstanding capture is supported at a time.
  *
- * M3-A PoC only: move to an atomic Application Support store with a pending-write
- * recovery journal before enabling production capture or multi-writer saves.
+ * This is a PoC index. Production should use a transactional Application Support DB.
  */
 internal class PhotoKitCaptureMediaIndex(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) {
-    fun load(): List<IndexedCaptureMedia> {
-        val raw = defaults.stringForKey(INDEX_KEY) ?: return emptyList()
-        return Json.parseToJsonElement(raw).jsonArray.map { element ->
+    fun load(): List<IndexedCaptureMedia> = decode(defaults.stringForKey(INDEX_KEY))
+    fun pending(): List<IndexedCaptureMedia> = decode(defaults.stringForKey(PENDING_KEY))
+
+    fun ensureCaptureIsNew(captureId: String) {
+        check((load() + pending()).none { it.captureId == captureId }) {
+            "Capture ID already exists. Refusing duplicate PhotoKit write."
+        }
+    }
+
+    fun stagePending(entries: List<IndexedCaptureMedia>) {
+        require(entries.isNotEmpty() && entries.map { it.captureId }.distinct().size == 1)
+        check(pending().isEmpty()) { "Recover the outstanding PhotoKit save before writing another." }
+        persist(PENDING_KEY, entries)
+    }
+
+    fun append(entries: List<IndexedCaptureMedia>) {
+        require(entries.isNotEmpty())
+        val previous = load()
+        // Idempotent recovery: a crash after append but before journal clearing is safe.
+        val newEntries = entries.filterNot { entry -> previous.contains(entry) }
+        check(newEntries.none { entry ->
+            previous.any { it.captureId == entry.captureId || it.asset.assetId == entry.asset.assetId }
+        }) { "Conflicting PhotoKit asset/capture mapping." }
+        if (newEntries.isNotEmpty()) persist(INDEX_KEY, previous + newEntries)
+    }
+
+    fun clearPending() {
+        defaults.removeObjectForKey(PENDING_KEY)
+        check(defaults.synchronize()) { "Could not flush the PhotoKit recovery journal." }
+    }
+
+    private fun persist(key: String, entries: List<IndexedCaptureMedia>) {
+        val encoded = JsonArray(entries.map { entry ->
+            JsonObject(mapOf(
+                "captureId" to JsonPrimitive(entry.captureId),
+                "role" to JsonPrimitive(entry.asset.target.role.name),
+                "relativePath" to JsonPrimitive(entry.asset.target.relativePath),
+                "displayName" to JsonPrimitive(entry.asset.target.displayName),
+                "assetId" to JsonPrimitive(entry.asset.assetId),
+            ))
+        }).toString()
+        defaults.setObject(encoded, forKey = key)
+        check(defaults.synchronize()) { "Could not persist PhotoKit index/journal ($key)." }
+    }
+
+    private fun decode(value: String?): List<IndexedCaptureMedia> {
+        if (value == null) return emptyList()
+        return Json.parseToJsonElement(value).jsonArray.map { element ->
             val objectValue = element.jsonObject
             fun field(key: String): String = objectValue.getValue(key).jsonPrimitive.content
             IndexedCaptureMedia(
@@ -42,32 +92,8 @@ internal class PhotoKitCaptureMediaIndex(
         }
     }
 
-    fun ensureCaptureIsNew(captureId: String) {
-        check(load().none { it.captureId == captureId }) {
-            "Capture ID was already saved. Refusing a duplicate PhotoKit write."
-        }
-    }
-
-    fun append(entries: List<IndexedCaptureMedia>) {
-        require(entries.isNotEmpty())
-        val existing = load()
-        check(entries.none { entry ->
-            existing.any { it.captureId == entry.captureId || it.asset.assetId == entry.asset.assetId }
-        }) { "Duplicate capture/PhotoKit asset identifier." }
-        val encoded = JsonArray((existing + entries).map { entry ->
-            JsonObject(mapOf(
-                "captureId" to JsonPrimitive(entry.captureId),
-                "role" to JsonPrimitive(entry.asset.target.role.name),
-                "relativePath" to JsonPrimitive(entry.asset.target.relativePath),
-                "displayName" to JsonPrimitive(entry.asset.target.displayName),
-                "assetId" to JsonPrimitive(entry.asset.assetId),
-            ))
-        }).toString()
-        defaults.setObject(encoded, forKey = INDEX_KEY)
-        check(defaults.synchronize()) { "PhotoKit metadata index was not flushed to disk." }
-    }
-
     companion object {
         private const val INDEX_KEY = "dzlog.ios.photokit.capture-index.v1"
+        private const val PENDING_KEY = "dzlog.ios.photokit.pending-capture.v1"
     }
 }
