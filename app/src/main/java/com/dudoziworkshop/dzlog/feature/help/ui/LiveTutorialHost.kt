@@ -64,7 +64,8 @@ internal fun LiveTutorialHost(
     var replay by remember(location) { mutableIntStateOf(0) }
     val demo = remember(location) { Animatable(0f) }
     val hasDemo = (areaId == "camera" && page.id !in setOf("recent", "details")) ||
-        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/"))
+        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/")) ||
+        (areaId == "saving" && page.id in setOf("filename/order", "filename/remove"))
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
         if (hasDemo) {
