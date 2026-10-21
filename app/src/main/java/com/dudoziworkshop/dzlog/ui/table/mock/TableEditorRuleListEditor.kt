@@ -1,8 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
-import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
-import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -89,13 +87,6 @@ internal fun TableEditorRuleListEditor(
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
-    val folderGuide = LocalTutorialLocation.current
-    val readOnlyGuide = LocalTutorialReadOnly.current
-    LaunchedEffect(folderGuide?.pageId, isFileName, readOnlyGuide) {
-        if (readOnlyGuide && !isFileName && folderGuide?.areaId == "saving") {
-            editorTarget = if (folderGuide.pageId == "folder/add") RuleEditorTarget.ADD else null
-        }
-    }
     val lazyListState = rememberLazyListState()
     val itemKeys = remember { mutableStateListOf<String>() }
 
@@ -452,37 +443,44 @@ internal fun TableEditorRuleListEditor(
                     onDismiss = { editorTarget = null },
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        saveRuleSourceChoices.chunked(2).forEach { choices ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                choices.forEach { type ->
-                                    val isSelected = target == RuleEditorTarget.TYPE && active?.sourceType == type
-                                    DDZButton(
-                                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
-                                        modifier = Modifier.weight(1f).semantics { selected = isSelected },
-                                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
-                                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
-                                        onClick = {
-                                            if (type == MockRuleSourceType.CELL) {
-                                                // Only commit after a concrete cell is chosen.
-                                                editorTarget = if (target == RuleEditorTarget.ADD) {
-                                                    RuleEditorTarget.ADD_CELL
-                                                } else {
-                                                    RuleEditorTarget.CHANGE_TO_CELL
-                                                }
-                                            } else {
-                                                val next = defaultRuleItem(type)
-                                                if (target == RuleEditorTarget.ADD) append(next)
-                                                else {
-                                                    val index = editingIndex ?: return@DDZButton
-                                                    replaceAt(index, next)
-                                                }
-                                            }
-                                        },
-                                    )
+                        SaveRuleSourceChoiceButtons(
+                            selected = if (target == RuleEditorTarget.TYPE) active?.sourceType else null,
+                            onSelect = { type ->
+                                if (type == MockRuleSourceType.CELL) {
+                                    editorTarget = if (target == RuleEditorTarget.ADD)
+                                        RuleEditorTarget.ADD_CELL else RuleEditorTarget.CHANGE_TO_CELL
+                                } else {
+                                    val next = defaultRuleItem(type)
+                                    if (target == RuleEditorTarget.ADD) append(next)
+                                    else editingIndex?.let { replaceAt(it, next) }
                                 }
-                            }
-                        }
+                            },
+                        )
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Exact same source options in production rule editor and passive saving tutorial. */
+@Composable
+internal fun SaveRuleSourceChoiceButtons(
+    selected: MockRuleSourceType? = null,
+    onSelect: (MockRuleSourceType) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        saveRuleSourceChoices.chunked(2).forEach { choices ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                choices.forEach { type ->
+                    val isSelected = selected == type
+                    DDZButton(
+                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
+                        modifier = Modifier.weight(1f).semantics { this.selected = isSelected },
+                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
+                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
+                        onClick = { onSelect(type) },
+                    )
                 }
             }
         }
