@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap android:src="@drawable/onboarding_hero_photo" android:gravity="fill" />
+    </item>
+    <item android:drawable="@drawable/tutorial_gallery_result_grid" />
+</layer-list>
