@@ -192,9 +192,16 @@ internal fun LiveTutorialHost(
                 "save" -> if (page.id in setOf("save/template", "save/template-confirm", "save/decision")) topY else bottomY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
-            areaId == "saving" -> when (sessionId) {
-                "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
-                else -> desiredY.coerceIn(topY, bottomY)
+            areaId == "saving" -> when (page.id) {
+                // Preview values live at the top; keep their explanation below.
+                "filename/preview", "folder", "counter/next", "counter/digits" -> bottomY
+                // A bottom sheet owns the lower half: the tutorial card stays up.
+                "filename/copy", "folder/copy", "folder/add", "counter/input" -> topY
+                // Rule lists and save-mode options need the upper half unobstructed.
+                "filename/parts", "filename/edit", "filename/order", "filename/remove",
+                "folder/parts", "advanced", "counter/sync", "counter/reset" -> bottomY
+                else -> if (target == null) topY
+                    else if (target.center.y < hostHeight / 2) bottomY else topY
             }
             // Keep the guide anchored across consecutive steps. The underlying settings
             // list scrolls to the selected row; the popup no longer chases its position.
@@ -351,7 +358,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
         "filename/preview" -> "saving.preview.현재 파일명"
         "folder" -> "saving.preview.현재 저장 위치"
-        "folder/add" -> "saving.add"
+        "folder/add" -> "guide.dialog"
         "filename/sources" -> "saving.add"
         "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
         "counter/next" -> "saving.next"
