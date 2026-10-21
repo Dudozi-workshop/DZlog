@@ -21,14 +21,18 @@ internal object TutorialGalleryFixtures {
     fun photos(context: Context): List<MediaImageItem> {
         val pictures = listOf(
             R.drawable.onboarding_gallery_photo,
+            R.drawable.tutorial_gallery_result_photo,
+            R.drawable.onboarding_starter_photo,
+            R.drawable.onboarding_gallery_photo,
             R.drawable.onboarding_hero_photo,
             R.drawable.onboarding_starter_photo,
+            R.drawable.onboarding_hero_photo,
         )
         val paths = listOf(ROOT, DOG, DOG, WALK, WORK, TRAVEL, DOG + "original/")
         return paths.mapIndexed { index, path ->
             MediaImageItem(
                 id = -100L - index,
-                uri = Uri.parse("android.resource://" + context.packageName + "/" + pictures[index % pictures.size]),
+                uri = Uri.parse("android.resource://" + context.packageName + "/" + pictures[index]),
                 // Exact matching names permit the real gallery pairing policy to find the original.
                 displayName = if (path == DOG + "original/") "DZlog_안내_2.jpg"
                     else "DZlog_안내_" + (index + 1) + ".jpg",
