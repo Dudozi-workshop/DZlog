@@ -191,6 +191,26 @@ final class PreviewInteractionTests: XCTestCase {
         }
     }
 
+    func testSettingsQualityAccessibilityAndPersistence() {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("설정")
+        let quality = panelText("사진 품질")
+        XCTAssertTrue(quality.waitForExistence(timeout: 10),
+                      "Photo quality row must expose its title, not only the decorative expand icon")
+        XCTAssertFalse(quality.frame.isEmpty)
+        tapPanelText("사진 품질")
+        tapPanelText("화질 우선")
+        XCTAssertTrue(panelText("화질 우선").waitForExistence(timeout: 10),
+                      "Quality choice must appear in the collapsed settings row")
+        app.terminate()
+        app.launchArguments = ["--navigation-flow"]
+        app.launch()
+        tapButton("설정")
+        XCTAssertTrue(panelText("화질 우선").waitForExistence(timeout: 10),
+                      "Quality choice must survive an app relaunch")
+    }
+
     func testHomeCatalogSettingsAndRelaunch() throws {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()

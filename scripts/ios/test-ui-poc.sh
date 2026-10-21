@@ -3,7 +3,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
-  settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch) ;;
+  settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
