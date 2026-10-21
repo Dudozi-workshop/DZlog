@@ -54,6 +54,13 @@ class DzlogTutorialSectionsTest {
         assertEquals(listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision"),
             area.sessions.last().guidePages().map { it.id })
     }
+    @Test fun galleryOverviewFollowsActualScreenOrder() {
+        val pages = DzlogTutorialSections.area("gallery")!!.sessions.first().guidePages()
+        assertEquals(listOf("home", "home/tabs", "home/recent", "home/folders",
+            "browse", "browse/folders", "browse/photos"), pages.map { it.id })
+        assertTrue(pages.all { it.title.isNotBlank() && it.instruction.isNotBlank() })
+    }
+
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
         val sync = pages.first { it.id == "counter/sync" }
