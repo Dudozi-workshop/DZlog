@@ -91,7 +91,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     val context = LocalContext.current
     val examples = remember { TutorialGalleryFixtures.photos(context) }
     val root = GalleryFolderIndexPolicy.ROOT
-    val path = if (location.pageId == "browse" || location.sessionId == "folders") TutorialGalleryFixtures.DOG else root
+    val path = if (location.pageId == "browse" || location.pageId.startsWith("browse/") || location.sessionId == "folders") TutorialGalleryFixtures.DOG else root
     if (location.sessionId == "viewer") {
         Box(Modifier.fillMaxSize()) {
             LogViewerScreen(relativePath = TutorialGalleryFixtures.DOG,
