@@ -194,28 +194,11 @@ internal fun LiveTutorialHost(
                 else -> desiredY.coerceIn(topY, bottomY)
             }
             areaId == "saving" -> when (page.id) {
-                // Preview values live at the top; keep their explanation below.
-                "filename/preview", "folder", "counter/next", "counter/digits" -> bottomY
-                // Bottom sheets and lower actions: keep the guide in the upper zone.
-                "filename/copy", "folder/copy", "folder/add", "counter/input",
-                "counter/sync", "filename/sources" -> topY
-                // Preview headings, saving mode and reset confirmation: guide below.
-                "filename", "counter", "filename/preview", "folder",
-                "counter/next", "counter/digits", "counter/reset", "advanced",
-                "counter/scope" -> bottomY
-                // Rule lists can be in different positions after scrolling or font scaling.
-                // Choose a side that does not overlap the visible target.
-                else -> {
-                    val freeAbove = if (target == null) 0f else target.top - topY - gap
-                    val freeBelow = if (target == null) 0f else hostHeight - target.bottom - gap
-                    when {
-                        freeBelow >= cardHeight + gap -> bottomY
-                        freeAbove >= cardHeight + gap -> topY
-                        target == null -> bottomY
-                        freeAbove > freeBelow -> topY
-                        else -> bottomY
-                    }
-                }
+                // One fixed lower zone during ordinary navigation. Only actual sheets
+                // move the guide to the top; targets never move the actual screen.
+                "filename/sources", "filename/copy", "folder/add", "folder/copy",
+                "counter/input" -> topY
+                else -> bottomY
             }
             // Keep the guide anchored across consecutive steps. The underlying settings
             // list scrolls to the selected row; the popup no longer chases its position.
@@ -369,19 +352,23 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "gallery.content"
     }
     "saving" -> when (location.pageId) {
-        "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
-        "filename/preview" -> "saving.preview.현재 파일명"
-        "folder" -> "saving.preview.현재 저장 위치"
-        "folder/add" -> "guide.dialog"
-        "filename/sources" -> "saving.add"
-        "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
-        "counter/next" -> "saving.next"
+        "overview" -> "table.tabs"
+        "overview/menu" -> "saving.menu"
+        "filename" -> "saving.menu.filename"
+        "folder" -> "saving.menu.folder"
+        "counter" -> "saving.menu.counter"
+        "filename/open", "filename/preview" -> "saving.preview.현재 파일명"
+        "folder/open" -> "saving.preview.현재 저장 위치"
+        "counter/open", "counter/next" -> "saving.next"
+        "filename/sources", "filename/copy", "folder/add", "folder/copy",
+        "counter/input", "counter/reset" -> "guide.dialog"
+        "filename/parts", "filename/remove", "folder/parts" -> "saving.rules.first"
+        "filename/edit" -> "saving.rules.value"
+        "filename/order" -> "saving.rules.handle"
         "counter/digits" -> "saving.digits"
         "counter/sync" -> "saving.sync"
         "counter/scope" -> "saving.scope"
         "advanced" -> "saving.mode"
-        "filename" -> "saving.preview.현재 파일명"
-        "counter" -> "saving.next"
         else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     }
     "table-detail" -> when (location.sessionId) {
