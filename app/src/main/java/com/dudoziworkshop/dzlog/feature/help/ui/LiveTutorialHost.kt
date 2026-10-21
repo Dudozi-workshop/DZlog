@@ -196,13 +196,26 @@ internal fun LiveTutorialHost(
             areaId == "saving" -> when (page.id) {
                 // Preview values live at the top; keep their explanation below.
                 "filename/preview", "folder", "counter/next", "counter/digits" -> bottomY
-                // A bottom sheet owns the lower half: the tutorial card stays up.
-                "filename/copy", "folder/copy", "folder/add", "counter/input" -> topY
-                // Rule lists and save-mode options need the upper half unobstructed.
-                "filename/parts", "filename/edit", "filename/order", "filename/remove",
-                "folder/parts", "advanced", "counter/sync", "counter/reset" -> bottomY
-                else -> if (target == null) topY
-                    else if (target.center.y < hostHeight / 2) bottomY else topY
+                // Bottom sheets and lower actions: keep the guide in the upper zone.
+                "filename/copy", "folder/copy", "folder/add", "counter/input",
+                "counter/sync", "filename/sources" -> topY
+                // Preview headings, saving mode and reset confirmation: guide below.
+                "filename", "counter", "filename/preview", "folder",
+                "counter/next", "counter/digits", "counter/reset", "advanced",
+                "counter/scope" -> bottomY
+                // Rule lists can be in different positions after scrolling or font scaling.
+                // Choose a side that does not overlap the visible target.
+                else -> {
+                    val freeAbove = if (target == null) 0f else target.top - topY - gap
+                    val freeBelow = if (target == null) 0f else hostHeight - target.bottom - gap
+                    when {
+                        freeBelow >= cardHeight + gap -> bottomY
+                        freeAbove >= cardHeight + gap -> topY
+                        target == null -> bottomY
+                        freeAbove > freeBelow -> topY
+                        else -> bottomY
+                    }
+                }
             }
             // Keep the guide anchored across consecutive steps. The underlying settings
             // list scrolls to the selected row; the popup no longer chases its position.
