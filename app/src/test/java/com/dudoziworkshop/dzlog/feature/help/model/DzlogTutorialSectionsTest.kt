@@ -61,6 +61,15 @@ class DzlogTutorialSectionsTest {
         assertTrue(pages.all { it.title.isNotBlank() && it.instruction.isNotBlank() })
     }
 
+    @Test fun galleryViewerGuideCoversAllPhotoDetailControls() {
+        val viewer = DzlogTutorialSections.area("gallery")!!.sessions.first { it.id == "viewer" }
+        assertEquals(listOf(
+            "viewer", "viewer/photo", "viewer/menu", "viewer/original",
+            "viewer/favorite", "viewer/share", "viewer/info", "viewer/delete",
+            "viewer/delete-confirm", "viewer/filmstrip",
+        ), viewer.guidePages().map { it.id })
+    }
+
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
         val sync = pages.first { it.id == "counter/sync" }
