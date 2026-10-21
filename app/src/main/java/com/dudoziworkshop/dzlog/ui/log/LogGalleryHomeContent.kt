@@ -55,6 +55,8 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -303,6 +305,9 @@ internal fun GalleryFolderRow(
     onClick: () -> Unit,
 ) {
     var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
+    val guideMenu = LocalTutorialReadOnly.current &&
+        LocalTutorialLocation.current?.let { it.areaId == "gallery" && it.pageId == "folders" } == true
+    Column(Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, MaterialTheme.shapes.medium)
@@ -336,7 +341,8 @@ internal fun GalleryFolderRow(
         }
         if (showManagement) {
         Box {
-            IconButton(onClick = { menuExpanded = true }) {
+            IconButton(onClick = { menuExpanded = true },
+                modifier = Modifier.tutorialTarget("gallery.folder-menu-button")) {
                 Icon(
                     Icons.Default.MoreVert,
                     contentDescription = "${folder.name} 폴더 관리",
@@ -345,18 +351,42 @@ internal fun GalleryFolderRow(
                 )
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                DropdownMenuItem(text = { Text("이름 변경") }, enabled = canManage,
-                    onClick = { menuExpanded = false; onManage("rename") })
-                DropdownMenuItem(text = { Text("이동") }, enabled = canManage,
-                    onClick = { menuExpanded = false; onManage("move") })
-                DropdownMenuItem(text = { Text("삭제", color = DDZColor.Destructive) }, enabled = canManage,
-                    onClick = { menuExpanded = false; onManage("delete") })
+                GalleryFolderMenuItems(canManage, onManage, onClose = { menuExpanded = false })
             }
         }
         } else {
             Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)
         }
     }
+    if (guideMenu && showManagement) {
+        // The same menu items as the production dropdown, shown inline to avoid
+        // a focusable Popup trapping guide navigation.
+        Surface(
+            modifier = Modifier.align(Alignment.End).tutorialTarget("gallery.folder-menu"),
+            color = DDZColor.Surface,
+            shape = MaterialTheme.shapes.medium,
+            shadowElevation = 6.dp,
+        ) {
+            Column {
+                GalleryFolderMenuItems(false, onManage = {}, onClose = {})
+            }
+        }
+    }
+    }
+}
+
+@Composable
+private fun GalleryFolderMenuItems(
+    canManage: Boolean,
+    onManage: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    DropdownMenuItem(text = { Text("이름 변경") }, enabled = canManage,
+        onClick = { onClose(); onManage("rename") })
+    DropdownMenuItem(text = { Text("이동") }, enabled = canManage,
+        onClick = { onClose(); onManage("move") })
+    DropdownMenuItem(text = { Text("삭제", color = DDZColor.Destructive) }, enabled = canManage,
+        onClick = { onClose(); onManage("delete") })
 }
 
 @Composable
