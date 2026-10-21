@@ -7,7 +7,7 @@ class DzlogTutorialSectionsTest {
     @Test fun allApprovedAreasSessionsAndDetailedScenesAreReachable() {
         assertEquals(listOf("home", "camera", "gallery", "table-detail", "saving", "settings"),
             DzlogTutorialSections.areas.map { it.id })
-        assertEquals(24, DzlogTutorialSections.areas.sumOf { it.sessions.size })
+        assertEquals(23, DzlogTutorialSections.areas.sumOf { it.sessions.size })
         DzlogTutorialSections.areas.forEach { area ->
             assertEquals(area.sessions.size, area.sessions.map { it.id }.toSet().size)
             area.sessions.forEach { session ->
