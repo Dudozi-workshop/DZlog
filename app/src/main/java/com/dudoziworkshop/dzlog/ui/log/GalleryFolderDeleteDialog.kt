@@ -54,7 +54,14 @@ internal fun GalleryFolderDeleteDialog(
     var plan by remember(path) { mutableStateOf<GalleryFolderDeletePlan?>(null) }
     var error by remember(path) { mutableStateOf<String?>(null) }
     var remaining by remember(path) { mutableStateOf<GalleryFolderDeletePlan?>(null) }
-    LaunchedEffect(path, version) {
+    LaunchedEffect(path, version, readOnlyTour) {
+        if (readOnlyTour) {
+            // Virtual guide paths must never be passed to SAF inventory or delete operations.
+            busy = false
+            error = null
+            plan = null
+            return@LaunchedEffect
+        }
         busy = true
         plan = null
         val result = withContext(Dispatchers.IO) { runCatching { storage.prepareDeletion(path) } }
@@ -73,8 +80,9 @@ internal fun GalleryFolderDeleteDialog(
                 Text("삭제할 대상과 포함된 항목을 확인해 주세요.", style = typography.Body, color = colors.TextSecondary)
                 GalleryFolderInfoCard(
                     name = path.trimEnd('/').substringAfterLast('/'),
-                    detail = plan?.let { "사진 ${it.resultCount + it.originalCount}장 · 하위 폴더 ${it.folderCount}개" }
-                        ?: path.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
+                    detail = if (readOnlyTour) "안내용 사진·하위 폴더 포함"
+                        else plan?.let { "사진 ${it.resultCount + it.originalCount}장 · 하위 폴더 ${it.folderCount}개" }
+                            ?: path.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
                 )
                 if (busy) {
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.itemGap)) {
@@ -99,11 +107,11 @@ internal fun GalleryFolderDeleteDialog(
             DDZButton("취소", onClick = { if (!busy) onCancel() }, modifier = Modifier.weight(1f), style = DDZButtonStyle.Secondary, enabled = !busy)
             val confirmed = plan
             DDZButton(
-                text = if (busy && confirmed != null) "삭제 중…" else if (confirmed == null) "다시 확인" else "삭제",
+                text = if (readOnlyTour) "삭제" else if (busy && confirmed != null) "삭제 중…" else if (confirmed == null) "다시 확인" else "삭제",
                 modifier = Modifier.weight(1f),
                 style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Primary,
                 containerColorOverride = if (confirmed == null) null else colors.Destructive,
-                enabled = !busy, onClick = {
+                enabled = !busy && !readOnlyTour, onClick = {
                 if (busy || readOnlyTour) return@DDZButton
                 if (confirmed == null) {
                     busy = true
