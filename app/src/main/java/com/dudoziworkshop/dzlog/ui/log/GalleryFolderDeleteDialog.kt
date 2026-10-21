@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.TutorialGalleryFixtures
+import androidx.compose.ui.platform.LocalContext
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,6 +50,14 @@ internal fun GalleryFolderDeleteDialog(
     onDeleted: () -> Unit,
 ) {
     val readOnlyTour = LocalTutorialReadOnly.current
+    val context = LocalContext.current
+    val guideDetail = remember(path, readOnlyTour) {
+        if (!readOnlyTour) null else {
+            val photoCount = TutorialGalleryFixtures.photos(context).count { it.relativePath.startsWith(path) }
+            val folderCount = TutorialGalleryFixtures.folderPaths.count { it.startsWith(path) && it != path }
+            "사진 ${photoCount}장 · 하위 폴더 ${folderCount}개"
+        }
+    }
     val scope = rememberCoroutineScope()
     var version by remember(path) { mutableIntStateOf(0) }
     var busy by remember(path) { mutableStateOf(true) }
@@ -80,7 +90,7 @@ internal fun GalleryFolderDeleteDialog(
                 Text("삭제할 대상과 포함된 항목을 확인해 주세요.", style = typography.Body, color = colors.TextSecondary)
                 GalleryFolderInfoCard(
                     name = path.trimEnd('/').substringAfterLast('/'),
-                    detail = if (readOnlyTour) "안내용 사진·하위 폴더 포함"
+                    detail = if (readOnlyTour) guideDetail
                         else plan?.let { "사진 ${it.resultCount + it.originalCount}장 · 하위 폴더 ${it.folderCount}개" }
                             ?: path.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
                 )
@@ -92,6 +102,8 @@ internal fun GalleryFolderDeleteDialog(
                 }
                 plan?.let {
                     if (it.otherCount > 0) Text("사진 외 파일 ${it.otherCount}개도 포함돼요.", style = typography.Caption, color = colors.TextSecondary)
+                }
+                if (plan != null || readOnlyTour) {
                     Surface(color = colors.DestructiveSoft, shape = MaterialTheme.shapes.medium) {
                         Text("폴더 안의 사진과 하위 폴더도 기기에서 삭제되며 복구할 수 없어요.",
                             modifier = Modifier.padding(spacing.controlGap), style = typography.Secondary, color = colors.TextPrimary)
@@ -109,8 +121,8 @@ internal fun GalleryFolderDeleteDialog(
             DDZButton(
                 text = if (readOnlyTour) "삭제" else if (busy && confirmed != null) "삭제 중…" else if (confirmed == null) "다시 확인" else "삭제",
                 modifier = Modifier.weight(1f),
-                style = if (confirmed == null) DDZButtonStyle.Secondary else DDZButtonStyle.Primary,
-                containerColorOverride = if (confirmed == null) null else colors.Destructive,
+                style = if (confirmed == null && !readOnlyTour) DDZButtonStyle.Secondary else DDZButtonStyle.Primary,
+                containerColorOverride = if (confirmed == null && !readOnlyTour) null else colors.Destructive,
                 enabled = !busy && !readOnlyTour, onClick = {
                 if (busy || readOnlyTour) return@DDZButton
                 if (confirmed == null) {
