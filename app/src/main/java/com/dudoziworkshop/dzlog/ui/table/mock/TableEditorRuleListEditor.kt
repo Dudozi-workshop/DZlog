@@ -140,7 +140,7 @@ internal fun TableEditorRuleListEditor(
         emitCompacted(reordered)
     }
 
-    Column(Modifier.tutorialTarget("saving.rules"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     if (compactItems.isNotEmpty()) Text("항목을 왼쪽으로 밀면 삭제할 수 있어요.",
         style = DDZTypography.Caption, color = DDZColor.TextMuted)
     LazyColumn(
@@ -203,6 +203,7 @@ internal fun TableEditorRuleListEditor(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(if (index == 0) Modifier.tutorialTarget("saving.rules.first") else Modifier)
                             .background(
                                 if (isDragging) DDZColor.SurfaceSoft else DDZColor.Surface,
                                 RoundedCornerShape(14.dp),
@@ -215,12 +216,14 @@ internal fun TableEditorRuleListEditor(
                             imageVector = Icons.Default.DragHandle,
                             contentDescription = "순서 변경",
                             tint = DDZColor.IconMuted,
-                            modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
+                            modifier = with(this@ReorderableItem) { Modifier.draggableHandle() }
+                                .then(if (index == 0) Modifier.tutorialTarget("saving.rules.handle") else Modifier),
                         )
                         Text(
                             text = item.value.ifBlank { "값 없음" },
                             modifier = Modifier
                                 .weight(1f)
+                                .then(if (index == 0) Modifier.tutorialTarget("saving.rules.value") else Modifier)
                                 .clickable {
                                     editingIndex = index
                                     manualDraft = if (item.sourceType == MockRuleSourceType.MANUAL) item.value else ""
