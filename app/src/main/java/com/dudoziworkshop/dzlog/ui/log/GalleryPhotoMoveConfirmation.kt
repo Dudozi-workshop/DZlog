@@ -42,7 +42,7 @@ internal fun GalleryPhotoMoveConfirmation(
     val guideChoice = readOnlyTour && LocalTutorialLocation.current?.pageId == "photos/original-choice"
     // Show the real choice and final-confirmation states on successive guide pages.
     var includeOriginals by remember(selected, destinationPath, readOnlyTour, guideChoice) {
-        mutableStateOf<Boolean?>(if (readOnlyTour && !guideChoice) true else null)
+        mutableStateOf<Boolean?>(if (readOnlyTour) true else null)
     }
     var finalStep by remember(selected, destinationPath, readOnlyTour, guideChoice) {
         mutableStateOf(readOnlyTour && !guideChoice)
