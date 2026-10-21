@@ -161,6 +161,7 @@ internal fun LiveTutorialHost(
                     page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
+                    page.id in setOf("folders/destination", "photos/destination") -> topY
                     isDialogStep -> bottomY
                     sessionId == "viewer" -> when (page.id) {
                         "viewer/info", "viewer/filmstrip", "viewer/favorite", "viewer/share", "viewer/delete" -> topY
@@ -322,7 +323,10 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
             "viewer/filmstrip" -> "gallery.viewer-filmstrip"
             else -> "gallery.viewer-actions"
         }
-        location.pageId in setOf("photos/move", "photos/destination", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete") -> "guide.dialog"
+        location.pageId in setOf("photos/destination", "folders/destination") -> "gallery.destination-action"
+        location.pageId == "folders/path" -> "gallery.breadcrumbs"
+        location.pageId == "photos/select" -> "gallery.photo-grid"
+        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
         location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
