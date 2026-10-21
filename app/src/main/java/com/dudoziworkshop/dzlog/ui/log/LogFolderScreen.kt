@@ -625,7 +625,7 @@ fun LogFolderScreen(
                 }
             }
         } else {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.header")) {
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
                     when {
                         showRecentPhotos -> showRecentPhotos = false
@@ -813,13 +813,13 @@ fun LogFolderScreen(
                         }
                     }
                     if (!originalGrid) item {
-                        GallerySectionTitle(
+                        Box(Modifier.fillMaxWidth().tutorialTarget("gallery.child-folders")) { GallerySectionTitle(
                             title = "하위 폴더",
                             actionLabel = "새 폴더",
                             onAction = { folderOperationError = null; showCreateDialog = true },
                             actionEnabled = !selectionActive && !navigationLocked,
                             showAddIcon = true,
-                        )
+                        ) }
                     }
                     if (current != null && current.children.isNotEmpty()) {
                         items(current.children, key = { it.relativePath }) { folder ->
@@ -833,7 +833,7 @@ fun LogFolderScreen(
                         }
                     }
                     if (visiblePhotos.isNotEmpty()) item {
-                        Row(Modifier.fillMaxWidth().padding(top = 8.dp),
+                        Row(Modifier.fillMaxWidth().tutorialTarget("gallery.folder-photos").padding(top = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${if (originalGrid) "원본사진" else "사진"} ${visiblePhotos.size}장",
