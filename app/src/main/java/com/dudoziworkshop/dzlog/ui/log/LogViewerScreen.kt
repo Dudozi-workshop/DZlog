@@ -442,6 +442,14 @@ fun LogViewerScreen(
         }
     }
 
+    if (guidePage == "viewer/delete-confirm" && resultItem != null) {
+        GalleryPhotoDeleteConfirmation(
+            selected = listOf(resultItem),
+            allPhotos = items + quickResultOriginalByResultUri.values,
+            busy = false, onCancel = {}, onConfirm = {},
+        )
+    }
+
     deleteItem?.let { requested ->
         GalleryViewerDeleteDialog(
             item = requested,
