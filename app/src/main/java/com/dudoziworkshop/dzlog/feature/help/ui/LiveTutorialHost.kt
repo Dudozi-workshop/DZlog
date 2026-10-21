@@ -105,8 +105,7 @@ internal fun LiveTutorialHost(
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                         else if (areaId == "table-detail" && page.id in setOf("save/template-confirm", "save/decision"))
                             with(density) { cardHeight.toDp() } + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                        else if (areaId == "gallery" && page.id in setOf(
-                                "folders/destination", "photos/destination", "viewer/delete-confirm"))
+                        else if (areaId == "gallery" && page.id == "viewer/delete-confirm")
                             with(density) { cardHeight.toDp() } + 20.dp
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
@@ -168,7 +167,12 @@ internal fun LiveTutorialHost(
                     // The folder popup and photo action bar are lower than their guide text.
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
-                    page.id in setOf("folders/destination", "photos/destination", "viewer/delete-confirm") -> topY
+                    page.id in setOf("folders/destination", "photos/destination") ->
+                        // A full-screen picker is never relaid out for the floating guide.
+                        // Keep its header/breadcrumbs and bottom action in their real positions.
+                        if (target != null) (target.top - cardHeight - gap).coerceIn(topY, bottomY)
+                        else ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
+                    page.id == "viewer/delete-confirm" -> topY
                     isDialogStep -> bottomY
                     sessionId == "viewer" -> when (page.id) {
                         "viewer/info", "viewer/filmstrip", "viewer/favorite", "viewer/share", "viewer/delete" -> topY
