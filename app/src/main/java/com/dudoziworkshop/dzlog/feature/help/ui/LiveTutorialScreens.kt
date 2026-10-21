@@ -74,13 +74,26 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 else -> SettingsRootScreen(onBack = {})
             }
             else -> key(location.areaId, location.sessionId) {
-                TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
-                    (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else template,
-                    includePathInCounterScope = settings.includePathInCounterScope,
-                    includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                    saveMode = settings.saveMode, counterPadding = settings.counterPadding,
-                    styleState = style, openSaveSettingsInitially = location.areaId == "saving",
-                    onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
+                Box(Modifier.fillMaxSize()) {
+                    TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
+                        (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else template,
+                        includePathInCounterScope = settings.includePathInCounterScope,
+                        includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                        saveMode = settings.saveMode, counterPadding = settings.counterPadding,
+                        styleState = style, openSaveSettingsInitially = location.areaId == "saving",
+                        onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
+                    if (location.areaId == "saving" && location.pageId == "folder/add") {
+                        // The actual bottom-sheet source options are overlaid outside the
+                        // scrolled rule editor: its layout never pushes the real page.
+                        com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet(
+                            title = "폴더 추가", onDismiss = {},
+                        ) {
+                            com.dudoziworkshop.dzlog.ui.table.mock.SaveRuleSourceChoiceButtons(
+                                onSelect = {},
+                            )
+                        }
+                    }
+                }
             }
         }
     }
