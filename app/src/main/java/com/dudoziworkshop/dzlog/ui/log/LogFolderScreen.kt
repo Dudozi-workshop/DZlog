@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.TutorialGalleryFixtures
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -119,6 +120,11 @@ fun LogFolderScreen(
     onGridColumnsChange: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val demoGallery = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.areaId == "gallery"
+    val demoPhotos = remember(demoGallery) { if (demoGallery) TutorialGalleryFixtures.photos(context) else emptyList() }
+    val demoIndex = remember(relativePath, demoGallery) {
+        if (demoGallery) GalleryFolderIndexPolicy.index(relativePath, demoPhotos.map { it.relativePath }, TutorialGalleryFixtures.folderPaths) else null
+    }
     val scope = rememberCoroutineScope()
     val displayedGridColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val photoListState = rememberLazyListState()
@@ -146,13 +152,13 @@ fun LogFolderScreen(
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
-    val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
-    var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
-    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
+    val cached = remember(relativePath, demoGallery) { if (demoGallery) null else GallerySnapshotMemory.cache.get(relativePath) }
+    var allPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos else cached?.allPhotos ?: emptyList()) }
+    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(demoIndex ?: cached?.index) }
     var summariesByPath by remember(relativePath) {
         mutableStateOf<Map<String, GalleryFolderSummary>>(cached?.summariesByPath ?: emptyMap())
     }
-    var directPhotos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
+    var directPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos.filter { it.relativePath == relativePath } else cached?.directPhotos ?: emptyList()) }
     val originalsInPlace = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
     val photos = remember(directPhotos, allPhotos, originalsInPlace, relativePath) {
         if (originalsInPlace) allPhotos.filter { it.relativePath == relativePath + "original/" }
@@ -169,7 +175,7 @@ fun LogFolderScreen(
     val displayFolderPath = if (GalleryPhotoMovePolicy.isOriginalPath(relativePath)) GalleryFolderIndexPolicy.parentOf(relativePath)
         ?: GalleryFolderIndexPolicy.ROOT else relativePath
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
-    var loading by remember(relativePath) { mutableStateOf(cached == null) }
+    var loading by remember(relativePath) { mutableStateOf(!demoGallery && cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var manageAction by remember { mutableStateOf<String?>(null) }
@@ -339,7 +345,8 @@ fun LogFolderScreen(
         } else finishPhotoMove(prepared)
     }
 
-    DisposableEffect(context) {
+    DisposableEffect(context, demoGallery) {
+        if (demoGallery) return@DisposableEffect onDispose { }
         val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 GallerySnapshotMemory.cache.invalidate()
@@ -351,11 +358,22 @@ fun LogFolderScreen(
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (demoGallery) return@LifecycleEventEffect
         connected = folderStorage.isConnected()
         reloadKey++
     }
 
-    LaunchedEffect(reader, relativePath, reloadKey) {
+    LaunchedEffect(reader, relativePath, reloadKey, demoGallery) {
+        if (demoGallery) {
+            val sample = TutorialGalleryFixtures.photos(context)
+            index = GalleryFolderIndexPolicy.index(relativePath, sample.map { it.relativePath }, TutorialGalleryFixtures.folderPaths)
+            allPhotos = sample
+            directPhotos = sample.filter { it.relativePath == relativePath }
+            summariesByPath = emptyMap()
+            loading = false
+            error = null
+            return@LaunchedEffect
+        }
         loading = index == null
         val result = runCatching {
             withContext(Dispatchers.IO) {
@@ -407,6 +425,7 @@ fun LogFolderScreen(
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
     fun startPhotoDelete() {
+        if (demoGallery) return
         if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         val requestedIds = selectedPhotoIds
         retryDeletePlan = null
@@ -462,6 +481,7 @@ fun LogFolderScreen(
         }
     }
     fun startPhotoMove() {
+        if (demoGallery) return
         if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         folderOperationError = null
         retryPhotoPlan = null
@@ -495,6 +515,7 @@ fun LogFolderScreen(
         }
     }
     fun startFolderManagement(path: String, action: String) {
+        if (demoGallery) return
         if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
         connected = folderStorage.isConnected()
         if (!connected) {
