@@ -54,6 +54,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -91,7 +92,7 @@ internal fun LogGalleryHomeContent(
     onSelectPhoto: (MediaImageItem) -> Unit = {},
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.tabs")
             .background(DDZColor.SurfaceSoft, MaterialTheme.shapes.medium)
             .padding(DDZSpacing.xs),
         horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
@@ -166,12 +167,12 @@ internal fun LogGalleryHomeContent(
         when (selectedTab) {
             GalleryTab.ALL -> {
                 item {
-                    GallerySectionTitle(
+                    Box(Modifier.fillMaxWidth().tutorialTarget("gallery.recent")) { GallerySectionTitle(
                         title = "최근 촬영",
                         actionLabel = "전체보기",
                         onAction = onOpenRecentPhotos,
                         actionEnabled = recent.isNotEmpty() && !selectionActive,
-                    )
+                    ) }
                 }
                 if (recent.isEmpty()) {
                     item { GalleryEmptyText("저장된 사진이 없습니다.") }
@@ -197,13 +198,13 @@ internal fun LogGalleryHomeContent(
                         }
                     }
                 }
-                item { GallerySectionTitle(
+                item { Box(Modifier.fillMaxWidth().tutorialTarget("gallery.folders")) { GallerySectionTitle(
                     title = "저장 폴더",
                     count = "${shownFolders.size + if (directPhotos.isNotEmpty() || folderIndex.directOriginalCount > 0) 1 else 0}개",
                     actionLabel = "새 폴더",
                     onAction = onCreateFolder,
                     showAddIcon = true,
-                ) }
+                ) } }
                 item { GalleryFolderFilterControls(folderFilter, folderSort, canManageFolders, { folderFilter = it }, { folderSort = it }) }
                 if (directPhotos.isNotEmpty() || folderIndex.directOriginalCount > 0) {
                     item(key = "default-storage") {
