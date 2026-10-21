@@ -236,8 +236,12 @@ fun LogFolderScreen(
     LaunchedEffect(tourLocation, allPhotos, index) {
         if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
             showRecentPhotos = true
-            selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
-            selectionActive = true
+            // Introduce the list before switching into multi-selection mode.
+            val sample = allPhotos.firstOrNull { it.relativePath == TutorialGalleryFixtures.DOG }
+                ?: allPhotos.firstOrNull()
+            val selecting = tourLocation.pageId != "photos"
+            selectedPhotoIds = if (selecting && sample != null) setOf(sample.id) else emptySet()
+            selectionActive = selecting
         } else if (tourLocation != null) {
             selectionActive = false
             selectedPhotoIds = emptySet()
@@ -614,7 +618,7 @@ fun LogFolderScreen(
         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
         .padding(horizontal = 16.dp)) {
         if (selectionActive) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-header"), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = ::cancelSelection, enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) { Text("취소") }
                 Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f),
                     color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold,
