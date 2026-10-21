@@ -90,8 +90,9 @@ internal fun TableEditorRuleListEditor(
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
     val folderGuide = LocalTutorialLocation.current
-    LaunchedEffect(folderGuide?.pageId, isFileName) {
-        if (LocalTutorialReadOnly.current && !isFileName && folderGuide?.areaId == "saving") {
+    val readOnlyGuide = LocalTutorialReadOnly.current
+    LaunchedEffect(folderGuide?.pageId, isFileName, readOnlyGuide) {
+        if (readOnlyGuide && !isFileName && folderGuide?.areaId == "saving") {
             editorTarget = if (folderGuide.pageId == "folder/add") RuleEditorTarget.ADD else null
         }
     }
