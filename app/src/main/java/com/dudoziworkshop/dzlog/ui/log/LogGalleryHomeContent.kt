@@ -32,7 +32,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,8 +55,6 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
-import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
-import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
@@ -306,9 +303,6 @@ internal fun GalleryFolderRow(
     onClick: () -> Unit,
 ) {
     var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
-    val guideMenu = LocalTutorialReadOnly.current &&
-        LocalTutorialLocation.current?.let { it.areaId == "gallery" && it.pageId == "folders" } == true
-    Column(Modifier.fillMaxWidth()) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, MaterialTheme.shapes.medium)
@@ -358,21 +352,6 @@ internal fun GalleryFolderRow(
         } else {
             Icon(Icons.Default.ChevronRight, contentDescription = "폴더 열기", tint = DDZColor.IconMuted)
         }
-    }
-    if (guideMenu && showManagement) {
-        // The same menu items as the production dropdown, shown inline to avoid
-        // a focusable Popup trapping guide navigation.
-        Surface(
-            modifier = Modifier.align(Alignment.End).tutorialTarget("gallery.folder-menu"),
-            color = DDZColor.Surface,
-            shape = MaterialTheme.shapes.medium,
-            shadowElevation = 6.dp,
-        ) {
-            Column {
-                GalleryFolderMenuItems(true, onManage = {}, onClose = {})
-            }
-        }
-    }
     }
 }
 
