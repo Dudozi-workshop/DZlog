@@ -111,8 +111,9 @@ internal fun LiveTutorialHost(
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
                         (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete",
-                            "photos/original-choice", "photos/move", "photos/delete")))
-                        (if (areaId == "gallery") with(density) { cardHeight.toDp() } + 20.dp
+                            "photos/original-choice", "photos/move", "photos/delete")) ||
+                        (areaId == "saving" && page.id == "counter/reset"))
+                        (if (areaId in setOf("gallery", "saving")) with(density) { cardHeight.toDp() } + 20.dp
                         else (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp) else 0.dp),
                     LocalTutorialReadOnly provides true,
                 ) { screen(displayLocation) }
@@ -364,6 +365,10 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "counter/next" -> "saving.next"
         "counter/digits" -> "saving.digits"
         "counter/sync" -> "saving.sync"
+        "counter/scope" -> "saving.scope"
+        "advanced" -> "saving.mode"
+        "filename" -> "saving.preview.현재 파일명"
+        "counter" -> "saving.next"
         else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     }
     "table-detail" -> when (location.sessionId) {
