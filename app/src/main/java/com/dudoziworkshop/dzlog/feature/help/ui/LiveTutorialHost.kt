@@ -88,6 +88,7 @@ internal fun LiveTutorialHost(
         if (contents) {
             TutorialContentsScreen(area, location, progress,
                 onResume = { contents = false },
+                onExit = onClose,
                 onJump = { entry ->
                     progress.save(entry)
                     if (entry.sessionId == sessionId) { pageId = entry.pageId; contents = false }
