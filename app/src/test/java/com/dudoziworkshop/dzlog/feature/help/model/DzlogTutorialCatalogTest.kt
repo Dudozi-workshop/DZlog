@@ -39,10 +39,11 @@ class DzlogTutorialCatalogTest {
         assertTrue(fileNameScenes.containsAll(listOf("parts", "sources", "edit", "order", "remove", "preview", "copy")))
         val counterScenes = saving.steps.first { it.id == "counter" }.scenes.map { it.id }
         assertTrue(counterScenes.containsAll(listOf("next", "input", "digits", "sync", "reset", "scope")))
-        assertEquals(6, DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "folders" }.scenes.size)
+        assertEquals(5, DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "folders" }.scenes.size)
         assertTrue(DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "folders" }.scenes.any { it.id == "destination" })
         assertEquals(6, DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "photos" }.scenes.size)
         assertTrue(DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "photos" }.scenes.any { it.id == "destination" })
+        assertTrue(DzlogTutorialCatalog.module("gallery")!!.steps.first { it.id == "photos" }.scenes.any { it.id == "original-choice" })
         assertNull(DzlogTutorialCatalog.module("unknown"))
         assertTrue(DzlogTutorialCatalog.VERSION.isNotBlank())
     }
