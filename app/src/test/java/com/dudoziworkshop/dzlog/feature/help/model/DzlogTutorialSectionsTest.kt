@@ -84,6 +84,11 @@ class DzlogTutorialSectionsTest {
         ), viewer.guidePages().map { it.id })
     }
 
+    @Test fun savingFolderGuideFollowsRealScreenOrder() {
+        val folder = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "folder" }
+        assertEquals(listOf("folder", "folder/parts", "folder/add", "folder/copy", "advanced"), folder.guidePages().map { it.id })
+    }
+
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
         val sync = pages.first { it.id == "counter/sync" }
