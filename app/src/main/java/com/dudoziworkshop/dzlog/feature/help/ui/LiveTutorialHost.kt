@@ -352,7 +352,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "gallery.content"
     }
     "saving" -> when (location.pageId) {
-        "overview" -> "table.tabs"
+        "overview" -> "table.tab.saving"
         "overview/menu" -> "saving.menu"
         "filename" -> "saving.menu.filename"
         "folder" -> "saving.menu.folder"
