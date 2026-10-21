@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.feature.settings.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -142,7 +144,7 @@ fun SettingsRootContent(
                                     } else {
                                         Icons.Default.KeyboardArrowDown
                                     },
-                                    contentDescription = if (isQualityExpanded) "접기" else "펼치기",
+                                    contentDescription = null,
                                     tint = DDZColor.IconMuted,
                                     modifier = Modifier.size(18.dp),
                                 )
@@ -301,7 +303,7 @@ private fun QualityInlineOptionRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 2.dp)
-            .clickable(enabled = enabled, onClick = onClick),
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
         shape = RoundedCornerShape(10.dp),
         color = if (selected) DDZColor.SelectedSoft.copy(alpha = 0.8f) else DDZColor.Surface,
     ) {
@@ -333,7 +335,7 @@ private fun QualityInlineOptionRow(
                 } else {
                     Icons.Default.RadioButtonUnchecked
                 },
-                contentDescription = if (selected) "선택됨" else null,
+                contentDescription = null,
                 tint = if (selected) DDZColor.SelectedDark else DDZColor.IconMuted,
                 modifier = Modifier.size(20.dp),
             )
