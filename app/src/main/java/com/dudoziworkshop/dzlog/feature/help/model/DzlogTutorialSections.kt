@@ -75,8 +75,14 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("gallery", "앨범", listOf(
             from("gallery", "overview", "앨범 화면과 탐색", "home", "browse"),
-            from("gallery", "folders", "폴더와 하위 폴더 관리", "folders"),
-            from("gallery", "photos", "사진 선택·공유·삭제", "photos"),
+            from("gallery", "folders", "폴더와 하위 폴더 관리", "folders").copy(
+                pageOrder = listOf("folders", "folders/new", "folders/rename",
+                    "folders/destination", "folders/move", "folders/delete", "folders/path"),
+            ),
+            from("gallery", "photos", "사진 선택·공유·삭제", "photos").copy(
+                pageOrder = listOf("photos", "photos/select", "photos/actions",
+                    "photos/destination", "photos/move", "photos/delete", "photos/result"),
+            ),
             custom("viewer", "사진 상세보기",
                 Triple("viewer", "사진 상세보기", "사진을 누르면 크게 볼 수 있어요. 상단에는 파일명과 현재 사진 순서가 표시돼요."),
                 Triple("viewer/photo", "확대와 사진 넘기기", "두 손가락으로 확대·축소하고, 확대하지 않은 상태에서 좌우로 밀어 다른 사진을 볼 수 있어요."),
