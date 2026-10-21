@@ -32,6 +32,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -368,7 +369,7 @@ internal fun GalleryFolderRow(
             shadowElevation = 6.dp,
         ) {
             Column {
-                GalleryFolderMenuItems(false, onManage = {}, onClose = {})
+                GalleryFolderMenuItems(true, onManage = {}, onClose = {})
             }
         }
     }
