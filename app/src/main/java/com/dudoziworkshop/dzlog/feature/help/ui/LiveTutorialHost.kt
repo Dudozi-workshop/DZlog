@@ -351,6 +351,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
         "filename/preview" -> "saving.preview.현재 파일명"
         "folder" -> "saving.preview.현재 저장 위치"
+        "folder/add" -> "saving.add"
         "filename/sources" -> "saving.add"
         "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
         "counter/next" -> "saving.next"
