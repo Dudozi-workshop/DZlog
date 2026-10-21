@@ -175,6 +175,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.SAVE_MODE -> {
                     Text(
                         "저장할 이미지",
+                        modifier = Modifier.tutorialTarget("saving.mode"),
                         style = DDZTypography.SettingLabel,
                         color = DDZColor.TextPrimary,
                     )
@@ -290,7 +291,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER_ADVANCED -> {
-                    Text("번호 구분 기준", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                    Text("번호 구분 기준", modifier = Modifier.tutorialTarget("saving.scope"), style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     ScopeOption(
                         title = "저장 위치별 번호 분리",
                         description = "폴더가 다르면 번호를 따로 사용합니다.",
