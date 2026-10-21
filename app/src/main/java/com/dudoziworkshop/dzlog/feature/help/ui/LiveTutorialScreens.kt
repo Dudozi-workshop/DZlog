@@ -93,10 +93,21 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     val root = GalleryFolderIndexPolicy.ROOT
     val path = if (location.pageId == "browse" || location.pageId.startsWith("browse/") || location.sessionId == "folders") TutorialGalleryFixtures.DOG else root
     if (location.sessionId == "viewer") {
+        val viewerPhotos = remember(examples) { examples.filter { it.relativePath == TutorialGalleryFixtures.DOG } }
+        val original = remember(examples) {
+            examples.first { it.relativePath == TutorialGalleryFixtures.DOG + "original/" }
+        }
+        val originalsByResult = remember(viewerPhotos, original) {
+            mapOf(viewerPhotos.first().uri.toString() to original)
+        }
         Box(Modifier.fillMaxSize()) {
-            LogViewerScreen(relativePath = TutorialGalleryFixtures.DOG,
-                items = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG },
-                startIndex = 0, onBack = {}, onItemsReloaded = {}, onRequestCloseViewer = {})
+            LogViewerScreen(
+                relativePath = TutorialGalleryFixtures.DOG,
+                items = viewerPhotos,
+                startIndex = 0,
+                onBack = {}, onItemsReloaded = {}, onRequestCloseViewer = {},
+                quickResultOriginalByResultUri = originalsByResult,
+            )
         }
     } else {
         LogFolderScreen(
