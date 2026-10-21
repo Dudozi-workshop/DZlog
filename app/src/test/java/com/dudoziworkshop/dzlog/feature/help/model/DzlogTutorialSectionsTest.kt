@@ -65,16 +65,20 @@ class DzlogTutorialSectionsTest {
         val gallery = DzlogTutorialSections.area("gallery")!!
         val folders = gallery.sessions.first { it.id == "folders" }.guidePages().map { it.id }
         val photos = gallery.sessions.first { it.id == "photos" }.guidePages().map { it.id }
+        assertEquals("folders/new", folders.first())
+        assertEquals("folders", folders[1])
         assertTrue(folders.indexOf("folders/destination") < folders.indexOf("folders/move"))
-        assertTrue(photos.indexOf("photos/destination") < photos.indexOf("photos/move"))
-        val all = gallery.sessions.flatMap { it.guidePages() }.map { it.id }
-        assertEquals("viewer/menu", all[23])
+        assertTrue(photos.indexOf("photos/destination") < photos.indexOf("photos/original-choice"))
+        assertTrue(photos.indexOf("photos/original-choice") < photos.indexOf("photos/move"))
+        assertEquals(30, gallery.sessions.sumOf { it.guidePages().size })
+        val viewer = gallery.sessions.first { it.id == "viewer" }.guidePages()
+        assertEquals("viewer/menu", viewer[1].id)
     }
 
     @Test fun galleryViewerGuideCoversAllPhotoDetailControls() {
         val viewer = DzlogTutorialSections.area("gallery")!!.sessions.first { it.id == "viewer" }
         assertEquals(listOf(
-            "viewer", "viewer/photo", "viewer/menu", "viewer/original",
+            "viewer", "viewer/menu", "viewer/original", "viewer/photo",
             "viewer/favorite", "viewer/share", "viewer/info", "viewer/delete",
             "viewer/delete-confirm", "viewer/filmstrip",
         ), viewer.guidePages().map { it.id })
