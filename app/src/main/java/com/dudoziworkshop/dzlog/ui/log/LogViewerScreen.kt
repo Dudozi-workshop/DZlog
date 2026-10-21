@@ -8,6 +8,8 @@ package com.dudoziworkshop.dzlog.ui.log
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -116,6 +118,8 @@ fun LogViewerScreen(
     onSessionMediaChanged: (Set<Long>) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val tourLocation = LocalTutorialLocation.current
+    val guidePage = if (LocalTutorialReadOnly.current && tourLocation?.areaId == "gallery" && tourLocation.sessionId == "viewer") tourLocation.pageId else null
     val resolver = context.contentResolver
     val reader = remember(resolver) { DzlogMediaStoreReader(resolver) }
     val favoritesRepository = remember(context) { FavoritesProvider.repo(context) }
@@ -156,6 +160,17 @@ fun LogViewerScreen(
     val resultItem = items.getOrNull(pagerState.currentPage)
     val currentItem = originalPreview ?: resultItem
     LaunchedEffect(resultItem?.id) { originalPreview = null }
+    // Guide presentation follows its page, never simulates a real gallery operation.
+    LaunchedEffect(guidePage, resultItem?.id) {
+        if (guidePage != null) {
+            uiVisible = true
+            filmstripExpanded = guidePage == "viewer/filmstrip"
+            infoSheetItem = null
+            originalPreview = if (guidePage == "viewer/original") {
+                resultItem?.let { quickResultOriginalByResultUri[it.uri.toString()] }
+            } else null
+        }
+    }
 
     fun showOriginal() {
         if (operationLocked) return
@@ -164,6 +179,10 @@ fun LogViewerScreen(
             return
         }
         val requested = resultItem ?: return
+        if (guidePage != null) {
+            originalPreview = quickResultOriginalByResultUri[requested.uri.toString()]
+            return
+        }
         originalLoading = true
         scope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -235,7 +254,7 @@ fun LogViewerScreen(
         if (items.isNotEmpty()) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().tutorialTarget("gallery.viewer-photo"),
                 key = { page -> items[page].id },
                 // 정책: 확대 상태에서는 부모 pager 스크롤을 명시적으로 잠근다.
                 userScrollEnabled = resultItem?.id !in zoomedImageIds && !operationLocked && originalPreview == null
@@ -277,7 +296,7 @@ fun LogViewerScreen(
         }
 
         originalPreview?.let { original ->
-            Box(Modifier.fillMaxSize().background(Color.Black)) {
+            Box(Modifier.fillMaxSize().background(Color.Black).tutorialTarget("gallery.viewer-photo")) {
                 DzFullImage(
                     uriString = original.uri.toString(),
                     canGoPrevious = false,
@@ -311,14 +330,15 @@ fun LogViewerScreen(
                     !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) &&
                         (!isQuickResultsViewer || quickResultOriginalByResultUri.containsKey(it.uri.toString()))
                 } == true) ::showOriginal else null,
+                guideMenu = guidePage == "viewer/menu",
                 onMove = {
-                    if (!operationLocked && currentItem != null) {
+                    if (guidePage == null && !operationLocked && currentItem != null) {
                         emptyAfterOperation = false
                         moveItem = currentItem
                     }
                 },
                 onInfo = {
-                    if (!operationLocked && currentItem != null) infoSheetItem = currentItem
+                    if (guidePage == null && !operationLocked && currentItem != null) infoSheetItem = currentItem
                 }
             )
         }
@@ -354,7 +374,7 @@ fun LogViewerScreen(
                     ViewerBottomPill(
                         enabled = !operationLocked && currentItem != null,
                         onFavorite = {
-                            if (operationLocked) return@ViewerBottomPill
+                            if (guidePage != null || operationLocked) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             scope.launch {
                                 favoritesRepository.toggleFavorite(item)
@@ -362,15 +382,15 @@ fun LogViewerScreen(
                         },
                         isFavorite = currentItem?.id?.let(favoriteIds::contains) == true,
                         onShare = {
-                            if (operationLocked) return@ViewerBottomPill
+                            if (guidePage != null || operationLocked) return@ViewerBottomPill
                             val item = currentItem ?: return@ViewerBottomPill
                             shareImages(context, listOf(item))
                         },
                         onInfo = {
-                            if (!operationLocked && currentItem != null) infoSheetItem = currentItem
+                            if (guidePage == null && !operationLocked && currentItem != null) infoSheetItem = currentItem
                         },
                         onDelete = {
-                            if (!operationLocked && currentItem != null) {
+                            if (guidePage == null && !operationLocked && currentItem != null) {
                                 emptyAfterOperation = false
                                 deleteItem = currentItem
                             }
@@ -378,7 +398,8 @@ fun LogViewerScreen(
                     )
 
                     TextButton(
-                        onClick = { filmstripExpanded = !filmstripExpanded },
+                        modifier = Modifier.tutorialTarget("gallery.viewer-filmstrip"),
+                        onClick = { if (guidePage == null) filmstripExpanded = !filmstripExpanded },
                         enabled = !operationLocked && originalPreview == null && items.isNotEmpty(),
                     ) {
                         Icon(
@@ -407,6 +428,16 @@ fun LogViewerScreen(
                         )
                     }
                 }
+            }
+        }
+        if (guidePage == "viewer/info" && resultItem != null) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .padding(bottom = 132.dp).tutorialTarget("gallery.viewer-info"),
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            ) {
+                InfoSheetContent(item = resultItem)
             }
         }
     }
@@ -489,11 +520,12 @@ private fun ViewerTopOverlay(
     onOriginal: (() -> Unit)?,
     onMove: () -> Unit,
     onInfo: () -> Unit,
+    guideMenu: Boolean = false,
 ) {
     var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
     Row(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth().tutorialTarget("gallery.viewer-top")
             .background(Brush.verticalGradient(listOf(Color(0xAA000000), Color.Transparent)))
             .windowInsetsPadding(
                 WindowInsets.safeDrawing.only(
@@ -524,11 +556,11 @@ private fun ViewerTopOverlay(
                 style = MaterialTheme.typography.labelSmall,
             )
         }
-        Box {
+        Box(Modifier.tutorialTarget("gallery.viewer-menu")) {
             IconButton(onClick = { menuExpanded = true }, enabled = enabled && current != null) {
                 Icon(Icons.Default.MoreVert, contentDescription = "사진 메뉴", tint = Color.White)
             }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenu(expanded = menuExpanded || guideMenu, onDismissRequest = { menuExpanded = false }) {
                 if (onOriginal != null) DropdownMenuItem(
                     text = { Text(originalActionLabel) },
                     onClick = {
@@ -573,20 +605,20 @@ private fun ViewerBottomPill(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onFavorite, enabled = enabled) {
+        IconButton(onClick = onFavorite, enabled = enabled, modifier = Modifier.tutorialTarget("gallery.viewer-favorite")) {
             Icon(
                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = if (isFavorite) "즐겨찾기 해제" else "즐겨찾기 추가",
                 tint = if (isFavorite) Color(0xFFFF5C7A) else Color.White
             )
         }
-        IconButton(onClick = onShare, enabled = enabled) {
+        IconButton(onClick = onShare, enabled = enabled, modifier = Modifier.tutorialTarget("gallery.viewer-share")) {
             Icon(Icons.Default.Share, contentDescription = "공유", tint = Color.White)
         }
         IconButton(onClick = onInfo, enabled = enabled) {
             Icon(Icons.Default.Info, contentDescription = "사진 정보", tint = Color.White)
         }
-        IconButton(onClick = onDelete, enabled = enabled) {
+        IconButton(onClick = onDelete, enabled = enabled, modifier = Modifier.tutorialTarget("gallery.viewer-delete")) {
             Icon(Icons.Default.Delete, contentDescription = "사진 삭제", tint = Color.White)
         }
     }
