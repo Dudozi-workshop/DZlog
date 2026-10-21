@@ -10,6 +10,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 import platform.Foundation.NSData
+import platform.Foundation.NSMutableArray
 import platform.Foundation.NSMutableData
 import platform.Foundation.create
 import platform.Photos.PHAccessLevelReadWrite
@@ -109,7 +110,9 @@ internal class PhotoKitAssetAccess {
         if (assets.isEmpty()) return true
         return suspendCoroutine { continuation ->
             PHPhotoLibrary.sharedPhotoLibrary().performChanges({
-                PHAssetChangeRequest.deleteAssets(assets)
+                val nativeAssets = NSMutableArray()
+                assets.forEach { nativeAssets.addObject(it) }
+                PHAssetChangeRequest.deleteAssets(nativeAssets)
             }, completionHandler = { success, _ -> continuation.resume(success) })
         }
     }
@@ -125,7 +128,7 @@ internal class PhotoKitAssetAccess {
             PHAssetResourceManager.defaultManager().requestDataForAssetResource(
                 resource = resource,
                 options = options,
-                dataReceivedHandler = { chunk -> buffer.appendData(chunk) },
+                dataReceivedHandler = { chunk -> buffer.appendBytes(chunk.bytes, chunk.length) },
                 completionHandler = { error ->
                     if (error != null) {
                         continuation.resumeWithException(
