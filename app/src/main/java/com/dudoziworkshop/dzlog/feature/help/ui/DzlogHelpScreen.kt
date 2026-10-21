@@ -156,11 +156,12 @@ internal fun TutorialContentsScreen(
     location: TutorialLocation,
     progress: TutorialProgressStore,
     onResume: () -> Unit,
+    onExit: () -> Unit,
     onJump: (TutorialLocation) -> Unit,
     onArea: (TutorialArea) -> Unit,
 ) {
     var otherAreas by rememberSaveable { mutableStateOf(false) }
-    BackHandler { if (otherAreas) otherAreas = false else onResume() }
+    BackHandler { if (otherAreas) onExit() else otherAreas = true }
     val total = area.sessions.sumOf { it.guidePages().size }.coerceAtLeast(1)
     val viewed = area.sessions.sumOf { session ->
         session.guidePages().count { page ->
@@ -169,8 +170,8 @@ internal fun TutorialContentsScreen(
     }
     Scaffold(containerColor = DDZColor.Background, topBar = {
         DDZTopBar(
-            title = if (otherAreas) "다른 안내 보기" else "${area.title} 목차",
-            onBack = { if (otherAreas) otherAreas = false else onResume() },
+            title = if (otherAreas) "전체 기능 안내" else "${area.title} 목차",
+            onBack = { if (otherAreas) onExit() else otherAreas = true },
         )
     }) { insets ->
         Column(
