@@ -97,7 +97,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
         com.dudoziworkshop.dzlog.ui.log.GalleryMoveDestinationPicker(
             allPhotos = examples,
             knownFolderPaths = listOf(root) + TutorialGalleryFixtures.folderPaths,
-            selectedIds = if (folderMove) emptySet() else setOf(examples.first().id),
+            selectedIds = if (folderMove) emptySet() else setOf(examples.first { it.relativePath == TutorialGalleryFixtures.DOG }.id),
             initialPath = root,
             loading = false,
             loadError = null,
@@ -133,7 +133,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
         )
         if (location.pageId == "photos/move") {
             com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
-                selected = examples.take(1),
+                selected = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG }.take(1),
                 allPhotos = examples,
                 destinationPath = TutorialGalleryFixtures.WORK,
                 busy = false, onCancel = {}, onConfirm = {},
@@ -141,7 +141,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
         }
         if (location.pageId == "photos/delete") {
             com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
-                selected = examples.take(1),
+                selected = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG }.take(1),
                 allPhotos = examples, busy = false, onCancel = {}, onConfirm = {},
             )
         }
