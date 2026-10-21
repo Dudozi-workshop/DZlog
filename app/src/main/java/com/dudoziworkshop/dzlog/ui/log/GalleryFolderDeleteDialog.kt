@@ -90,7 +90,7 @@ internal fun GalleryFolderDeleteDialog(
                 Text("삭제할 대상과 포함된 항목을 확인해 주세요.", style = typography.Body, color = colors.TextSecondary)
                 GalleryFolderInfoCard(
                     name = path.trimEnd('/').substringAfterLast('/'),
-                    detail = if (readOnlyTour) guideDetail
+                    detail = if (readOnlyTour) guideDetail.orEmpty()
                         else plan?.let { "사진 ${it.resultCount + it.originalCount}장 · 하위 폴더 ${it.folderCount}개" }
                             ?: path.removePrefix(GalleryFolderIndexPolicy.ROOT).trimEnd('/'),
                 )
