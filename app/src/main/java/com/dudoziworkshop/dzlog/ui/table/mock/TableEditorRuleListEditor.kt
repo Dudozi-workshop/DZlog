@@ -90,11 +90,11 @@ internal fun TableEditorRuleListEditor(
 ) {
     val compactItems = items.filterNotNull()
     val loc = LocalTutorialLocation.current
-    val gestureGuide = LocalTutorialReadOnly.current && isFileName && loc?.areaId == "saving"
+    val gestureGuide = LocalTutorialReadOnly.current && loc?.areaId == "saving"
     val demo = LocalTutorialDemoProgress.current
     val wave = sin((demo.coerceIn(0f, 1f) * Math.PI).toFloat())
-    val deleteDemo = gestureGuide && loc?.pageId == "filename/remove"
-    val orderDemo = gestureGuide && loc?.pageId == "filename/order"
+    val deleteDemo = gestureGuide && loc?.pageId in setOf("filename/remove", "folder/remove")
+    val orderDemo = gestureGuide && loc?.pageId in setOf("filename/order", "folder/order")
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
