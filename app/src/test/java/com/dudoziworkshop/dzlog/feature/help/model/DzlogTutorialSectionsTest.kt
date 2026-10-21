@@ -88,11 +88,12 @@ class DzlogTutorialSectionsTest {
         val saving = DzlogTutorialSections.area("saving")!!
         assertEquals(listOf("overview", "overview/menu", "filename", "filename/open"),
             saving.sessions.first { it.id == "filename" }.guidePages().take(4).map { it.id })
-        assertEquals(listOf("folder", "folder/open", "folder/parts", "folder/add", "folder/copy", "advanced"),
+        assertEquals(listOf("folder", "folder/open", "folder/parts", "folder/add", "folder/copy"),
             saving.sessions.first { it.id == "folder" }.guidePages().map { it.id })
         assertEquals(listOf("counter", "counter/open", "counter/next"),
             saving.sessions.first { it.id == "counter" }.guidePages().take(3).map { it.id })
-        assertEquals(27, saving.sessions.sumOf { it.guidePages().size })
+        assertEquals(24, saving.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf("filename", "folder", "counter"), saving.sessions.map { it.id })
     }
 
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
