@@ -252,6 +252,7 @@ internal fun GalleryMoveDestinationPicker(
             }
             Column(
                 modifier = Modifier.fillMaxWidth()
+                    .tutorialTarget("gallery.destination-action")
                     .background(DDZColor.Surface)
                     .padding(top = 8.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -269,7 +270,7 @@ internal fun GalleryMoveDestinationPicker(
                     onClick = { onChoose(path) },
                     enabled = !loading && !childLoading && loadError == null &&
                         childError == null && canChoose,
-                    modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.destination-action"),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
