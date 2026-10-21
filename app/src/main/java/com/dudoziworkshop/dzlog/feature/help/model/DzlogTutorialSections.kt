@@ -107,11 +107,8 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("saving", "저장설정", listOf(
             from("saving", "filename", "파일명 구성", "overview", "filename"),
-            from("saving", "folder", "저장 위치와 방식", "folder", "advanced"),
+            from("saving", "folder", "저장경로 구성", "folder"),
             from("saving", "counter", "자동번호와 동기화", "counter"),
-            custom("rotation", "순환문구와 자동값",
-                Triple("rotation", "순환문구", "저장하지 않는 예시 표에서 순환문구의 목록·세트·변경 주기를 살펴봐요. 저장 규칙에서는 이 셀을 연결해 촬영마다 달라지는 값을 사용할 수 있어요."),
-                Triple("automatic", "자동값", "날짜·시간·자동번호는 설정한 규칙에 따라 생성돼요.")),
         )),
         TutorialArea("settings", "앱 설정", listOf(
             custom("environment", "앱 환경",
