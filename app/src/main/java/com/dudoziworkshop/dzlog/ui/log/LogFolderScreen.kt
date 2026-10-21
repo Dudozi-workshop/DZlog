@@ -259,7 +259,8 @@ fun LogFolderScreen(
             } else null
             if (exampleFolder != null) {
                 managedFolderPath = exampleFolder
-                renameName = exampleFolder.trimEnd('/').substringAfterLast('/')
+                renameName = if (tourLocation.pageId == "folders/rename") "산책 기록"
+                    else exampleFolder.trimEnd('/').substringAfterLast('/')
                 destinationPaths = listOf(GalleryFolderIndexPolicy.ROOT)
                 moveTarget = GalleryFolderIndexPolicy.ROOT
             }
