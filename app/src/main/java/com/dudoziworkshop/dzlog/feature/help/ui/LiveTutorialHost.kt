@@ -162,6 +162,10 @@ internal fun LiveTutorialHost(
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
                     isDialogStep -> bottomY
+                    sessionId == "viewer" -> when (page.id) {
+                        "viewer/info", "viewer/filmstrip", "viewer/favorite", "viewer/share", "viewer/delete" -> topY
+                        else -> bottomY
+                    }
                     target == null -> if (sessionId in setOf("viewer", "photos")) topY else bottomY
                     availableBelow >= cardHeight + gap -> bottomY
                     availableAbove >= cardHeight + gap -> topY
@@ -307,7 +311,17 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
             "browse/photos" -> "gallery.folder-photos"
             else -> "gallery.content"
         }
-        location.sessionId == "viewer" -> "gallery.viewer-actions"
+        location.sessionId == "viewer" -> when (location.pageId) {
+            "viewer" -> "gallery.viewer-top"
+            "viewer/photo", "viewer/original" -> "gallery.viewer-photo"
+            "viewer/menu" -> "gallery.viewer-menu"
+            "viewer/favorite" -> "gallery.viewer-favorite"
+            "viewer/share" -> "gallery.viewer-share"
+            "viewer/info" -> "gallery.viewer-info"
+            "viewer/delete" -> "gallery.viewer-delete"
+            "viewer/filmstrip" -> "gallery.viewer-filmstrip"
+            else -> "gallery.viewer-actions"
+        }
         location.pageId in setOf("photos/move", "photos/destination", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete") -> "guide.dialog"
         location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
         parent == "browse" -> "gallery.breadcrumbs"
