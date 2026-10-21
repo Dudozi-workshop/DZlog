@@ -341,7 +341,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         location.pageId in setOf("photos/select", "photos/result") -> "gallery.selection-header"
         location.pageId in setOf("photos/original-choice", "photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
         location.pageId == "photos/actions" -> "gallery.selection-actions"
-        location.pageId == "folders" -> "gallery.folder-menu"
+        location.pageId == "folders" -> "gallery.folder-menu-button"
         location.sessionId == "folders" -> "gallery.child-folders"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
