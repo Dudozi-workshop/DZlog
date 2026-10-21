@@ -152,7 +152,7 @@ internal fun LiveTutorialHost(
                 val availableAbove = if (target == null) 0f else target.top - topY - gap
                 val isDialogStep = page.id in setOf(
                     "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete",
-                    "photos/move", "photos/destination", "photos/delete"
+                    "photos/move", "photos/destination", "photos/delete", "viewer/delete-confirm"
                 )
                 when {
                     // Keep gallery overview, folder browsing and photo selection guidance low.
@@ -161,7 +161,7 @@ internal fun LiveTutorialHost(
                     page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
-                    page.id in setOf("folders/destination", "photos/destination") -> topY
+                    page.id in setOf("folders/destination", "photos/destination", "viewer/delete-confirm") -> topY
                     isDialogStep -> bottomY
                     sessionId == "viewer" -> when (page.id) {
                         "viewer/info", "viewer/filmstrip", "viewer/favorite", "viewer/share", "viewer/delete" -> topY
@@ -320,6 +320,7 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
             "viewer/share" -> "gallery.viewer-share"
             "viewer/info" -> "gallery.viewer-info"
             "viewer/delete" -> "gallery.viewer-delete"
+            "viewer/delete-confirm" -> "guide.dialog"
             "viewer/filmstrip" -> "gallery.viewer-filmstrip"
             else -> "gallery.viewer-actions"
         }
