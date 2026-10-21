@@ -86,6 +86,7 @@ internal object DzlogTutorialSections {
                 Triple("viewer/share", "사진 공유", "공유 버튼을 누르면 사진을 다른 앱으로 보낼 수 있어요."),
                 Triple("viewer/info", "사진 정보", "정보 버튼을 누르거나 사진을 위로 밀면 파일명, 저장경로, 촬영일시를 확인할 수 있어요."),
                 Triple("viewer/delete", "사진 삭제", "휴지통 버튼으로 삭제할 사진을 확인해요. 원본사진 포함 여부와 삭제 범위를 실제 삭제 전에 확인하세요."),
+                Triple("viewer/delete-confirm", "삭제 확인과 원본 포함", "실제 삭제 확인창에서 결과사진과 연결된 원본사진의 수를 확인하고, 원본 포함 여부를 선택해요. 튜토리얼에서는 삭제되지 않아요."),
                 Triple("viewer/filmstrip", "하단 사진 목록", "아래 사진 목록을 펼치면 앞뒤 사진을 썸네일로 빠르게 찾아볼 수 있어요."),
             ),
         )),
