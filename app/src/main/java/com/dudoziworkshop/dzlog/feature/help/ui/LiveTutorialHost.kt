@@ -111,8 +111,7 @@ internal fun LiveTutorialHost(
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
                         (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete",
-                            "photos/original-choice", "photos/move", "photos/delete")) ||
-                        (areaId == "saving" && page.id == "counter/reset"))
+                            "photos/original-choice", "photos/move", "photos/delete")))
                         (if (areaId in setOf("gallery", "saving")) with(density) { cardHeight.toDp() } + 20.dp
                         else (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp) else 0.dp),
                     LocalTutorialReadOnly provides true,
@@ -196,8 +195,9 @@ internal fun LiveTutorialHost(
             areaId == "saving" -> when (page.id) {
                 // One fixed lower zone during ordinary navigation. Only actual sheets
                 // move the guide to the top; targets never move the actual screen.
+                "overview", "overview/menu", "filename", "folder", "counter",
                 "filename/sources", "filename/copy", "folder/add", "folder/copy",
-                "counter/input" -> topY
+                "counter/input", "counter/reset" -> topY
                 else -> bottomY
             }
             // Keep the guide anchored across consecutive steps. The underlying settings
