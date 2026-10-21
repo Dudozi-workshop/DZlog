@@ -82,11 +82,12 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                         saveMode = settings.saveMode, counterPadding = settings.counterPadding,
                         styleState = style, openSaveSettingsInitially = location.areaId == "saving",
                         onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
-                    if (location.areaId == "saving" && location.pageId == "folder/add") {
-                        // The actual bottom-sheet source options are overlaid outside the
-                        // scrolled rule editor: its layout never pushes the real page.
+                    if (location.areaId == "saving" && location.pageId in setOf("folder/add", "filename/sources")) {
+                        // Reuse the real source choices in a separate read-only overlay.
+                        // Neither the editor nor its scrolling content is repositioned.
                         com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet(
-                            title = "폴더 추가", onDismiss = {},
+                            title = if (location.pageId == "folder/add") "폴더 추가" else "구성요소 추가",
+                            onDismiss = {},
                         ) {
                             com.dudoziworkshop.dzlog.ui.table.mock.SaveRuleSourceChoiceButtons(
                                 onSelect = {},
