@@ -1,6 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.sin
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -84,6 +89,12 @@ internal fun TableEditorRuleListEditor(
     onItemsChange: (List<MockRuleItem?>) -> Unit,
 ) {
     val compactItems = items.filterNotNull()
+    val loc = LocalTutorialLocation.current
+    val gestureGuide = LocalTutorialReadOnly.current && isFileName && loc?.areaId == "saving"
+    val demo = LocalTutorialDemoProgress.current
+    val wave = sin((demo.coerceIn(0f, 1f) * Math.PI).toFloat())
+    val deleteDemo = gestureGuide && loc?.pageId == "filename/remove"
+    val orderDemo = gestureGuide && loc?.pageId == "filename/order"
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
@@ -203,6 +214,13 @@ internal fun TableEditorRuleListEditor(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(if (index == 0 && (deleteDemo || orderDemo)) Modifier.graphicsLayer {
+                                translationX = if (deleteDemo) -size.width * 0.27f * wave else 0f
+                                translationY = if (orderDemo) size.height * 0.65f * wave else 0f
+                            } else Modifier)
+                            .then(if (index == 1 && orderDemo) Modifier.graphicsLayer {
+                                translationY = -size.height * 0.65f * wave
+                            } else Modifier)
                             .then(if (index == 0) Modifier.tutorialTarget("saving.rules.first") else Modifier)
                             .background(
                                 if (isDragging) DDZColor.SurfaceSoft else DDZColor.Surface,
