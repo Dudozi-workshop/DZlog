@@ -15,9 +15,9 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: 'navigation = catalog/settings + editor persistence; editor = editor only; full = all UI'
+        description: 'settings = settings/catalog relaunch only; navigation = settings+editor; editor = editor only; full = all UI'
         type: choice
-        options: [full, editor, navigation]
+        options: [full, settings, editor, navigation]
         default: full
 permissions:
   contents: read
@@ -40,8 +40,8 @@ jobs:
             const sameRepoDraft = pr?.draft === true && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             const scope = context.eventName === 'workflow_dispatch'
               ? context.payload.inputs.scope
-              : sameRepoDraft && context.payload.action !== 'ready_for_review' ? 'navigation' : 'full';
-            if (!['editor', 'navigation', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
+              : sameRepoDraft && context.payload.action !== 'ready_for_review' ? 'settings' : 'full';
+            if (!['settings', 'editor', 'navigation', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
             core.setOutput('value', scope);
             await core.summary.addHeading(`iOS UI scope: ${scope}`)
               .addRaw(scope !== 'full'
@@ -86,6 +86,11 @@ jobs:
         with:
           path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
           key: ${{ steps.framework-cache.outputs.cache-primary-key }}
+      - name: Focused iOS settings and catalog relaunch (partial development check)
+        if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'settings'
+        env:
+          DZLOG_UI_TEST_SCOPE: settings
+        run: bash scripts/ios/test-ui-poc.sh
       - name: Focused iOS editor flow (partial development check)
         if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'editor'
         env:

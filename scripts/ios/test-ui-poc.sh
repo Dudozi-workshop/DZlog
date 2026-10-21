@@ -3,6 +3,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
+  settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
@@ -30,6 +31,14 @@ xcodebuild build-for-testing "${xcode_args[@]}" | tee "$evidence_dir/host-build.
 bundled_png="$repo_root/build/ios-poc/DerivedData/Build/Products/Debug-iphonesimulator/DZlogUiPoc.app/home_leaf_shadow_c.png"
 cmp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$bundled_png"
 shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
-xcodebuild test-without-building "${xcode_args[@]}" "${selection[@]}" \
-  -resultBundlePath "$evidence_dir/interaction.xcresult" \
-  | tee "$evidence_dir/interaction-build.log"
+# Bound native XCTest execution and preserve a partial transcript on simulator stalls.
+case "$test_scope" in
+  settings) limit_seconds=480 ;;
+  editor) limit_seconds=720 ;;
+  navigation) limit_seconds=900 ;;
+  full) limit_seconds=1200 ;;
+esac
+python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
+  "$evidence_dir/interaction-build.log" \
+  xcodebuild test-without-building "${xcode_args[@]}" "${selection[@]}" \
+    -resultBundlePath "$evidence_dir/interaction.xcresult"
