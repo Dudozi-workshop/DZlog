@@ -156,7 +156,7 @@ internal fun LiveTutorialHost(
                 )
                 when {
                     // Keep gallery overview, folder browsing and photo selection guidance low.
-                    page.id in setOf("home", "browse", "photos/select") -> bottomY
+                    page.id in setOf("home", "home/tabs", "home/recent", "home/folders", "browse", "browse/folders", "browse/photos", "photos/select") -> bottomY
                     // Selected-photo actions need a central card, clear of bottom controls.
                     page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
                     // Dialogs should be shifted upward by their owners; reserve the bottom
@@ -297,6 +297,16 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "settings.capture"
     }
     "gallery" -> when {
+        location.sessionId == "overview" -> when (location.pageId) {
+            "home" -> "gallery.header"
+            "home/tabs" -> "gallery.tabs"
+            "home/recent" -> "gallery.recent"
+            "home/folders" -> "gallery.folders"
+            "browse" -> "gallery.breadcrumbs"
+            "browse/folders" -> "gallery.child-folders"
+            "browse/photos" -> "gallery.folder-photos"
+            else -> "gallery.content"
+        }
         location.sessionId == "viewer" -> "gallery.viewer-actions"
         location.pageId in setOf("photos/move", "photos/destination", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete") -> "guide.dialog"
         location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
