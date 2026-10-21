@@ -92,7 +92,22 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
     val examples = remember { TutorialGalleryFixtures.photos(context) }
     val root = GalleryFolderIndexPolicy.ROOT
     val path = if (location.pageId == "browse" || location.pageId.startsWith("browse/") || location.sessionId == "folders") TutorialGalleryFixtures.DOG else root
-    if (location.sessionId == "viewer") {
+    if (location.pageId in setOf("folders/destination", "photos/destination")) {
+        val folderMove = location.pageId == "folders/destination"
+        com.dudoziworkshop.dzlog.ui.log.GalleryMoveDestinationPicker(
+            allPhotos = examples,
+            knownFolderPaths = listOf(root) + TutorialGalleryFixtures.folderPaths,
+            selectedIds = if (folderMove) emptySet() else setOf(examples.first().id),
+            initialPath = root,
+            loading = false,
+            loadError = null,
+            onRetry = {},
+            loadPhysicalChildren = { emptyList() },
+            onCancel = {},
+            onChoose = {},
+            movingFolderPath = if (folderMove) TutorialGalleryFixtures.DOG else null,
+        )
+    } else if (location.sessionId == "viewer") {
         val viewerPhotos = remember(examples) { examples.filter { it.relativePath == TutorialGalleryFixtures.DOG } }
         val original = remember(examples) {
             examples.first { it.relativePath == TutorialGalleryFixtures.DOG + "original/" }
@@ -116,6 +131,20 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
             onOpenOriginal = { _, _ -> }, gridColumns = settings.galleryGridColumns,
             showCounterBadges = settings.showGalleryCounterBadges,
         )
+        if (location.pageId == "photos/move") {
+            com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
+                selected = examples.take(1),
+                allPhotos = examples,
+                destinationPath = TutorialGalleryFixtures.WORK,
+                busy = false, onCancel = {}, onConfirm = {},
+            )
+        }
+        if (location.pageId == "photos/delete") {
+            com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
+                selected = examples.take(1),
+                allPhotos = examples, busy = false, onCancel = {}, onConfirm = {},
+            )
+        }
     }
 }
 
