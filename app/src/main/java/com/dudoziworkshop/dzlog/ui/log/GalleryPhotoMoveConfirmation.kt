@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan
@@ -38,13 +39,13 @@ internal fun GalleryPhotoMoveConfirmation(
         GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
     }
     val readOnlyTour = LocalTutorialReadOnly.current
-    // The tutorial follows the destination-picker step, so preview the actual final
-    // move confirmation instead of opening this dialog at its earlier sub-step.
-    var includeOriginals by remember(selected, destinationPath, readOnlyTour) {
-        mutableStateOf<Boolean?>(if (readOnlyTour) true else null)
+    val guideChoice = readOnlyTour && LocalTutorialLocation.current?.pageId == "photos/original-choice"
+    // Show the real choice and final-confirmation states on successive guide pages.
+    var includeOriginals by remember(selected, destinationPath, readOnlyTour, guideChoice) {
+        mutableStateOf<Boolean?>(if (readOnlyTour && !guideChoice) true else null)
     }
-    var finalStep by remember(selected, destinationPath, readOnlyTour) {
-        mutableStateOf(readOnlyTour)
+    var finalStep by remember(selected, destinationPath, readOnlyTour, guideChoice) {
+        mutableStateOf(readOnlyTour && !guideChoice)
     }
     val showFinal = originals.isEmpty() || finalStep
     val planned = remember(selected, originals, destinationPath, includeOriginals) {
