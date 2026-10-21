@@ -110,8 +110,10 @@ internal fun LiveTutorialHost(
                             with(density) { cardHeight.toDp() } + 20.dp
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
-                        (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete", "photos/move", "photos/delete")))
-                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
+                        (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete",
+                            "photos/original-choice", "photos/move", "photos/delete")))
+                        (if (areaId == "gallery") with(density) { cardHeight.toDp() } + 20.dp
+                        else (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp) else 0.dp),
                     LocalTutorialReadOnly provides true,
                 ) { screen(displayLocation) }
                 if (areaId == "camera" && displayLocation.pageId == "pinch") {
@@ -155,13 +157,15 @@ internal fun LiveTutorialHost(
                 val availableAbove = if (target == null) 0f else target.top - topY - gap
                 val isDialogStep = page.id in setOf(
                     "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete",
-                    "photos/move", "photos/destination", "photos/delete", "viewer/delete-confirm"
+                    "photos/original-choice", "photos/move", "photos/destination",
+                    "photos/delete", "viewer/delete-confirm"
                 )
                 when {
                     // Keep gallery overview, folder browsing and photo selection guidance low.
-                    page.id in setOf("home", "home/tabs", "home/recent", "home/folders", "browse", "browse/folders", "browse/photos", "photos", "photos/select", "folders", "photos/result") -> bottomY
-                    // Selected-photo actions need a central card, clear of bottom controls.
-                    page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
+                    page.id in setOf("home", "home/tabs", "home/recent", "home/folders", "browse",
+                        "browse/folders", "browse/photos", "photos", "photos/select") -> bottomY
+                    page.id in setOf("folders", "photos/actions") -> topY
+                    // The folder popup and photo action bar are lower than their guide text.
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
                     page.id in setOf("folders/destination", "photos/destination", "viewer/delete-confirm") -> topY
@@ -331,8 +335,9 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         location.pageId == "folders/path" -> "gallery.breadcrumbs"
         location.pageId == "photos" -> "gallery.photo-grid"
         location.pageId in setOf("photos/select", "photos/result") -> "gallery.selection-header"
-        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
+        location.pageId in setOf("photos/original-choice", "photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
         location.pageId == "photos/actions" -> "gallery.selection-actions"
+        location.pageId == "folders" -> "gallery.folder-menu"
         location.sessionId == "folders" -> "gallery.child-folders"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
