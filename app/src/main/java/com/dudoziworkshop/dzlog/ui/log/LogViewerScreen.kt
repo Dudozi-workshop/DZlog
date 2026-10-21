@@ -456,13 +456,21 @@ fun LogViewerScreen(
             }
         }
         if (guidePage == "viewer/info" && resultItem != null) {
+            // The real viewer presents information as a bottom sheet. Keep its
+            // content and bottom-anchored shape without opening an input-owning ModalBottomSheet.
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)))
             Surface(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                    .padding(bottom = 132.dp).tutorialTarget("gallery.viewer-info"),
+                    .tutorialTarget("gallery.viewer-info"),
                 color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                shadowElevation = 8.dp,
             ) {
-                InfoSheetContent(item = resultItem)
+                Column(Modifier.windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                ).padding(bottom = 20.dp)) {
+                    InfoSheetContent(item = resultItem)
+                }
             }
         }
     }
