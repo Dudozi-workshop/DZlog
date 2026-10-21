@@ -5,6 +5,9 @@
 	};
 	"objectVersion" = 56;
 	"objects" = {
+        "000000000000000000000020" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "image.png"; "path" = "PoCApp/home_leaf_shadow_c.png"; "sourceTree" = "<group>"; };
+        "000000000000000000000021" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000020"; };
+        "000000000000000000000022" = { "isa" = "PBXCopyFilesBuildPhase"; "buildActionMask" = 2147483647; "dstPath" = ""; "dstSubfolderSpec" = 7; "name" = "Copy original shared PNG"; "files" = ("000000000000000000000021"); "runOnlyForDeploymentPostprocessing" = 0; };
 		"000000000000000000000001" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -56,7 +59,7 @@
 		};
 		"00000000000000000000000A" = {
 			"isa" = "PBXGroup";
-			"children" = ("000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
+			"children" = ("000000000000000000000020", "000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
 			"sourceTree" = "<group>";
 		};
 		"00000000000000000000000B" = {
@@ -113,7 +116,7 @@
 		"000000000000000000000012" = {
 			"isa" = "PBXNativeTarget";
 			"buildConfigurationList" = "000000000000000000000019";
-			"buildPhases" = ("00000000000000000000000C", "00000000000000000000000D", "00000000000000000000000E");
+			"buildPhases" = ("00000000000000000000000C", "00000000000000000000000D", "00000000000000000000000E", "000000000000000000000022");
 			"buildRules" = ();
 			"dependencies" = ();
 			"name" = "DZlogUiPoc";

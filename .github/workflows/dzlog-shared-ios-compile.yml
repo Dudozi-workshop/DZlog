@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - milestone/dzlog-pre-onboarding-20261017
+      - 'integration/ios-*'
     paths:
       - '**'
       - '!app/**'

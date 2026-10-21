@@ -36,3 +36,48 @@ iOS core183~253초, UI433~761초. UI 안에서 프레임워크203~356초,
   Notion 마이그레이션 문서에 기록한다. Draft·미병합, Android 기준 d6e53c9a 및 #37/#62 보호.
 
 앱 실행 성능·실기기 촬영/저장·접근성 AX 판정 미해결 사항은 CI 최적화와 별개다.
+
+
+## 표시 UI 변경 시 Android 전수 검사 축소 · 2026.10.20
+
+사용자 요청: 공통 표시 패널을 옮기거나 다듬을 때마다 Android607/shared JVM61개를 반복하지 않는다.
+
+- 전체 Android 입력이 동일하면 기존처럼 검사 재사용. 입력이 달라도 검토된 표시 패널 목록의
+  이동/수정뿐이고 unit 관련 입력 hash가 같으면 Android 앱·테스트 소스만 컴파일한다.
+  실행 task는 :app:compileDebugKotlin :app:compileDebugUnitTestKotlin이다.
+- 표시 패널은 guard 내부의 구체적인 경로 목록이다. Android/sharedUi 양쪽 경로를 제외해
+  같은 패널의 모듈 이동을 인식한다. Android 어댑터/세션/상태/데이터/정책/번호·이름·경로/
+  실제 저장/테스트/빌드/검사 설정/불명 파일은 unit 입력에서 제외하지 않는다.
+- 같은 PR/base/저장소·최근24시간 성공·조상 기준을 유지한다. 성공 후보 최대20개 중 전체
+  unit step이 실제 success인 job이 있는 실행만 근거로 사용한다. compile-only/REUSE job은
+  전체 테스트 성공 근거로 취급하지 않는다. API/입력 불명은 전체 검사로 복귀한다.
+- push와 Draft 해제 ready_for_review 시 전체 검사를 강제한다. 최초 정책 변경과 이번
+  TableEditorPolicy 상수 이동은 unit 입력 변경이므로 이번1회는 전체 검사 대상이다.
+  이후 같은 표시 패널만 바꾸는 커밋은 컴파일만 한다. iOS 실제 조작 검사는 별도로 유지한다.
+- summary에 이전 근거와 이번 unit 테스트 미실행을 명시한다. 컴파일 성공을 새607/61개
+  통과로 보고하지 않는다. 실제 절감 시간은 CI 결과 확인 전 확정하지 않는다.
+- 로컬 정책 검사14개/원본 비교/diff/YAML 정적 확인. 실제 compile-only CI 분기 검증은
+  최초 기준 성공 후 다음 표시 UI 변경에서 확인할 예정이며 아직 PASS가 아니다.
+
+## iOS 편집 수정 반복을 위한 검사 범위 분리
+
+사용자 지적: 편집 검사 하나의 실패를 수정할 때 기존5개 조작까지 매번 다시 실행해
+긴 대기가 반복됐다. Android/core 재사용만으로는 해결되지 않은 병목이었다.
+
+- 같은 저장소의 Draft PR 자동 실행은 editor 범위: 전체 편집 흐름1개만 실행한다.
+  xcodebuild -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch.
+- Draft 해제(ready_for_review) 및 일반 PR은 full 범위: 전체6개 검사.
+  수동 workflow_dispatch도 기본 full, 필요하면 editor 선택.
+- focused/full은 서로 다른 step 이름과 artifact명, test-scope.txt 및 Actions summary로 구분한다.
+  부분 성공을 전체 검수 완료/병합 근거로 표시하지 않는다.
+- UI 결과 재사용은 Complete iOS UI suite (no partial selection) step이 실제 성공한 실행만
+  허용한다. 부분 검사나 재사용만으로 초록인 workflow는 전체 검사 근거가 될 수 없다.
+- 기존 framework 정확 캐시, host build-for-testing1회, PNG source/bundle cmp 및
+  test-without-building을 유지한다. 검사 실패 후 다음5개를 실행하는 대기를 제거한다.
+- Node 판정15개 및 YAML/Bash 문법, mock 명령 기반 범위 분기·호스트1회 빌드·잘못된 scope
+  거부 검증 통과. 이는 iOS runtime 검증이나 실제 소요시간 측정이 아니다.
+- 이번은 CI 공통 판정 파일 변경이므로 최초1회 Android/core/프레임워크 검증과 캐시 갱신이
+  필요할 수 있다. 이후 iOS 검사 수정에는 기존 동일 Android/core 성공 근거 및 framework를
+  재사용한다. 실행 시간 단축은 새 CI 실측 전 확정하지 않는다.
+- 현재 editor는 이 PR의 활성 작업 묶음이다. 다음 화면 묶음으로 넘어갈 때 전용 검사 대상을
+  바꾸고, 각 묶음 검수 및 Draft 해제 최종 full을 분리한다.

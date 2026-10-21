@@ -2,8 +2,10 @@ name: DZlog Unified Mainline CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - milestone/dzlog-pre-onboarding-20261017
+      - 'integration/ios-*'
     paths-ignore:
       - 'docs/**'
       - 'README.md'
@@ -38,6 +40,15 @@ jobs:
           script: |
             core.setOutput('run', 'true');
             await require('./.github/scripts/dzlog_ci_reuse.cjs')({github, context, core, platform: 'android'});
+      - name: Decide whether Android unit inputs changed
+        id: units
+        if: steps.reuse.outputs.run != 'false'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.setOutput('run', 'true');
+            await require('./.github/scripts/dzlog_ci_reuse.cjs')({github, context, core, platform: 'android-unit'});
       - uses: actions/setup-java@v4
         if: steps.reuse.outputs.run != 'false'
         with:
@@ -55,19 +66,23 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Compile Android and test sources for presentation-only changes
+        if: steps.reuse.outputs.run != 'false' && steps.units.outputs.run == 'false'
+        shell: bash
+        run: bash ./gradlew :app:compileDebugKotlin :app:compileDebugUnitTestKotlin --stacktrace
       - name: Complete Android unit suite (no partial selection)
-        if: steps.reuse.outputs.run != 'false'
+        if: steps.reuse.outputs.run != 'false' && steps.units.outputs.run != 'false'
         shell: bash
         run: |
           set -euo pipefail
           chmod +x ./gradlew
           ./gradlew :shared:jvmTest :app:testDebugUnitTest --stacktrace
       - name: Verify dormant billing backend
-        if: steps.reuse.outputs.run != 'false'
+        if: steps.reuse.outputs.run != 'false' && steps.units.outputs.run != 'false'
         shell: bash
         run: node --test billing-server/test/*.test.mjs
       - name: Preserve unit test reports
-        if: always() && steps.reuse.outputs.run != 'false'
+        if: always() && steps.reuse.outputs.run != 'false' && steps.units.outputs.run != 'false'
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-mainline-unit-reports
