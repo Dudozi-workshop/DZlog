@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -87,6 +89,12 @@ internal fun TableEditorRuleListEditor(
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
+    val folderGuide = LocalTutorialLocation.current
+    LaunchedEffect(folderGuide?.pageId, isFileName) {
+        if (LocalTutorialReadOnly.current && !isFileName && folderGuide?.areaId == "saving") {
+            editorTarget = if (folderGuide.pageId == "folder/add") RuleEditorTarget.ADD else null
+        }
+    }
     val lazyListState = rememberLazyListState()
     val itemKeys = remember { mutableStateListOf<String>() }
 
