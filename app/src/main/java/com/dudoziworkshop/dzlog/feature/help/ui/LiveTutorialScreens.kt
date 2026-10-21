@@ -105,7 +105,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
             loadPhysicalChildren = { emptyList() },
             onCancel = {},
             onChoose = {},
-            movingFolderPath = if (folderMove) TutorialGalleryFixtures.DOG else null,
+            movingFolderPath = if (folderMove) TutorialGalleryFixtures.WALK else null,
         )
     } else if (location.sessionId == "viewer") {
         val viewerPhotos = remember(examples) { examples.filter { it.relativePath == TutorialGalleryFixtures.DOG } }
