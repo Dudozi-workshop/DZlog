@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardTopSpace
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -136,6 +137,7 @@ internal fun GalleryMoveDestinationPicker(
         Column(
             Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(top = if (LocalTutorialReadOnly.current) LocalTutorialCardTopSpace.current else 0.dp)
                 .padding(horizontal = DDZSpacing.screenPadding)
                 .padding(bottom = 48.dp),
         ) {
