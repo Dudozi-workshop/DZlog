@@ -105,6 +105,9 @@ internal fun LiveTutorialHost(
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                         else if (areaId == "table-detail" && page.id in setOf("save/template-confirm", "save/decision"))
                             with(density) { cardHeight.toDp() } + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else if (areaId == "gallery" && page.id in setOf(
+                                "folders/destination", "photos/destination", "viewer/delete-confirm"))
+                            with(density) { cardHeight.toDp() } + 20.dp
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
                         (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete", "photos/move", "photos/delete")))
