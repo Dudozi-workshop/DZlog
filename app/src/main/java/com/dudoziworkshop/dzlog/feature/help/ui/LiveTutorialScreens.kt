@@ -131,7 +131,7 @@ private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSetting
             onOpenOriginal = { _, _ -> }, gridColumns = settings.galleryGridColumns,
             showCounterBadges = settings.showGalleryCounterBadges,
         )
-        if (location.pageId == "photos/move") {
+        if (location.pageId in setOf("photos/original-choice", "photos/move")) {
             com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
                 selected = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG }.take(1),
                 allPhotos = examples,
