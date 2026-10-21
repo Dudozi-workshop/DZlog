@@ -198,7 +198,11 @@ fun TableEditorV2Screen(
             mode = if (!saving && tourLocation.sessionId == "structure") MockMode.LAYOUT else MockMode.EDIT
             showStyle = !saving && tourLocation.sessionId == "style"
             showSaveRules = saving && tourLocation.sessionId != "rotation"
-            saveDetailTrail = if (saving && tourLocation.sessionId != "rotation") listOf(when (tourLocation.sessionId) {
+            // Present the real Save Settings menu before entering each detail screen.
+            val menuGuidePage = tourLocation.pageId in setOf(
+                "overview", "overview/menu", "filename", "folder", "counter"
+            )
+            saveDetailTrail = if (saving && tourLocation.sessionId != "rotation" && !menuGuidePage) listOf(when (tourLocation.sessionId) {
                 "filename" -> TableEditorSaveDetail.FILE_NAME
                 "folder" -> if (tourLocation.pageId == "advanced") TableEditorSaveDetail.SAVE_MODE else TableEditorSaveDetail.SAVE_PATH
                 "counter" -> if (tourLocation.pageId.endsWith("/scope")) TableEditorSaveDetail.AUTO_NUMBER_ADVANCED else TableEditorSaveDetail.AUTO_NUMBER
