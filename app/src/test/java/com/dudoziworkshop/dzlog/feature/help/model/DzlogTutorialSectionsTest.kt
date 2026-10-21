@@ -61,6 +61,16 @@ class DzlogTutorialSectionsTest {
         assertTrue(pages.all { it.title.isNotBlank() && it.instruction.isNotBlank() })
     }
 
+    @Test fun galleryMoveFlowSelectsDestinationBeforeFinalConfirmation() {
+        val gallery = DzlogTutorialSections.area("gallery")!!
+        val folders = gallery.sessions.first { it.id == "folders" }.guidePages().map { it.id }
+        val photos = gallery.sessions.first { it.id == "photos" }.guidePages().map { it.id }
+        assertTrue(folders.indexOf("folders/destination") < folders.indexOf("folders/move"))
+        assertTrue(photos.indexOf("photos/destination") < photos.indexOf("photos/move"))
+        val all = gallery.sessions.flatMap { it.guidePages() }.map { it.id }
+        assertEquals("viewer/menu", all[23])
+    }
+
     @Test fun galleryViewerGuideCoversAllPhotoDetailControls() {
         val viewer = DzlogTutorialSections.area("gallery")!!.sessions.first { it.id == "viewer" }
         assertEquals(listOf(
