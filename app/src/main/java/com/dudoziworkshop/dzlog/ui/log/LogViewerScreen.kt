@@ -330,7 +330,6 @@ fun LogViewerScreen(
                     !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) &&
                         (!isQuickResultsViewer || quickResultOriginalByResultUri.containsKey(it.uri.toString()))
                 } == true) ::showOriginal else null,
-                guideMenu = guidePage == "viewer/menu",
                 onMove = {
                     if (guidePage == null && !operationLocked && currentItem != null) {
                         emptyAfterOperation = false
@@ -341,6 +340,32 @@ fun LogViewerScreen(
                     if (guidePage == null && !operationLocked && currentItem != null) infoSheetItem = currentItem
                 }
             )
+        }
+
+        // A real DropdownMenu opens a separate focusable Popup. Keeping it forcibly open
+        // behind the guide's full-screen pointer shield can trap input and block "Next".
+        // Reuse the exact menu entries inline in the viewer instead of creating that Popup.
+        if (guidePage == "viewer/menu" && currentItem != null) {
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .padding(top = 54.dp, end = 12.dp)
+                    .tutorialTarget("gallery.viewer-menu"),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 8.dp,
+            ) {
+                Column {
+                    ViewerMoreMenuItems(
+                        enabled = false,
+                        originalActionLabel = "원본 보기",
+                        onOriginal = {},
+                        onMove = {},
+                        onInfo = {},
+                        onSelected = {},
+                    )
+                }
+            }
         }
 
         AnimatedVisibility(
@@ -528,7 +553,6 @@ private fun ViewerTopOverlay(
     onOriginal: (() -> Unit)?,
     onMove: () -> Unit,
     onInfo: () -> Unit,
-    guideMenu: Boolean = false,
 ) {
     var menuExpanded by remember(current?.id, enabled) { mutableStateOf(false) }
     Row(
@@ -564,35 +588,46 @@ private fun ViewerTopOverlay(
                 style = MaterialTheme.typography.labelSmall,
             )
         }
-        Box(Modifier.tutorialTarget("gallery.viewer-menu")) {
+        Box {
             IconButton(onClick = { menuExpanded = true }, enabled = enabled && current != null) {
                 Icon(Icons.Default.MoreVert, contentDescription = "사진 메뉴", tint = Color.White)
             }
-            DropdownMenu(expanded = menuExpanded || guideMenu, onDismissRequest = { menuExpanded = false }) {
-                if (onOriginal != null) DropdownMenuItem(
-                    text = { Text(originalActionLabel) },
-                    onClick = {
-                        menuExpanded = false
-                        if (enabled) onOriginal()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("다른 폴더로 이동") },
-                    onClick = {
-                        menuExpanded = false
-                        if (enabled && current != null) onMove()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("사진 정보") },
-                    onClick = {
-                        menuExpanded = false
-                        if (enabled && current != null) onInfo()
-                    },
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                ViewerMoreMenuItems(
+                    enabled = enabled && current != null,
+                    originalActionLabel = originalActionLabel,
+                    onOriginal = onOriginal,
+                    onMove = onMove,
+                    onInfo = onInfo,
+                    onSelected = { menuExpanded = false },
                 )
             }
         }
     }
+}
+
+/** Single menu definition used by the real popup and the inline passive guide. */
+@Composable
+private fun ViewerMoreMenuItems(
+    enabled: Boolean,
+    originalActionLabel: String,
+    onOriginal: (() -> Unit)?,
+    onMove: () -> Unit,
+    onInfo: () -> Unit,
+    onSelected: () -> Unit,
+) {
+    if (onOriginal != null) DropdownMenuItem(
+        text = { Text(originalActionLabel) },
+        onClick = { onSelected(); if (enabled) onOriginal() },
+    )
+    DropdownMenuItem(
+        text = { Text("다른 폴더로 이동") },
+        onClick = { onSelected(); if (enabled) onMove() },
+    )
+    DropdownMenuItem(
+        text = { Text("사진 정보") },
+        onClick = { onSelected(); if (enabled) onInfo() },
+    )
 }
 
 @Composable
