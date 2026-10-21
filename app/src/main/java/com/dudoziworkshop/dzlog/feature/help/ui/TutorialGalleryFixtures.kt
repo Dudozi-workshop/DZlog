@@ -29,7 +29,9 @@ internal object TutorialGalleryFixtures {
             MediaImageItem(
                 id = -100L - index,
                 uri = Uri.parse("android.resource://" + context.packageName + "/" + pictures[index % pictures.size]),
-                displayName = "DZlog_안내_" + (index + 1) + ".jpg",
+                // Exact matching names permit the real gallery pairing policy to find the original.
+                displayName = if (path == DOG + "original/") "DZlog_안내_2.jpg"
+                    else "DZlog_안내_" + (index + 1) + ".jpg",
                 relativePath = path,
                 dateAddedSeconds = 1770000000L - index * 120L,
             )
