@@ -710,7 +710,7 @@ fun LogFolderScreen(
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
             } else if (root && showRecentPhotos) {
-                LazyColumn(modifier = photoListPinchModifier, state = photoListState,
+                LazyColumn(modifier = photoListPinchModifier.tutorialTarget("gallery.photo-grid"), state = photoListState,
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (recentPhotos.isEmpty()) {
