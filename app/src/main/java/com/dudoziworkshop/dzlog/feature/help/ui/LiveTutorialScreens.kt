@@ -11,6 +11,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.model.savingTutorialPreviewTemplate
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
@@ -74,13 +75,33 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 else -> SettingsRootScreen(onBack = {})
             }
             else -> key(location.areaId, location.sessionId) {
-                TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
-                    (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else template,
-                    includePathInCounterScope = settings.includePathInCounterScope,
-                    includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
-                    saveMode = settings.saveMode, counterPadding = settings.counterPadding,
-                    styleState = style, openSaveSettingsInitially = location.areaId == "saving",
-                    onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
+                // Read-only fixture only when the current template lacks two draggable rules.
+                val savingPreviewTemplate = remember(template, location.areaId, location.sessionId) {
+                    if (location.areaId == "saving" && location.sessionId == "filename") {
+                        savingTutorialPreviewTemplate(template)
+                    } else template
+                }
+                Box(Modifier.fillMaxSize()) {
+                    TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
+                        (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else savingPreviewTemplate,
+                        includePathInCounterScope = settings.includePathInCounterScope,
+                        includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
+                        saveMode = settings.saveMode, counterPadding = settings.counterPadding,
+                        styleState = style, openSaveSettingsInitially = location.areaId == "saving",
+                        onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
+                    if (location.areaId == "saving" && location.pageId in setOf("folder/add", "filename/sources")) {
+                        // Reuse the real source choices in a separate read-only overlay.
+                        // Neither the editor nor its scrolling content is repositioned.
+                        com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet(
+                            title = if (location.pageId == "folder/add") "폴더 추가" else "구성요소 추가",
+                            onDismiss = {},
+                        ) {
+                            com.dudoziworkshop.dzlog.ui.table.mock.SaveRuleSourceChoiceButtons(
+                                onSelect = {},
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -89,50 +110,62 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
 @Composable
 private fun LiveGalleryTutorial(location: TutorialLocation, settings: AppSettings) {
     val context = LocalContext.current
-    val viewerPhotos by produceState<List<MediaImageItem>>(emptyList()) {
-        run {
-            value = try {
-                withContext(Dispatchers.IO) {
-                    DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
-                }
-            } catch (cancelled: CancellationException) { throw cancelled }
-              catch (_: Exception) { emptyList() }
+    val examples = remember { TutorialGalleryFixtures.photos(context) }
+    val root = GalleryFolderIndexPolicy.ROOT
+    val path = if (location.pageId == "browse" || location.pageId.startsWith("browse/") || location.sessionId == "folders") TutorialGalleryFixtures.DOG else root
+    if (location.pageId in setOf("folders/destination", "photos/destination")) {
+        val folderMove = location.pageId == "folders/destination"
+        com.dudoziworkshop.dzlog.ui.log.GalleryMoveDestinationPicker(
+            allPhotos = examples,
+            knownFolderPaths = listOf(root) + TutorialGalleryFixtures.folderPaths,
+            selectedIds = if (folderMove) emptySet() else setOf(examples.first { it.relativePath == TutorialGalleryFixtures.DOG }.id),
+            initialPath = root,
+            loading = false,
+            loadError = null,
+            onRetry = {},
+            loadPhysicalChildren = { emptyList() },
+            onCancel = {},
+            onChoose = {},
+            movingFolderPath = if (folderMove) TutorialGalleryFixtures.WALK else null,
+        )
+    } else if (location.sessionId == "viewer") {
+        val viewerPhotos = remember(examples) { examples.filter { it.relativePath == TutorialGalleryFixtures.DOG } }
+        val original = remember(examples) {
+            examples.first { it.relativePath == TutorialGalleryFixtures.DOG + "original/" }
         }
-    }
-    // On a fresh install, show an isolated read-only sample instead of an empty tutorial.
-    // Existing photo libraries continue to use the actual DZlog gallery screens.
-    if (viewerPhotos.isEmpty() && location.pageId != "home") {
-        TutorialGallerySampleScreen(location)
-        return
-    }
-    if (location.sessionId == "viewer" && viewerPhotos.isNotEmpty()) {
+        val originalsByResult = remember(viewerPhotos, original) {
+            mapOf(viewerPhotos.first().uri.toString() to original)
+        }
         Box(Modifier.fillMaxSize()) {
-            LogViewerScreen(relativePath = viewerPhotos.first().relativePath,
-                items = viewerPhotos, startIndex = 0, onBack = {}, onItemsReloaded = {},
-                onRequestCloseViewer = {})
+            LogViewerScreen(
+                relativePath = TutorialGalleryFixtures.DOG,
+                items = viewerPhotos,
+                startIndex = 0,
+                onBack = {}, onItemsReloaded = {}, onRequestCloseViewer = {},
+                quickResultOriginalByResultUri = originalsByResult,
+            )
         }
     } else {
-        val folder = if (location.pageId == "browse") viewerPhotos.firstOrNull()?.relativePath
-            ?: GalleryFolderIndexPolicy.ROOT else GalleryFolderIndexPolicy.ROOT
-        val target = if (location.pageId in setOf("photos/move", "photos/delete") && viewerPhotos.isEmpty()) "gallery.content"
-            else if (location.sessionId == "viewer" || (location.pageId == "browse" && folder == GalleryFolderIndexPolicy.ROOT))
-            "gallery.content" else LocalTutorialTarget.current
-        CompositionLocalProvider(LocalTutorialTarget provides target) {
-            LogFolderScreen(relativePath = folder,
-                onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> }, onOpenOriginal = { _, _ -> },
-                gridColumns = settings.galleryGridColumns, showCounterBadges = settings.showGalleryCounterBadges)
+        LogFolderScreen(
+            relativePath = path,
+            onBack = {}, onOpenFolder = {}, onOpenPhoto = { _, _ -> },
+            onOpenOriginal = { _, _ -> }, gridColumns = settings.galleryGridColumns,
+            showCounterBadges = settings.showGalleryCounterBadges,
+        )
+        if (location.pageId in setOf("photos/original-choice", "photos/move")) {
+            com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
+                selected = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG }.take(1),
+                allPhotos = examples,
+                destinationPath = TutorialGalleryFixtures.WORK,
+                busy = false, onCancel = {}, onConfirm = {},
+            )
         }
-    }
-    val selected = viewerPhotos.take(1)
-    if (selected.isNotEmpty()) when (location.pageId) {
-        "photos/move" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoMoveConfirmation(
-            selected = selected, allPhotos = viewerPhotos,
-            destinationPath = GalleryFolderIndexPolicy.ROOT + "안내 예시/", busy = false,
-            onCancel = {}, onConfirm = {},
-        )
-        "photos/delete" -> com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
-            selected = selected, allPhotos = viewerPhotos, busy = false, onCancel = {}, onConfirm = {},
-        )
+        if (location.pageId == "photos/delete") {
+            com.dudoziworkshop.dzlog.ui.log.GalleryPhotoDeleteConfirmation(
+                selected = examples.filter { it.relativePath == TutorialGalleryFixtures.DOG }.take(1),
+                allPhotos = examples, busy = false, onCancel = {}, onConfirm = {},
+            )
+        }
     }
 }
 

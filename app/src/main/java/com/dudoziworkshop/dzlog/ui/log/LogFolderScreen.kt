@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.ui.log
 
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.TutorialGalleryFixtures
 import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -119,6 +120,11 @@ fun LogFolderScreen(
     onGridColumnsChange: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val demoGallery = LocalTutorialReadOnly.current && LocalTutorialLocation.current?.areaId == "gallery"
+    val demoPhotos = remember(demoGallery) { if (demoGallery) TutorialGalleryFixtures.photos(context) else emptyList() }
+    val demoIndex = remember(relativePath, demoGallery) {
+        if (demoGallery) GalleryFolderIndexPolicy.index(relativePath, demoPhotos.map { it.relativePath }, TutorialGalleryFixtures.folderPaths) else null
+    }
     val scope = rememberCoroutineScope()
     val displayedGridColumns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val photoListState = rememberLazyListState()
@@ -146,13 +152,13 @@ fun LogFolderScreen(
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
     var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
-    val cached = remember(relativePath) { GallerySnapshotMemory.cache.get(relativePath) }
-    var allPhotos by remember(relativePath) { mutableStateOf(cached?.allPhotos ?: emptyList()) }
-    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(cached?.index) }
+    val cached = remember(relativePath, demoGallery) { if (demoGallery) null else GallerySnapshotMemory.cache.get(relativePath) }
+    var allPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos else cached?.allPhotos ?: emptyList()) }
+    var index by remember(relativePath) { mutableStateOf<GalleryFolderIndex?>(demoIndex ?: cached?.index) }
     var summariesByPath by remember(relativePath) {
         mutableStateOf<Map<String, GalleryFolderSummary>>(cached?.summariesByPath ?: emptyMap())
     }
-    var directPhotos by remember(relativePath) { mutableStateOf(cached?.directPhotos ?: emptyList()) }
+    var directPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos.filter { it.relativePath == relativePath } else cached?.directPhotos ?: emptyList()) }
     val originalsInPlace = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
     val photos = remember(directPhotos, allPhotos, originalsInPlace, relativePath) {
         if (originalsInPlace) allPhotos.filter { it.relativePath == relativePath + "original/" }
@@ -169,7 +175,7 @@ fun LogFolderScreen(
     val displayFolderPath = if (GalleryPhotoMovePolicy.isOriginalPath(relativePath)) GalleryFolderIndexPolicy.parentOf(relativePath)
         ?: GalleryFolderIndexPolicy.ROOT else relativePath
     var error by remember(relativePath) { mutableStateOf<String?>(null) }
-    var loading by remember(relativePath) { mutableStateOf(cached == null) }
+    var loading by remember(relativePath) { mutableStateOf(!demoGallery && cached == null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var manageAction by remember { mutableStateOf<String?>(null) }
@@ -230,8 +236,12 @@ fun LogFolderScreen(
     LaunchedEffect(tourLocation, allPhotos, index) {
         if (tourLocation?.areaId == "gallery" && tourLocation.sessionId == "photos") {
             showRecentPhotos = true
-            selectedPhotoIds = allPhotos.firstOrNull()?.let { setOf(it.id) } ?: emptySet()
-            selectionActive = true
+            // Introduce the list before switching into multi-selection mode.
+            val sample = allPhotos.firstOrNull { it.relativePath == TutorialGalleryFixtures.DOG }
+                ?: allPhotos.firstOrNull()
+            val selecting = tourLocation.pageId != "photos"
+            selectedPhotoIds = if (selecting && sample != null) setOf(sample.id) else emptySet()
+            selectionActive = selecting
         } else if (tourLocation != null) {
             selectionActive = false
             selectedPhotoIds = emptySet()
@@ -249,7 +259,8 @@ fun LogFolderScreen(
             } else null
             if (exampleFolder != null) {
                 managedFolderPath = exampleFolder
-                renameName = exampleFolder.trimEnd('/').substringAfterLast('/')
+                renameName = if (tourLocation.pageId == "folders/rename") "산책 기록"
+                    else exampleFolder.trimEnd('/').substringAfterLast('/')
                 destinationPaths = listOf(GalleryFolderIndexPolicy.ROOT)
                 moveTarget = GalleryFolderIndexPolicy.ROOT
             }
@@ -339,7 +350,8 @@ fun LogFolderScreen(
         } else finishPhotoMove(prepared)
     }
 
-    DisposableEffect(context) {
+    DisposableEffect(context, demoGallery) {
+        if (demoGallery) return@DisposableEffect onDispose { }
         val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 GallerySnapshotMemory.cache.invalidate()
@@ -351,11 +363,22 @@ fun LogFolderScreen(
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (demoGallery) return@LifecycleEventEffect
         connected = folderStorage.isConnected()
         reloadKey++
     }
 
-    LaunchedEffect(reader, relativePath, reloadKey) {
+    LaunchedEffect(reader, relativePath, reloadKey, demoGallery) {
+        if (demoGallery) {
+            val sample = TutorialGalleryFixtures.photos(context)
+            index = GalleryFolderIndexPolicy.index(relativePath, sample.map { it.relativePath }, TutorialGalleryFixtures.folderPaths)
+            allPhotos = sample
+            directPhotos = sample.filter { it.relativePath == relativePath }
+            summariesByPath = emptyMap()
+            loading = false
+            error = null
+            return@LaunchedEffect
+        }
         loading = index == null
         val result = runCatching {
             withContext(Dispatchers.IO) {
@@ -407,6 +430,7 @@ fun LogFolderScreen(
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
     fun startPhotoDelete() {
+        if (demoGallery) return
         if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         val requestedIds = selectedPhotoIds
         retryDeletePlan = null
@@ -462,6 +486,7 @@ fun LogFolderScreen(
         }
     }
     fun startPhotoMove() {
+        if (demoGallery) return
         if (selectedPhotoIds.isEmpty() || operationLocked || manageAction != null) return
         folderOperationError = null
         retryPhotoPlan = null
@@ -495,6 +520,7 @@ fun LogFolderScreen(
         }
     }
     fun startFolderManagement(path: String, action: String) {
+        if (demoGallery) return
         if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
         connected = folderStorage.isConnected()
         if (!connected) {
@@ -593,7 +619,7 @@ fun LogFolderScreen(
         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
         .padding(horizontal = 16.dp)) {
         if (selectionActive) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-header"), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = ::cancelSelection, enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) { Text("취소") }
                 Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f),
                     color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold,
@@ -604,7 +630,7 @@ fun LogFolderScreen(
                 }
             }
         } else {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.header")) {
                 IconButton(enabled = !navigationLocked, onClick = { if (!navigationLocked) {
                     when {
                         showRecentPhotos -> showRecentPhotos = false
@@ -689,7 +715,7 @@ fun LogFolderScreen(
                     OutlinedButton(onClick = { reloadKey++ }) { Text("다시 시도") }
                 }
             } else if (root && showRecentPhotos) {
-                LazyColumn(modifier = photoListPinchModifier, state = photoListState,
+                LazyColumn(modifier = photoListPinchModifier.tutorialTarget("gallery.photo-grid"), state = photoListState,
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)) {
                     if (recentPhotos.isEmpty()) {
@@ -792,13 +818,13 @@ fun LogFolderScreen(
                         }
                     }
                     if (!originalGrid) item {
-                        GallerySectionTitle(
+                        Box(Modifier.fillMaxWidth().tutorialTarget("gallery.child-folders")) { GallerySectionTitle(
                             title = "하위 폴더",
                             actionLabel = "새 폴더",
                             onAction = { folderOperationError = null; showCreateDialog = true },
                             actionEnabled = !selectionActive && !navigationLocked,
                             showAddIcon = true,
-                        )
+                        ) }
                     }
                     if (current != null && current.children.isNotEmpty()) {
                         items(current.children, key = { it.relativePath }) { folder ->
@@ -812,7 +838,7 @@ fun LogFolderScreen(
                         }
                     }
                     if (visiblePhotos.isNotEmpty()) item {
-                        Row(Modifier.fillMaxWidth().padding(top = 8.dp),
+                        Row(Modifier.fillMaxWidth().tutorialTarget("gallery.folder-photos").padding(top = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("${if (originalGrid) "원본사진" else "사진"} ${visiblePhotos.size}장",
