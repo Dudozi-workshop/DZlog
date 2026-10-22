@@ -51,6 +51,15 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
         XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 30))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--home-navigation"]
+        app.launch()
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
     }
 
     private func text(_ label: String) -> XCUIElement {
