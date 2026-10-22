@@ -18,14 +18,16 @@ class CaptureSoundOutputPolicyTest {
         }
     }
 
-    @Test fun mandatoryPlatformShutterCannotBeReplacedOrMuted() {
+    @Test fun mandatoryPlatformShutterKeepsUserChosenEffect() {
         CaptureSoundChoice.entries.forEach { choice ->
-            listOf(true, false).forEach { enabled ->
-                assertEquals(
-                    CaptureSoundOutput.SYSTEM,
-                    captureSoundOutput(enabled, choice, platformShutterRequired = true),
-                )
-            }
+            assertEquals(
+                CaptureSoundOutput.SYSTEM_AND_CUSTOM,
+                captureSoundOutput(true, choice, platformShutterRequired = true),
+            )
+            assertEquals(
+                CaptureSoundOutput.SYSTEM,
+                captureSoundOutput(false, choice, platformShutterRequired = true),
+            )
         }
     }
 
