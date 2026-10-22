@@ -88,7 +88,8 @@ internal fun IosPhotoKitGalleryScreen(
     }
 
     Column(
-        Modifier.fillMaxSize().background(DDZColor.Background).padding(20.dp),
+        Modifier.fillMaxSize().background(DDZColor.Background)
+            .safeDrawingPadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
