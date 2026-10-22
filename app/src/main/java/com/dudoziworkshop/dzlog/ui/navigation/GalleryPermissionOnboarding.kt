@@ -127,7 +127,7 @@ internal fun RequiredPermissionsGate(
         if (uri == null) {
             selectedFolderPath = null
             folderGuideNotice = if (onboarding) {
-                "폴더 선택을 취소했어요. Pictures에 DZlog 폴더가 없다면 새 폴더를 만들어 주세요."
+                "폴더 선택을 취소했어요. Pictures 폴더를 선택하면 DZlog 폴더가 자동으로 준비돼요."
             } else {
                 "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
             }
@@ -136,7 +136,9 @@ internal fun RequiredPermissionsGate(
         }
         connectingFolder = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { storage.connect(uri) } }
+            val result = withContext(Dispatchers.IO) {
+                runCatching { storage.connect(uri, allowPicturesForOnboarding = onboarding) }
+            }
             connectingFolder = false
             folderConnected = storage.isConnected()
             result.onSuccess {
@@ -147,7 +149,8 @@ internal fun RequiredPermissionsGate(
                     DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
                 }.getOrDefault("선택한 폴더")
                 folderGuideNotice = if (onboarding) {
-                    "Pictures/DZlog 폴더를 선택해야 해요. 폴더가 없다면 Pictures에서 새 폴더를 만들어 주세요."
+                    result.exceptionOrNull()?.message
+                        ?: "Pictures 폴더를 선택하고 접근을 허용해 주세요."
                 } else {
                     "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
                 }
@@ -300,6 +303,7 @@ internal fun CurrentSetupGuide(
     photoAccess: GalleryMediaAccess,
     cameraRequestAttempted: Boolean,
     photoRequestAttempted: Boolean,
+    onboarding: Boolean = false,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -315,8 +319,12 @@ internal fun CurrentSetupGuide(
         } else {
             "2단계 · 사진 접근" to "아래 버튼을 누른 뒤 ‘모든 사진 허용’을 선택해 주세요. 최근 촬영과 DZlog 갤러리를 빠짐없이 보여주는 데 사용해요."
         }
-        RequiredSetupStep.FOLDER -> "3단계 · DZlog 폴더 연결" to
-            "Pictures 안의 DZlog 폴더를 연결해 주세요. 처음 설치해 폴더가 없다면 다음 화면에서 ‘새 폴더’로 DZlog를 만들고, 그 폴더를 연 뒤 ‘이 폴더 사용’을 선택해 주세요. 기존 사진은 변경되지 않아요."
+        RequiredSetupStep.FOLDER -> "3단계 · DZlog 저장 폴더 연결" to
+            if (onboarding) {
+                "내장 저장공간의 Pictures 폴더를 선택한 뒤 ‘이 폴더 사용’을 눌러 주세요. DZlog 폴더가 없으면 앱이 자동 생성해요. Android는 Pictures 전체 접근을 허용하지만 DZlog는 DZlog 폴더만 관리해요."
+            } else {
+                "Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
+            }
     }
     Surface(color = colors.SelectedSoft, shape = MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth().padding(spacing.controlGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
