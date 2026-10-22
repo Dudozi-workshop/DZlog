@@ -171,7 +171,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
             )
             Text(
                 if (mandatoryPlatformShutter) {
-                    "이 기기는 촬영 시 Android 기본 셔터음 출력이 필수입니다. 실제 촬영에서는 기기 정책이 우선하며, 해당 소리의 음량은 DZlog에서 변경할 수 없습니다."
+                    "이 기기는 실제 촬영 시 Android 기본 셔터음이 필수로 재생됩니다. 선택한 효과음도 함께 들리지만 두 소리가 겹칠 수 있어요. 앱 음량 설정은 추가 효과음에만 적용됩니다."
                 } else {
                     "기본 셔터음은 DZlog에서 제공하는 부드러운 효과음이며, 0%에서는 앱 효과음이 재생되지 않습니다."
                 },
