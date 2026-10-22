@@ -43,6 +43,7 @@ internal class CaptureFeedback(context: Context) {
             if (status == 0) ready.add(sampleId)
         }
         soundIds = mapOf(
+            CaptureSoundChoice.SYSTEM to soundPool.load(appContext, R.raw.dzlog_default_soft, 1),
             CaptureSoundChoice.SOFT_CONTAREX to soundPool.load(appContext, R.raw.dzlog_contarex_soft, 1),
             CaptureSoundChoice.CLASSIC_WERRA to soundPool.load(appContext, R.raw.dzlog_werra_classic, 1),
             CaptureSoundChoice.DIGITAL_DSLR to soundPool.load(appContext, R.raw.dzlog_dslr_digital, 1),
@@ -60,9 +61,13 @@ internal class CaptureFeedback(context: Context) {
         if (successVibrationEnabled && vibrationStrength != CaptureVibrationStrength.OFF) {
             runCatching { vibrate(vibrationStrength) }
         }
-        // Use public Android audio APIs only. CameraX and device policy retain
-        // control of any mandatory OS shutter sound; never alter system volume.
-        when (captureSoundOutput(soundEnabled, soundChoice)) {
+        // Never alter system volume or mute a mandatory platform shutter.
+        // Every optional DZlog sound uses the same gain-adjustable media stream.
+        when (captureSoundOutput(
+            enabled = soundEnabled,
+            selected = soundChoice,
+            platformShutterRequired = isPlatformShutterRequired(),
+        )) {
             CaptureSoundOutput.OFF -> Unit
             CaptureSoundOutput.SYSTEM -> {
                 runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
@@ -85,7 +90,7 @@ internal class CaptureFeedback(context: Context) {
         .build()
 
     private fun previewResource(choice: CaptureSoundChoice): Int? = when (choice) {
-        CaptureSoundChoice.SYSTEM -> null
+        CaptureSoundChoice.SYSTEM -> R.raw.dzlog_default_soft
         CaptureSoundChoice.SOFT_CONTAREX -> R.raw.dzlog_contarex_soft
         CaptureSoundChoice.CLASSIC_WERRA -> R.raw.dzlog_werra_classic
         CaptureSoundChoice.DIGITAL_DSLR -> R.raw.dzlog_dslr_digital
@@ -106,35 +111,29 @@ internal class CaptureFeedback(context: Context) {
     @Synchronized
     fun preview(choice: CaptureSoundChoice, volume: Int): Boolean = runCatching {
         stopPreview()
-        if (choice == CaptureSoundChoice.SYSTEM) {
-            // Platform sound follows Android's shutter and device-volume policy.
-            systemSound.play(MediaActionSound.SHUTTER_CLICK)
-            true
-        } else {
-            val resource = previewResource(choice) ?: return@runCatching false
-            val media = MediaPlayer.create(
-                appContext, resource, previewAttributes,
-                AudioManager.AUDIO_SESSION_ID_GENERATE,
-            ) ?: return@runCatching false
-            previewPlayer = media
-            val gain = volume.coerceIn(0, 100) / 100f * choice.playbackGain
-            media.setVolume(gain, gain)
-            media.setOnCompletionListener { finished ->
-                synchronized(this) {
-                    if (previewPlayer === finished) previewPlayer = null
-                }
-                runCatching { finished.release() }
+        val resource = previewResource(choice) ?: return@runCatching false
+        val media = MediaPlayer.create(
+            appContext, resource, previewAttributes,
+            AudioManager.AUDIO_SESSION_ID_GENERATE,
+        ) ?: return@runCatching false
+        previewPlayer = media
+        val gain = volume.coerceIn(0, 100) / 100f * choice.playbackGain
+        media.setVolume(gain, gain)
+        media.setOnCompletionListener { finished ->
+            synchronized(this) {
+                if (previewPlayer === finished) previewPlayer = null
             }
-            media.setOnErrorListener { failed, _, _ ->
-                synchronized(this) {
-                    if (previewPlayer === failed) previewPlayer = null
-                }
-                runCatching { failed.release() }
-                true
+            runCatching { finished.release() }
+        }
+        media.setOnErrorListener { failed, _, _ ->
+            synchronized(this) {
+                if (previewPlayer === failed) previewPlayer = null
             }
-            media.start()
+            runCatching { failed.release() }
             true
         }
+        media.start()
+        true
     }.getOrDefault(false)
 
     /** Demonstrate only the requested strength; OFF does not vibrate. */
@@ -191,6 +190,16 @@ internal class CaptureFeedback(context: Context) {
             @Suppress("DEPRECATION")
             appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
+
+    companion object {
+        /**
+         * Android 13+ publicly exposes regional shutter requirements. Honor the
+         * platform when mandatory; do not attempt a quieter substitute.
+         */
+        fun isPlatformShutterRequired(): Boolean =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                runCatching { MediaActionSound.mustPlayShutterSound() }.getOrDefault(true)
+    }
 
     fun release() {
         stopPreview()
