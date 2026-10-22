@@ -77,9 +77,18 @@ jobs:
         with:
           path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
           key: dzlog-ui-framework-v1-${{ github.event.pull_request.number }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ steps.reuse.outputs.framework }}
-      - name: Build existing shared UI for iPhone and simulator
+      - name: Build shared UI for selected validation scope
         if: steps.reuse.outputs.run != 'false' && steps.framework-cache.outputs.cache-hit != 'true'
-        run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:compileKotlinIosArm64 :sharedUi:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+        env:
+          DZLOG_UI_TEST_SCOPE: ${{ steps.scope.outputs.value }}
+        run: |
+          # Focused Draft checks compile only the simulator framework they execute.
+          # Full/integration checks still compile native iPhone code as a release gate.
+          tasks=(:sharedUi:linkDebugFrameworkIosSimulatorArm64)
+          if [ "$DZLOG_UI_TEST_SCOPE" = "full" ]; then
+            tasks=(:sharedUi:compileKotlinIosArm64 "${tasks[@]}")
+          fi
+          bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true "${tasks[@]}" --stacktrace
       - name: Save compiled framework even if later UI tests fail
         if: steps.reuse.outputs.run != 'false' && steps.reuse.outputs.framework != '' && steps.framework-cache.outputs.cache-hit != 'true'
         continue-on-error: true
