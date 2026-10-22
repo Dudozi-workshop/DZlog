@@ -27,7 +27,9 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
+            IosCameraCapturePoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
             PhotoKitMediaFlowPoc()
         } else if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_NAVIGATION_TEST_KEY,
