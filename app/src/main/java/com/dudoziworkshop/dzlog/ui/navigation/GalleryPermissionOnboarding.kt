@@ -90,9 +90,13 @@ internal fun openAppPermissionSettings(context: Context) {
     }
 }
 
-private fun dzlogFolderInitialUri(): Uri = DocumentsContract.buildTreeDocumentUri(
+/** A fresh install may not have created Pictures/DZlog yet. */
+internal fun folderPickerStartDocumentId(onboarding: Boolean): String =
+    if (onboarding) "primary:Pictures" else "primary:Pictures/DZlog"
+
+private fun dzlogFolderInitialUri(onboarding: Boolean = false): Uri = DocumentsContract.buildTreeDocumentUri(
     "com.android.externalstorage.documents",
-    "primary:Pictures/DZlog",
+    folderPickerStartDocumentId(onboarding),
 )
 
 /** Actual grants, never a stored onboarding-completed flag, control access. */
@@ -122,13 +126,19 @@ internal fun RequiredPermissionsGate(
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) {
             selectedFolderPath = null
-            folderGuideNotice = "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
+            folderGuideNotice = if (onboarding) {
+                "폴더 선택을 취소했어요. Pictures 폴더를 선택하면 DZlog 폴더가 자동으로 준비돼요."
+            } else {
+                "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
+            }
             showFolderGuide = !onboarding
             return@rememberLauncherForActivityResult
         }
         connectingFolder = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { storage.connect(uri) } }
+            val result = withContext(Dispatchers.IO) {
+                runCatching { storage.connect(uri, allowPicturesForOnboarding = onboarding) }
+            }
             connectingFolder = false
             folderConnected = storage.isConnected()
             result.onSuccess {
@@ -138,7 +148,12 @@ internal fun RequiredPermissionsGate(
                 selectedFolderPath = runCatching {
                     DocumentsContract.getTreeDocumentId(uri).substringAfter(':')
                 }.getOrDefault("선택한 폴더")
-                folderGuideNotice = "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
+                folderGuideNotice = if (onboarding) {
+                    result.exceptionOrNull()?.message
+                        ?: "Pictures 폴더를 선택하고 접근을 허용해 주세요."
+                } else {
+                    "선택한 위치가 달라요. Pictures/DZlog 폴더 자체를 선택해 주세요."
+                }
                 showFolderGuide = !onboarding
             }
         }
@@ -193,7 +208,7 @@ internal fun RequiredPermissionsGate(
                             if (onboarding) {
                                 // Android's document picker opens directly from the
                                 // in-onboarding permission page (no extra DZlog dialog).
-                                runCatching { folderPicker.launch(dzlogFolderInitialUri()) }
+                                runCatching { folderPicker.launch(dzlogFolderInitialUri(onboarding = true)) }
                                     .onFailure {
                                         folderGuideNotice =
                                             "폴더 선택 화면을 열지 못했어요. 다시 시도해 주세요."
@@ -288,6 +303,7 @@ internal fun CurrentSetupGuide(
     photoAccess: GalleryMediaAccess,
     cameraRequestAttempted: Boolean,
     photoRequestAttempted: Boolean,
+    onboarding: Boolean = false,
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -303,8 +319,12 @@ internal fun CurrentSetupGuide(
         } else {
             "2단계 · 사진 접근" to "아래 버튼을 누른 뒤 ‘모든 사진 허용’을 선택해 주세요. 최근 촬영과 DZlog 갤러리를 빠짐없이 보여주는 데 사용해요."
         }
-        RequiredSetupStep.FOLDER -> "3단계 · DZlog 폴더 연결" to
-            "마지막으로 Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
+        RequiredSetupStep.FOLDER -> "3단계 · DZlog 저장 폴더 연결" to
+            if (onboarding) {
+                "Pictures 폴더를 선택해 주세요. DZlog 전용 폴더는 자동으로 만들어져요.\n\n선택한 Pictures 폴더에 대한 접근 권한이 부여되며, DZlog는 DZlog 폴더 안에서만 파일을 관리해요."
+            } else {
+                "Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
+            }
     }
     Surface(color = colors.SelectedSoft, shape = MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth().padding(spacing.controlGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {

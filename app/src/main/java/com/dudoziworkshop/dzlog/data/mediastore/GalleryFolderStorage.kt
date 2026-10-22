@@ -19,20 +19,63 @@ class GalleryFolderStorage(context: Context) {
 
     fun isConnected(): Boolean = connectedTree() != null
 
-    fun connect(treeUri: Uri) {
-        val documentId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull()
+    /**
+     * The onboarding picker may grant Pictures instead of a not-yet-created DZlog folder.
+     * Only onboarding may provision the child directory; all storage operations remain
+     * constrained to Pictures/DZlog, even when the persisted SAF grant is broader.
+     */
+    fun connect(treeUri: Uri, allowPicturesForOnboarding: Boolean = false) {
+        val documentId = runCatching {
+            DocumentsContract.getTreeDocumentId(treeUri).trimEnd('/')
+        }.getOrNull()
+        val exactDzlog = documentId == DZLOG_DOCUMENT_ID
+        val onboardingPictures = allowPicturesForOnboarding && documentId == PICTURES_DOCUMENT_ID
         require(
-            treeUri.authority == "com.android.externalstorage.documents" &&
-                documentId?.trimEnd('/') == "primary:Pictures/DZlog"
-        ) { "내장 저장공간의 Pictures/DZlog 폴더를 정확히 선택해 주세요." }
+            treeUri.authority == EXTERNAL_STORAGE_AUTHORITY && (exactDzlog || onboardingPictures)
+        ) {
+            if (allowPicturesForOnboarding) {
+                "내장 저장공간의 Pictures 또는 Pictures/DZlog 폴더를 선택해 주세요."
+            } else {
+                "내장 저장공간의 Pictures/DZlog 폴더를 정확히 선택해 주세요."
+            }
+        }
+        if (onboardingPictures) ensureDzlogDirectory(treeUri)
         require(isExpectedRootAccessible(treeUri)) {
-            "선택한 Pictures/DZlog 폴더를 확인할 수 없습니다. 폴더가 존재하는지 확인해 주세요."
+            "Pictures/DZlog 폴더를 확인할 수 없습니다. 다시 시도해 주세요."
         }
         resolver.takePersistableUriPermission(
             treeUri,
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
         )
         preferences.edit().putString(TREE_KEY, treeUri.toString()).apply()
+    }
+
+    /** Never create media placeholders or overwrite an existing file or directory. */
+    private fun ensureDzlogDirectory(picturesTree: Uri) {
+        require(isAccessibleDirectory(picturesTree, PICTURES_DOCUMENT_ID, "Pictures")) {
+            "선택한 Pictures 폴더를 확인할 수 없습니다."
+        }
+        val picturesUri = DocumentsContract.buildDocumentUriUsingTree(
+            picturesTree, PICTURES_DOCUMENT_ID,
+        )
+        val sameName = listChildren(picturesTree, picturesUri).filter {
+            it.name.equals("DZlog", ignoreCase = true)
+        }
+        require(sameName.size <= 1 &&
+            sameName.all {
+                it.name == "DZlog" &&
+                    it.id == DZLOG_DOCUMENT_ID &&
+                    it.mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+            }
+        ) { "Pictures 안에 이름이 겹치는 항목이 있어 DZlog 폴더를 만들 수 없습니다." }
+        if (sameName.isEmpty()) {
+            val created = DocumentsContract.createDocument(
+                resolver, picturesUri, DocumentsContract.Document.MIME_TYPE_DIR, "DZlog",
+            ) ?: error("DZlog 폴더를 자동으로 만들지 못했습니다. 저장소 설정을 확인해 주세요.")
+            check(DocumentsContract.getDocumentId(created) == DZLOG_DOCUMENT_ID) {
+                "생성된 폴더 경로가 예상과 다릅니다. 파일 관리자에서 확인해 주세요."
+            }
+        }
     }
 
     /**
@@ -57,7 +100,7 @@ class GalleryFolderStorage(context: Context) {
         val result = mutableListOf(root)
         val queue = ArrayDeque<Pair<String, Uri>>()
         queue.add(root to DocumentsContract.buildDocumentUriUsingTree(
-            tree, DocumentsContract.getTreeDocumentId(tree),
+            tree, DZLOG_DOCUMENT_ID,
         ))
         while (queue.isNotEmpty()) {
             val (path, parent) = queue.removeFirst()
@@ -212,13 +255,18 @@ class GalleryFolderStorage(context: Context) {
     }
 
     private fun isExpectedRootAccessible(tree: Uri): Boolean {
-        val treeId = runCatching { DocumentsContract.getTreeDocumentId(tree) }.getOrNull()
-            ?: return false
-        if (tree.authority != "com.android.externalstorage.documents" ||
-            treeId.trimEnd('/') != "primary:Pictures/DZlog"
+        val treeId = runCatching {
+            DocumentsContract.getTreeDocumentId(tree).trimEnd('/')
+        }.getOrNull() ?: return false
+        if (tree.authority != EXTERNAL_STORAGE_AUTHORITY ||
+            (treeId != DZLOG_DOCUMENT_ID && treeId != PICTURES_DOCUMENT_ID)
         ) return false
+        return isAccessibleDirectory(tree, DZLOG_DOCUMENT_ID, "DZlog")
+    }
+
+    private fun isAccessibleDirectory(tree: Uri, documentId: String, expectedName: String): Boolean {
         val document = runCatching {
-            DocumentsContract.buildDocumentUriUsingTree(tree, treeId)
+            DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
         }.getOrNull() ?: return false
         return runCatching {
             resolver.query(
@@ -228,17 +276,12 @@ class GalleryFolderStorage(context: Context) {
                     DocumentsContract.Document.COLUMN_DISPLAY_NAME,
                     DocumentsContract.Document.COLUMN_MIME_TYPE,
                 ),
-                null,
-                null,
-                null,
+                null, null, null,
             )?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use false
-                val id = cursor.getString(0)?.trimEnd('/')
-                val name = cursor.getString(1)
-                val mimeType = cursor.getString(2)
-                id == "primary:Pictures/DZlog" &&
-                    name == "DZlog" &&
-                    mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+                cursor.moveToFirst() &&
+                    cursor.getString(0)?.trimEnd('/') == documentId &&
+                    cursor.getString(1) == expectedName &&
+                    cursor.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR
             } == true
         }.getOrDefault(false)
     }
@@ -247,7 +290,7 @@ class GalleryFolderStorage(context: Context) {
         val root = GalleryFolderIndexPolicy.ROOT
         require(path == root || path.startsWith(root)) { "DZlog 폴더 밖의 경로는 사용할 수 없습니다." }
         var current = DocumentsContract.buildDocumentUriUsingTree(
-            tree, DocumentsContract.getTreeDocumentId(tree),
+            tree, DZLOG_DOCUMENT_ID,
         )
         val segments = path.removePrefix(root).trim('/').split('/').filter(String::isNotBlank)
         for (segment in segments) {
@@ -285,5 +328,8 @@ class GalleryFolderStorage(context: Context) {
 
     companion object {
         private const val TREE_KEY = "connected_dzlog_tree_uri"
+        private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
+        private const val PICTURES_DOCUMENT_ID = "primary:Pictures"
+        private const val DZLOG_DOCUMENT_ID = "primary:Pictures/DZlog"
     }
 }
