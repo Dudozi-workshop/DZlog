@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dzq018-capture-sound-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   focused-android-tests:
     runs-on: ubuntu-latest
