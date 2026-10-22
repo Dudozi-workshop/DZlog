@@ -38,11 +38,11 @@ jobs:
       - name: Build isolated sound QA APK
         run: |
           bash ./gradlew --no-daemon :app:assembleDebug \
-            -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=sfx3
+            -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=sfx4
       - name: Upload isolated sound QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: dzlog-sfx3-volume-qa-apk
+          name: dzlog-sfx4-capture-sound-qa-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
