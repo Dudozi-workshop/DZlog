@@ -2,14 +2,20 @@ package com.dudoziworkshop.dzlog.feature.capture.policy
 
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
 
-/** A custom shutter never falls back to an unexpectedly loud system click. */
+/** Do not substitute or suppress a shutter the device requires by policy. */
 internal enum class CaptureSoundOutput { OFF, SYSTEM, CUSTOM }
 
+/**
+ * All optional DZlog clicks, including the bundled default, share one
+ * app-controlled audio path. Only a mandatory platform click uses SYSTEM.
+ */
 internal fun captureSoundOutput(
     enabled: Boolean,
     selected: CaptureSoundChoice,
+    platformShutterRequired: Boolean = false,
 ): CaptureSoundOutput = when {
+    platformShutterRequired -> CaptureSoundOutput.SYSTEM
     !enabled -> CaptureSoundOutput.OFF
-    selected == CaptureSoundChoice.SYSTEM -> CaptureSoundOutput.SYSTEM
-    else -> CaptureSoundOutput.CUSTOM
+    selected.available -> CaptureSoundOutput.CUSTOM
+    else -> CaptureSoundOutput.OFF
 }
