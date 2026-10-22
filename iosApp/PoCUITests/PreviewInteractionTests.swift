@@ -42,14 +42,14 @@ final class PreviewInteractionTests: XCTestCase {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
             }
         }
-        XCTAssertTrue(text("저장 완료: 2개").waitForExistence(timeout: 45))
-        XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("저장: 저장 완료: 2개").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
         app.launchArguments = ["--media-flow"]
         app.launch()
         XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
-        XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
         app.launchArguments = ["--home-navigation"]
