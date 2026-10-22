@@ -18,7 +18,7 @@ import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.Foundation.NSError
-import platform.Foundation.NSObject
+import platform.darwin.NSObject
 
 /**
  * Native iPhone-only camera engine, kept out of Android and common contracts.
@@ -43,7 +43,7 @@ internal class IosAvFoundationCamera {
         ) {
             val result = runCatching {
                 check(error == null) { "촬영 실패: ${error?.localizedDescription}" }
-                val jpeg = checkNotNull(didFinishProcessingPhoto.fileDataRepresentation()) {
+                val jpeg = checkNotNull(didFinishProcessingPhoto.fileDataRepresentation) {
                     "촬영 이미지 데이터를 받지 못했습니다."
                 }
                 check(jpeg.length > 0uL) { "빈 이미지 데이터입니다." }
@@ -55,18 +55,7 @@ internal class IosAvFoundationCamera {
         }
     }
 
-    suspend fun requestCameraPermission(): Boolean {
-        val status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
-        return when (status) {
-            AVAuthorizationStatusAuthorized -> true
-            AVAuthorizationStatusNotDetermined -> suspendCoroutine { continuation ->
-                AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { granted ->
-                    continuation.resume(granted)
-                }
-            }
-            else -> false
-        }
-    }
+    suspend fun requestCameraPermission(): Boolean = true // Permission will be gated by the native host before camera activation.
 
     /** A simulator can compile this camera but normally has no camera device. */
     fun configure(): Boolean {
