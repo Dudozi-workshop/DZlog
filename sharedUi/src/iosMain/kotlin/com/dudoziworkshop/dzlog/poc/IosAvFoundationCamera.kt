@@ -55,7 +55,7 @@ internal class IosAvFoundationCamera {
         }
     }
 
-    suspend fun requestCameraPermission(): Boolean = true // Permission will be gated by the native host before camera activation.
+    suspend fun requestCameraPermission(): Boolean = false // Fail closed until native permission bridge is verified.
 
     /** A simulator can compile this camera but normally has no camera device. */
     fun configure(): Boolean {
