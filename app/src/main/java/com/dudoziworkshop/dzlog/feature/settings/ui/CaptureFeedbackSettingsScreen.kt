@@ -62,6 +62,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
     val player = remember(context) { CaptureFeedback(context) }
+    val mandatoryPlatformShutter = remember { CaptureFeedback.isPlatformShutterRequired() }
     DisposableEffect(player) { onDispose { player.release() } }
     BackHandler(onBack = onBack)
     var draftVolume by remember { mutableFloatStateOf(settings.captureSoundVolume.toFloat()) }
@@ -144,7 +145,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
             }
 
             Text(
-                "사용자 정의 효과음 음량  ${draftVolume.roundToInt()}%",
+                "촬영 효과음 음량  ${draftVolume.roundToInt()}%",
                 style = DDZTypography.Body,
                 color = DDZColor.TextPrimary,
             )
@@ -157,19 +158,23 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                     }
                 },
                 valueRange = 0f..100f,
-                enabled = settings.captureSoundChoice != CaptureSoundChoice.SYSTEM,
+                enabled = true,
                 colors = SliderDefaults.colors(
                     thumbColor = DDZColor.Selected,
                     activeTrackColor = DDZColor.Selected,
                 ),
             )
             Text(
-                "미리 듣기는 기기 미디어 음량을 사용하며 0%에서는 소리가 나지 않습니다.",
+                "기본 셔터음을 포함한 5종 모두 같은 음량 설정을 사용합니다. 미리 듣기는 기기 미디어 음량을 따릅니다.",
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
             )
             Text(
-                "Android 기본 셔터음은 시스템 정책을 따르므로 앱에서 별도로 음량을 조절할 수 없습니다.",
+                if (mandatoryPlatformShutter) {
+                    "이 기기는 촬영 시 Android 기본 셔터음 출력이 필수입니다. 실제 촬영에서는 기기 정책이 우선하며, 해당 소리의 음량은 DZlog에서 변경할 수 없습니다."
+                } else {
+                    "기본 셔터음은 DZlog에서 제공하는 부드러운 효과음이며, 0%에서는 앱 효과음이 재생되지 않습니다."
+                },
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
             )
