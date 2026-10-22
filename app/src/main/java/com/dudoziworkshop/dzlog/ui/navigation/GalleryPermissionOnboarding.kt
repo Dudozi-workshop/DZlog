@@ -321,7 +321,7 @@ internal fun CurrentSetupGuide(
         }
         RequiredSetupStep.FOLDER -> "3단계 · DZlog 저장 폴더 연결" to
             if (onboarding) {
-                "내장 저장공간의 Pictures 폴더를 선택한 뒤 ‘이 폴더 사용’을 눌러 주세요. DZlog 폴더가 없으면 앱이 자동 생성해요. Android는 Pictures 전체 접근을 허용하지만 DZlog는 DZlog 폴더만 관리해요."
+                "Pictures 폴더를 선택해 주세요. DZlog 전용 폴더는 자동으로 만들어져요.\n\n선택한 Pictures 폴더에 대한 접근 권한이 부여되며, DZlog는 DZlog 폴더 안에서만 파일을 관리해요."
             } else {
                 "Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
             }
