@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.feature.help.model
 
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -103,4 +105,31 @@ class DzlogTutorialSectionsTest {
         assertEquals(0, tutorialPageIndex(pages, "removed-page"))
         assertEquals(0, tutorialPageIndex(pages, ""))
     }
+    @Test fun savingGesturesShowTwoItemsWithoutMutatingTheUserTemplate() {
+        val empty = TableTemplateState(rows = 1, cols = 1, cells = emptyList())
+        val preview = savingTutorialPreviewTemplate(empty)
+        assertTrue(empty.fileNameSlotDrafts.all { it == null })
+        assertEquals(2, preview.fileNameSlotDrafts.count { it != null })
+        assertEquals("MANUAL", preview.fileNameSlotDrafts[0]?.kind)
+        assertEquals("FORMAT", preview.fileNameSlotDrafts[1]?.kind)
+
+        val existing = TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "기존")
+        val one = empty.copy(fileNameSlotDrafts = listOf(existing) + List(4) { null })
+        val supplemented = savingTutorialPreviewTemplate(one)
+        assertEquals(existing, supplemented.fileNameSlotDrafts.first())
+        assertEquals(2, supplemented.fileNameSlotDrafts.count { it != null })
+        assertEquals(1, one.fileNameSlotDrafts.count { it != null })
+
+        val ready = empty.copy(fileNameSlotDrafts = listOf(existing, existing) + List(3) { null })
+        assertSame(ready, savingTutorialPreviewTemplate(ready))
+    }
+
+    @Test fun savingSourceChoiceExplanationMatchesTheActualFourOptions() {
+        val sources = DzlogTutorialSections.area("saving")!!
+            .sessions.first { it.id == "filename" }
+            .guidePages().first { it.id == "filename/sources" }.instruction
+        assertTrue(sources.contains("네 가지"))
+        assertFalse(sources.contains("순환문구"))
+    }
+
 }

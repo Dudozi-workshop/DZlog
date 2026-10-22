@@ -11,6 +11,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.feature.help.model.TutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.model.savingTutorialPreviewTemplate
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
@@ -74,9 +75,15 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 else -> SettingsRootScreen(onBack = {})
             }
             else -> key(location.areaId, location.sessionId) {
+                // Read-only fixture only when the current template lacks two draggable rules.
+                val savingPreviewTemplate = remember(template, location.areaId, location.sessionId) {
+                    if (location.areaId == "saving" && location.sessionId == "filename") {
+                        savingTutorialPreviewTemplate(template)
+                    } else template
+                }
                 Box(Modifier.fillMaxSize()) {
                     TableEditorV2Screen(templateState = if ((location.areaId == "table-detail" && location.sessionId in setOf("cells", "structure")) ||
-                        (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else template,
+                        (location.areaId == "saving" && location.sessionId == "rotation")) guideQuickTemplate() else savingPreviewTemplate,
                         includePathInCounterScope = settings.includePathInCounterScope,
                         includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                         saveMode = settings.saveMode, counterPadding = settings.counterPadding,
