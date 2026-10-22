@@ -179,7 +179,10 @@ internal fun CameraQuickValueSheet(
         }
     }
     fun commit() {
-        if (!readOnlyGuide && draft.dirty && !switching) { latestCommit.value(draft.template); draft.dirty = false }
+        if (!readOnlyGuide && draft.dirty && !switching) {
+            latestCommit.value(draft.template)
+            draft.dirty = false
+        }
     }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) commit() }
@@ -198,7 +201,7 @@ internal fun CameraQuickValueSheet(
             }
         ) requester.requestFocus()
     }
-    GuideAwareDialog(onDismiss = { if (!switching) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false,
+    GuideAwareDialog(onDismiss = { if (!switching) { commit(); onDismiss() } }, properties = DialogProperties(usePlatformDefaultWidth = false,
         decorFitsSystemWindows = false, dismissOnClickOutside = false)) {
         // Focus belongs to the dialog window; do not retain the camera window's manager.
         val focus = LocalFocusManager.current
