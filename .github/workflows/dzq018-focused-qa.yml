@@ -35,6 +35,17 @@ jobs:
       - name: Compile and run focused tests
         run: |
           bash ./gradlew --no-daemon :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundOutputPolicyTest'
+      - name: Build isolated sound QA APK
+        run: |
+          bash ./gradlew --no-daemon :app:assembleDebug \
+            -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=sfx3
+      - name: Upload isolated sound QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-sfx3-volume-qa-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
       - name: Save test results
         if: always()
         uses: actions/upload-artifact@v4
