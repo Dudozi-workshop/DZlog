@@ -72,6 +72,10 @@ internal class CaptureFeedback(context: Context) {
             CaptureSoundOutput.SYSTEM -> {
                 runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
             }
+            CaptureSoundOutput.SYSTEM_AND_CUSTOM -> {
+                runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
+                runCatching { playCustom(soundChoice, soundVolume) }
+            }
             CaptureSoundOutput.CUSTOM -> {
                 // A not-yet-loaded or failed custom sample must not trigger a
                 // second, much louder platform shutter in its place.
