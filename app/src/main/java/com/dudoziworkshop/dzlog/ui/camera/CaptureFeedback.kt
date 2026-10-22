@@ -13,6 +13,8 @@ import android.os.VibratorManager
 import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
 import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundOutput
+import com.dudoziworkshop.dzlog.feature.capture.policy.captureSoundOutput
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -25,8 +27,9 @@ internal class CaptureFeedback(context: Context) {
         .setMaxStreams(2)
         .setAudioAttributes(
             AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                // Match preview playback and the user's media-volume controls.
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
         )
         .build()
@@ -59,12 +62,15 @@ internal class CaptureFeedback(context: Context) {
         }
         // Use public Android audio APIs only. CameraX and device policy retain
         // control of any mandatory OS shutter sound; never alter system volume.
-        if (soundEnabled) {
-            runCatching {
-                if (soundChoice == CaptureSoundChoice.SYSTEM ||
-                    !playCustom(soundChoice, soundVolume)) {
-                    systemSound.play(MediaActionSound.SHUTTER_CLICK)
-                }
+        when (captureSoundOutput(soundEnabled, soundChoice)) {
+            CaptureSoundOutput.OFF -> Unit
+            CaptureSoundOutput.SYSTEM -> {
+                runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
+            }
+            CaptureSoundOutput.CUSTOM -> {
+                // A not-yet-loaded or failed custom sample must not trigger a
+                // second, much louder platform shutter in its place.
+                runCatching { playCustom(soundChoice, soundVolume) }
             }
         }
     }
