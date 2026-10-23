@@ -43,7 +43,7 @@ internal class IosAvFoundationCamera {
         ) {
             val result = runCatching {
                 check(error == null) { "촬영 실패: ${error?.localizedDescription}" }
-                val jpeg = checkNotNull(didFinishProcessingPhoto.fileDataRepresentation) {
+                val jpeg = checkNotNull(didFinishProcessingPhoto.fileDataRepresentation()) {
                     "촬영 이미지 데이터를 받지 못했습니다."
                 }
                 check(jpeg.length > 0uL) { "빈 이미지 데이터입니다." }
