@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import platform.Foundation.NSUUID
+import platform.CoreGraphics.CGRectMake
 import platform.UIKit.UIView
 
 private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
@@ -78,7 +79,7 @@ internal fun IosCameraCapturePoc() {
             UIKitView(
                 modifier = Modifier.fillMaxWidth().height(360.dp),
                 factory = {
-                    object : UIView() {
+                    object : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
                         override fun layoutSubviews() {
                             super.layoutSubviews()
                             camera.previewLayer.frame = bounds
