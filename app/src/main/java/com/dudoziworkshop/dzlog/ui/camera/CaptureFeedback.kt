@@ -6,6 +6,8 @@ import android.media.AudioManager
 import android.media.MediaActionSound
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.util.Log
+import androidx.camera.core.CameraInfo
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -61,8 +63,8 @@ internal class CaptureFeedback(context: Context) {
         if (successVibrationEnabled && vibrationStrength != CaptureVibrationStrength.OFF) {
             runCatching { vibrate(vibrationStrength) }
         }
-        // Never alter system volume or mute a mandatory platform shutter.
-        // Every optional DZlog sound uses the same gain-adjustable media stream.
+        // Optional: play only the user-selected sound, without system fallback.
+        // A regionally required shutter is preserved as the sole playback path.
         when (captureSoundOutput(
             enabled = soundEnabled,
             selected = soundChoice,
@@ -72,14 +74,11 @@ internal class CaptureFeedback(context: Context) {
             CaptureSoundOutput.SYSTEM -> {
                 runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
             }
-            CaptureSoundOutput.SYSTEM_AND_CUSTOM -> {
-                runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
-                runCatching { playCustom(soundChoice, soundVolume) }
-            }
             CaptureSoundOutput.CUSTOM -> {
-                // A not-yet-loaded or failed custom sample must not trigger a
-                // second, much louder platform shutter in its place.
-                runCatching { playCustom(soundChoice, soundVolume) }
+                val played = runCatching { playCustom(soundChoice, soundVolume) }.getOrDefault(false)
+                if (!played && soundVolume > 0) {
+                    Log.w("DZlogCaptureFeedback", "Selected sample unavailable: ${soundChoice.name}")
+                }
             }
         }
     }
@@ -197,12 +196,11 @@ internal class CaptureFeedback(context: Context) {
 
     companion object {
         /**
-         * Android 13+ publicly exposes regional shutter requirements. Honor the
-         * platform when mandatory; do not attempt a quieter substitute.
+         * CameraX 1.4+ checks regional shutter requirements on older APIs too.
+         * Fail closed if the device does not return a reliable answer.
          */
         fun isPlatformShutterRequired(): Boolean =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                runCatching { MediaActionSound.mustPlayShutterSound() }.getOrDefault(true)
+            runCatching { CameraInfo.mustPlayShutterSound() }.getOrDefault(true)
     }
 
     fun release() {

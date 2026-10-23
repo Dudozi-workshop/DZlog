@@ -6,32 +6,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CaptureSoundOutputPolicyTest {
-    @Test fun mutedOptionalShutterNeverPlays() {
-        CaptureSoundChoice.entries.forEach {
-            assertEquals(CaptureSoundOutput.OFF, captureSoundOutput(false, it))
-        }
-    }
-
-    @Test fun everyOptionalShutterIncludingDefaultUsesBundledSample() {
-        CaptureSoundChoice.entries.forEach {
-            assertEquals(CaptureSoundOutput.CUSTOM, captureSoundOutput(true, it))
-        }
-    }
-
-    @Test fun mandatoryPlatformShutterKeepsUserChosenEffect() {
+    @Test fun soundOffDoesNotRequestAppAudioWithoutRegionalRequirement() {
         CaptureSoundChoice.entries.forEach { choice ->
             assertEquals(
-                CaptureSoundOutput.SYSTEM_AND_CUSTOM,
-                captureSoundOutput(true, choice, platformShutterRequired = true),
-            )
-            assertEquals(
-                CaptureSoundOutput.SYSTEM,
-                captureSoundOutput(false, choice, platformShutterRequired = true),
+                CaptureSoundOutput.OFF,
+                captureSoundOutput(false, choice, platformShutterRequired = false),
             )
         }
     }
 
-    @Test fun playbackLevelsAreBoundedAndSignatureIsTrimmed() {
+    @Test fun soundOnPlaysOnlyTheSelectedBundledSampleWhenAllowed() {
+        CaptureSoundChoice.entries.forEach { choice ->
+            assertEquals(
+                CaptureSoundOutput.CUSTOM,
+                captureSoundOutput(true, choice, platformShutterRequired = false),
+            )
+        }
+    }
+
+    @Test fun requiredPlatformSoundIsTheOnlyPlaybackPath() {
+        CaptureSoundChoice.entries.forEach { choice ->
+            listOf(false, true).forEach { enabled ->
+                assertEquals(
+                    CaptureSoundOutput.SYSTEM,
+                    captureSoundOutput(enabled, choice, platformShutterRequired = true),
+                )
+            }
+        }
+    }
+
+    @Test fun soundGainConfigurationIsStableAndBounded() {
         CaptureSoundChoice.entries.forEach { choice ->
             assertTrue(choice.playbackGain > 0f)
             assertTrue(choice.playbackGain <= 1f)

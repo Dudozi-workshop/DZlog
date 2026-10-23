@@ -2,20 +2,18 @@ package com.dudoziworkshop.dzlog.feature.capture.policy
 
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
 
-/** A required platform shutter may not be muted or substituted by a custom effect. */
-internal enum class CaptureSoundOutput { OFF, SYSTEM, CUSTOM, SYSTEM_AND_CUSTOM }
+/** Exactly one requested sound for each exposure, with no double playback. */
+internal enum class CaptureSoundOutput { OFF, SYSTEM, CUSTOM }
 
 /**
- * A required system click does not cancel the user's explicitly selected effect.
- * If a region requires the platform sound, both sounds play on the same capture
- * event. Muting the optional sound still keeps the mandatory click.
+ * Honor regional platform shutter requirements. Otherwise use the selected
+ * DZlog sample and never add a platform click on top of it.
  */
 internal fun captureSoundOutput(
     enabled: Boolean,
     selected: CaptureSoundChoice,
     platformShutterRequired: Boolean = false,
 ): CaptureSoundOutput = when {
-    platformShutterRequired && enabled && selected.available -> CaptureSoundOutput.SYSTEM_AND_CUSTOM
     platformShutterRequired -> CaptureSoundOutput.SYSTEM
     !enabled -> CaptureSoundOutput.OFF
     selected.available -> CaptureSoundOutput.CUSTOM
