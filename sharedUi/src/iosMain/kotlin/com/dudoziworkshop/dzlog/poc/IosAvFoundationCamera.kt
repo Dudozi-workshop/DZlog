@@ -17,7 +17,9 @@ import platform.AVFoundation.AVCaptureSessionPresetPhoto
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
+import platform.Foundation.NSData
 import platform.Foundation.NSError
+import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
 /**
@@ -43,7 +45,13 @@ internal class IosAvFoundationCamera {
         ) {
             val result = runCatching {
                 check(error == null) { "촬영 실패: ${error?.localizedDescription}" }
-                val jpeg = checkNotNull(didFinishProcessingPhoto.fileDataRepresentation()) {
+                // Kotlin 2.0.21's bundled AVFoundation klib does not expose this
+                // zero-argument Objective-C selector as a typed Kotlin member.
+                // Call the documented selector and fail if the bridge gives no NSData.
+                val data = didFinishProcessingPhoto.performSelector(
+                    NSSelectorFromString("fileDataRepresentation")
+                )
+                val jpeg = checkNotNull(data as? NSData) {
                     "촬영 이미지 데이터를 받지 못했습니다."
                 }
                 check(jpeg.length > 0uL) { "빈 이미지 데이터입니다." }
