@@ -21,6 +21,47 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
     }
 
+
+    func testMediaFixturePhotoKitSaveAndRelaunch() {
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
+            let allow = alert.buttons["Allow Full Access"]
+            if allow.exists { allow.tap(); return true }
+            let older = alert.buttons["Allow Access to All Photos"]
+            if older.exists { older.tap(); return true }
+            return false
+        }
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        tapButton("테스트 사진 저장")
+        // Trigger the interruption monitor and allow PhotoKit to finish asynchronously.
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+            let alert = springboard.alerts.firstMatch
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            }
+        }
+        XCTAssertTrue(text("저장: 저장 완료: 2개").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--home-navigation"]
+        app.launch()
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
+    }
+
     private func text(_ label: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
