@@ -8,6 +8,9 @@
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>0.0.1</string>
 <key>MinimumOSVersion</key><string>15.0</string>
+<key>NSCameraUsageDescription</key><string>DZlog needs camera access to take photos for your records.</string>
+<key>NSPhotoLibraryUsageDescription</key><string>DZlog needs photo library access to save original and annotated pictures, display saved pictures, and restore albums.</string>
+<key>NSPhotoLibraryAddUsageDescription</key><string>DZlog saves pictures you capture into your photo library.</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>CADisableMinimumFrameDurationOnPhone</key><true/>
 <key>UILaunchScreen</key><dict/>

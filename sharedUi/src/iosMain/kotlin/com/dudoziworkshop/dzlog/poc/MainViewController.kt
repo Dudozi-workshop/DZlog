@@ -19,15 +19,22 @@ import com.dudoziworkshop.dzlog.ui.theme.*
 import platform.UIKit.UIViewController
 import platform.Foundation.*
 
-/** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
+/** Existing entry point retains its signature for all UI tests and normal launches. */
+fun MainViewController(): UIViewController = MainViewControllerWithCameraPermission(false)
+
+/** Only the Swift host may supply the result of an actual AVCaptureDevice permission check. */
 @OptIn(ExperimentalComposeApi::class)
-fun MainViewController(): UIViewController = ComposeUIViewController(configure = {
+fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UIViewController = ComposeUIViewController(configure = {
     // Compose 1.7 requires explicit synchronization for XCTest without VoiceOver.
     // This host is PoC-only; Android and the shared dialog implementation are unchanged.
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
+            IosCameraCapturePoc(permissionGranted = cameraPermissionGranted)
+        } else if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
+            PhotoKitMediaFlowPoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_NAVIGATION_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-navigation-fixture"))
         } else if (NSProcessInfo.processInfo.arguments.contains("--editor-flow")) {

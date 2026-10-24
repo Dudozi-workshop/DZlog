@@ -1,14 +1,20 @@
 package com.dudoziworkshop.dzlog.poc
 
+import androidx.compose.foundation.Image as ComposeImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.*
+import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
+import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
+import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsRootContent
 import com.dudoziworkshop.dzlog.domain.time.formatCaptureTime
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Content
@@ -38,6 +44,26 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var notice by remember { mutableStateOf(if (loadFailed) "기존 편집 문서를 읽지 못했습니다. 덮어쓰지 않도록 편집을 잠갔습니다." else null) }
     val editorPlatform = remember { IosTableEditorPlatform { notice = it } }
     var showEditor by remember { mutableStateOf(false) }
+    var showGallery by remember { mutableStateOf(false) }
+    val photoRepository = remember { PhotoKitCaptureMediaRepository() }
+    var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
+    var recentPhotoName by remember { mutableStateOf("") }
+    LaunchedEffect(showGallery) {
+        if (!showGallery) {
+            val indexed = runCatching { photoRepository.listSavedAssets() }.getOrDefault(emptyList())
+            val newestCapture = indexed.lastOrNull()?.captureId
+            val recent = indexed.lastOrNull {
+                it.captureId == newestCapture && it.asset.target.role == CaptureMediaRole.RESULT &&
+                    it.availability == CaptureMediaAvailability.PRESENT
+            } ?: indexed.lastOrNull { it.availability == CaptureMediaAvailability.PRESENT }
+            recentPhoto = null
+            recentPhotoName = recent?.asset?.target?.displayName.orEmpty()
+            if (recent != null) {
+                val bytes = runCatching { photoRepository.readAsset(recent.asset.assetId) }.getOrNull()
+                recentPhoto = bytes?.let { runCatching { Image.makeFromEncoded(it).toComposeImageBitmap() }.getOrNull() }
+            }
+        }
+    }
     var showList by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var qualityExpanded by remember { mutableStateOf(false) }
@@ -86,7 +112,9 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             NamingFormatDefaults.FILE_NAME_DELIMITER, savedDocument.includePathInScope, savedDocument.includeFilenameInScope,
             savedDocument.saveMode, savedDocument.nextCounter, 0))
     }
-    if (showEditor) {
+    if (showGallery) {
+        IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })
+    } else if (showEditor) {
         key(currentTemplate.id) {
             TableEditorV2Content(
                 platform = editorPlatform, templateState = currentTemplate.templateState,
@@ -170,9 +198,17 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             background = { HomeAmbientContent(painter = leaf) },
             recentCapture = {
                 HomeRecentCaptureContent(
-                    hasImage = false, displayName = "", timeText = "", recentLabel = "최근 촬영",
+                    hasImage = recentPhoto != null, displayName = recentPhotoName,
+                    timeText = "DZlog 저장 사진", recentLabel = "최근 촬영",
                     emptyTitle = "아직 촬영한 사진이 없어요.", emptyHint = "첫 기록을 남겨보세요.",
-                    onOpenAlbum = {}, onOpenImage = {}, albumEnabled = false,
+                    onOpenAlbum = { showGallery = true }, onOpenImage = { showGallery = true },
+                    albumEnabled = true,
+                    imageContent = {
+                        recentPhoto?.let { photo ->
+                            ComposeImage(bitmap = photo, contentDescription = "최근 사진",
+                                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        }
+                    },
                 )
             },
         )
