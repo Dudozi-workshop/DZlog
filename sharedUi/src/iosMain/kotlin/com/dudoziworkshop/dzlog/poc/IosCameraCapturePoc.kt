@@ -39,7 +39,7 @@ private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
  * The normal iOS home/camera entry point remains unchanged during M3-A.
  */
 @Composable
-internal fun IosCameraCapturePoc() {
+internal fun IosCameraCapturePoc(permissionGranted: Boolean) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }
     val scope = rememberCoroutineScope()
@@ -50,7 +50,7 @@ internal fun IosCameraCapturePoc() {
 
     LaunchedEffect(camera) {
         try {
-            if (!camera.requestCameraPermission()) {
+            if (!permissionGranted) {
                 status = "카메라 권한이 없습니다."
             } else if (!camera.configure()) {
                 status = "카메라를 사용할 수 없는 기기입니다."
