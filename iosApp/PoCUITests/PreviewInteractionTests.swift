@@ -42,14 +42,14 @@ final class PreviewInteractionTests: XCTestCase {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
             }
         }
-        XCTAssertTrue(text("저장 완료: 2개").waitForExistence(timeout: 45))
-        XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("저장: 저장 완료: 2개").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
         app.launchArguments = ["--media-flow"]
         app.launch()
         XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
-        XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
         app.launchArguments = ["--home-navigation"]
@@ -60,6 +60,17 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapButton("뒤로가기")
         XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
+    }
+
+    // Denied permission must never start a camera session or allow capturing.
+    // This test-only argument forces denial; real OS permission prompts need device QA.
+    func testCameraPermissionDeniedBlocksCapture() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("저장 완료 수: 0").exists)
+        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
     }
 
     private func text(_ label: String) -> XCUIElement {

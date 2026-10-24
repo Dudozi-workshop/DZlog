@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -88,7 +89,8 @@ internal fun IosPhotoKitGalleryScreen(
     }
 
     Column(
-        Modifier.fillMaxSize().background(DDZColor.Background).padding(20.dp),
+        Modifier.fillMaxSize().background(DDZColor.Background)
+            .safeDrawingPadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

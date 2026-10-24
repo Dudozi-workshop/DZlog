@@ -29,6 +29,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     private func resolveCameraPermission(completion: @escaping (Bool) -> Void) {
+        // Deterministic UI fixture only: may force denial, never grant permission.
+        if CommandLine.arguments.contains("--deny-camera-permission-for-ui-test") {
+            completion(false)
+            return
+        }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             completion(true)
