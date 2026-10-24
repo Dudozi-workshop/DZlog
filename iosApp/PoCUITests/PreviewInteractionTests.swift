@@ -62,6 +62,17 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
     }
 
+    // Denied permission must never start a camera session or allow capturing.
+    // This test-only argument forces denial; real OS permission prompts need device QA.
+    func testCameraPermissionDeniedBlocksCapture() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("저장 완료 수: 0").exists)
+        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+    }
+
     private func text(_ label: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
