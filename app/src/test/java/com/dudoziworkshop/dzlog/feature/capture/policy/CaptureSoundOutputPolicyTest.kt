@@ -35,6 +35,28 @@ class CaptureSoundOutputPolicyTest {
         }
     }
 
+    @Test fun requiredTrueIsNotConflatedWithQueryFailure() {
+        val required = classifyShutterRequirement(Result.success(true))
+        val failure = classifyShutterRequirement(Result.failure(IllegalStateException("unavailable")))
+        assertEquals(ShutterRequirementStatus.REQUIRED, required.status)
+        assertEquals(ShutterRequirementStatus.QUERY_FAILED, failure.status)
+        assertEquals("IllegalStateException", failure.errorType)
+        assertTrue(required.requiresSystemShutter)
+        assertTrue(failure.requiresSystemShutter)
+    }
+
+    @Test fun nonRequiredPolicyCanUseCustomSelection() {
+        val observation = classifyShutterRequirement(Result.success(false))
+        assertEquals(ShutterRequirementStatus.NOT_REQUIRED, observation.status)
+        assertEquals(false, observation.requiresSystemShutter)
+        CaptureSoundChoice.entries.forEach { choice ->
+            assertEquals(
+                CaptureSoundOutput.CUSTOM,
+                captureSoundOutput(true, choice, platformShutterRequired = observation.requiresSystemShutter),
+            )
+        }
+    }
+
     @Test fun soundGainConfigurationIsStableAndBounded() {
         CaptureSoundChoice.entries.forEach { choice ->
             assertTrue(choice.playbackGain > 0f)
