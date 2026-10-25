@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.data.datastore
 
 /** Stable persisted values: never reorder or reuse an ID. */
 enum class CaptureSoundChoice(val storedId: Int, val label: String) {
-    SYSTEM(0, "기본 셔터 (부드럽게)"),
+    SYSTEM(0, "기본 촬영음"),
     SOFT_CONTAREX(1, "소프트 Contarex"),
     CLASSIC_WERRA(2, "클래식 Werra"),
     DIGITAL_DSLR(3, "디지털 DSLR"),
