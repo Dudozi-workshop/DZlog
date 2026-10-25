@@ -19,6 +19,18 @@ import com.dudoziworkshop.dzlog.ui.theme.*
 import platform.UIKit.UIViewController
 import platform.Foundation.*
 
+/** Native iOS camera presentation. Swift already resolved the OS permission state. */
+@OptIn(ExperimentalComposeApi::class)
+fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = ComposeUIViewController(configure = {
+    accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
+}) {
+    DDZTheme {
+        IosCameraCapturePoc(permissionGranted = cameraPermissionGranted, onBack = {
+            NSNotificationCenter.defaultCenter.postNotificationName("dzlog.dismissCamera", null)
+        })
+    }
+}
+
 /** Existing entry point retains its signature for all UI tests and normal launches. */
 fun MainViewController(): UIViewController = MainViewControllerWithCameraPermission(false)
 

@@ -187,14 +187,17 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             labels = HomeLabels("설정", "현재 템플릿",
                 "다음 촬영 번호 " + if (selected) formatMockCounter(savedDocument.nextCounter ?: 1, savedDocument.counterPadding) else "0001",
                 "촬영 시작", "표 편집", "저장 정보"),
-            onManageTemplates = { showList = true }, onOpenSettings = { showSettings = true }, onStartCamera = {},
+            onManageTemplates = { showList = true }, onOpenSettings = { showSettings = true },
+            onStartCamera = {
+                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+            },
             onOpenTableEditor = {
                 if (workspace.documents.isEmpty()) showList = true else openEditor(workspace.activeTemplateId, false)
             }, onOpenSaveInfo = { showSaveInfo = true },
             modifier = Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
             bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding(),
-            captureEnabled = false, settingsEnabled = !loadFailed, editingEnabled = !loadFailed, saveInfoEnabled = true,
+            captureEnabled = !loadFailed, settingsEnabled = !loadFailed, editingEnabled = !loadFailed, saveInfoEnabled = true,
             background = { HomeAmbientContent(painter = leaf) },
             recentCapture = {
                 HomeRecentCaptureContent(

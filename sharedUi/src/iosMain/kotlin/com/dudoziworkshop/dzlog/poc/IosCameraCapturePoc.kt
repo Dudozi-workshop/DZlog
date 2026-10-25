@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -39,7 +40,7 @@ private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
  * The normal iOS home/camera entry point remains unchanged during M3-A.
  */
 @Composable
-internal fun IosCameraCapturePoc(permissionGranted: Boolean) {
+internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit)? = null) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }
     val scope = rememberCoroutineScope()
@@ -69,9 +70,12 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean) {
 
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background)
-            .padding(20.dp),
+            .safeDrawingPadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (onBack != null) {
+            Button(onClick = onBack) { Text("뒤로가기") }
+        }
         Text("iOS M3-A 실제 촬영 검증")
         Text(status)
         Text("저장 완료 수: $successfulSaves")

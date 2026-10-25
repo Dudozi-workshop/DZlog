@@ -73,6 +73,20 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
     }
 
+    // Real home entry uses the Swift permission gate and preserves the home VC on return.
+    func testHomeCameraPermissionDeniedEntryAndReturn() {
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(button("촬영 시작").isEnabled)
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+        tapButton("뒤로가기")
+        XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("다음 촬영 번호 0001").exists)
+    }
+
     private func text(_ label: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
