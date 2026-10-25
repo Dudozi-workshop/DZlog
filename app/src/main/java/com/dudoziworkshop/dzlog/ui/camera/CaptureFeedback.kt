@@ -16,7 +16,11 @@ import com.dudoziworkshop.dzlog.R
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
 import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundOutput
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundDiagnosticSnapshot
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundDiagnostics
+import com.dudoziworkshop.dzlog.feature.capture.policy.ShutterRequirementProbe
 import com.dudoziworkshop.dzlog.feature.capture.policy.captureSoundOutput
+import com.dudoziworkshop.dzlog.feature.capture.policy.classifyShutterRequirement
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -63,24 +67,39 @@ internal class CaptureFeedback(context: Context) {
         if (successVibrationEnabled && vibrationStrength != CaptureVibrationStrength.OFF) {
             runCatching { vibrate(vibrationStrength) }
         }
-        // Optional: play only the user-selected sound, without system fallback.
-        // A regionally required shutter is preserved as the sole playback path.
-        when (captureSoundOutput(
+        val requirement = shutterRequirementProbe()
+        val output = captureSoundOutput(
             enabled = soundEnabled,
             selected = soundChoice,
-            platformShutterRequired = isPlatformShutterRequired(),
-        )) {
-            CaptureSoundOutput.OFF -> Unit
-            CaptureSoundOutput.SYSTEM -> {
-                runCatching { systemSound.play(MediaActionSound.SHUTTER_CLICK) }
-            }
+            platformShutterRequired = requirement.requiresSystemShutter,
+        )
+        val started: Boolean? = when (output) {
+            CaptureSoundOutput.OFF -> null
+            CaptureSoundOutput.SYSTEM -> runCatching {
+                systemSound.play(MediaActionSound.SHUTTER_CLICK)
+                true
+            }.getOrDefault(false)
             CaptureSoundOutput.CUSTOM -> {
                 val played = runCatching { playCustom(soundChoice, soundVolume) }.getOrDefault(false)
                 if (!played && soundVolume > 0) {
                     Log.w("DZlogCaptureFeedback", "Selected sample unavailable: ${soundChoice.name}")
                 }
+                played
             }
         }
+        CaptureSoundDiagnostics.lastExposure.value = CaptureSoundDiagnosticSnapshot(
+            requirement = requirement,
+            enabled = soundEnabled,
+            selected = soundChoice,
+            volume = soundVolume,
+            route = output,
+            playbackStarted = started,
+        )
+        Log.d(
+            "DZlogCaptureFeedback",
+            "policy=${requirement.status} error=${requirement.errorType ?: "-"} " +
+                "enabled=$soundEnabled choice=${soundChoice.name} route=$output started=$started",
+        )
     }
 
     // Preview is a deliberate foreground action. Unlike SoundPool's asynchronous
@@ -195,12 +214,12 @@ internal class CaptureFeedback(context: Context) {
         }
 
     companion object {
-        /**
-         * CameraX 1.4+ checks regional shutter requirements on older APIs too.
-         * Fail closed if the device does not return a reliable answer.
-         */
+        /** CameraX 1.4+ handles older devices; retain the query result for QA. */
+        fun shutterRequirementProbe(): ShutterRequirementProbe =
+            classifyShutterRequirement(runCatching { CameraInfo.mustPlayShutterSound() })
+
         fun isPlatformShutterRequired(): Boolean =
-            runCatching { CameraInfo.mustPlayShutterSound() }.getOrDefault(true)
+            shutterRequirementProbe().requiresSystemShutter
     }
 
     fun release() {

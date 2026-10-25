@@ -40,6 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.BuildConfig
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureSoundDiagnostics
+import com.dudoziworkshop.dzlog.feature.capture.policy.ShutterRequirementStatus
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
@@ -62,7 +65,8 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val settings by AppSettingsStore.flow(context).collectAsState(initial = AppSettings.Default)
     val player = remember(context) { CaptureFeedback(context) }
-    val mandatoryPlatformShutter = remember { CaptureFeedback.isPlatformShutterRequired() }
+    val shutterProbe = remember { CaptureFeedback.shutterRequirementProbe() }
+    val lastExposure by CaptureSoundDiagnostics.lastExposure.collectAsState()
     DisposableEffect(player) { onDispose { player.release() } }
     BackHandler(onBack = onBack)
     var draftVolume by remember { mutableFloatStateOf(settings.captureSoundVolume.toFloat()) }
@@ -170,14 +174,42 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                 color = DDZColor.TextSecondary,
             )
             Text(
-                if (mandatoryPlatformShutter) {
-                    "이 기기는 촬영음 출력이 요구됩니다. 미리 듣기는 가능하지만 실제 촬영에서는 Android 기본 셔터음만 재생되며, 앱 음량 슬라이더는 해당 기본음에 적용되지 않습니다."
-                } else {
-                    "기본 셔터음은 DZlog에서 제공하는 부드러운 효과음이며, 0%에서는 앱 효과음이 재생되지 않습니다."
+                when (shutterProbe.status) {
+                    ShutterRequirementStatus.REQUIRED ->
+                        "Android가 이 기기에서 촬영음을 요구한다고 보고했습니다. 실제 촬영에서는 기본 시스템음을 재생합니다."
+                    ShutterRequirementStatus.QUERY_FAILED ->
+                        "촬영음 요구 여부를 조회하지 못해 기본 시스템음으로 처리합니다. 아래 QA 진단을 확인하세요."
+                    ShutterRequirementStatus.NOT_REQUIRED ->
+                        "선택한 DZlog 효과음만 재생하며, 소리 OFF 또는 음량 0%에서는 앱 효과음이 없습니다."
                 },
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
             )
+            if (BuildConfig.DEBUG) {
+                Text("QA · 촬영음 진단", style = DDZTypography.Body, color = DDZColor.PrimaryDark)
+                Text(
+                    "현재 기기 판정: ${shutterProbe.status}" +
+                        (shutterProbe.errorType?.let { " (조회 오류: $it)" } ?: ""),
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
+                Text(
+                    lastExposure?.let { record ->
+                        val playback = when (record.playbackStarted) {
+                            true -> "재생 호출 성공(실제 청감 미확인)"
+                            false -> "재생 요청 실패"
+                            null -> "재생 요청 없음"
+                        }
+                        "마지막 촬영: 판정=${record.requirement.status}, " +
+                            "효과음=${if (record.enabled) "ON" else "OFF"}, " +
+                            "선택=${record.selected.label}, 음량=${record.volume}%, " +
+                            "실제 경로=${record.route}, $playback" +
+                            (record.requirement.errorType?.let { ", 오류=$it" } ?: "")
+                    } ?: "마지막 촬영 기록 없음. 카메라로 촬영한 뒤 다시 확인하세요.",
+                    style = DDZTypography.Caption,
+                    color = DDZColor.TextSecondary,
+                )
+            }
             Text("촬영 진동", style = DDZTypography.Body, color = DDZColor.PrimaryDark)
             val selectedStrength = if (settings.captureHapticEnabled)
                 settings.captureVibrationStrength else CaptureVibrationStrength.OFF
