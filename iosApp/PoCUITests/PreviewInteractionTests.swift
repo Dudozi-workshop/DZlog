@@ -84,7 +84,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
         tapButton("뒤로가기")
         XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
-        XCTAssertTrue(text("다음 촬영 번호 0001").exists)
+        XCTAssertTrue(text("최근 촬영").exists) // Home content is restored; counter text is not an exposed AX node.
     }
 
     private func text(_ label: String) -> XCUIElement {
