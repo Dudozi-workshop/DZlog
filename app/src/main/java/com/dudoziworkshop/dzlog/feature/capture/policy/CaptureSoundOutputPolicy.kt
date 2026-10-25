@@ -2,20 +2,22 @@ package com.dudoziworkshop.dzlog.feature.capture.policy
 
 import com.dudoziworkshop.dzlog.data.datastore.CaptureSoundChoice
 
-/** Exactly one requested sound for each exposure, with no double playback. */
+/** Route the app's optional feedback independently of the camera capture. */
 internal enum class CaptureSoundOutput { OFF, SYSTEM, CUSTOM }
 
 /**
- * Honor regional platform shutter requirements. Otherwise use the selected
- * DZlog sample and never add a platform click on top of it.
+ * Preserve the pre-DZQ-018 user-facing sound toggle:
+ * OFF makes no app audio request, and an available selected effect plays once.
+ * The platform requirement is independently recorded in capture diagnostics;
+ * it does not prove that CameraX itself produced an audible shutter.
  */
 internal fun captureSoundOutput(
     enabled: Boolean,
     selected: CaptureSoundChoice,
     platformShutterRequired: Boolean = false,
 ): CaptureSoundOutput = when {
-    platformShutterRequired -> CaptureSoundOutput.SYSTEM
     !enabled -> CaptureSoundOutput.OFF
     selected.available -> CaptureSoundOutput.CUSTOM
+    platformShutterRequired -> CaptureSoundOutput.SYSTEM
     else -> CaptureSoundOutput.OFF
 }
