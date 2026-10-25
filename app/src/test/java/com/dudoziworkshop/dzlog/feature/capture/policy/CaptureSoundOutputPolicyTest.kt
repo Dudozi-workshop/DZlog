@@ -6,32 +6,38 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CaptureSoundOutputPolicyTest {
-    @Test fun soundOffDoesNotRequestAppAudioWithoutRegionalRequirement() {
+    @Test fun soundOffDoesNotRequestAppAudioWithEitherRegionalFlag() {
+        CaptureSoundChoice.entries.forEach { choice ->
+            listOf(false, true).forEach { flag ->
+                assertEquals(
+                    CaptureSoundOutput.OFF,
+                    captureSoundOutput(false, choice, platformShutterRequired = flag),
+                )
+            }
+        }
+    }
+
+    @Test fun soundOnSelectsOneBundledSampleWithEitherRegionalFlag() {
+        CaptureSoundChoice.entries.forEach { choice ->
+            listOf(false, true).forEach { flag ->
+                assertEquals(
+                    CaptureSoundOutput.CUSTOM,
+                    captureSoundOutput(true, choice, platformShutterRequired = flag),
+                )
+            }
+        }
+    }
+
+    @Test fun requiredFlagDoesNotForceTheSystemClickInTheApp() {
         CaptureSoundChoice.entries.forEach { choice ->
             assertEquals(
                 CaptureSoundOutput.OFF,
-                captureSoundOutput(false, choice, platformShutterRequired = false),
+                captureSoundOutput(false, choice, platformShutterRequired = true),
             )
-        }
-    }
-
-    @Test fun soundOnPlaysOnlyTheSelectedBundledSampleWhenAllowed() {
-        CaptureSoundChoice.entries.forEach { choice ->
             assertEquals(
                 CaptureSoundOutput.CUSTOM,
-                captureSoundOutput(true, choice, platformShutterRequired = false),
+                captureSoundOutput(true, choice, platformShutterRequired = true),
             )
-        }
-    }
-
-    @Test fun requiredPlatformSoundIsTheOnlyPlaybackPath() {
-        CaptureSoundChoice.entries.forEach { choice ->
-            listOf(false, true).forEach { enabled ->
-                assertEquals(
-                    CaptureSoundOutput.SYSTEM,
-                    captureSoundOutput(enabled, choice, platformShutterRequired = true),
-                )
-            }
         }
     }
 
