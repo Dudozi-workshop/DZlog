@@ -17,6 +17,7 @@ internal fun captureSoundOutput(
     platformShutterRequired: Boolean = false,
 ): CaptureSoundOutput = when {
     !enabled -> CaptureSoundOutput.OFF
+    selected == CaptureSoundChoice.SYSTEM -> CaptureSoundOutput.SYSTEM
     selected.available -> CaptureSoundOutput.CUSTOM
     platformShutterRequired -> CaptureSoundOutput.SYSTEM
     else -> CaptureSoundOutput.OFF
