@@ -21,7 +21,7 @@ class CaptureSoundOutputPolicyTest {
         CaptureSoundChoice.entries.forEach { choice ->
             listOf(false, true).forEach { flag ->
                 assertEquals(
-                    CaptureSoundOutput.CUSTOM,
+                    if (choice == CaptureSoundChoice.SYSTEM) CaptureSoundOutput.SYSTEM else CaptureSoundOutput.CUSTOM,
                     captureSoundOutput(true, choice, platformShutterRequired = flag),
                 )
             }
@@ -35,7 +35,7 @@ class CaptureSoundOutputPolicyTest {
                 captureSoundOutput(false, choice, platformShutterRequired = true),
             )
             assertEquals(
-                CaptureSoundOutput.CUSTOM,
+                if (choice == CaptureSoundChoice.SYSTEM) CaptureSoundOutput.SYSTEM else CaptureSoundOutput.CUSTOM,
                 captureSoundOutput(true, choice, platformShutterRequired = true),
             )
         }
@@ -57,7 +57,7 @@ class CaptureSoundOutputPolicyTest {
         assertEquals(false, observation.requiresSystemShutter)
         CaptureSoundChoice.entries.forEach { choice ->
             assertEquals(
-                CaptureSoundOutput.CUSTOM,
+                if (choice == CaptureSoundChoice.SYSTEM) CaptureSoundOutput.SYSTEM else CaptureSoundOutput.CUSTOM,
                 captureSoundOutput(true, choice, platformShutterRequired = observation.requiresSystemShutter),
             )
         }
