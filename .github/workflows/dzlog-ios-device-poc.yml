@@ -1,0 +1,42 @@
+name: DZlog M3-A iPhone Device Compile
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/ios-*']
+    paths:
+      - '.github/workflows/dzlog-ios-device-poc.yml'
+      - 'scripts/ios/build-device-poc.sh'
+      - 'iosApp/PoCApp/**'
+      - 'sharedUi/build.gradle.kts'
+      - 'sharedUi/src/iosMain/**'
+      - 'shared/src/iosMain/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dzlog-ios-device-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  unsigned-device-smoke:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == true && contains(github.event.pull_request.title, 'M3-A'))
+    runs-on: macos-14
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build actual iPhone arm64 framework (not simulator)
+        run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:linkDebugFrameworkIosArm64 --stacktrace
+      - name: Compile unsigned device host and verify platform
+        run: bash scripts/ios/build-device-poc.sh
+      - name: Preserve unsigned device build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-m3a-iphone-unsigned-build
+          path: build/ios-device-poc/evidence/**
+          if-no-files-found: warn
+          retention-days: 7
