@@ -49,7 +49,6 @@ internal class CaptureFeedback(context: Context) {
             if (status == 0) ready.add(sampleId)
         }
         soundIds = mapOf(
-            CaptureSoundChoice.SYSTEM to soundPool.load(appContext, R.raw.dzlog_default_soft, 1),
             CaptureSoundChoice.SOFT_CONTAREX to soundPool.load(appContext, R.raw.dzlog_contarex_soft, 1),
             CaptureSoundChoice.CLASSIC_WERRA to soundPool.load(appContext, R.raw.dzlog_werra_classic, 1),
             CaptureSoundChoice.DIGITAL_DSLR to soundPool.load(appContext, R.raw.dzlog_dslr_digital, 1),
@@ -112,7 +111,7 @@ internal class CaptureFeedback(context: Context) {
         .build()
 
     private fun previewResource(choice: CaptureSoundChoice): Int? = when (choice) {
-        CaptureSoundChoice.SYSTEM -> R.raw.dzlog_default_soft
+        CaptureSoundChoice.SYSTEM -> null
         CaptureSoundChoice.SOFT_CONTAREX -> R.raw.dzlog_contarex_soft
         CaptureSoundChoice.CLASSIC_WERRA -> R.raw.dzlog_werra_classic
         CaptureSoundChoice.DIGITAL_DSLR -> R.raw.dzlog_dslr_digital
@@ -133,6 +132,10 @@ internal class CaptureFeedback(context: Context) {
     @Synchronized
     fun preview(choice: CaptureSoundChoice, volume: Int): Boolean = runCatching {
         stopPreview()
+        if (choice == CaptureSoundChoice.SYSTEM) {
+            systemSound.play(MediaActionSound.SHUTTER_CLICK)
+            return@runCatching true
+        }
         val resource = previewResource(choice) ?: return@runCatching false
         val media = MediaPlayer.create(
             appContext, resource, previewAttributes,
