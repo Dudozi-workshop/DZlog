@@ -53,7 +53,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
                 self?.cameraPresentedOrPending = false
                 return
             }
-            let screen = CameraViewControllerKt.CameraViewController(cameraPermissionGranted: granted)
+            let screen = MainViewControllerKt.CameraViewController(cameraPermissionGranted: granted)
             screen.modalPresentationStyle = .fullScreen
             root.present(screen, animated: true)
         }
