@@ -176,7 +176,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
             Text(
                 when (shutterProbe.status) {
                     ShutterRequirementStatus.REQUIRED ->
-                        "Android가 이 기기에서 촬영음을 요구한다고 보고했습니다. 실제 촬영에서는 기본 시스템음을 재생합니다."
+                        "Android가 이 기기에서 촬영음이 필요하다고 보고했습니다. 촬영음 정책은 기기·지역 기준에 맞춰 별도 검증이 필요합니다."
                     ShutterRequirementStatus.QUERY_FAILED ->
                         "촬영음 요구 여부를 조회하지 못해 기본 시스템음으로 처리합니다. 아래 QA 진단을 확인하세요."
                     ShutterRequirementStatus.NOT_REQUIRED ->
