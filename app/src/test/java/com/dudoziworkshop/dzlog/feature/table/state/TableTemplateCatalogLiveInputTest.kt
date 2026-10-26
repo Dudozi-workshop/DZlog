@@ -16,9 +16,11 @@ class TableTemplateCatalogLiveInputTest {
         val saved = updateQuickCellValues(initial, mapOf(initial.cells.single().cellId to "first"))
         val live = updateQuickCellValues(saved, mapOf(initial.cells.single().cellId to "first\nsecond"))
         model.updateStateOnly(live)
+        assertEquals(live, model.tableTemplateState)
+        assertEquals(live, model.templates.single().templateState)
         model.applyPersistedCatalog(listOf(item.copy(templateState = saved)), "a", saved)
         assertEquals(live, model.tableTemplateState)
-        assertEquals(saved, model.templates.single().templateState)
+        assertEquals(live, model.templates.single().templateState)
         model.applyPersistedCatalog(listOf(item.copy(templateState = live)), "a", live)
         assertEquals(live, model.templates.single().templateState)
     }
