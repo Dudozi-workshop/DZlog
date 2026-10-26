@@ -127,11 +127,73 @@ class GalleryFolderDeletionTest {
         assertFalse(storage.isConnected())
     }
 
+
+    @Test fun firstInstallPicturesGrantCreatesDzlogWithoutTouchingSiblingAndScopesWrites() {
+        provider.rows.clear()
+        provider.rows["primary:Pictures"] = DocumentsContract.Document.MIME_TYPE_DIR
+        provider.rows["primary:Pictures/Family"] = DocumentsContract.Document.MIME_TYPE_DIR
+        provider.rows["primary:Pictures/Family/photo.jpg"] = "image/jpeg"
+        val pictures = DocumentsContract.buildTreeDocumentUri(
+            "com.android.externalstorage.documents", "primary:Pictures",
+        )
+        storage.connect(pictures, allowPicturesForOnboarding = true)
+        assertTrue(storage.isConnected())
+        assertEquals(DocumentsContract.Document.MIME_TYPE_DIR, provider.rows[rootId])
+        assertEquals(1, provider.creates)
+        assertEquals("image/jpeg", provider.rows["primary:Pictures/Family/photo.jpg"])
+        assertThrows(IllegalArgumentException::class.java) {
+            storage.createFolder("Pictures/", "Outside")
+        }
+        storage.createFolder("Pictures/DZlog/", "Album")
+        assertTrue(provider.rows.containsKey("$rootId/Album"))
+        assertFalse(provider.rows.containsKey("primary:Pictures/Outside"))
+    }
+
+    @Test fun onboardingExistingDzlogReusesItWithoutOverwritingPhotos() {
+        provider.rows["primary:Pictures"] = DocumentsContract.Document.MIME_TYPE_DIR
+        provider.rows["$rootId/Existing.jpg"] = "image/jpeg"
+        val pictures = DocumentsContract.buildTreeDocumentUri(
+            "com.android.externalstorage.documents", "primary:Pictures",
+        )
+        storage.connect(pictures, allowPicturesForOnboarding = true)
+        assertTrue(storage.isConnected())
+        assertEquals(0, provider.creates)
+        assertEquals("image/jpeg", provider.rows["$rootId/Existing.jpg"])
+        assertTrue(storage.listImmediateFolderPaths("Pictures/DZlog/").contains(path))
+    }
+
+    @Test fun caseVariantCollisionBlocksCreationAndRetainsExistingConnection() {
+        provider.rows["primary:Pictures"] = DocumentsContract.Document.MIME_TYPE_DIR
+        provider.rows["primary:Pictures/dzlog"] = DocumentsContract.Document.MIME_TYPE_DIR
+        val pictures = DocumentsContract.buildTreeDocumentUri(
+            "com.android.externalstorage.documents", "primary:Pictures",
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            storage.connect(pictures, allowPicturesForOnboarding = true)
+        }
+        assertEquals(0, provider.creates)
+        assertTrue(storage.isConnected())
+        assertTrue(provider.rows.containsKey("primary:Pictures/dzlog"))
+    }
+
+    @Test fun onboardingRejectsWrongTreeWithoutChangingSavedGrant() {
+        provider.rows["primary:Pictures"] = DocumentsContract.Document.MIME_TYPE_DIR
+        val wrong = DocumentsContract.buildTreeDocumentUri(
+            "com.android.externalstorage.documents", "primary:Pictures/Other",
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            storage.connect(wrong, allowPicturesForOnboarding = true)
+        }
+        assertTrue(storage.isConnected())
+        assertEquals(0, provider.creates)
+    }
+
     private class TreeProvider : ContentProvider() {
         val rows = linkedMapOf<String, String>()
         val denied = mutableSetOf<String>()
         var nullParent: String? = null
         var deletes = 0
+        var creates = 0
         var injectFile: String? = null
         var failQueryAfterDelete: String? = null
         override fun onCreate() = true
@@ -148,7 +210,7 @@ class GalleryFolderDeletionTest {
                 matches.forEach { (id, mime) ->
                     addRow(columns.map { column -> when (column) {
                         DocumentsContract.Document.COLUMN_DOCUMENT_ID -> id
-                        DocumentsContract.Document.COLUMN_DISPLAY_NAME -> id.substringAfterLast('/')
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME -> if (id == "primary:Pictures") "Pictures" else id.substringAfterLast('/')
                         DocumentsContract.Document.COLUMN_MIME_TYPE -> mime
                         else -> null
                     } }.toTypedArray())
@@ -156,17 +218,34 @@ class GalleryFolderDeletionTest {
             }
         }
         override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
-            check(method == "android:deleteDocument")
             @Suppress("DEPRECATION")
-            val uri = requireNotNull(extras?.getParcelable<Uri>("uri"))
-            val id = DocumentsContract.getDocumentId(uri)
-            if (id in denied) throw SecurityException("Denied")
-            check(rows.keys.none { it.startsWith("$id/") }) { "Nonempty directory" }
-            rows.remove(id)
-            deletes++
-            injectFile?.let { rows[it] = "image/jpeg"; injectFile = null }
-            failQueryAfterDelete?.let { nullParent = it }
-            return Bundle()
+            val arguments = requireNotNull(extras)
+            val uri = requireNotNull(arguments.getParcelable<Uri>("uri"))
+            return when (method) {
+                "android:createDocument" -> {
+                    val parentId = DocumentsContract.getDocumentId(uri)
+                    val name = requireNotNull(arguments.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
+                    val mime = requireNotNull(arguments.getString(DocumentsContract.Document.COLUMN_MIME_TYPE))
+                    val id = "$parentId/$name"
+                    check(id !in rows) { "Do not replace existing user files or folders" }
+                    rows[id] = mime
+                    creates++
+                    Bundle().apply {
+                        putParcelable("uri", DocumentsContract.buildDocumentUriUsingTree(uri, id))
+                    }
+                }
+                "android:deleteDocument" -> {
+                    val id = DocumentsContract.getDocumentId(uri)
+                    if (id in denied) throw SecurityException("Denied")
+                    check(rows.keys.none { it.startsWith("$id/") }) { "Nonempty directory" }
+                    rows.remove(id)
+                    deletes++
+                    injectFile?.let { rows[it] = "image/jpeg"; injectFile = null }
+                    failQueryAfterDelete?.let { nullParent = it }
+                    Bundle()
+                }
+                else -> error("Unexpected document provider method: $method")
+            }
         }
         override fun getType(uri: Uri) = "vnd.android.document/directory"
         override fun insert(uri: Uri, values: ContentValues?) = null

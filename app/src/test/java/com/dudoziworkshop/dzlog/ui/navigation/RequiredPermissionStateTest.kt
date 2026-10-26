@@ -5,6 +5,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RequiredPermissionStateTest {
+    @Test fun onboardingPickerStartsAtPicturesButExistingFlowTargetsDzlog() {
+        assertEquals("primary:Pictures", folderPickerStartDocumentId(onboarding = true))
+        assertEquals("primary:Pictures/DZlog", folderPickerStartDocumentId(onboarding = false))
+    }
+
     @Test fun revocationAndPartialAccessCloseGateAndFullAccessRestoresIt() {
         val granted = RequiredPermissionState(true, GalleryMediaAccess.FULL)
         assertTrue(granted.ready)
