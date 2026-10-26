@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -300,7 +299,6 @@ class NamePathBuildersScopeTokenTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
-            groupLevel = GroupLevel.NONE,
                         cellId = id,
         )
         return ResolvedCell(id = id, type = TableCellDataType.ROTATING_TEXT, raw = raw, resolvedText = text, isEmpty = false)
@@ -317,7 +315,6 @@ class NamePathBuildersScopeTokenTest {
             colIndex = 0,
             rawText = text,
             dataType = type,
-            groupLevel = GroupLevel.NONE,
             counterScopeMode = counterScopeMode,
             cellId = id,
         )

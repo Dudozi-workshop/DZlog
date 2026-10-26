@@ -17,7 +17,7 @@ class CaptureCounterPolicyPhraseStreamTest {
     @Test
     fun `commit index alone does not advance without physical media`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val stream = createScopedStream("rp_왜|g2=0")
+        val stream = createScopedStream("rp_왜")
 
         CaptureCounterPolicy.commit(
             context = context,
@@ -41,8 +41,8 @@ class CaptureCounterPolicyPhraseStreamTest {
     @Test
     fun `different phrase stream remains separated`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val whyStream = createScopedStream("rp_왜|g2=0")
-        val wowStream = createScopedStream("rp_헐|g2=0")
+        val whyStream = createScopedStream("rp_왜")
+        val wowStream = createScopedStream("rp_헐")
 
         val wowBefore = CaptureCounterPolicy.resolveNext(
             context = context,
@@ -76,7 +76,7 @@ class CaptureCounterPolicyPhraseStreamTest {
     @Test
     fun `two auxiliary commits still do not advance without physical media`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        val stream = createScopedStream("rp_왜|g2=0")
+        val stream = createScopedStream("rp_왜")
 
         CaptureCounterPolicy.commit(
             context = context,

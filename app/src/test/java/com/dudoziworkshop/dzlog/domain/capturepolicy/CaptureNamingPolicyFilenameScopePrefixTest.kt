@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -174,7 +173,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.TEXT,
-            groupLevel = GroupLevel.NONE,
             cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
@@ -187,7 +185,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.ROTATING_TEXT,
-            groupLevel = GroupLevel.NONE,
             cellId = id,
         )
         return ResolvedCell(id, raw.dataType, raw, text, isEmpty = text.isBlank())
@@ -201,7 +198,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.DATE,
-            groupLevel = GroupLevel.NONE,
             counterScopeMode = CounterScopeMode.INCLUDE,
             cellId = id,
         )
@@ -216,7 +212,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.TIME,
-            groupLevel = GroupLevel.NONE,
             counterScopeMode = mode,
             cellId = id,
         )
@@ -231,7 +226,6 @@ class CaptureNamingPolicyFilenameScopePrefixTest {
             colIndex = 0,
             rawText = text,
             dataType = TableCellDataType.COUNTER,
-            groupLevel = GroupLevel.NONE,
             counterScopeMode = CounterScopeMode.INCLUDE,
             cellId = id,
         )

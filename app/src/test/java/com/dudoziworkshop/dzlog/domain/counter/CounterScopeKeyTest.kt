@@ -13,13 +13,13 @@ class CounterScopeKeyTest {
     fun mode_toggle_only_does_not_create_new_scope_when_values_same() {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
-            prefix = "C|g2=0",
-            scopeKey = "Pictures/DZlog/A/B/|C|g2=0",
+            prefix = "C",
+            scopeKey = "Pictures/DZlog/A/B/|C",
             includePathInScope = true,
             includeFilenameInScope = true,
         )
         val current = previous.copy(
-            scopeKey = "Pictures/DZlog/A/B/|C|g2=0",
+            scopeKey = "Pictures/DZlog/A/B/|C",
             includePathInScope = true,
             includeFilenameInScope = false,
         )
@@ -31,14 +31,14 @@ class CounterScopeKeyTest {
     fun filename_change_affects_only_filename_on_mode() {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
-            prefix = "C|g2=0",
+            prefix = "C",
             scopeKey = "Pictures/DZlog/A/B/|*",
             includePathInScope = true,
             includeFilenameInScope = false,
         )
 
         val current = previous.copy(
-            prefix = "D|g2=0",
+            prefix = "D",
             scopeKey = "Pictures/DZlog/A/B/|*",
         )
 
@@ -48,7 +48,7 @@ class CounterScopeKeyTest {
                 previous,
                 current.copy(
                     includeFilenameInScope = true,
-                    scopeKey = "Pictures/DZlog/A/B/|D|g2=0",
+                    scopeKey = "Pictures/DZlog/A/B/|D",
                 )
             )
         )
@@ -58,15 +58,15 @@ class CounterScopeKeyTest {
     fun path_change_affects_only_path_on_mode() {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
-            prefix = "C|g2=0",
-            scopeKey = "*|C|g2=0",
+            prefix = "C",
+            scopeKey = "*|C",
             includePathInScope = false,
             includeFilenameInScope = true,
         )
 
         val current = previous.copy(
             relativePathKey = "Pictures/DZlog/A/C/",
-            scopeKey = "*|C|g2=0",
+            scopeKey = "*|C",
         )
 
         assertFalse(isNewCounterScope(previous, current))
@@ -75,7 +75,7 @@ class CounterScopeKeyTest {
                 previous,
                 current.copy(
                     includePathInScope = true,
-                    scopeKey = "Pictures/DZlog/A/C/|C|g2=0",
+                    scopeKey = "Pictures/DZlog/A/C/|C",
                 )
             )
         )
@@ -85,7 +85,7 @@ class CounterScopeKeyTest {
     fun both_off_never_treats_value_changes_as_new_stream() {
         val previous = CounterScopeSnapshot(
             relativePathKey = "Pictures/DZlog/A/B/",
-            prefix = "C|g2=0",
+            prefix = "C",
             scopeKey = "*|*",
             includePathInScope = false,
             includeFilenameInScope = false,
@@ -93,7 +93,7 @@ class CounterScopeKeyTest {
 
         val current = previous.copy(
             relativePathKey = "Pictures/DZlog/X/Y/",
-            prefix = "Z|g2=1",
+            prefix = "Z",
             scopeKey = "*|*",
         )
 

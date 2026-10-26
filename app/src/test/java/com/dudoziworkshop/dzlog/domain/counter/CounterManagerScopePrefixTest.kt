@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.domain.counter
 
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
@@ -56,25 +55,6 @@ class CounterManagerScopePrefixTest {
         assertEquals(first, second)
     }
 
-    @Test
-    fun `computeCounterStreamRelativePathKey separates g2 enabled but empty from g1 only`() {
-        val base = "Pictures/DZlog/A/"
-
-        val g1Only = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = base,
-            hasG2Group = false,
-            group2Value = "",
-        )
-        val g2EnabledEmpty = CounterManager.computeCounterStreamRelativePathKey(
-            baseRelativePath = base,
-            hasG2Group = true,
-            group2Value = "",
-        )
-
-        assertEquals("Pictures/DZlog/A/", g1Only)
-        assertEquals("Pictures/DZlog/A/|g2=enabled_empty", g2EnabledEmpty)
-    }
-
     private fun resolvedCell(): ResolvedCell {
         val col = 0
         val type = TableCellDataType.TEXT
@@ -83,7 +63,6 @@ class CounterManagerScopePrefixTest {
             rowIndex = 0,
             colIndex = col,
             dataType = type,
-            groupLevel = GroupLevel.NONE,
             rawText = text,
         )
 
