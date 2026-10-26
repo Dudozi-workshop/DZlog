@@ -12,15 +12,18 @@ class CaptureFeedbackOptionsTest {
         assertEquals(CaptureSoundChoice.DIGITAL_DSLR, CaptureSoundChoice.fromStored(3))
     }
 
-    @Test fun allFiveSelectionsHavePackagedSources() {
+    @Test fun allFiveSelectionsRemainAvailable() {
         CaptureSoundChoice.entries.forEach { assertTrue(it.available) }
         assertEquals(CaptureSoundChoice.PPUPPYU, CaptureSoundChoice.fromStored(4))
     }
 
-    @Test fun originalSignatureHasNonDestructivePlaybackLevelTrim() {
-        assertEquals(0.10f, CaptureSoundChoice.PPUPPYU.playbackGain, 0.0001f)
-        assertEquals(1f, CaptureSoundChoice.CLASSIC_WERRA.playbackGain, 0.0001f)
-        assertEquals(1f, CaptureSoundChoice.DIGITAL_DSLR.playbackGain, 0.0001f)
+    @Test fun configuredPlaybackGainsMatchShippedSoundMix() {
+        // Audio assets are unchanged; only output gains were calibrated.
+        assertEquals(1.00f, CaptureSoundChoice.SYSTEM.playbackGain, 0.0001f)
+        assertEquals(0.50f, CaptureSoundChoice.SOFT_CONTAREX.playbackGain, 0.0001f)
+        assertEquals(0.50f, CaptureSoundChoice.CLASSIC_WERRA.playbackGain, 0.0001f)
+        assertEquals(0.50f, CaptureSoundChoice.DIGITAL_DSLR.playbackGain, 0.0001f)
+        assertEquals(0.06f, CaptureSoundChoice.PPUPPYU.playbackGain, 0.0001f)
     }
 
     @Test fun vibrationStrengthIdsAndFallbackRemainStable() {
