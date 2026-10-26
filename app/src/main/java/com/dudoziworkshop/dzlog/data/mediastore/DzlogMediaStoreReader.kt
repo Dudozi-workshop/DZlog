@@ -23,6 +23,9 @@ class DzlogMediaStoreReader(
 
     private val sortOrderDateAddedDesc = "${MediaStore.Images.Media.DATE_ADDED} DESC, ${MediaStore.Images.Media._ID} DESC"
 
+    // Used by active MediaStore image queries, not the retired G1/G2 listing.
+    private val dzlogBaseLike = "Pictures/DZlog/%"
+
     /**
      * 특정 경로(프로젝트=저장경로) 아래의 결과물 이미지 목록.
      * - RELATIVE_PATH 는 기기/버전에 따라 trailing slash 표현이 달라질 수 있어
