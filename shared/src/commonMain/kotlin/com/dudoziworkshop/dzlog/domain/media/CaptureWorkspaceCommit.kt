@@ -22,6 +22,19 @@ fun commitConfirmedCaptureToWorkspace(
     saved: ConfirmedCaptureMediaSave,
 ): EditorWorkspace {
     check(saved.plan == capturePlan) { "Save receipt is not for the planned capture." }
+    return prepareCaptureWorkspaceUpdate(current, capturedDocument, capturePlan)
+}
+
+/**
+ * Prepares a proposed state for crash recovery without committing it.
+ * The caller may journal this candidate BEFORE writing PhotoKit assets, but
+ * MUST NEVER persist it as the live workspace without a confirmed receipt.
+ */
+fun prepareCaptureWorkspaceUpdate(
+    current: EditorWorkspace,
+    capturedDocument: EditorDocument,
+    capturePlan: CaptureMediaSavePlan,
+): EditorWorkspace {
     check(current.activeTemplateId == capturedDocument.template.id) {
         "Active template changed before capture commit."
     }
