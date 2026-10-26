@@ -20,7 +20,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 import platform.Foundation.NSUUID
 import platform.Foundation.NSUserDefaults
 
@@ -41,7 +43,7 @@ class IosCaptureSaveCoordinatorTest {
         override suspend fun listSavedAssets(): List<SavedCaptureMedia> = saved
     }
 
-    @Test fun successfulSaveCommitsWorkspaceOnce() = runBlocking {
+    @Test fun successfulSaveCommitsWorkspaceOnce() = runSynchronously {
         withFixture { store, before, plan ->
             val media = FakeMedia()
             val journal = IosCaptureWorkspaceJournal(store, "pending")
@@ -55,7 +57,7 @@ class IosCaptureSaveCoordinatorTest {
             assertEquals(13, actual.active?.nextCounter)
             assertFalse(coordinator.hasPendingCapture())
             assertFailsWith<IllegalStateException> {
-                runBlocking {
+                runSynchronously {
                     coordinator.saveAndCommit(before, requireNotNull(before.active), plan,
                         mapOf(CaptureMediaRole.ORIGINAL to byteArrayOf(1)), { actual }, { true })
                 }
@@ -63,7 +65,7 @@ class IosCaptureSaveCoordinatorTest {
         }
     }
 
-    @Test fun failedPreferenceWriteIsRecoveredFromPersistedPhotoKitReceipt() = runBlocking {
+    @Test fun failedPreferenceWriteIsRecoveredFromPersistedPhotoKitReceipt() = runSynchronously {
         withFixture { store, before, plan ->
             val media = FakeMedia()
             val journal = IosCaptureWorkspaceJournal(store, "pending")
@@ -82,13 +84,13 @@ class IosCaptureSaveCoordinatorTest {
         }
     }
 
-    @Test fun failedPhotoKitSaveLeavesWorkspaceUntouchedAndBlocksRetry() = runBlocking {
+    @Test fun failedPhotoKitSaveLeavesWorkspaceUntouchedAndBlocksRetry() = runSynchronously {
         withFixture { store, before, plan ->
             val coordinator = IosCaptureSaveCoordinator(FakeMedia(fail = true),
                 IosCaptureWorkspaceJournal(store, "pending"))
             var actual = before
             assertFailsWith<IllegalStateException> {
-                runBlocking {
+                runSynchronously {
                     coordinator.saveAndCommit(before, requireNotNull(before.active), plan,
                         mapOf(CaptureMediaRole.ORIGINAL to byteArrayOf(1)),
                         { actual }, { next -> actual = next; true })
@@ -98,6 +100,19 @@ class IosCaptureSaveCoordinatorTest {
             assertTrue(coordinator.hasPendingCapture())
             assertFalse(coordinator.recoverPending({ actual }, { next -> actual = next; true }))
         }
+    }
+
+    private fun <T> runSynchronously(block: suspend () -> T): T {
+        var completed: Result<T>? = null
+        block.startCoroutine(object : Continuation<T> {
+            override val context = EmptyCoroutineContext
+            override fun resumeWith(result: Result<T>) {
+                completed = result
+            }
+        })
+        return checkNotNull(completed) {
+            "This test fixture must complete its suspend calls without async suspension."
+        }.getOrThrow()
     }
 
     private suspend fun withFixture(
