@@ -44,10 +44,8 @@ import androidx.lifecycle.Observer
 import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.CaptureRequest
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.naming.buildSavePath
-import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
@@ -350,8 +348,6 @@ internal fun CameraPreviewArea(
                 dateFormat = args.dateFormat,
                 timeFormat = args.timeFormat,
             ),
-            group1 = resolveGroupValue(resolvedCellsForPreview, GroupLevel.G1),
-            group2 = resolveGroupValue(resolvedCellsForPreview, GroupLevel.G2),
             displayName = CaptureNamingPolicy.buildDisplayNameForCounter(
                 resolvedCells = resolvedCellsForPreview,
                 fileNameSlotDrafts = args.tableTemplateState.fileNameSlotDrafts,

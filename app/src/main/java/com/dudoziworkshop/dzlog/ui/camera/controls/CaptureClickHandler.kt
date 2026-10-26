@@ -15,11 +15,9 @@ import com.dudoziworkshop.dzlog.domain.capturepolicy.CaptureNamingPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CaptureScopedCounterStream
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.ContinuousPreviewMode
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PhotoQualityMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
-import com.dudoziworkshop.dzlog.domain.naming.resolveGroupValue
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
@@ -117,8 +115,6 @@ internal fun handleCaptureClick(
     val req = com.dudoziworkshop.dzlog.domain.model.CaptureRequest(
         // 주요 정책: 실제 저장경로는 preview pipeline이 계산한 relativePath를 그대로 사용한다.
         relativePath = finalCapturePreview.relativePathPreview,
-        group1 = resolveGroupValue(finalCapturePreview.resolvedCells, GroupLevel.G1),
-        group2 = resolveGroupValue(finalCapturePreview.resolvedCells, GroupLevel.G2),
         displayName = finalCapturePreview.displayName,
         resolvedCells = finalCapturePreview.resolvedCells,
         watermarkCells = WatermarkBuilder.buildTableCells(finalCapturePreview.resolvedCells),

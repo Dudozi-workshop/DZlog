@@ -7,11 +7,6 @@ data class CaptureRequest(
     // 저장경로 SSOT: pathSlotDrafts에서 계산된 최종 relativePath 문자열을 그대로 사용한다.
     val relativePath: String,
 
-    // 레거시 호환 메타데이터(로그/탐색용). 저장경로 계산에는 사용하지 않는다.
-    val group1: String,
-    val group2: String,
-
-    // 파일명은 그룹과 무관
     val displayName: String,
 
     // 단일 데이터 소스: ResolvePlan 결과

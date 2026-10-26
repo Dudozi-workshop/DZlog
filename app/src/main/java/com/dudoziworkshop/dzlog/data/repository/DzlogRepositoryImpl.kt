@@ -161,8 +161,6 @@ class DzlogRepositoryImpl(
             displayName = saved.primary.displayName,
             isNameAdjusted = saved.primary.isNameAdjusted,
             createdAt = System.currentTimeMillis(),
-            group1 = request.group1,
-            group2 = request.group2,
         )
         if (request.saveMode != SaveMode.ORIGINAL_ONLY) {
             // The media is already committed; optional log failure must not
