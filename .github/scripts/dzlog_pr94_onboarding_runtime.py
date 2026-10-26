@@ -116,26 +116,26 @@ def choose_saf_folder():
 
 def main():
     ui.adb("shell","mkdir","-p","/sdcard/Pictures/DZlog")
-    # Simulate an existing production DZlog photo on the same device BEFORE
-    # installing the isolated QA package. Shared media must not suppress
-    # this new package's starter selection, and must never be deleted.
-    fixture = "app/src/main/res/drawable-nodpi/onboarding_gallery_photo.jpg"
-    device_photo = "/sdcard/Pictures/DZlog/pr94-preexisting-photo.jpg"
-    ui.adb("push", fixture, device_photo, timeout=50)
-    ui.adb("shell","am","broadcast","-a","android.intent.action.MEDIA_SCANNER_SCAN_FILE",
-           "-d","file://"+device_photo,timeout=50)
-    ui.adb("shell","test","-s",device_photo)
-    # Prove the shared file is actually indexed in MediaStore before launch.
+    # Seed the shared MediaStore provider directly. Android 16 may deny
+    # shell/adb-push writes into scoped Pictures/, even on test emulators.
+    # A visible image row is enough to reproduce the old erroneous onboarding
+    # veto; do not simulate photos by editing this app's private data.
     from android16_capture_media_smoke import query_media
+    device_name = "pr94-preexisting-photo.jpg"
+    ui.adb("shell","content","insert",
+           "--uri","content://media/external/images/media",
+           "--bind","_display_name:s:"+device_name,
+           "--bind","mime_type:s:image/jpeg",
+           "--bind","relative_path:s:Pictures/DZlog/",
+           "--bind","is_pending:i:0",timeout=50)
     indexed = False
     for _ in range(12):
-        if any(item.get("_display_name") == "pr94-preexisting-photo.jpg"
-               for item in query_media()):
+        if any(item.get("_display_name") == device_name for item in query_media()):
             indexed = True
             break
         time.sleep(2)
     if not indexed:
-        raise AssertionError("Pre-existing DZlog photo not indexed in MediaStore")
+        raise AssertionError("Pre-existing DZlog media row was not indexed")
     ui.adb("install","-r","app/build/outputs/apk/debug/app-debug.apk",timeout=170)
     for p in ("android.permission.CAMERA","android.permission.READ_MEDIA_IMAGES"):
         ui.adb("shell","pm","grant",PKG,p)
@@ -174,7 +174,9 @@ def main():
     ui.wait_for("촬영 시작",timeout=50)
     checkpoint("09-home")
     assert_alive("home")
-    ui.adb("shell","test","-s",device_photo)  # never delete or move real shared media
+    assert any(item.get("_display_name") == device_name for item in query_media()), (
+        "Pre-existing shared MediaStore item must not be deleted by onboarding"
+    )
     print("PASS PR94 Android16 actual first-run setup, template choice, home",flush=True)
 
 if __name__=="__main__":
