@@ -219,12 +219,13 @@ class GalleryFolderDeletionTest {
         }
         override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
             @Suppress("DEPRECATION")
-            val uri = requireNotNull(extras?.getParcelable<Uri>("uri"))
+            val arguments = requireNotNull(extras)
+            val uri = requireNotNull(arguments.getParcelable<Uri>("uri"))
             return when (method) {
                 "android:createDocument" -> {
                     val parentId = DocumentsContract.getDocumentId(uri)
-                    val name = requireNotNull(extras.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
-                    val mime = requireNotNull(extras.getString(DocumentsContract.Document.COLUMN_MIME_TYPE))
+                    val name = requireNotNull(arguments.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
+                    val mime = requireNotNull(arguments.getString(DocumentsContract.Document.COLUMN_MIME_TYPE))
                     val id = "$parentId/$name"
                     check(id !in rows) { "Do not replace existing user files or folders" }
                     rows[id] = mime
