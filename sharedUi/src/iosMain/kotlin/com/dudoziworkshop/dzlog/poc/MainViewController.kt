@@ -52,6 +52,8 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
             IosCameraCapturePoc(permissionGranted = cameraPermissionGranted)
         } else if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
             PhotoKitMediaFlowPoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--capture-workspace-flow")) {
+            IosCaptureWorkspaceFixturePoc()
         } else if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_NAVIGATION_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-navigation-fixture"))
