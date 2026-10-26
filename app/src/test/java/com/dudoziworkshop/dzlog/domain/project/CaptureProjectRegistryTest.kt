@@ -40,7 +40,7 @@ class CaptureProjectRegistryTest {
         val first = CaptureProjectRegistry().appendCommittedCapture(listOf("content://photo/1"), "one", 1)
         val done = first.completeActive(10)
         assertNull(done.activeId)
-        assertEquals(10, done.find("one")?.completedAt)
+        assertEquals(10L, done.find("one")?.completedAt)
         assertFalse(done.find("one")!!.isActive)
         val next = done.appendCommittedCapture(listOf("content://photo/2"), "two", 20)
         assertEquals(2, next.projects.size)
