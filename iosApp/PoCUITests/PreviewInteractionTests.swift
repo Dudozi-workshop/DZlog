@@ -110,6 +110,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 촬영 번호: 12").exists)
     }
 
+    func testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 합성 어댑터 검증")
+        XCTAssertTrue(text("저장 상태: 합성 JPEG 생성·크기 검증 완료").waitForExistence(timeout: 20))
+    }
+
     // Denied permission must never start a camera session or allow capturing.
     // This test-only argument forces denial; real OS permission prompts need device QA.
     func testCameraPermissionDeniedBlocksCapture() {
