@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, ".github/scripts")
 import android16_journey_smoke as ui
 
-PKG = "com.dudoziworkshop.dzlog.qa.pr94"
+PKG = "com.dudoziworkshop.dzlog.qa.pr94fix"
 ui.PKG = PKG
 ui.ACTIVITY = PKG + "/com.dudoziworkshop.dzlog.MainActivity"
 from dzlog_postrelease_full_journey import tap_any

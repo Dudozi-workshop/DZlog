@@ -4,7 +4,15 @@ on:
   push:
     branches:
       - refactor/default-template-retire-groups-20261026
+    paths:
+      - 'app/**'
+      - '.github/scripts/dzlog_pr94_onboarding_runtime.py'
+      - '.github/workflows/dzlog-pr94-onboarding-runtime.yml'
   workflow_dispatch:
+
+concurrency:
+  group: dzlog-pr94-runtime
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -26,7 +34,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Build isolated QA app
-        run: bash ./gradlew --no-daemon :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=pr94 -PdzlogDebugVersionCode=1000094
+        run: bash ./gradlew --no-daemon :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=pr94fix -PdzlogDebugVersionCode=1000094
       - name: Run first-install through starter on Android 16
         uses: reactivecircus/android-emulator-runner@v2
         with:
