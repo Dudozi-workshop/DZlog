@@ -40,7 +40,11 @@ private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
  * The normal iOS home/camera entry point remains unchanged during M3-A.
  */
 @Composable
-internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit)? = null) {
+internal fun IosCameraCapturePoc(
+    permissionGranted: Boolean,
+    onBack: (() -> Unit)? = null,
+    session: IosCameraCaptureSession? = null,
+) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }
     val scope = rememberCoroutineScope()
@@ -79,6 +83,12 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit
         Text("iOS M3-A 실제 촬영 검증")
         Text(status)
         Text("저장 완료 수: $successfulSaves")
+        if (permissionGranted && onBack != null && session == null) {
+            Text("촬영할 템플릿과 저장 설정이 준비되지 않았습니다.")
+        }
+        if (session?.hasPending() == true) {
+            Text("미완료 저장 기록이 있어 추가 촬영을 차단합니다.")
+        }
         if (ready) {
             UIKitView(
                 modifier = Modifier.fillMaxWidth().height(360.dp),
@@ -96,7 +106,8 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit
         } else {
             Spacer(Modifier.height(200.dp))
         }
-        Button(enabled = ready && !busy, onClick = {
+        Button(enabled = ready && !busy && (onBack == null || session != null) &&
+            (session?.hasPending() != true), onClick = {
             busy = true
             status = "사진 촬영 중"
             runCatching {
@@ -104,30 +115,19 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit
                     scope.launch {
                         try {
                             val jpeg = result.getOrThrow()
-                            val captureId = NSUUID().UUIDString.lowercase()
-                            val mode = SaveMode.ORIGINAL_ONLY
-                            val plan = buildCaptureMediaSavePlan(
-                                FinalCapturePreview(
-                                    resolvedCells = emptyList(),
-                                    tablePatch = TablePatch.EMPTY,
-                                    displayName = "CAM_${captureId.take(8)}.jpg",
-                                    usedCounter = 1,
-                                    nextPhraseProgressCursor = 0,
-                                    counterScope = CounterScope(
-                                        buildCounterPath(CAMERA_POC_PATH, mode), "CAM_", 1, false,
-                                    ),
-                                    relativePathPreview = CAMERA_POC_PATH,
-                                ),
-                                mode,
-                                captureId,
-                            )
-                            val receipt = repository.saveAllOrRollback(
-                                plan, mapOf(CaptureMediaRole.ORIGINAL to jpeg),
-                            )
-                            // Never mark a capture complete before PhotoKit confirms its asset.
-                            check(receipt.assets.size == 1)
-                            successfulSaves += 1
-                            status = "사진 저장 완료"
+                            val committed = if (session != null) {
+                                session.saveJpeg(jpeg)
+                            } else {
+                                check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
+                                saveStandaloneCameraFixture(jpeg, repository)
+                                true
+                            }
+                            if (committed) {
+                                successfulSaves += 1
+                                status = "사진 저장 완료"
+                            } else {
+                                status = "사진 저장됨 · 촬영 기록 복구 필요"
+                            }
                         } catch (error: Throwable) {
                             status = "사진 저장 실패: ${error.message}"
                         } finally {
@@ -141,4 +141,26 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit
             }
         }) { Text(if (busy) "촬영 중" else "테스트 사진 촬영") }
     }
+}
+
+/** Dedicated legacy --camera-flow fixture; never used by an actual home capture. */
+private suspend fun saveStandaloneCameraFixture(
+    jpeg: ByteArray,
+    repository: PhotoKitCaptureMediaRepository,
+) {
+    val captureId = NSUUID().UUIDString.lowercase()
+    val mode = SaveMode.ORIGINAL_ONLY
+    val plan = buildCaptureMediaSavePlan(
+        FinalCapturePreview(
+            resolvedCells = emptyList(),
+            tablePatch = TablePatch.EMPTY,
+            displayName = "CAM_${captureId.take(8)}.jpg",
+            usedCounter = 1,
+            nextPhraseProgressCursor = 0,
+            counterScope = CounterScope(buildCounterPath(CAMERA_POC_PATH, mode), "CAM_", 1, false),
+            relativePathPreview = CAMERA_POC_PATH,
+        ), mode, captureId,
+    )
+    val receipt = repository.saveAllOrRollback(plan, mapOf(CaptureMediaRole.ORIGINAL to jpeg))
+    check(receipt.assets.size == 1)
 }

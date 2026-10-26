@@ -49,7 +49,20 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     var recentPhotoName by remember { mutableStateOf("") }
     val cameraReturnRevision = IosCameraReturnSignal.revision
+    LaunchedEffect(editorKey) {
+        if (!loadFailed && IosCameraCaptureSession.hasPending()) {
+            val recovered = runCatching { IosCameraCaptureSession.recover(store, template) }.getOrDefault(false)
+            if (recovered) {
+                runCatching { store.load(template) }.onSuccess { workspace = it }
+            } else {
+                notice = "이전 촬영 기록을 복구하지 못했습니다. 추가 촬영은 보류됩니다."
+            }
+        }
+    }
     LaunchedEffect(showGallery, cameraReturnRevision) {
+        if (cameraReturnRevision > 0 && !loadFailed && !showGallery) {
+            runCatching { store.load(template) }.onSuccess { workspace = it }
+        }
         if (!showGallery) {
             val indexed = runCatching { photoRepository.listSavedAssets() }.getOrDefault(emptyList())
             val newestCapture = indexed.lastOrNull()?.captureId
@@ -190,7 +203,14 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 "촬영 시작", "표 편집", "저장 정보"),
             onManageTemplates = { showList = true }, onOpenSettings = { showSettings = true },
             onStartCamera = {
-                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+                if (NSProcessInfo.processInfo.arguments.contains("--deny-camera-permission-for-ui-test")) {
+                    // Preserve the permission-denied XCTest route without modifying user data.
+                    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+                } else {
+                    val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
+                    if (issue != null) notice = issue
+                    else NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+                }
             },
             onOpenTableEditor = {
                 if (workspace.documents.isEmpty()) showList = true else openEditor(workspace.activeTemplateId, false)

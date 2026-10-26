@@ -25,10 +25,15 @@ fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = C
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        IosCameraCapturePoc(permissionGranted = cameraPermissionGranted, onBack = {
-            IosCameraReturnSignal.noteCameraClosed()
-            NSNotificationCenter.defaultCenter.postNotificationName("dzlog.dismissCamera", null)
-        })
+        IosCameraCapturePoc(
+            permissionGranted = cameraPermissionGranted,
+            session = remember { IosCameraWorkspaceBridge.current },
+            onBack = {
+                IosCameraWorkspaceBridge.clear()
+                IosCameraReturnSignal.noteCameraClosed()
+                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.dismissCamera", null)
+            },
+        )
     }
 }
 
