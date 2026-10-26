@@ -1,42 +1,23 @@
 package com.dudoziworkshop.dzlog.ui.log
 
-import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
-
-const val ORIGINAL_PHOTOS_TITLE = "원본사진"
+private const val DZLOG_ROOT = "Pictures/DZlog/"
 
 /**
- * relativePath 예: "Pictures/DZlog/G1/G2/"
- *
- * 정책:
- * - G1이 없으면 ROOT("DZlog"), G2가 없으면 빈 문자열로 채움
- * - 원본 하위 경로는 G1/G2 이름으로 취급하지 않고 "원본사진"으로 태깅
+ * Display a title for a folder at any depth, without assuming G1/G2 slots.
+ * Original-photo folders display the parent folder title; the grid supplies
+ * a separate original-photo badge.
  */
-fun parseG1G2FromRelativePath(relativePath: String): Pair<String, String> {
-    val p = relativePath.trim()
-    val idx = p.indexOf("DZlog/")
-    if (idx < 0) return DzlogMediaStoreReader.ROOT_G1 to ""
-
-    val tail = p.substring(idx + "DZlog/".length).trim('/')
-    if (tail.isBlank()) return DzlogMediaStoreReader.ROOT_G1 to ""
-
-    val parts = tail.split('/').filter { it.isNotBlank() }
-
-    if (parts.size == 1 && parts[0] == "original") {
-        return DzlogMediaStoreReader.ROOT_G1 to ORIGINAL_PHOTOS_TITLE
-    }
-
-    if (parts.size >= 2 && parts[1] == "original") {
-        return (parts[0].ifBlank { DzlogMediaStoreReader.ROOT_G1 }) to ORIGINAL_PHOTOS_TITLE
-    }
-
-    val g1 = parts.getOrNull(0) ?: DzlogMediaStoreReader.ROOT_G1
-    val g2 = parts.getOrNull(1).orEmpty()
-    return g1 to g2
+fun folderTitleFromRelativePath(relativePath: String): String {
+    val normalized = relativePath.trim().replace('\\', '/').trimEnd('/')
+    if (normalized == DZLOG_ROOT.trimEnd('/')) return "DZlog"
+    if (!normalized.startsWith(DZLOG_ROOT)) return "DZlog"
+    val segments = normalized.removePrefix(DZLOG_ROOT).split('/').filter { it.isNotBlank() }
+    val folders = if (segments.lastOrNull() == "original") segments.dropLast(1) else segments
+    return folders.takeIf { it.isNotEmpty() }?.joinToString(" / ") ?: "DZlog"
 }
 
 fun isOriginalRelativePath(relativePath: String): Boolean {
-    // 원본 폴더 판별은 depth(root/G1/G2)와 무관하게
-    // ".../original/" suffix를 SSOT로 사용한다.
+    // The original-photo directory is recognized independent of folder depth.
     val normalized = relativePath.trim().let {
         if (it.endsWith('/')) it else "$it/"
     }

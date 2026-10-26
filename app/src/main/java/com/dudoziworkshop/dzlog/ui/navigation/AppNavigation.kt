@@ -78,7 +78,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
-import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
+import com.dudoziworkshop.dzlog.ui.log.folderTitleFromRelativePath
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
@@ -126,8 +126,6 @@ enum class OriginalParent {
 }
 
 data class AlbumLocation(
-    val g1: String,
-    val g2Label: String,
     val relativePath: String,
     val originalLinkPath: String?
 )
@@ -642,14 +640,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
         originalPath: String,
         returnLocationIfWater: AlbumLocation?
     ) {
-        val current = albumLocation
-        val g1 = current?.g1 ?: return
-        val g2Label = current.g2Label
-        val normalizedOriginalPath = originalPath.trim()
+        if (albumLocation == null) return
         albumLocation = AlbumLocation(
-            g1 = g1,
-            g2Label = g2Label,
-            relativePath = normalizedOriginalPath,
+            relativePath = originalPath.trim(),
             originalLinkPath = null
         )
         originalNavContext = when (parent) {
@@ -709,10 +702,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         })
     }
 
-    fun openRecentCaptureGrid(g1: String, g2: String, relativePath: String, startIndex: Int) {
+    fun openRecentCaptureGrid(relativePath: String) {
         val location = AlbumLocation(
-            g1 = g1,
-            g2Label = g2.trim(),
             relativePath = relativePath.trim(),
             originalLinkPath = null
         )
@@ -741,22 +732,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
 
-    fun buildGridHeaderTitle(location: AlbumLocation): String {
-        val g1 = location.g1.trim()
-        val rawG2 = location.g2Label.trim()
-
-        val isOriginalLikeLabel = rawG2 == ORIGINAL_PHOTOS_TITLE ||
-            rawG2.contains("원본") ||
-            rawG2.equals("original", ignoreCase = true)
-
-        val g2LabelToShow = rawG2.takeIf {
-            it.isNotBlank() &&
-                it != g1 &&
-                !isOriginalLikeLabel
-        }
-
-        return g2LabelToShow?.let { "$g1 / $it" } ?: g1
-    }
+    fun buildGridHeaderTitle(location: AlbumLocation): String =
+        folderTitleFromRelativePath(location.relativePath)
 
     fun handleAlbumGridBack() {
         if (isSelectionMode) {
@@ -1055,8 +1032,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenPhoto = { photos, index ->
                         val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
-                            g1 = "",
-                            g2Label = "",
                             relativePath = relativePath,
                             originalLinkPath = if (isOriginalRelativePath(relativePath)) null else relativePath + "original/",
                         )
@@ -1095,7 +1070,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         if (index >= 0) {
                             gridItems = visiblePhotos
                             viewerStartIndex = index
-                            albumLocation = AlbumLocation("", "", visiblePhotos[index].relativePath, null)
+                            albumLocation = AlbumLocation(visiblePhotos[index].relativePath, null)
                             viewerEntrySource = ViewerEntrySource.QUICK_RESULTS
                             screen = AppScreen.ALBUM_VIEWER
                         }

@@ -317,10 +317,5 @@ class DzlogMediaStoreReader(
         return if (path.endsWith('/')) path else "$path/"
     }
 
-    companion object {
-        // The retired two-level grouping enum is gone. This label is only
-        // retained for older, non-active delete helper compatibility.
-        const val ROOT_G1 = "DZlog"
-        const val GROUP_ROOT_LABEL = "하위 그룹 없음"
-    }
+
 }

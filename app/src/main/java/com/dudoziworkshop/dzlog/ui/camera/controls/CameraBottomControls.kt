@@ -57,7 +57,6 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraOverlayTool
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraUiState
 import com.dudoziworkshop.dzlog.ui.log.DzThumbnail
-import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.onboarding.FirstCaptureGuidePhase
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -90,7 +89,7 @@ internal fun CameraBottomControls(
     captureReady: Boolean,
     latestImage: MediaImageItem?,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
     onUndoDelete: () -> Unit,
@@ -451,7 +450,7 @@ private fun BoxScope.CameraBottomBarRow(
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     onTriggerCapture: () -> Unit,
     onUndoDelete: () -> Unit,
     onShutterButtonTopYChange: (Float?) -> Unit,
@@ -480,10 +479,7 @@ private fun BoxScope.CameraBottomBarRow(
                         if (sessionCaptureStack.isNotEmpty()) {
                             // Quick Results is a session surface even if a
                             // thumbnail is still loading or all shots were deleted.
-                            val (g1, g2) = latestImage?.let {
-                                parseG1G2FromRelativePath(it.relativePath)
-                            } ?: ("" to "")
-                            onOpenRecentCaptureGrid(g1, g2, latestImage?.relativePath.orEmpty(), 0)
+                            onOpenRecentCaptureGrid(latestImage?.relativePath.orEmpty())
                         } else {
                             // A global recent photo may be visible before the
                             // first shutter; it is not part of this session.

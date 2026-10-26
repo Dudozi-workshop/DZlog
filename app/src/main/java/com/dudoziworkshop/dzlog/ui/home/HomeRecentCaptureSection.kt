@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
-import com.dudoziworkshop.dzlog.ui.log.parseG1G2FromRelativePath
 import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -39,7 +38,7 @@ internal fun HomeRecentCaptureSection(
     image: MediaImageItem?,
     timeText: String,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
 ) {
     val context = LocalContext.current
     val homeImageRequest = androidx.compose.runtime.remember(context, image?.uri) {
@@ -89,8 +88,7 @@ internal fun HomeRecentCaptureSection(
                             RoundedCornerShape(HomeUiSpec.RecentImageRadius),
                         )
                         .clickable {
-                            val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
-                            onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
+                            onOpenRecentCaptureGrid(image.relativePath)
                         },
                 ) {
                     AsyncImage(
