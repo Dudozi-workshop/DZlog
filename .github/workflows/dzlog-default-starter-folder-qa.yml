@@ -28,7 +28,7 @@ jobs:
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Focused starter, editor and folder navigation tests
         run: |
-          bash ./gradlew :app:testDebugUnitTest --tests '*OnboardingStarterCatalogTest' --tests '*TableStructureMutationTest' --tests '*TableEditorInlineEditActionsTest' --tests '*TableEditorSelectedCellActionBinderTest' --tests '*CounterManagerScopePrefixTest' --tests '*CounterScopePathPolicyTest' --tests '*CaptureNamingPolicyPathConsistencyTest' --tests '*GalleryFolderIndexTest' --tests '*RecentCaptureNavigationTest' --tests '*FolderBreadcrumbTitleTest' :app:compileDebugKotlin --stacktrace
+          bash ./gradlew :app:testDebugUnitTest --tests '*OnboardingStarterCatalogTest' --tests '*OnboardingCatalogStartupPolicyTest' --tests '*OnboardingInstallStateTest' --tests '*TableStructureMutationTest' --tests '*TableEditorInlineEditActionsTest' --tests '*TableEditorSelectedCellActionBinderTest' --tests '*CounterManagerScopePrefixTest' --tests '*CounterScopePathPolicyTest' --tests '*CaptureNamingPolicyPathConsistencyTest' --tests '*GalleryFolderIndexTest' --tests '*RecentCaptureNavigationTest' --tests '*FolderBreadcrumbTitleTest' :app:compileDebugKotlin --stacktrace
 
       - name: Build separate-install PR94 QA APK
         shell: bash

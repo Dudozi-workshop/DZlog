@@ -117,6 +117,17 @@ def main():
     ui.adb("shell","am","broadcast","-a","android.intent.action.MEDIA_SCANNER_SCAN_FILE",
            "-d","file://"+device_photo,timeout=50)
     ui.adb("shell","test","-s",device_photo)
+    # Prove the shared file is actually indexed in MediaStore before launch.
+    from android16_capture_media_smoke import query_media
+    indexed = False
+    for _ in range(12):
+        if any(item.get("_display_name") == "pr94-preexisting-photo.jpg"
+               for item in query_media()):
+            indexed = True
+            break
+        time.sleep(2)
+    if not indexed:
+        raise AssertionError("Pre-existing DZlog photo not indexed in MediaStore")
     ui.adb("install","-r","app/build/outputs/apk/debug/app-debug.apk",timeout=170)
     for p in ("android.permission.CAMERA","android.permission.READ_MEDIA_IMAGES"):
         ui.adb("shell","pm","grant",PKG,p)
