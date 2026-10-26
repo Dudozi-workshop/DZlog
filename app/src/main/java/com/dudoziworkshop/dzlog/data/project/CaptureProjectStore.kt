@@ -100,7 +100,7 @@ private fun encodeProjects(value: CaptureProjectRegistry): String =
                     put("completedAt", project.completedAt ?: JSONObject.NULL)
                     put("captures", JSONArray().apply {
                         project.captureUriGroups.forEach { uris ->
-                            put(JSONArray().apply { uris.forEach(::put) })
+                            put(JSONArray().apply { uris.forEach { uri -> put(uri) } })
                         }
                     })
                 })
