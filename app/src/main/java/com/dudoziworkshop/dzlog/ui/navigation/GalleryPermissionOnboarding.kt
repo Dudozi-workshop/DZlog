@@ -127,7 +127,7 @@ internal fun RequiredPermissionsGate(
         if (uri == null) {
             selectedFolderPath = null
             folderGuideNotice = if (onboarding) {
-                "폴더 선택을 취소했어요. Pictures 폴더를 선택하면 DZlog 폴더가 자동으로 준비돼요."
+                "폴더 선택을 취소했어요. Pictures 폴더를 선택해 주세요."
             } else {
                 "폴더 연결을 완료해야 DZlog를 사용할 수 있어요."
             }
@@ -319,9 +319,9 @@ internal fun CurrentSetupGuide(
         } else {
             "2단계 · 사진 접근" to "아래 버튼을 누른 뒤 ‘모든 사진 허용’을 선택해 주세요. 최근 촬영과 DZlog 갤러리를 빠짐없이 보여주는 데 사용해요."
         }
-        RequiredSetupStep.FOLDER -> "3단계 · DZlog 저장 폴더 연결" to
+        RequiredSetupStep.FOLDER -> (if (onboarding) "3단계 · Pictures 폴더 선택" else "3단계 · DZlog 저장 폴더 연결") to
             if (onboarding) {
-                "Pictures 폴더를 선택해 주세요. DZlog 전용 폴더는 자동으로 만들어져요.\n\n선택한 Pictures 폴더에 대한 접근 권한이 부여되며, DZlog는 DZlog 폴더 안에서만 파일을 관리해요."
+                "내장 저장공간의 Pictures 폴더를 선택한 뒤 ‘이 폴더 사용’을 눌러 주세요.\n\nDZlog 폴더가 없으면 자동으로 만들고, 이미 있으면 그대로 연결해요. Pictures 폴더에 접근 권한이 부여되지만, DZlog는 전용 폴더 안에서만 파일을 관리해요."
             } else {
                 "Pictures 안의 DZlog 폴더를 연결해 주세요. 폴더를 이동·이름 변경·삭제할 때 사용하며, 연결만으로 사진이 변경되지는 않아요."
             }

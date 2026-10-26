@@ -106,7 +106,7 @@ internal fun RequiredPermissionSetupScreen(
             Text(
                 when {
                     onboarding && currentStep == RequiredSetupStep.FOLDER ->
-                        "사진 저장 폴더를\n준비할게요."
+                        "Pictures 폴더를\n선택해 주세요."
                     onboarding -> "필요한 권한을\n설정해 주세요."
                     else -> "필요한 권한을 확인해 주세요"
                 },
@@ -194,7 +194,7 @@ private fun OnboardingPermissionOverview(
             }, state.photos == GalleryMediaAccess.FULL,
         )
         OnboardingPermissionCard(
-            "저장 폴더", "DZlog 전용 폴더를 자동으로 준비해요.",
+            "저장 폴더", "Pictures 폴더를 선택해 연결해요.",
             Icons.Default.Folder, Color(0xFF91A77E),
             if (folderConnected) "연결됨" else "연결 필요", folderConnected,
             if (!folderConnected && currentStep == RequiredSetupStep.FOLDER) onAction else null,
