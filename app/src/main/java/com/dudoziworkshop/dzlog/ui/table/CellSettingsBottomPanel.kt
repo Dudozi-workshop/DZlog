@@ -91,7 +91,8 @@ internal fun CellSettingsBottomPanel(
     timeFormat: String,
     phraseSets: List<RotatingPhraseSet>,
     showFileNameSection: Boolean = true,
-    showPathGroupSection: Boolean = true,
+    // Historical G1/G2 controls are retired. Keep compatibility fields read-only.
+    showPathGroupSection: Boolean = false,
     compactForBottomPanel: Boolean = false
 ) {
     val context = LocalContext.current
