@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.data.template
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.HourSystem
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -127,7 +126,6 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         rawText = rawText,
                         typedValue = typedValue,
                         timeFormatOptions = timeOpts,
-                        groupLevel = GroupLevel.valueOf(o.optString("groupLevel", GroupLevel.NONE.name)),
                         cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
                         rowSpan = o.optInt("rowSpan", 1),
                         colSpan = o.optInt("colSpan", 1),
@@ -258,7 +256,6 @@ fun TableTemplateState.toJsonString(): String {
         o.put("colIndex", c.colIndex)
         o.put("kind", c.kind.name)
         o.put("rawText", c.rawText)
-        o.put("groupLevel", c.groupLevel.name)
         o.put("cellId", c.cellId)
         o.put("rowSpan", c.rowSpan)
         o.put("colSpan", c.colSpan)

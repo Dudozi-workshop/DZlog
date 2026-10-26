@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
@@ -54,8 +53,7 @@ fun addRowBySelection(
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
             rawText = "",
-            typedValue = com.dudoziworkshop.dzlog.domain.model.CellValue.Text(""),
-            groupLevel = GroupLevel.NONE
+            typedValue = com.dudoziworkshop.dzlog.domain.model.CellValue.Text("")
         )
     }
 
@@ -88,8 +86,7 @@ fun addColumnBySelection(
             kind = TableCellKind.INPUT,
             dataType = TableCellDataType.TEXT,
             rawText = "",
-            typedValue = com.dudoziworkshop.dzlog.domain.model.CellValue.Text(""),
-            groupLevel = GroupLevel.NONE
+            typedValue = com.dudoziworkshop.dzlog.domain.model.CellValue.Text("")
         )
     }
 

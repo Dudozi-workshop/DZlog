@@ -5,7 +5,6 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScanPrefixes
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -31,28 +30,8 @@ fun sanitizeFilePart(input: String): String {
     return cleaned.trim().trim('.')
 }
 
-private fun sanitizeGroupPathSegment(input: String): String =
+private fun sanitizePathSegment(input: String): String =
     sanitizeFilePart(input).replace('/', '_').replace('\\', '_').trim()
-
-fun resolveGroupValue(resolvedCells: List<ResolvedCell>, level: GroupLevel): String {
-    return resolvedCells
-        .asSequence()
-        .filter { (it.raw?.groupLevel ?: GroupLevel.NONE) == level }
-        .sortedWith(compareBy({ it.raw?.rowIndex ?: 0 }, { it.raw?.colIndex ?: 0 }))
-        .map { sanitizeGroupPathSegment(it.resolvedText) }
-        .firstOrNull { it.isNotBlank() }
-        .orEmpty()
-}
-
-fun buildGalleryRelativePath(group1: String, group2: String): String {
-    val g1 = sanitizeGroupPathSegment(group1)
-    val g2 = sanitizeGroupPathSegment(group2)
-    return when {
-        g1.isBlank() -> "Pictures/DZlog/"
-        g2.isBlank() -> "Pictures/DZlog/$g1/"
-        else -> "Pictures/DZlog/$g1/$g2/"
-    }
-}
 
 private fun formatNow(pattern: String, now: Date): String {
     return runCatching { SimpleDateFormat(pattern, Locale.getDefault()).format(now) }
@@ -132,7 +111,7 @@ private fun resolvePathSlotToken(
         }
         else -> ""
     }
-    return sanitizeGroupPathSegment(value)
+    return sanitizePathSegment(value)
 }
 
 
@@ -400,22 +379,6 @@ fun buildDisplayNameFromSlotDrafts(
     dateFormat = dateFormat,
     timeFormat = timeFormat,
 )
-
-// legacy 호환 래퍼: 신규 코드는 buildSavePath 사용
-fun buildGalleryRelativePathFromSlotDrafts(
-    resolvedCells: List<ResolvedCell>,
-    pathSlotDrafts: List<TableEditorSlotDraft?>,
-    now: Date,
-    dateFormat: String,
-    timeFormat: String,
-): String = buildSavePath(
-    resolvedCells = resolvedCells,
-    pathSlotDrafts = pathSlotDrafts,
-    now = now,
-    dateFormat = dateFormat,
-    timeFormat = timeFormat,
-)
-
 
 /** Preview highlight belongs to a slot index, never to a matching substring. */
 data class NamingSlotPreview(val text: String, val highlightStart: Int, val highlightEnd: Int)

@@ -21,7 +21,6 @@ data class TableCellState(
     /** TIME 표시 옵션(토글 UI 연결용). TIME에서만 사용. */
     val timeFormatOptions: TimeFormatOptions? = null,
 
-    val groupLevel: GroupLevel = GroupLevel.NONE,
     val cellId: String = UUID.randomUUID().toString(),
     val rowSpan: Int = 1,
     val colSpan: Int = 1,
@@ -102,12 +101,6 @@ enum class TableCellDataType {
     TIME,
     COUNTER,
     ROTATING_TEXT
-}
-
-enum class GroupLevel {
-    NONE,
-    G1,
-    G2
 }
 
 enum class CounterScopeMode {
