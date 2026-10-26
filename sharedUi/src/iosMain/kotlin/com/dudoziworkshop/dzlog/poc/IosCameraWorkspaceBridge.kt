@@ -29,9 +29,19 @@ internal class IosCameraCaptureSession(
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
-    suspend fun saveJpeg(jpeg: ByteArray): Boolean {
+    suspend fun saveJpeg(jpeg: ByteArray, renderedJpeg: ByteArray? = null): Boolean {
         val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
-        check(doc.saveMode == SaveMode.ORIGINAL_ONLY) { "표 합성 결과 저장은 아직 지원하지 않습니다." }
+        // Fail closed: RESULT/BOTH must never silently persist an uncomposited original.
+        val payloads = when (doc.saveMode) {
+            SaveMode.ORIGINAL_ONLY -> mapOf(CaptureMediaRole.ORIGINAL to jpeg)
+            SaveMode.WATERMARK_ONLY -> mapOf(
+                CaptureMediaRole.RESULT to checkNotNull(renderedJpeg) { "표 합성 이미지가 필요합니다." },
+            )
+            SaveMode.BOTH -> mapOf(
+                CaptureMediaRole.RESULT to checkNotNull(renderedJpeg) { "표 합성 이미지가 필요합니다." },
+                CaptureMediaRole.ORIGINAL to jpeg,
+            )
+        }
         val counter = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
         check(!hasPending()) { "이전 촬영 기록 복구가 필요합니다." }
 
@@ -58,11 +68,12 @@ internal class IosCameraCaptureSession(
         val plan = buildCaptureMediaSavePlan(
             preview, doc.saveMode, NSUUID().UUIDString.lowercase(),
         )
+        plan.validatePayloads(payloads)
         // A Photos permission denial must not leave a no-asset pending journal.
         media.ensureWritePermission()
         val committed = coordinator.saveAndCommit(
             originalWorkspace = workspace, selectedDocument = doc, plan = plan,
-            jpegByRole = mapOf(CaptureMediaRole.ORIGINAL to jpeg),
+            jpegByRole = payloads,
             loadWorkspace = { store.load(doc.template) },
             persistWorkspace = { store.save(it) },
         )
