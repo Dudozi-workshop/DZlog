@@ -24,7 +24,8 @@ internal class IosCameraCaptureSession(
     private var workspace: EditorWorkspace,
 ) {
     private val store = IosWorkspaceStore(editorKey)
-    private val coordinator = IosCaptureSaveCoordinator(PhotoKitCaptureMediaRepository())
+    private val media = PhotoKitCaptureMediaRepository()
+    private val coordinator = IosCaptureSaveCoordinator(media)
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
@@ -57,6 +58,8 @@ internal class IosCameraCaptureSession(
         val plan = buildCaptureMediaSavePlan(
             preview, doc.saveMode, NSUUID().UUIDString.lowercase(),
         )
+        // A Photos permission denial must not leave a no-asset pending journal.
+        media.ensureWritePermission()
         val committed = coordinator.saveAndCommit(
             originalWorkspace = workspace, selectedDocument = doc, plan = plan,
             jpegByRole = mapOf(CaptureMediaRole.ORIGINAL to jpeg),

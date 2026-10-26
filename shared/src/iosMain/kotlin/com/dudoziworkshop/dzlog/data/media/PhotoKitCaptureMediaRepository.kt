@@ -14,6 +14,11 @@ import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
 class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
     private val photos = PhotoKitAssetAccess()
     private val index = PhotoKitCaptureMediaIndex()
+
+    /** Ask for Photos access before staging the irreversible workspace journal. */
+    suspend fun ensureWritePermission() {
+        photos.ensureReadWriteAccess()
+    }
     private var saving = false
 
     override suspend fun saveAllOrRollback(
