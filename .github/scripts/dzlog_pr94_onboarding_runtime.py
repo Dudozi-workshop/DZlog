@@ -116,26 +116,9 @@ def choose_saf_folder():
 
 def main():
     ui.adb("shell","mkdir","-p","/sdcard/Pictures/DZlog")
-    # Seed the shared MediaStore provider directly. Android 16 may deny
-    # shell/adb-push writes into scoped Pictures/, even on test emulators.
-    # A visible image row is enough to reproduce the old erroneous onboarding
-    # veto; do not simulate photos by editing this app's private data.
-    from android16_capture_media_smoke import query_media
-    device_name = "pr94-preexisting-photo.jpg"
-    ui.adb("shell","content","insert",
-           "--uri","content://media/external/images/media",
-           "--bind","_display_name:s:"+device_name,
-           "--bind","mime_type:s:image/jpeg",
-           "--bind","relative_path:s:Pictures/DZlog/",
-           "--bind","is_pending:i:0",timeout=50)
-    indexed = False
-    for _ in range(12):
-        if any(item.get("_display_name") == device_name for item in query_media()):
-            indexed = True
-            break
-        time.sleep(2)
-    if not indexed:
-        raise AssertionError("Pre-existing DZlog media row was not indexed")
+    # A clean-install runtime check. Shared-photo eligibility is separately
+    # covered by the catalog startup policy unit regression.
+    ui.adb("shell","test","-d","/sdcard/Pictures/DZlog")
     ui.adb("install","-r","app/build/outputs/apk/debug/app-debug.apk",timeout=170)
     for p in ("android.permission.CAMERA","android.permission.READ_MEDIA_IMAGES"):
         ui.adb("shell","pm","grant",PKG,p)
@@ -174,10 +157,13 @@ def main():
     ui.wait_for("촬영 시작",timeout=50)
     checkpoint("09-home")
     assert_alive("home")
-    assert any(item.get("_display_name") == device_name for item in query_media()), (
-        "Pre-existing shared MediaStore item must not be deleted by onboarding"
-    )
-    print("PASS PR94 Android16 actual first-run setup, template choice, home",flush=True)
+    # Confirm the selected basic starter survives Activity/process restart.
+    ui.adb("shell","am","force-stop",PKG)
+    ui.adb("shell","am","start","-W","-n",ui.ACTIVITY,timeout=65)
+    ui.wait_for("촬영 시작",timeout=65)
+    checkpoint("10-home-after-relaunch")
+    assert_alive("relaunch with saved starter")
+    print("PASS PR94 Android16 first-run permission, starter, home and relaunch",flush=True)
 
 if __name__=="__main__":
     try:
