@@ -8,7 +8,7 @@ enum class CaptureSoundChoice(val storedId: Int, val label: String) {
     DIGITAL_DSLR(3, "디지털 DSLR"),
     PPUPPYU(4, "뿌쀼!");
 
-    // Every shipped choice now has a verified, packaged audio source.
+    // The platform default uses MediaActionSound; the other choices use bundled audio.
     val available: Boolean get() = true
 
     // Existing original audio assets remain byte-for-byte unchanged.
@@ -17,7 +17,7 @@ enum class CaptureSoundChoice(val storedId: Int, val label: String) {
     // These are playback gains, not hard-coded system media-stream volume.
     // Physical device listening QA is required for final perceptual matching.
     val playbackGain: Float get() = when (this) {
-        SYSTEM -> 1.00f // New 160ms default WAV: approximately -36 dBFS RMS.
+        SYSTEM -> 1.00f // Android default shutter ignores the custom effect gain.
         SOFT_CONTAREX -> 0.50f
         CLASSIC_WERRA -> 0.50f
         DIGITAL_DSLR -> 0.50f
