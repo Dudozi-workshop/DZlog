@@ -151,8 +151,20 @@ def main():
     checkpoint("07-template-choice")
     assert_alive("starter selection")
     ui.tap("DZlog 시작하기")
-    ui.wait_for("촬영 시작",timeout=65)
-    checkpoint("08-home")
+    # An initial tutorial invitation may cover the Home button; dismiss the
+    # optional prompt without disabling or altering any actual user feature.
+    invite_deadline = time.monotonic() + 65
+    while time.monotonic() < invite_deadline:
+        current = ui.hierarchy()
+        if contains(current, "DZlog 사용법을") and contains(current, "나중에"):
+            checkpoint("08-tutorial-invitation")
+            ui.tap("나중에")
+            break
+        if contains(current, "촬영 시작"):
+            break
+        time.sleep(1.5)
+    ui.wait_for("촬영 시작",timeout=50)
+    checkpoint("09-home")
     assert_alive("home")
     ui.adb("shell","test","-s",device_photo)  # never delete or move real shared media
     print("PASS PR94 Android16 actual first-run setup, template choice, home",flush=True)
