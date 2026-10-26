@@ -16,7 +16,6 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
 
 class CaptureWorkspaceCommitTest {
     private val path = "Pictures/DZlog/Records/"
@@ -75,7 +74,7 @@ class CaptureWorkspaceCommitTest {
         assertFailsWith<IllegalStateException> {
             commitConfirmedCaptureToWorkspace(edited, original, prepared, saved(prepared))
         }
-        assertSame(current, current)
+        assertEquals(original, current.active)
     }
 
     @Test fun incompleteReceiptOrWrongCaptureIsRejectedBeforeStateChanges() {
