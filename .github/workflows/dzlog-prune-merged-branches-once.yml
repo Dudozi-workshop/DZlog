@@ -32,7 +32,7 @@ jobs:
             const deleted = [];
             const errors = [];
             for (const x of expected) {
-              if (activeRefs.has(x.name) || /^(DZlog|backup\\/|integration\\/|integration-preview\\/|milestone\\/|release\\/|assets\\/)/.test(x.name)) {
+              if (activeRefs.has(x.name) || ['DZlog', 'backup/', 'integration/', 'integration-preview/', 'milestone/', 'release/', 'assets/'].some(prefix => x.name.startsWith(prefix))) {
                 skipped.push(x.name + ': protected or referenced');
                 continue;
               }
