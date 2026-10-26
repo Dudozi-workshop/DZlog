@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.feature.table.policy.CatalogStartupRoute
-import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingInstallProbe
 import com.dudoziworkshop.dzlog.feature.table.policy.OnboardingStarterCommitResult
 import com.dudoziworkshop.dzlog.feature.table.policy.commitFirstOnboardingStarter
 import com.dudoziworkshop.dzlog.feature.table.policy.inspectTableTemplateCatalogStartup
@@ -56,17 +55,17 @@ fun OnboardingStartupGate(
         route = null
         route = try {
             withContext(Dispatchers.IO) {
-                // After permission setup, verify existing DZlog photos before
-                // offering the first starter. Unknown media state fails closed.
-                val existingImages = if (offerOnboarding) {
-                    OnboardingInstallProbe.existingDzlogImagesOrNull(context)
-                } else null
+                // MediaStore pictures can belong to another DZlog installation
+                // (notably the separately installed QA build). They are not proof
+                // that this package owns a saved template/catalog. Only this
+                // package's persisted onboarding and catalog state can veto
+                // starter selection; never clear or migrate shared photos.
                 inspectTableTemplateCatalogStartup(
                     context = context,
-                    verifiedNoExistingMedia = existingImages == false,
-                    knownExistingMedia = existingImages == true,
+                    verifiedNoExistingMedia = false, // not inspected; do not claim empty media
+                    knownExistingMedia = false, // media alone is not app catalog state
                     verifiedFreshInstall = offerOnboarding,
-                    requireVerifiedMediaForOnboarding = offerOnboarding,
+                    requireVerifiedMediaForOnboarding = false,
                     ignoreOtherSavedState = offerOnboarding,
                 )
             }
