@@ -50,11 +50,11 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 "templates", "manage", "more" -> LiveHomeTemplates(template, style, templateName)
                 else -> HomeScreen(tableTemplateState = template, activeTemplateName = templateName,
                 onOpenSettings = {}, onStartCamera = {}, onOpenTableEditor = {}, onOpenAlbum = {},
-                onOpenRecentCaptureGrid = { _, _, _, _ -> })
+                onOpenRecentCaptureGrid = { _ -> })
             }
             "camera" -> CameraScreen(tableTemplateState = template, onTemplateChange = {},
                 onOpenTableEditor = {}, onOpenSaveSettings = {}, onOpenAlbum = {},
-                onOpenRecentCaptureGrid = { _, _, _, _ -> },
+                onOpenRecentCaptureGrid = { _ -> },
                 sessionCaptureStack = remember { mutableStateListOf() },
                 phraseUndoHistory = remember { CapturePhraseUndoHistory() },
                 quickTemplateName = templateName,
