@@ -100,6 +100,16 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("자동번호 셀: 13").exists)
     }
 
+    // BOTH must reject missing rendered bytes without committing a counter or a pending journal.
+    func testBothModeMissingRenderedJpegIsRejected() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("BOTH 합성 누락 검증")
+        XCTAssertTrue(text("저장 상태: 합성 이미지 누락 차단·번호 유지").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("다음 촬영 번호: 12").exists)
+    }
+
     // Denied permission must never start a camera session or allow capturing.
     // This test-only argument forces denial; real OS permission prompts need device QA.
     func testCameraPermissionDeniedBlocksCapture() {
