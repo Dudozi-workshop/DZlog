@@ -13,7 +13,7 @@ private fun ellipsizePrefix(text: String, maxChars: Int): String {
  * Earlier folders are indicated by an ellipsis rather than silently dropped.
  */
 fun buildFolderBreadcrumbTitle(pathTitle: String, totalBudget: Int): String {
-    val segments = pathTitle.split('/').map(String::trim).filter(String::isNotEmpty)
+    val segments = pathTitle.split('/').map { it.trim() }.filter { it.isNotEmpty() }
     if (segments.isEmpty()) return ""
     val budget = totalBudget.coerceAtLeast(1)
     val spaced = segments.joinToString(" / ")
