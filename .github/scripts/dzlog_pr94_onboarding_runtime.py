@@ -13,7 +13,7 @@ import android16_journey_smoke as ui
 
 PKG = "com.dudoziworkshop.dzlog.qa.pr94"
 ui.PKG = PKG
-ui.ACTIVITY = PKG + "/.MainActivity"
+ui.ACTIVITY = PKG + "/com.dudoziworkshop.dzlog.MainActivity"
 from dzlog_postrelease_full_journey import tap_any
 from android16_backup_saf_smoke import picker
 from android16_journey_smoke import nodes, contains
