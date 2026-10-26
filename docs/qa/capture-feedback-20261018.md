@@ -83,3 +83,31 @@ prompted this *unmerged* revision, which must pass new device QA.
   behavior. Confirm no duplicate click, a clear default soft click on
   non-required devices and no camera preview/save/Undo/rotation regressions.
   Capture media persistence and counter policies are unchanged.
+
+## DZQ-018 · 2026-10-26 closeout candidate — SFX8
+
+This section supersedes the obsolete SFX3 device-behavior proposal above. The SFX3
+system-first policy caused a real-device regression: on a device reporting
+`REQUIRED`, the app played Android's native shutter even when its feedback
+toggle was OFF. That regression was fixed in SFX7, with actual-device confirmation
+of the OFF/custom feedback modes.
+
+- When feedback is OFF, DZlog **does not explicitly play** an app shutter sound.
+- With feedback ON and `SYSTEM(0)` selected, DZlog explicitly plays the
+  Android native `MediaActionSound.SHUTTER_CLICK`, including settings preview.
+  The in-app custom gain slider is disabled for this option.
+- With feedback ON and one of the four other choices, DZlog plays only the
+  corresponding packaged sound sample. The extra soft-default WAV was abandoned
+  and has been removed; bundled custom samples remain unmodified.
+- Unneeded `QA · 촬영음 진단` settings UI was removed; diagnostic logging may
+  remain internal. Source and persisted choice IDs are unchanged.
+- **Focused Android QA:** [SFX8 run #40237905895](https://github.com/Dudozi-workshop/DZlog/actions/runs/40237905895)
+  passed at `4d257465` before documentation cleanup. Revalidate clean-up commit
+  and check SFX8 native sound on a real device before final sign-off.
+- **Mandatory shutter constraints:** the tested device previously reported
+  `CameraInfo.mustPlayShutterSound() == true`; platform/regional audio compliance
+  must be separately reviewed before general release. Do not characterize an app
+  request as a hardware-origin automatic shutter.
+- No change intended to capture/save, counter, original/BOTH photo handling,
+  Undo or gallery data. Project feature DZQ-021 is a **separate Draft PR** and
+  must not be included in the non-project closeout.
