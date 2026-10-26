@@ -9,6 +9,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
   ) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
