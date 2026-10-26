@@ -34,6 +34,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
+import com.dudoziworkshop.dzlog.data.project.CaptureProjectStore
+import com.dudoziworkshop.dzlog.domain.project.CaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
@@ -176,6 +178,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
+    val captureProjectStore = remember(context.applicationContext) {
+        CaptureProjectStore(context.applicationContext)
+    }
+    val captureProjectRegistry by captureProjectStore.changes.collectAsState(
+        initial = CaptureProjectRegistry(),
+    )
     val pendingTutorialInvite by remember(context) {
         context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
     }.collectAsState(initial = false)
@@ -198,6 +206,15 @@ fun AppRoot(startOnCamera: Boolean = false) {
     // An editor-only choice; camera activation is committed by saveV2EditSession.
     var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
+    fun recordCommittedProjectCapture() {
+        // CaptureTrigger already pushed a durable URI group before this callback.
+        val latest = cameraSessionCaptureStack.lastOrNull()?.map(Uri::toString).orEmpty()
+        if (latest.isEmpty()) return
+        appScope.launch {
+            runCatching { captureProjectStore.appendCommittedCapture(latest) }
+                .onFailure { android.util.Log.e("DZlogCaptureProject", "Project receipt not saved", it) }
+        }
+    }
     var firstCaptureWriteScheduled by remember { mutableStateOf(false) }
     // ON-04 appears only when the new user explicitly chooses to open the camera.
     var firstGuidePhase by rememberSaveable(startOnCamera) {
@@ -696,9 +713,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
         navigateTo(AppScreen.QUICK_RESULTS)
     }
 
-    LaunchedEffect(screen, cameraSessionCaptureStack.size) {
+    LaunchedEffect(screen, cameraSessionCaptureStack.size, captureProjectRegistry.active?.captureCount) {
         if (screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
-        val savedGroups = cameraSessionCaptureStack.map { group -> group.map { it.toString() } }
+        val persistedGroups = captureProjectRegistry.active?.captureUriGroups.orEmpty()
+        val liveGroups = cameraSessionCaptureStack.map { group -> group.map(Uri::toString) }
+        // Preserve the latest in-flight view until the project's receipt is committed.
+        val savedGroups = persistedGroups + liveGroups.filterNot { it in persistedGroups }
         if (savedGroups.isEmpty()) {
             quickResultsPhotos = emptyList()
             quickResultsCaptures = emptyList()
@@ -876,6 +896,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
+                        recordCommittedProjectCapture()
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
@@ -906,6 +927,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
+                projectCaptureCount = captureProjectRegistry.active?.captureCount ?: 0,
+                onOpenActiveProject = ::openQuickResults,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
 
@@ -931,6 +954,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
+                        recordCommittedProjectCapture()
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
