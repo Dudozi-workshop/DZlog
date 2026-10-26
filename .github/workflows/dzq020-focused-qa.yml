@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dzq020-template-sync-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   focused-android-tests:
     runs-on: ubuntu-latest
@@ -30,7 +34,20 @@ jobs:
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
       - name: Compile and run focused tests
         run: |
-          bash ./gradlew --no-daemon :app:testDebugUnitTest --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest'
+          bash ./gradlew --no-daemon :app:testDebugUnitTest \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogLiveInputTest'
+      - name: Build isolated template sync QA APK
+        run: |
+          bash ./gradlew --no-daemon :app:assembleDebug \
+            -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=sync1
+      - name: Upload isolated template sync QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-table-sync1-qa-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
       - name: Save test results
         if: always()
         uses: actions/upload-artifact@v4
