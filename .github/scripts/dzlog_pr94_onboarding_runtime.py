@@ -34,8 +34,16 @@ def save_crashlog():
     log=subprocess.run(["adb","logcat","-d","-t","10000"],
                        capture_output=True,text=True,timeout=80).stdout
     (OUT / "logcat.txt").write_text(log,encoding="utf-8")
-    fatal=[line for line in log.splitlines() if "FATAL EXCEPTION" in line or
-           ("Process: " + PKG) in line or "AndroidRuntime" in line and "Exception" in line]
+    # Android 16 Google APIs emulators may crash a Play Services process.
+    # Only the tested DZlog package is a startup failure for this workflow.
+    lines = log.splitlines()
+    fatal = []
+    for i, line in enumerate(lines):
+        if "FATAL EXCEPTION" not in line:
+            continue
+        context = lines[i:i+5]
+        if any(("Process: " + PKG + ",") in candidate for candidate in context):
+            fatal.extend(context)
     return fatal[:25]
 
 def assert_alive(where):
