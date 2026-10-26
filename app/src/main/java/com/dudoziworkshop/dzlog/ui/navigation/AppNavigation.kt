@@ -102,8 +102,6 @@ enum class AppScreen {
     SETTINGS,
     CREDITS,
     ALBUM_FOLDER,
-    ALBUM_G1,
-    ALBUM_G2,
     ALBUM_GRID,
     ALBUM_VIEWER,
     QUICK_RESULTS
@@ -150,7 +148,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
     var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
-// 앨범(G1/G2/그리드/뷰어) 상태
+// 앨범(폴더/그리드/뷰어) 상태
     var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
     var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
     var albumGridEntryScreen by rememberSaveable { mutableStateOf(AppScreen.ALBUM_FOLDER) }
@@ -575,8 +573,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
 
     fun isAlbumScreen(target: AppScreen): Boolean =
         target == AppScreen.ALBUM_FOLDER ||
-        target == AppScreen.ALBUM_G1 ||
-            target == AppScreen.ALBUM_G2 ||
             target == AppScreen.ALBUM_GRID ||
             target == AppScreen.ALBUM_VIEWER ||
             target == AppScreen.QUICK_RESULTS
@@ -736,7 +732,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 returnLocationIfWater = null
             )
         }
-        albumGridEntryScreen = AppScreen.ALBUM_G2
+        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         albumEntryScreen = screen
         // 정책: Home recent에서 진입한 Grid만 별도 출처로 기록해 back target을 Home으로 고정한다.
         gridEntrySource = if (screen == AppScreen.HOME) GridEntrySource.HOME_RECENT else GridEntrySource.NORMAL
@@ -845,8 +841,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     else screen = rootAlbumBackTarget()
                 }
             }
-            AppScreen.ALBUM_G1 -> screen = AppScreen.ALBUM_FOLDER
-            AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_FOLDER
         }
     }
 
@@ -1084,10 +1078,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
 
-            AppScreen.ALBUM_G1, AppScreen.ALBUM_G2 -> {
-                // Legacy routes are redirected; new entrypoints only use ALBUM_FOLDER.
-                screen = AppScreen.ALBUM_FOLDER
-            }
             AppScreen.QUICK_RESULTS -> {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
