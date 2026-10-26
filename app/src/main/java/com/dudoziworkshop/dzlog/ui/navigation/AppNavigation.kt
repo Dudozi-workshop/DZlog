@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
@@ -392,6 +393,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         val previousActiveId = tableTemplateViewModel.activeTemplateId
         val activeId = editorReplacementId ?: previousActiveId
         if (activeId == null || tableTemplateViewModel.templates.none { it.id == activeId }) return false
+        // A pending capture still owns its original template snapshot.
+        if (!CaptureAsyncRuntime.canSaveEditedTemplate(activeId)) return false
 
         return runCatching {
             val updatedItems = SaveSessionCoordinator.persist(
@@ -411,6 +414,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
+            CaptureAsyncRuntime.onExternalTemplateSaved(activeId)
             if (pendingNewTemplateId == activeId) {
                 pendingNewTemplateId = null
                 pendingNewTemplatePreviousActiveId = null
