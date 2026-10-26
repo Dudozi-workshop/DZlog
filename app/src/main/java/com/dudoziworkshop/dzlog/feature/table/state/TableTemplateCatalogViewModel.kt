@@ -19,16 +19,31 @@ class TableTemplateCatalogViewModel : ViewModel() {
     var activeTemplateId by mutableStateOf<String?>(null)
         private set
 
+    /**
+     * Every published live table change advances this revision, including
+     * completed captures. An in-flight disk write may replace it only if no
+     * newer table state was published since the write began.
+     */
+    var stateRevision: Long = 0L
+        private set
+
     fun restoreCatalog(items: List<SavedTableTemplate>, activeId: String?) {
         val previousUse = templates.associate { it.id to it.lastUsedAt }
-        templates = items.map { it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L)) }.sortedByDescending { it.modifiedAt }
-        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
-        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
-            ?: templates.firstOrNull()?.templateState
+        val restored = items.map {
+            it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L))
+        }.sortedByDescending { it.modifiedAt }
+        val restoredId = activeId?.takeIf { id -> restored.any { it.id == id } }
+        val restoredState = restored.firstOrNull { it.id == restoredId }?.templateState
+            ?: restored.firstOrNull()?.templateState
             ?: newBlankTableTemplateState()
+        if (activeTemplateId != restoredId || tableTemplateState != restoredState) stateRevision++
+        templates = restored
+        activeTemplateId = restoredId
+        tableTemplateState = restoredState
     }
 
     fun updateStateOnly(state: TableTemplateState) {
+        if (tableTemplateState != state) stateRevision++
         tableTemplateState = state
         // Publish the current input to both camera state and template catalog
         // synchronously. Async persistence must not expose a stale list entry.
@@ -38,28 +53,30 @@ class TableTemplateCatalogViewModel : ViewModel() {
         }
     }
 
-    /** Keep newer live input when an earlier disk write finishes. */
-    fun applyPersistedCatalog(items: List<SavedTableTemplate>, savedActiveId: String?, savedState: TableTemplateState) {
+    /**
+     * Capture commits advance the saved state, so comparing the old live value
+     * with savedState is incorrect: the pre-shot value is expected to differ.
+     * Only preserve live state when a newer revision appeared during the write.
+     */
+    fun applyPersistedCatalog(
+        items: List<SavedTableTemplate>,
+        savedActiveId: String?,
+        savedState: TableTemplateState,
+        revisionAtWriteStart: Long,
+    ) {
         if (activeTemplateId != savedActiveId) return
-        val liveState = tableTemplateState
-        setCatalog(items, savedActiveId)
-        if (liveState != savedState) {
-            // An older asynchronous write completed after new camera edits.
-            // Keep both public representations on the latest local revision.
-            tableTemplateState = liveState
-            templates = templates.map { item ->
-                if (item.id == savedActiveId) item.copy(templateState = liveState) else item
+        val hasNewerLiveState = stateRevision != revisionAtWriteStart
+        val current = tableTemplateState
+        val chosen = if (hasNewerLiveState && current != savedState) {
+            items.map { item ->
+                if (item.id == savedActiveId) item.copy(templateState = current) else item
             }
-        }
+        } else items
+        setCatalog(chosen, savedActiveId)
     }
 
     fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {
-        val previousUse = templates.associate { it.id to it.lastUsedAt }
-        templates = items.map { it.copy(lastUsedAt = maxOf(it.lastUsedAt, previousUse[it.id] ?: 0L)) }.sortedByDescending { it.modifiedAt }
-        activeTemplateId = activeId?.takeIf { id -> templates.any { it.id == id } }
-        tableTemplateState = templates.firstOrNull { it.id == activeTemplateId }?.templateState
-            ?: templates.firstOrNull()?.templateState
-            ?: newBlankTableTemplateState()
+        restoreCatalog(items, activeId)
     }
 
     fun markUsed(id: String, timestamp: Long) {
@@ -68,12 +85,14 @@ class TableTemplateCatalogViewModel : ViewModel() {
 
     fun activate(id: String) {
         val target = templates.firstOrNull { it.id == id } ?: return
+        if (activeTemplateId != target.id || tableTemplateState != target.templateState) stateRevision++
         activeTemplateId = target.id
         tableTemplateState = target.templateState
     }
 
     fun updateActive(state: TableTemplateState, style: TableStyleState) {
         val id = activeTemplateId
+        if (tableTemplateState != state) stateRevision++
         tableTemplateState = state
         if (id == null) return
         templates = templates.map { item ->
