@@ -56,7 +56,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("앨범 보기")
         XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
-        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("사진 3개").waitForExistence(timeout: 15))
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapButton("뒤로가기")
         XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
@@ -66,7 +66,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("뒤로가기")
         XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 20))
         tapButton("앨범 보기")
-        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("사진 3개").waitForExistence(timeout: 20))
     }
 
     // Synthetic JPEG exercises the same iOS workspace/PhotoKit coordinator as the home camera.
