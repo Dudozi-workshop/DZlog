@@ -108,6 +108,15 @@ def choose_saf_folder():
 
 def main():
     ui.adb("shell","mkdir","-p","/sdcard/Pictures/DZlog")
+    # Simulate an existing production DZlog photo on the same device BEFORE
+    # installing the isolated QA package. Shared media must not suppress
+    # this new package's starter selection, and must never be deleted.
+    fixture = "app/src/main/res/drawable-nodpi/onboarding_gallery_photo.jpg"
+    device_photo = "/sdcard/Pictures/DZlog/pr94-preexisting-photo.jpg"
+    ui.adb("push", fixture, device_photo, timeout=50)
+    ui.adb("shell","am","broadcast","-a","android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+           "-d","file://"+device_photo,timeout=50)
+    ui.adb("shell","test","-s",device_photo)
     ui.adb("install","-r","app/build/outputs/apk/debug/app-debug.apk",timeout=170)
     for p in ("android.permission.CAMERA","android.permission.READ_MEDIA_IMAGES"):
         ui.adb("shell","pm","grant",PKG,p)
@@ -134,6 +143,7 @@ def main():
     ui.wait_for("촬영 시작",timeout=65)
     checkpoint("08-home")
     assert_alive("home")
+    ui.adb("shell","test","-s",device_photo)  # never delete or move real shared media
     print("PASS PR94 Android16 actual first-run setup, template choice, home",flush=True)
 
 if __name__=="__main__":
