@@ -30,75 +30,52 @@ class OnboardingCatalogStartupPolicyTest {
     )
 
     @Test
-    fun `route only offers onboarding after verified fresh data and media`() {
+    fun `only a verified fresh package with no saved catalog offers starter setup`() {
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(null, null, false, true))
+            decideCatalogStartupRoute(null, null, false))
         assertEquals(CatalogStartupRoute.OFFER_ONBOARDING,
-            decideCatalogStartupRoute(null, null, false, true, verifiedFreshInstall = true))
+            decideCatalogStartupRoute(null, null, false, verifiedFreshInstall = true))
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(null, null, true, true))
-        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(null, null, false, false))
+            decideCatalogStartupRoute(null, null, true, verifiedFreshInstall = true))
         assertEquals(CatalogStartupRoute.MIGRATE_LEGACY,
-            decideCatalogStartupRoute(null, validState.toJsonString(), false, true))
+            decideCatalogStartupRoute(null, validState.toJsonString(), false, verifiedFreshInstall = true))
         assertEquals(CatalogStartupRoute.RESTORE_CATALOG,
-            decideCatalogStartupRoute(validCatalog, null, false, true))
-        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
-            decideCatalogStartupRoute("{broken", null, false, true))
-        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
-            decideCatalogStartupRoute(null, "{broken", false, true))
+            decideCatalogStartupRoute(validCatalog, null, false, verifiedFreshInstall = true))
     }
 
     @Test
-    fun `fresh install can start without gallery permission but known existing media vetoes`() {
+    fun `shared gallery photos are not installation state and cannot suppress a new starter`() {
+        // This policy deliberately takes NO media argument: photos can remain
+        // in shared Pictures/DZlog when an independently installed QA app starts.
         assertEquals(CatalogStartupRoute.OFFER_ONBOARDING,
             decideCatalogStartupRoute(
-                catalogJson = null, legacyJson = null,
-                hasOtherSavedState = false, verifiedNoExistingMedia = false,
-                verifiedFreshInstall = true, knownExistingMedia = false,
+                catalogJson = null,
+                legacyJson = null,
+                hasOtherSavedState = false,
+                verifiedFreshInstall = true,
             ))
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(
-                catalogJson = null, legacyJson = null,
-                hasOtherSavedState = false, verifiedNoExistingMedia = true,
-                verifiedFreshInstall = true, knownExistingMedia = true,
-            ))
+            decideCatalogStartupRoute(null, null, false, verifiedFreshInstall = false))
         assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(
-                catalogJson = null, legacyJson = null,
-                hasOtherSavedState = true, verifiedNoExistingMedia = false,
-                verifiedFreshInstall = true, knownExistingMedia = false,
-            ))
+            decideCatalogStartupRoute(null, null, true, verifiedFreshInstall = true))
     }
 
     @Test
-    fun `post permission media verification refuses uncertain and existing photos`() {
-        fun route(noMedia: Boolean, existing: Boolean) = decideCatalogStartupRoute(
-            catalogJson = null,
-            legacyJson = null,
-            hasOtherSavedState = false,
-            verifiedNoExistingMedia = noMedia,
-            verifiedFreshInstall = true,
-            knownExistingMedia = existing,
-            requireVerifiedMediaForOnboarding = true,
-        )
-        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED, route(false, false))
-        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING, route(false, true))
-        assertEquals(CatalogStartupRoute.OFFER_ONBOARDING, route(true, false))
-        assertEquals(CatalogStartupRoute.CONTINUE_EXISTING,
-            decideCatalogStartupRoute(null, null, false, true,
-                verifiedFreshInstall = false,
-                requireVerifiedMediaForOnboarding = true))
+    fun `corrupt catalog and legacy data are never overwritten by onboarding`() {
+        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
+            decideCatalogStartupRoute("{broken", null, false, verifiedFreshInstall = true))
+        assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
+            decideCatalogStartupRoute(null, "{broken", false, verifiedFreshInstall = true))
     }
 
     @Test
     fun `partially decoded and duplicate catalogs require recovery instead of overwrite`() {
         val partlyCorrupt = validCatalog.dropLast(1) + ",{}]"
         assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
-            decideCatalogStartupRoute(partlyCorrupt, null, false, true))
+            decideCatalogStartupRoute(partlyCorrupt, null, false, verifiedFreshInstall = true))
         val duplicated = validCatalog.dropLast(1) + "," + validCatalog.drop(1)
         assertEquals(CatalogStartupRoute.RECOVERY_REQUIRED,
-            decideCatalogStartupRoute(duplicated, null, false, true))
+            decideCatalogStartupRoute(duplicated, null, false, verifiedFreshInstall = true))
     }
 
     @Test

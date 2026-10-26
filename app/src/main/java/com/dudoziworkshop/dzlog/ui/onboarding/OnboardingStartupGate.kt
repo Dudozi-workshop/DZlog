@@ -62,10 +62,7 @@ fun OnboardingStartupGate(
                 // starter selection; never clear or migrate shared photos.
                 inspectTableTemplateCatalogStartup(
                     context = context,
-                    verifiedNoExistingMedia = false, // not inspected; do not claim empty media
-                    knownExistingMedia = false, // media alone is not app catalog state
                     verifiedFreshInstall = offerOnboarding,
-                    requireVerifiedMediaForOnboarding = false,
                     ignoreOtherSavedState = offerOnboarding,
                 )
             }
