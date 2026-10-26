@@ -74,6 +74,40 @@ internal fun IosCaptureWorkspaceFixturePoc() {
         Text("자동번호 셀: " + cellNumber)
         Button(enabled = !busy, onClick = {
             busy = true
+            status = "합성 이미지 누락 검증 중"
+            scope.launch {
+                try {
+                    val doc = EditorDocument(
+                        template, saveMode = SaveMode.BOTH,
+                        nextCounter = FIXTURE_COUNTER, usesAutoNext = false,
+                    )
+                    val before = EditorWorkspace(listOf(doc), template.id)
+                    check(store.save(before)) { "테스트 워크스페이스 준비 실패" }
+                    val error = runCatching {
+                        IosCameraCaptureSession(CAPTURE_FIXTURE_KEY, before)
+                            .saveJpeg(captureFixtureJpeg())
+                    }.exceptionOrNull()
+                    check(error is IllegalArgumentException || error is IllegalStateException) {
+                        "합성 이미지 누락이 차단되지 않았습니다."
+                    }
+                    val after = store.load(template)
+                    check(after.active?.nextCounter == FIXTURE_COUNTER) {
+                        "실패한 촬영에서 번호가 변경됐습니다."
+                    }
+                    check(!IosCameraCaptureSession.hasPending()) {
+                        "실패한 촬영에서 미완료 저장 기록이 생성됐습니다."
+                    }
+                    workspace = after
+                    status = "합성 이미지 누락 차단·번호 유지"
+                } catch (error: Throwable) {
+                    status = "실패: " + error.message.orEmpty()
+                } finally {
+                    busy = false
+                }
+            }
+        }) { Text("BOTH 합성 누락 검증") }
+        Button(enabled = !busy, onClick = {
+            busy = true
             status = "저장 중"
             scope.launch {
                 try {
