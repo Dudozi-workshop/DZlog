@@ -72,7 +72,7 @@ import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
-import com.dudoziworkshop.dzlog.ui.common.buildTwoPartTitle
+import com.dudoziworkshop.dzlog.ui.common.buildFolderBreadcrumbTitle
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -271,13 +271,6 @@ fun LogGridScreen(
                     }
 
                     BoxWithConstraints(modifier = Modifier.weight(1f)) {
-                        val parts = remember(headerTitle) {
-                            val split = headerTitle.split("/", limit = 2)
-                            when (split.size) {
-                                2 -> split[0] to split[1]
-                                else -> headerTitle to null
-                            }
-                        }
                         val density = LocalDensity.current
                         val textStyle = DDZTypography.ScreenTitle
                         val fontSizeSp = if (textStyle.fontSize.value > 0f) textStyle.fontSize.value else 20f
@@ -285,11 +278,7 @@ fun LogGridScreen(
                         val availDp = this@BoxWithConstraints.maxWidth.coerceAtLeast(0.dp)
                         val rawBudget = if (avgCharDp.value > 0f) floor(availDp.value / avgCharDp.value).toInt() else 8
                         val totalBudget = (rawBudget - 4).coerceIn(8, 16)
-                        val displayTitle = buildTwoPartTitle(
-                            g1 = parts.first,
-                            g2 = parts.second,
-                            totalBudget = totalBudget,
-                        )
+                        val displayTitle = buildFolderBreadcrumbTitle(headerTitle, totalBudget)
 
                         Text(
                             text = displayTitle,
