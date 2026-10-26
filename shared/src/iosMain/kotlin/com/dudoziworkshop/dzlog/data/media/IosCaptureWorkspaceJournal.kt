@@ -34,12 +34,14 @@ internal data class PendingIosWorkspaceCapture(
  *
  * This adapter does not itself start a capture or mutate the workspace.
  */
-internal class IosCaptureWorkspaceJournal(
+class IosCaptureWorkspaceJournal(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
     private val key: String = "dzlog.ios.capture.pending-workspace.v1",
 ) {
-    fun pending(): PendingIosWorkspaceCapture? =
+    internal fun pending(): PendingIosWorkspaceCapture? =
         defaults.stringForKey(key)?.let(::decode)
+
+    fun hasPending(): Boolean = defaults.stringForKey(key) != null
 
     fun stage(
         before: EditorWorkspace,
