@@ -28,6 +28,9 @@ class IosCaptureSaveCoordinator(
             "Resolve the previous iOS capture before starting another."
         }
         plan.validatePayloads(jpegByRole)
+        check(loadWorkspace() == originalWorkspace) {
+            "Workspace changed before the planned capture was staged."
+        }
         // The journal MUST be durable before issuing the irreversible PhotoKit write.
         journal.stage(originalWorkspace, selectedDocument, plan)
         val receipt = media.saveAllOrRollback(plan, jpegByRole)
