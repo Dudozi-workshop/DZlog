@@ -26,6 +26,7 @@ fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = C
 }) {
     DDZTheme {
         IosCameraCapturePoc(permissionGranted = cameraPermissionGranted, onBack = {
+            IosCameraReturnSignal.noteCameraClosed()
             NSNotificationCenter.defaultCenter.postNotificationName("dzlog.dismissCamera", null)
         })
     }

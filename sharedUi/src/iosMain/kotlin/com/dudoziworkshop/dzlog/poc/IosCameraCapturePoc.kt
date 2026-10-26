@@ -74,7 +74,7 @@ internal fun IosCameraCapturePoc(permissionGranted: Boolean, onBack: (() -> Unit
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (onBack != null) {
-            Button(onClick = onBack) { Text("뒤로가기") }
+            Button(onClick = onBack, enabled = !busy) { Text("뒤로가기") }
         }
         Text("iOS M3-A 실제 촬영 검증")
         Text(status)

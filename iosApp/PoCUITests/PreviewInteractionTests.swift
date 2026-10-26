@@ -52,7 +52,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
-        app.launchArguments = ["--home-navigation"]
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
         app.launch()
         tapButton("앨범 보기")
         XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
@@ -60,6 +60,13 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapButton("뒤로가기")
         XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
+        // After a camera round trip the home and saved assets must remain readable.
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 20))
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 20))
     }
 
     // Denied permission must never start a camera session or allow capturing.

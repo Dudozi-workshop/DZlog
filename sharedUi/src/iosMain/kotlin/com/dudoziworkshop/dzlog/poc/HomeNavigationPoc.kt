@@ -48,7 +48,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
     var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     var recentPhotoName by remember { mutableStateOf("") }
-    LaunchedEffect(showGallery) {
+    val cameraReturnRevision = IosCameraReturnSignal.revision
+    LaunchedEffect(showGallery, cameraReturnRevision) {
         if (!showGallery) {
             val indexed = runCatching { photoRepository.listSavedAssets() }.getOrDefault(emptyList())
             val newestCapture = indexed.lastOrNull()?.captureId
