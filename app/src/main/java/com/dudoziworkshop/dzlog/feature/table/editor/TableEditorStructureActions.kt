@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.PATH_SLOT_UI_MAX_COUNT
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -79,7 +78,7 @@ object TableEditorStructureActions {
             StructureRestoreAxis.ROW -> removeRowsByRange(input.currentTemplate, deletionRange)
             StructureRestoreAxis.COL -> removeColsByRange(input.currentTemplate, deletionRange)
         }
-        val sanitizedTemplate = sanitizePathGroupsAfterStructureChange(removedTemplate)
+        val sanitizedTemplate = removedTemplate
         val nextFileNameSlots = removeDeletedCellRefs(
             slots = input.currentTemplate.fileNameSlotDrafts,
             deletedCellIds = deletedCellIds,
@@ -317,20 +316,7 @@ object TableEditorStructureActions {
         }
     }
 
-    private fun sanitizePathGroupsAfterStructureChange(
-        state: TableTemplateState,
-    ): TableTemplateState {
-        if (state.cells.any { it.groupLevel == GroupLevel.G1 }) return state
-        return state.copy(
-            cells = state.cells.map { cell ->
-                if (cell.groupLevel == GroupLevel.G2) {
-                    cell.copy(groupLevel = GroupLevel.NONE)
-                } else {
-                    cell
-                }
-            }
-        )
-    }
+
 
     private fun removeDeletedCellRefs(
         slots: List<TableEditorSlotDraft?>,
