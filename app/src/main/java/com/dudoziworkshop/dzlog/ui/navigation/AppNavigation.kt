@@ -325,13 +325,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }
         if (!hasRestoredTemplate) return
         val savedActiveId = tableTemplateViewModel.activeTemplateId
+        val revisionAtWriteStart = tableTemplateViewModel.stateRevision
         appScope.launch {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = savedActiveId,
                 templateState = updated,
             )
-            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated, revisionAtWriteStart)
         }
     }
 
@@ -345,6 +346,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         // A capture receipt may arrive after a quick-template selection changes.
         // Never advance the newly selected template using the previous shot.
         if (!CaptureTemplateCommitPolicy.canPersist(expectedTemplateId, savedActiveId)) return false
+        val revisionAtWriteStart = tableTemplateViewModel.stateRevision
         return try {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
@@ -352,7 +354,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 templateState = updated,
             )
             // Publish only after the catalog write has succeeded.
-            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated, revisionAtWriteStart)
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
