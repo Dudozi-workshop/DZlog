@@ -1,0 +1,79 @@
+name: DZlog one-time non-iOS branch cleanup
+on:
+  push:
+    branches:
+      - integration/dzlog-20261010
+    paths:
+      - '.github/workflows/dzlog-prune-obsolete-non-ios-once.yml'
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  prune:
+    if: github.repository == 'Dudozi-workshop/DZlog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete verified obsolete non-iOS branches only
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = [{"name":"codex/address-android-lint-warnings-and-errors","sha":"a3f4e3da9d312c9134aa70bf4ceff73d39356262","pr":30},{"name":"feat/capture-async-pipeline-v1","sha":"1320963f6db91864a33361a807390269940b80df","pr":33},{"name":"feat/capture-feedback-options-20261018","sha":"28d65218ae0dfbdf56b5f837226e8e11c814d3e8","pr":null},{"name":"feat/gallery-bulk-delete-root-entry-20261013","sha":"17498c258eddfcdf45dc3e1dbe51f70becedf7ad","pr":34},{"name":"feat/onboarding-ui-20261015","sha":"daf3e39b383fbb732259e5c20b9b988034105908","pr":37},{"name":"feat/path-slots-3","sha":"fce3efe81e1b628c149a612ea26d619e11fb8ce4","pr":null},{"name":"feat/ux-backlog-batch4-20261017","sha":"9640e4b6011a29bd0d5d00539e2f6ab1a720044d","pr":null},{"name":"fix/dzq011-019-editor-sync-20261026","sha":"4403a2bb4830c6fea7b062bf01e3607e3f0eb709","pr":null},{"name":"fix/rotating-phrase-undo-20261015","sha":"7e09535d67c9258217e72c65d1beea1e22f9b919","pr":43},{"name":"qa/dzlog-nonproject-closeout-20261026","sha":"a6d95ab42ad601ff1462ebb71a6848ea276c243a","pr":null},{"name":"qa/dzq009-dzq015-combined-20261018","sha":"4da37c3b76fceac01ef6e2be65fb852d724fcfd5","pr":null},{"name":"qa/onboarding-integration-20261019","sha":"06acebf43a6b67607175b6accfdb68751e7c2e68","pr":null},{"name":"qa/onboarding-premerge-20261020","sha":"c1e789540d71c65d67fe5fb057c0b82ca51b5726","pr":null},{"name":"qa/pre-onboarding-milestone-20261017","sha":"fb01223ae95395215bc6604c32bfef1475d2b78b","pr":56}];
+            if (context.ref !== 'refs/heads/integration/dzlog-20261010') {
+              core.setFailed('Not running on the Android integration branch');
+              return;
+            }
+            const {owner, repo} = context.repo;
+            const activePRs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', per_page: 100
+            });
+            const inUse = new Set(activePRs.flatMap(p => [p.head.ref, p.base.ref]));
+            const preservedPrefixes = ['DZlog', 'backup/', 'integration/', 'integration-preview/', 'milestone/', 'release/', 'assets/'];
+            const preservedNames = new Set([
+              'feat/camera-recent-browse-20261015',
+              'qa/dzlog-ux-batch-20261026',
+              'qa/issue39-minimal-emulator-20261018',
+              'feat/dzq021-capture-project-core-20261026',
+              'feat/ios-m3a-capture-media-contract-20261021',
+              'feat/shared-core-foundation-20261019'
+            ]);
+            const deleted = [], skipped = [], errors = [];
+            for (const x of expected) {
+              if (
+                preservedPrefixes.some(prefix => x.name.startsWith(prefix)) ||
+                preservedNames.has(x.name) ||
+                /ios/i.test(x.name) ||
+                inUse.has(x.name)
+              ) {
+                skipped.push(x.name + ': reserved / still used'); continue;
+              }
+              try {
+                if (x.pr !== null) {
+                  const pr = (await github.rest.pulls.get({
+                    owner, repo, pull_number:x.pr
+                  })).data;
+                  if (pr.state !== 'closed' || pr.head.ref !== x.name || pr.head.sha !== x.sha) {
+                    skipped.push(x.name + ': historical PR changed'); continue;
+                  }
+                }
+                const ref = (await github.rest.repos.getBranch({
+                  owner, repo, branch: x.name
+                })).data;
+                if (ref.protected || ref.commit.sha !== x.sha) {
+                  skipped.push(x.name + ': protected or SHA moved'); continue;
+                }
+                await github.rest.git.deleteRef({owner, repo, ref:'heads/' + x.name});
+                deleted.push(x.name);
+                core.info('DELETED ' + x.name);
+              } catch (err) {
+                const message=x.name+': '+(err?.message ?? String(err));
+                errors.push(message);
+                core.warning(message);
+              }
+            }
+            await core.summary.addHeading('DZlog non-iOS obsolete branch cleanup')
+              .addRaw('Deleted: '+deleted.length+'; skipped: '+skipped.length+'; errors: '+errors.length)
+              .addCodeBlock(JSON.stringify({deleted, skipped, errors}, null, 2), 'json')
+              .write();
+            if (errors.length || skipped.length) core.setFailed('Review skipped/error branches');
+            
