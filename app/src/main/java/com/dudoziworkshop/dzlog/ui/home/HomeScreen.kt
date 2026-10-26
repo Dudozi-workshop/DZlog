@@ -72,6 +72,8 @@ fun HomeScreen(
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit = onOpenTableEditor,
     onOpenAlbum: () -> Unit,
+    projectCaptureCount: Int = 0,
+    onOpenActiveProject: () -> Unit = {},
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
     var showSaveInfo by remember { mutableStateOf(false) }
@@ -219,6 +221,20 @@ fun HomeScreen(
                         )
                     }
 
+                    if (projectCaptureCount > 0) {
+                        Text(
+                            text = "진행 중 프로젝트 · ${projectCaptureCount}회 촬영 · 다시 보기",
+                            style = DDZTypography.Secondary,
+                            color = DDZColor.PrimaryDark,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onOpenActiveProject)
+                                .padding(
+                                    horizontal = HomeUiSpec.PrimaryButtonHorizontalInset,
+                                    vertical = 12.dp,
+                                ),
+                        )
+                    }
                     Spacer(Modifier.height(sectionGap))
 
                     Row(
