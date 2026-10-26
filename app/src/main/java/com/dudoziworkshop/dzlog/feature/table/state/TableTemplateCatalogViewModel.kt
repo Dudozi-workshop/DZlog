@@ -30,6 +30,12 @@ class TableTemplateCatalogViewModel : ViewModel() {
 
     fun updateStateOnly(state: TableTemplateState) {
         tableTemplateState = state
+        // Publish the current input to both camera state and template catalog
+        // synchronously. Async persistence must not expose a stale list entry.
+        val id = activeTemplateId ?: return
+        templates = templates.map { item ->
+            if (item.id == id) item.copy(templateState = state) else item
+        }
     }
 
     /** Keep newer live input when an earlier disk write finishes. */
@@ -37,7 +43,14 @@ class TableTemplateCatalogViewModel : ViewModel() {
         if (activeTemplateId != savedActiveId) return
         val liveState = tableTemplateState
         setCatalog(items, savedActiveId)
-        if (liveState != savedState) tableTemplateState = liveState
+        if (liveState != savedState) {
+            // An older asynchronous write completed after new camera edits.
+            // Keep both public representations on the latest local revision.
+            tableTemplateState = liveState
+            templates = templates.map { item ->
+                if (item.id == savedActiveId) item.copy(templateState = liveState) else item
+            }
+        }
     }
 
     fun setCatalog(items: List<SavedTableTemplate>, activeId: String?) {

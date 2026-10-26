@@ -308,7 +308,9 @@ fun TableEditorV2Screen(
                                 mode = MockMode.EDIT
                                 selectionState.clearLayoutSelection()
                             } else {
-                                saveScope.launch { saveCoordinator.save(session, onSave) }
+                                saveScope.launch {
+                                    if (saveCoordinator.save(session, onSave)) onBack()
+                                }
                             }
                         },
                     )
