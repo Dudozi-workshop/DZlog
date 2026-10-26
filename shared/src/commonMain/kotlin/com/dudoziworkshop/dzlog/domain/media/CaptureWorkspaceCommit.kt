@@ -57,7 +57,7 @@ fun prepareCaptureWorkspaceUpdate(
 
     val updated = capturedDocument.copy(
         template = capturedDocument.template.copy(
-            templateState = capturedDocument.template.templateState.applyPatch(saved.patchAfterSuccess),
+            templateState = capturedDocument.template.templateState.applyPatch(capturePlan.patchAfterSuccess),
         ),
         nextCounter = capturePlan.usedCounter + 1,
     )
