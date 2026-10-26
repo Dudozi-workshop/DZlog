@@ -10,6 +10,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay
   ) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
