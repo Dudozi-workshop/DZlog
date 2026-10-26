@@ -53,7 +53,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -72,11 +71,8 @@ internal fun CellSettingsBottomPanel(
     cell: TableCellState,
     templateState: TableTemplateState,
     baseResolvedByCellId: Map<String, String>,
-    hasGroup1: Boolean,
-    hasGroup2: Boolean,
     onToggleFileNameForCell: (cellId: String, enabled: Boolean) -> Unit,
     onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
-    onPathGroupAction: (PathGroupAction) -> Unit,
     onSetDataType: (TableCellDataType) -> Unit,
     onSetCounterScopeMode: (CounterScopeMode) -> Unit,
     onResetCounterSeed: (() -> Unit)? = null,
@@ -91,8 +87,6 @@ internal fun CellSettingsBottomPanel(
     timeFormat: String,
     phraseSets: List<RotatingPhraseSet>,
     showFileNameSection: Boolean = true,
-    // Historical G1/G2 controls are retired. Keep compatibility fields read-only.
-    showPathGroupSection: Boolean = false,
     compactForBottomPanel: Boolean = false
 ) {
     val context = LocalContext.current
@@ -214,52 +208,6 @@ internal fun CellSettingsBottomPanel(
                 .verticalScroll(panelScrollState),
             verticalArrangement = Arrangement.spacedBy(sectionSpacing)
         ) {
-            if (showPathGroupSection) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("저장경로", style = DDZTypography.Body, color = DDZColor.TextMuted)
-                    val canSelectG2 = hasGroup1 && (
-                        cell.groupLevel != GroupLevel.G1 || hasGroup2
-                    )
-                    val isNone = cell.groupLevel == GroupLevel.NONE
-                    val isG1 = cell.groupLevel == GroupLevel.G1
-                    val isG2 = cell.groupLevel == GroupLevel.G2
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(DDZColor.Card, RoundedCornerShape(12.dp))
-                            .padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.NONE) }
-                        ) { Text(if (isNone) "없음 ✓" else "없음", style = DDZTypography.ButtonText) }
-
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.G1) }
-                        ) { Text(if (isG1) "G1 ✓" else "G1", style = DDZTypography.ButtonText) }
-
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPathGroupAction(PathGroupAction.G2) },
-                            enabled = canSelectG2
-                        ) { Text(if (isG2) "G2 ✓" else "G2", style = DDZTypography.ButtonText) }
-                    }
-
-                    if (!canSelectG2) {
-                        Text("※ G2는 G1 설정 후 사용 가능 (현재 G1 셀에는 G2 설정 불가)", style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                    }
-                    }
-                }
-            }
-
             if (showFileNameSection) {
                 Column(verticalArrangement = Arrangement.spacedBy(if (compactForBottomPanel) 6.dp else 8.dp)) {
                 Row(

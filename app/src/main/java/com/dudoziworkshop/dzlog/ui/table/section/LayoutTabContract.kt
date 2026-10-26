@@ -7,7 +7,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
-import com.dudoziworkshop.dzlog.ui.table.PathGroupAction
 import java.util.Date
 
 enum class BottomEditorPanelMode {
@@ -90,8 +89,6 @@ data class LayoutTabUiState(
     val pathManualInputDraft: String,
     val showCellSettingsPanel: Boolean,
     val selectedCell: TableCellState?,
-    val hasGroup1: Boolean,
-    val hasGroup2: Boolean,
     val isSavingTemplate: Boolean,
     val autoNextCounterValue: Int,
     val phraseSets: List<RotatingPhraseSet>,
@@ -148,7 +145,6 @@ data class LayoutTabActions(
     val onDismissSettingsPanel: () -> Unit,
     val onToggleFileNameForSelected: (cellId: String, enabled: Boolean) -> Unit,
     val onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
-    val onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     val onSetDataTypeForSelected: (TableCellDataType) -> Unit,
     val onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     val onResetCounterSeedForSelected: () -> Unit,
