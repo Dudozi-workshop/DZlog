@@ -27,6 +27,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Image
 import org.jetbrains.skia.Surface
 
 // An explicit XCTest launch route only. Normal home and production preferences never use this key.
@@ -72,6 +73,30 @@ internal fun IosCaptureWorkspaceFixturePoc() {
         Text("저장 상태: " + status)
         Text("다음 촬영 번호: " + nextNumber)
         Text("자동번호 셀: " + cellNumber)
+        Button(enabled = !busy, onClick = {
+            busy = true
+            try {
+                val source = captureFixtureJpeg()
+                val overlay = Surface.makeRasterN32Premul(128, 128)
+                overlay.canvas.clear(0x00000000)
+                val paint = org.jetbrains.skia.Paint().apply { color = 0xFFFF0000.toInt() }
+                overlay.canvas.drawRect(org.jetbrains.skia.Rect.makeXYWH(0f, 0f, 64f, 64f), paint)
+                val png = checkNotNull(overlay.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG))
+                val output = IosCaptureResultRenderer.compositeJpeg(source, png.bytes)
+                val result = Image.makeFromEncoded(output)
+                check(result.width == 128 && result.height == 128)
+                val mismatch = Surface.makeRasterN32Premul(64, 64)
+                val invalidPng = checkNotNull(mismatch.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG))
+                check(runCatching {
+                    IosCaptureResultRenderer.compositeJpeg(source, invalidPng.bytes)
+                }.exceptionOrNull() is IllegalArgumentException)
+                status = "합성 JPEG 생성·크기 검증 완료"
+            } catch (error: Throwable) {
+                status = "실패: " + error.message.orEmpty()
+            } finally {
+                busy = false
+            }
+        }) { Text("표 합성 어댑터 검증") }
         Button(enabled = !busy, onClick = {
             busy = true
             status = "합성 이미지 누락 검증 중"
