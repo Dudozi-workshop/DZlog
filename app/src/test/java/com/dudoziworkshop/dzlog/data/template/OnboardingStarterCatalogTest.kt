@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -49,6 +50,40 @@ class OnboardingStarterCatalogTest {
                 .filterNotNull().filter { it.kind == "CELL" }
                 .forEach { assertTrue(it.cellId in validCells) }
         }
+    }
+
+    @Test
+    fun `catalog fallback matches the fresh basic starter and contains no legacy sample data`() {
+        val fallback = defaultTableTemplateState()
+        val fresh = requireNotNull(OnboardingStarterCatalog.buildState(OnboardingStarterCatalog.DEFAULT_ID))
+        assertEquals(2, fallback.rows)
+        assertEquals(3, fallback.cols)
+        assertEquals(fresh.cells.map { it.rawText }, fallback.cells.map { it.rawText })
+        assertEquals(fresh.cells.map { it.dataType }, fallback.cells.map { it.dataType })
+        assertEquals(listOf("기록명", "날짜", "번호"),
+            fallback.cells.filter { it.rowIndex == 0 }.map { it.rawText })
+        assertEquals("DZlog", fallback.fileNameSlotDrafts.first()?.manualText)
+        assertEquals("yyyyMMdd", fallback.fileNameSlotDrafts.last()?.formatPattern)
+        assertTrue(fallback.pathSlotDrafts.isEmpty())
+        assertTrue(fallback.cells.all { it.groupLevel == GroupLevel.NONE })
+        assertFalse(fallback.cells.any { it.rawText in setOf("T1", "S1", "B3") })
+        val restored = requireNotNull(tableTemplateStateFromJson(fallback.toJsonString()))
+        assertEquals(fallback.cells.map { it.rawText }, restored.cells.map { it.rawText })
+        assertEquals(fallback.fileNameSlotDrafts.map { it?.kind }, restored.fileNameSlotDrafts.take(3).map { it?.kind })
+    }
+
+    @Test
+    fun `historical G1 G2 metadata round trips without altering old templates`() {
+        val old = defaultTableTemplateState().copy(cells = defaultTableTemplateState().cells.mapIndexed { i, cell ->
+            when (i) {
+                0 -> cell.copy(rawText = "T1", groupLevel = GroupLevel.G1)
+                1 -> cell.copy(rawText = "S1", groupLevel = GroupLevel.G2)
+                else -> cell
+            }
+        })
+        val restored = requireNotNull(tableTemplateStateFromJson(old.toJsonString()))
+        assertEquals(old.cells.map { it.rawText }, restored.cells.map { it.rawText })
+        assertEquals(old.cells.map { it.groupLevel }, restored.cells.map { it.groupLevel })
     }
 
     @Test

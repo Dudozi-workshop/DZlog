@@ -75,7 +75,7 @@ suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCa
             ?: error("Stored legacy template is unreadable. Refusing to overwrite it.")
     val style = loadTableStyleState(context)
     val migrated = createSavedTableTemplate(
-        name = "기본 템플릿",
+        name = if (legacyJson == null) "기본 촬영" else "기본 템플릿",
         templateState = legacyTemplate,
         styleState = style,
     )

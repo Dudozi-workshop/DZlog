@@ -189,91 +189,9 @@ fun newBlankTableTemplateState(
     )
 }
 
-fun defaultTableTemplateState(): TableTemplateState {
-    val rows = 2
-    val cols = 4
-    val cells = listOf(
-        TableCellState(
-            rowIndex = 0,
-            colIndex = 0,
-            kind = TableCellKind.INPUT,
-            rawText = "T1",
-            typedValue = CellValue.Text("T1"),
-            groupLevel = GroupLevel.G1,
-        ),
-        TableCellState(
-            rowIndex = 0,
-            colIndex = 1,
-            kind = TableCellKind.INPUT,
-            rawText = "S1",
-            typedValue = CellValue.Text("S1"),
-            groupLevel = GroupLevel.G2,
-        ),
-        TableCellState(
-            rowIndex = 0,
-            colIndex = 2,
-            kind = TableCellKind.INPUT,
-            rawText = "DZlog",
-            typedValue = CellValue.Text("DZlog"),
-        ),
-        TableCellState(
-            rowIndex = 0,
-            colIndex = 3,
-            kind = TableCellKind.INPUT,
-            rawText = "B3",
-            typedValue = CellValue.Text("B3"),
-        ),
-        TableCellState(
-            rowIndex = 1,
-            colIndex = 0,
-            kind = TableCellKind.INPUT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-        ),
-        TableCellState(
-            rowIndex = 1,
-            colIndex = 1,
-            kind = TableCellKind.INPUT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-        ),
-        TableCellState(
-            rowIndex = 1,
-            colIndex = 2,
-            kind = TableCellKind.INPUT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-        ),
-        TableCellState(
-            rowIndex = 1,
-            colIndex = 3,
-            kind = TableCellKind.INPUT,
-            rawText = "",
-            typedValue = CellValue.Text(""),
-        )
-    )
-
-    val fileNameSlotDrafts = cells
-        .sortedWith(compareBy<TableCellState> { it.rowIndex }.thenBy { it.colIndex })
-        .take(FILE_NAME_SLOT_COUNT)
-        .map { it.cellId }
-        .map { cellId ->
-        cellId?.let {
-            TableEditorSlotDraft(
-                kind = "CELL",
-                label = "셀",
-                cellId = it
-            )
-        }
-    }
-
-    return TableTemplateState(
-        rows = rows,
-        cols = cols,
-        cells = cells,
-        fileNameSlotDrafts = fileNameSlotDrafts
-    )
-}
+/** Legacy catalog fallback uses the same standard starter as a fresh onboarding install. */
+fun defaultTableTemplateState(): TableTemplateState =
+    requireNotNull(OnboardingStarterCatalog.buildState(OnboardingStarterCatalog.DEFAULT_ID))
 
 fun TableTemplateState.toJsonString(): String {
     val root = JSONObject()

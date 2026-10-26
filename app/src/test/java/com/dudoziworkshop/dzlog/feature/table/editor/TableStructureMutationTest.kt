@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
-import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
+import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.policy.TableEditorPolicy
@@ -12,7 +12,7 @@ class TableStructureMutationTest {
 
     @Test
     fun remove_row_by_selection_removes_selected_row_span() {
-        val base = addRow(addRow(defaultTableTemplateState()))
+        val base = addRow(addRow(newBlankTableTemplateState(rows = 2, cols = 4)))
         val selected = TableSelectionRange(minRow = 1, maxRow = 2, minCol = 0, maxCol = 1)
 
         val next = removeRowBySelection(base, selected)
@@ -23,7 +23,7 @@ class TableStructureMutationTest {
 
     @Test
     fun add_column_by_selection_inserts_after_selected_right_edge() {
-        val base = removeColumn(defaultTableTemplateState())
+        val base = removeColumn(newBlankTableTemplateState(rows = 2, cols = 4))
         val selected = TableSelectionRange(minRow = 0, maxRow = 1, minCol = 1, maxCol = 1)
         val unchangedCellId = cellAtFirstRow(base, col = 1).cellId
         val shiftedCellId = cellAtFirstRow(base, col = 2).cellId
@@ -45,7 +45,7 @@ class TableStructureMutationTest {
 
     @Test
     fun column_removal_expands_to_full_merged_block() {
-        val base = defaultTableTemplateState()
+        val base = newBlankTableTemplateState(rows = 2, cols = 4)
         val mergedTemplate = base.copy(
             cells = base.cells.mapIndexed { index, cell ->
                 if (index == 0) cell.copy(colSpan = 2) else cell
@@ -64,7 +64,7 @@ class TableStructureMutationTest {
 
     @Test
     fun row_add_is_safe_but_partial_merged_removal_is_blocked() {
-        val base = defaultTableTemplateState()
+        val base = newBlankTableTemplateState(rows = 2, cols = 4)
         val mergedTemplate = base.copy(
             cells = base.cells.mapIndexed { index, cell ->
                 if (index == 1) cell.copy(rowSpan = 2) else cell
@@ -87,7 +87,7 @@ class TableStructureMutationTest {
 
     @Test
     fun additions_reach_six_by_six_and_preserve_existing_cells_at_limit() {
-        val base = defaultTableTemplateState()
+        val base = newBlankTableTemplateState(rows = 2, cols = 4)
         var next = base
         while (next.rows < 6) next = addRow(next)
         while (next.cols < 6) next = addColumn(next)
