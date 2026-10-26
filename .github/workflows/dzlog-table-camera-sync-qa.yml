@@ -1,0 +1,51 @@
+name: DZlog table-to-camera phrase sync QA
+on:
+  push:
+    branches:
+      - fix/dzlog-editor-camera-phrase-sync-20261026
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dzlog-table-camera-sync-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  focused-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Run focused phrase and catalog tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:testDebugUnitTest \
+            --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjectionTest' \
+            --tests 'com.dudoziworkshop.dzlog.domain.table.TableResolverRotatingTextSelectionTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.state.TableTemplateCatalogLiveInputTest' \
+            --stacktrace
+      - name: Compile Android debug
+        run: ./gradlew :app:compileDebugKotlin --stacktrace
+      - name: Build isolated device QA APK
+        run: ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=phrase1 --stacktrace
+      - name: Upload isolated QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-phrase1-editor-camera-qa-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

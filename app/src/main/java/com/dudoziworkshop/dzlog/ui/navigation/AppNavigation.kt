@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.data.template.nextNewTemplateName
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.data.repository.CaptureAsyncRuntime
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureTemplateCommitPolicy
 import com.dudoziworkshop.dzlog.feature.settings.ui.CreditsScreen
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsScreen
@@ -324,13 +325,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }
         if (!hasRestoredTemplate) return
         val savedActiveId = tableTemplateViewModel.activeTemplateId
+        val revisionAtWriteStart = tableTemplateViewModel.stateRevision
         appScope.launch {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
                 activeTemplateId = savedActiveId,
                 templateState = updated,
             )
-            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated, revisionAtWriteStart)
         }
     }
 
@@ -344,6 +346,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         // A capture receipt may arrive after a quick-template selection changes.
         // Never advance the newly selected template using the previous shot.
         if (!CaptureTemplateCommitPolicy.canPersist(expectedTemplateId, savedActiveId)) return false
+        val revisionAtWriteStart = tableTemplateViewModel.stateRevision
         return try {
             val next = tableCatalogCoordinator.updateActiveTemplate(
                 items = tableTemplateViewModel.templates,
@@ -351,7 +354,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 templateState = updated,
             )
             // Publish only after the catalog write has succeeded.
-            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated)
+            tableTemplateViewModel.applyPersistedCatalog(next, savedActiveId, updated, revisionAtWriteStart)
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -392,6 +395,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         val previousActiveId = tableTemplateViewModel.activeTemplateId
         val activeId = editorReplacementId ?: previousActiveId
         if (activeId == null || tableTemplateViewModel.templates.none { it.id == activeId }) return false
+        // A pending capture still owns its original template snapshot.
+        if (!CaptureAsyncRuntime.canSaveEditedTemplate(activeId)) return false
 
         return runCatching {
             val updatedItems = SaveSessionCoordinator.persist(
@@ -411,6 +416,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
+            CaptureAsyncRuntime.onExternalTemplateSaved(activeId)
             if (pendingNewTemplateId == activeId) {
                 pendingNewTemplateId = null
                 pendingNewTemplatePreviousActiveId = null
