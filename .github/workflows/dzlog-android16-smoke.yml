@@ -1,8 +1,5 @@
 name: DZlog Android 16 Emulator Smoke
 on:
-  push:
-    branches:
-      - feat/android16-api36-readiness-20261013
   workflow_dispatch:
 
 permissions:

@@ -57,6 +57,27 @@ internal class CapturePendingProjection {
     fun recordCommittedTemplate(template: TableTemplateState) {
         latestCommittedTemplate = template
     }
+    /**
+     * A saved table edit may replace the same template while this service survives
+     * camera navigation. Outstanding capture patches still own their original base.
+     * Reject editing that template until those captures have been reconciled.
+     */
+    @Synchronized
+    fun canSaveEditedTemplate(templateId: String): Boolean =
+        pending.isEmpty() || (boundTemplateId != null && boundTemplateId != templateId)
+
+    /**
+     * Called only after a successful external table-editor save.
+     * The saved catalog is now authoritative; the prior capture-progress cache
+     * must not shadow newly edited phrases or cell progress.
+     */
+    @Synchronized
+    fun invalidateCommittedAfterExternalEdit(templateId: String): Boolean {
+        if (boundTemplateId != templateId || pending.isNotEmpty()) return false
+        latestCommittedTemplate = null
+        return true
+    }
+
 
     @Synchronized
     fun add(shot: Shot) {

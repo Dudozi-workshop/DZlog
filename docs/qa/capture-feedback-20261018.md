@@ -45,3 +45,69 @@ This supersedes the earlier **UNVERIFIED** note for vibration preview: it was pe
 Review gate: feature-focused Android Kotlin compilation and five related unit tests succeeded on commit `a665e433`, and the isolated sfx2 APK build succeeded on `cde4f14c` (run [#39107717419](https://github.com/Dudozi-workshop/DZlog/actions/runs/39107717419)). Sound asset provenance and the approved signature WAV are unchanged.
 
 Scope: feature work only; no changes to media persistence, Undo, rotating phrase source or onboarding. An optional integration checkpoint may include feature code/tests/assets and this record, while omitting branch-specific QA-only workflows. Play Store publishing is **not** authorized by this acceptance.
+
+
+## DZQ-018 · 2026-10-22 quieter and balanced capture sound (Draft PR #89)
+
+The 2026-10-18 acceptance above is a historical result. A new loudness complaint
+prompted this *unmerged* revision, which must pass new device QA.
+
+- **Default sound:** res/raw/dzlog_default_soft.wav, independently synthesized
+  160 ms, 22,050 Hz, mono PCM16, 7,100 bytes, approximately -36.3 dBFS RMS.
+  Git blob 7e390883740360579a32609c2c893c8f2e3cfca0.
+  This is a new QA candidate, not a modification of any previously approved file.
+  The persisted default choice ID remains 0; the label now says "기본 셔터 (부드럽게)".
+- **All five source sounds stay intact:** existing Contarex, Werra, DSLR and
+  "뿌쀼!" sample bytes remain unchanged. Playback gains are default 1.00,
+  Contarex/Werra/DSLR 0.50 and signature 0.06. These gains are an approximate
+  starting point from historical WAV RMS analysis, *not* calibrated perceived
+  loudness across devices. Both actual exposure and preview multiply the same
+  per-sound gain by the saved 0-100% slider.
+- **Audio playback:** All optional sounds use bundled samples on the media
+  stream. Selected sounds that fail to load no longer switch to a louder
+  MediaActionSound fallback. The system sound remains reserved for a device
+  whose platform requires shutter playback.
+- **Regional device exception:** On API 33+, when
+  MediaActionSound.mustPlayShutterSound() reports required, actual capture
+  must play the platform shutter regardless of the app selection or mute toggle.
+  Such a mandated shutter cannot be attenuated by the app; the settings screen
+  discloses this. The preview still demonstrates the app's soft sounds.
+  No system volume changes or mandatory-audio bypass.
+- **Build/test gate:** Focused policy test and Kotlin compilation, then
+  isolated QA APK dzlog-sfx3-volume-qa-apk
+  (package com.dudoziworkshop.dzlog.qa.sfx3). Until latest Actions run
+  succeeds, neither code correctness nor physical device audibility is verified.
+- **Physical device QA:** Compare 5 choices at 0/30/70/100%, preview vs first
+  and repeated actual captures, different system media-volume positions,
+  app restart/persisted choice, capture sound OFF/ON and mandatory shutter
+  behavior. Confirm no duplicate click, a clear default soft click on
+  non-required devices and no camera preview/save/Undo/rotation regressions.
+  Capture media persistence and counter policies are unchanged.
+
+## DZQ-018 · 2026-10-26 closeout candidate — SFX8
+
+This section supersedes the obsolete SFX3 device-behavior proposal above. The SFX3
+system-first policy caused a real-device regression: on a device reporting
+`REQUIRED`, the app played Android's native shutter even when its feedback
+toggle was OFF. That regression was fixed in SFX7, with actual-device confirmation
+of the OFF/custom feedback modes.
+
+- When feedback is OFF, DZlog **does not explicitly play** an app shutter sound.
+- With feedback ON and `SYSTEM(0)` selected, DZlog explicitly plays the
+  Android native `MediaActionSound.SHUTTER_CLICK`, including settings preview.
+  The in-app custom gain slider is disabled for this option.
+- With feedback ON and one of the four other choices, DZlog plays only the
+  corresponding packaged sound sample. The extra soft-default WAV was abandoned
+  and has been removed; bundled custom samples remain unmodified.
+- Unneeded `QA · 촬영음 진단` settings UI was removed; diagnostic logging may
+  remain internal. Source and persisted choice IDs are unchanged.
+- **Focused Android QA:** [SFX8 run #40237905895](https://github.com/Dudozi-workshop/DZlog/actions/runs/40237905895)
+  passed at `4d257465` before documentation cleanup. Revalidate clean-up commit
+  and check SFX8 native sound on a real device before final sign-off.
+- **Mandatory shutter constraints:** the tested device previously reported
+  `CameraInfo.mustPlayShutterSound() == true`; platform/regional audio compliance
+  must be separately reviewed before general release. Do not characterize an app
+  request as a hardware-origin automatic shutter.
+- No change intended to capture/save, counter, original/BOTH photo handling,
+  Undo or gallery data. Project feature DZQ-021 is a **separate Draft PR** and
+  must not be included in the non-project closeout.
