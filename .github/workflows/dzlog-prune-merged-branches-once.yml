@@ -1,0 +1,62 @@
+name: DZlog one-time merged branch cleanup
+on:
+  push:
+    branches:
+      - integration/dzlog-20261010
+    paths:
+      - '.github/workflows/dzlog-prune-merged-branches-once.yml'
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  delete-merged-branches:
+    if: github.repository == 'Dudozi-workshop/DZlog'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete only verified merged branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = [{"name":"chore/workflow-audit-pr95-20261027","sha":"8396cd475193fe5b1480fff985aba7be665fc6fe","pr":96},{"name":"chore/workflow-cleanup-20261017","sha":"5f3361b20a341a091bddbc8343722235cafeb79a","pr":57},{"name":"ci/dzlog-pr-capture-dedup-20261018","sha":"85b12f898278ebe1fcc43ed3d7bb82a9b5d504f7","pr":61},{"name":"ci/dzlog-test-optimization-20261018","sha":"cb7bf6e265aa96be40747d65ac46c2c1a40d1235","pr":60},{"name":"feat/dzq009-quick-auto-values-20261018","sha":"cfa1b4a046d96bce4d8d4e3f529c51612e4b84a4","pr":59},{"name":"feat/dzq015-save-rule-copy-20261017","sha":"09d44e1a81def330e40f312d7b7b8d120121cb5f","pr":58},{"name":"feat/gallery-folder-management-v2-20261020","sha":"d02f680b1ff627fad75c4b4b714e60ce7344b1c5","pr":83},{"name":"feat/gallery-ux-simplify-20261015","sha":"eeee78660a6abbf091685b8702d05325348613de","pr":44},{"name":"feat/ios-m2c-template-navigation-20261020","sha":"9fe0cce69a4bd9b18953a44d4feefaeca8c71f71","pr":76},{"name":"feat/photo-grid-ux-foundation-20261016","sha":"15facd495ddaa9723bfb0e5ffded64f49b8fd5e0","pr":46},{"name":"feat/quick-original-undo-path-warning-20261017","sha":"1a6d85205ab47f4ab4359db436cba1e0b99a823c","pr":52},{"name":"feat/quick-results-session-ui-20261016","sha":"eac395a48b617a4b09997901923788cc1f4ffc67","pr":48},{"name":"feat/ux-backlog-batch1-20261017","sha":"42a7559c7c9ed9d9e87ea9a3c03a080a594477f3","pr":51},{"name":"feat/ux-backlog-batch2-20261017","sha":"feb12a36da24d2b948124beff422ae712a623ec1","pr":53},{"name":"feat/ux-backlog-batch3-20261017","sha":"daf51129a2c2ce1cf5dbb135e324af4433da7aac","pr":54},{"name":"feat/ux-backlog-batch4-dzq001-20261017","sha":"99c382754d274234aecf074d65822ac3b6d94c5d","pr":55},{"name":"fix/dzlog-editor-camera-phrase-sync-20261026","sha":"3ee32dece2c05b3c11f053b2d470542239b4252e","pr":95},{"name":"fix/dzlog-integrated-sfx-ci-20261026","sha":"ca4b2a3bf50777405f30b6fe84e6a67c53c43b0f","pr":93},{"name":"fix/dzq018-capture-sound-20261022","sha":"25deff000901269bd84dc2c204446b895f77e425","pr":89},{"name":"fix/dzq020-quick-text-20261022","sha":"f776630279a2c57d1e2fed7a038cb1c9c5282762","pr":90},{"name":"fix/onboarding-reinstall-media-guard-20261020","sha":"b8066271eb530e0a83778d6613a743d57abe034a","pr":78},{"name":"fix/qa-install-isolation-20261017","sha":"61ed34c5644735610356a0e55c8f46b4f3c71468","pr":50}];
+            if (context.ref !== 'refs/heads/integration/dzlog-20261010') {
+              core.setFailed('Ref is not the approved Android integration branch.');
+              return;
+            }
+            const {owner, repo} = context.repo;
+            const openPulls = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', per_page: 100
+            });
+            const activeRefs = new Set(openPulls.flatMap(p => [p.head.ref, p.base.ref]));
+            const skipped = [];
+            const deleted = [];
+            const errors = [];
+            for (const x of expected) {
+              if (activeRefs.has(x.name) || /^(DZlog|backup\\/|integration\\/|integration-preview\\/|milestone\\/|release\\/|assets\\/)/.test(x.name)) {
+                skipped.push(x.name + ': protected or referenced');
+                continue;
+              }
+              try {
+                const pr = (await github.rest.pulls.get({owner, repo, pull_number: x.pr})).data;
+                if (!pr.merged_at || pr.head.ref !== x.name || pr.head.sha !== x.sha) {
+                  skipped.push(x.name + ': PR validation changed');
+                  continue;
+                }
+                const branch = (await github.rest.repos.getBranch({owner,repo,branch:x.name})).data;
+                if (branch.protected || branch.commit.sha !== x.sha) {
+                  skipped.push(x.name + ': branch protected or SHA changed');
+                  continue;
+                }
+                await github.rest.git.deleteRef({owner, repo, ref:'heads/' + x.name});
+                deleted.push(x.name);
+                core.info('DELETED ' + x.name + ' PR #' + x.pr);
+              } catch (err) {
+                errors.push(x.name + ': ' + (err?.message ?? String(err)));
+                core.warning('NOT DELETED ' + x.name + ': ' + (err?.message ?? String(err)));
+              }
+            }
+            await core.summary.addHeading('DZlog merged branch cleanup').addRaw(
+              'Deleted: ' + deleted.length + '; skipped: ' + skipped.length + '; errors: ' + errors.length
+            ).addCodeBlock(JSON.stringify({deleted, skipped, errors}, null, 2), 'json').write();
+            if (errors.length) core.setFailed('Some branch deletions failed; see summary.');
+            
