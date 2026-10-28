@@ -36,7 +36,6 @@ class CaptureQueueCoordinatorTest {
     private fun snapshot(number: Int) = CaptureJobSnapshot(
         request = CaptureRequest(
             relativePath = "Pictures/DZlog/queue/",
-            group1 = "", group2 = "",
             displayName = "queue_$number.jpg",
             resolvedCells = emptyList(),
             watermarkCells = emptyList(),
@@ -100,8 +99,6 @@ class CaptureQueueCoordinatorTest {
                         displayName = job.snapshot.request.displayName,
                         isNameAdjusted = false,
                         createdAt = System.currentTimeMillis(),
-                        group1 = "",
-                        group2 = "",
                     )
                 },
                 commitProgress = { _, _ -> },
@@ -153,7 +150,6 @@ class CaptureQueueCoordinatorTest {
                         savedContentUris = listOf(uri),
                         displayName = job.snapshot.request.displayName,
                         isNameAdjusted = false, createdAt = System.currentTimeMillis(),
-                        group1 = "", group2 = "",
                     )
                 },
                 commitProgress = { _, _ -> },

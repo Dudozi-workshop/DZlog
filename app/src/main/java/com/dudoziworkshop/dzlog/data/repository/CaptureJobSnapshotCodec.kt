@@ -68,7 +68,6 @@ internal object CaptureJobSnapshotCodec {
         return JSONObject()
             .put("version", 1)
             .put("relativePath", r.relativePath)
-            .put("group1", r.group1).put("group2", r.group2)
             .put("displayName", r.displayName)
             .put("saveMode", r.saveMode.name)
             .put("captureAspect", r.captureAspect.name)
@@ -145,8 +144,6 @@ internal object CaptureJobSnapshotCodec {
         return CaptureJobSnapshot(
             request = CaptureRequest(
                 relativePath = data.getString("relativePath"),
-                group1 = data.getString("group1"),
-                group2 = data.getString("group2"),
                 displayName = data.getString("displayName"),
                 resolvedCells = resolved,
                 watermarkCells = wmCells,

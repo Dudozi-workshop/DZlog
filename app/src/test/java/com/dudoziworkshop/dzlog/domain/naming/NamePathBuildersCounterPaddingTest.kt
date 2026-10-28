@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.domain.naming
 
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
@@ -66,7 +65,7 @@ class NamePathBuildersCounterPaddingTest {
 
     @Test
     fun `path drafts use manual plus formatted date and sanitize slashes`() {
-        val path = buildGalleryRelativePathFromSlotDrafts(
+        val path = buildSavePath(
             resolvedCells = emptyList(),
             pathSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A/B"),
@@ -109,7 +108,7 @@ class NamePathBuildersCounterPaddingTest {
 
     @Test
     fun `path drafts normalize time token to HHmm`() {
-        val path = buildGalleryRelativePathFromSlotDrafts(
+        val path = buildSavePath(
             resolvedCells = emptyList(),
             pathSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "line"),
@@ -126,7 +125,7 @@ class NamePathBuildersCounterPaddingTest {
 
     @Test
     fun `path drafts support three ordered segments`() {
-        val path = buildGalleryRelativePathFromSlotDrafts(
+        val path = buildSavePath(
             resolvedCells = emptyList(),
             pathSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "Draper"),
@@ -151,7 +150,6 @@ class NamePathBuildersCounterPaddingTest {
             colIndex = 0,
             rawText = text,
             dataType = type,
-            groupLevel = GroupLevel.NONE,
             cellId = id,
         )
         return ResolvedCell(

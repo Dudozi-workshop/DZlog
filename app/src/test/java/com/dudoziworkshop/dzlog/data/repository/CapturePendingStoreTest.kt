@@ -30,7 +30,6 @@ class CapturePendingStoreTest {
         return CaptureJobSnapshot(
             request = CaptureRequest(
                 relativePath = "Pictures/DZlog/Test/",
-                group1 = "T1", group2 = "S1",
                 displayName = "T1_$counter.jpg",
                 resolvedCells = emptyList(),
                 watermarkCells = listOf(WatermarkBuilder.WatermarkCell("snapshot")),

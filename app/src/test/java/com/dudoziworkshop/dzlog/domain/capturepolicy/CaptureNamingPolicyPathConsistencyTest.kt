@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.domain.capturepolicy
 import com.dudoziworkshop.dzlog.domain.counter.buildCounterScopeParts
 import com.dudoziworkshop.dzlog.domain.counter.buildScopedCounter
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -122,25 +121,8 @@ class CaptureNamingPolicyPathConsistencyTest {
         assertEquals(result.relativePath, result.counterScope.relativePathKey)
     }
 
-    @Test
-    fun `group level differences do not change relativePath when path slots are same`() {
-        val none = resolvedTextCell(GroupLevel.NONE)
-        val g2 = resolvedTextCell(GroupLevel.G2)
-
-        val withNone = CaptureNamingPolicy.buildForCaptureWithCounter(
-            captureContext = baseContext(resolvedCells = listOf(none)),
-            usedCounter = 1,
-        )
-        val withG2 = CaptureNamingPolicy.buildForCaptureWithCounter(
-            captureContext = baseContext(resolvedCells = listOf(g2)),
-            usedCounter = 1,
-        )
-
-        assertEquals(withNone.relativePath, withG2.relativePath)
-    }
-
     private fun baseContext(
-        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell(GroupLevel.NONE)),
+        resolvedCells: List<ResolvedCell> = listOf(resolvedTextCell()),
         pathSlotDrafts: List<TableEditorSlotDraft?> = listOf(
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "A"),
             TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "B"),
@@ -161,7 +143,7 @@ class CaptureNamingPolicyPathConsistencyTest {
         )
     }
 
-    private fun resolvedTextCell(groupLevel: GroupLevel): ResolvedCell {
+    private fun resolvedTextCell(): ResolvedCell {
         val id = "c1"
         val text = "unused"
         val raw = TableCellState(
@@ -170,7 +152,6 @@ class CaptureNamingPolicyPathConsistencyTest {
             cellId = id,
             rawText = text,
             dataType = TableCellDataType.TEXT,
-            groupLevel = groupLevel,
         )
         return ResolvedCell(id = id, type = raw.dataType, raw = raw, resolvedText = text, isEmpty = text.isBlank())
     }

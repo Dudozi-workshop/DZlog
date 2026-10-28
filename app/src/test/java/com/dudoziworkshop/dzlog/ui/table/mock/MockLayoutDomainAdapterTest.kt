@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import org.junit.Assert.assertEquals
@@ -164,18 +163,11 @@ class MockLayoutDomainAdapterTest {
     }
 
     @Test
-    fun `row deletion clears deleted slot refs and demotes G2 when G1 disappears`() {
+    fun `row deletion clears deleted filename and path slot refs`() {
         val base = newBlankTableTemplateState(rows = 2, cols = 1)
         val g1Cell = base.cells.first { it.rowIndex == 0 }
         val g2Cell = base.cells.first { it.rowIndex == 1 }
         val prepared = base.copy(
-            cells = base.cells.map { cell ->
-                when (cell.cellId) {
-                    g1Cell.cellId -> cell.copy(groupLevel = GroupLevel.G1)
-                    g2Cell.cellId -> cell.copy(groupLevel = GroupLevel.G2)
-                    else -> cell
-                }
-            },
             fileNameSlotDrafts = listOf(
                 TableEditorSlotDraft(kind = "CELL", label = "G1", cellId = g1Cell.cellId),
                 TableEditorSlotDraft(kind = "CELL", label = "G2", cellId = g2Cell.cellId),
@@ -196,7 +188,6 @@ class MockLayoutDomainAdapterTest {
         val next = removeMockLayoutRows(prepared, selection)
 
         assertEquals(1, next.rows)
-        assertEquals(GroupLevel.NONE, next.cells.single().groupLevel)
         assertEquals(g2Cell.cellId, next.fileNameSlotDrafts.first()?.cellId)
         assertEquals(g2Cell.cellId, next.pathSlotDrafts.first()?.cellId)
         assertTrue(next.fileNameSlotDrafts.none { it?.cellId == g1Cell.cellId })

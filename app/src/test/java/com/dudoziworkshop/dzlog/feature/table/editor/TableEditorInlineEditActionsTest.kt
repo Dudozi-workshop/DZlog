@@ -1,6 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
-import com.dudoziworkshop.dzlog.data.template.defaultTableTemplateState
+import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -16,7 +16,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun first_value_change_updates_template_immediately_and_requests_undo_snapshot() {
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val cell = template.cells.first()
         val context = context(
             currentTemplate = template,
@@ -42,7 +42,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun repeated_value_changes_in_same_session_do_not_request_additional_undo_snapshot() {
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val cell = template.cells.first()
         val startedSession = context(
             currentTemplate = updateCell(template, cell.cellId) {
@@ -74,7 +74,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun selecting_other_cell_after_edit_ends_inline_session() {
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val sourceCell = template.cells.first()
         val targetCell = template.cells.last()
         val editedTemplate = updateCell(template, sourceCell.cellId) {
@@ -110,7 +110,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun commit_if_needed_clears_inline_session_after_panel_exit_or_save_path() {
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val cell = template.cells.first()
         val editedTemplate = updateCell(template, cell.cellId) {
             it.copy(rawText = "edited", typedValue = CellValue.Text("edited"))
@@ -173,7 +173,7 @@ class TableEditorInlineEditActionsTest {
 
     @Test
     fun sync_session_snapshot_keeps_same_cell_snapshot_and_clears_when_tracking_is_disabled() {
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val firstCell = template.cells.first()
         val context = context(
             currentTemplate = template,
@@ -222,7 +222,7 @@ class TableEditorInlineEditActionsTest {
 
     private fun counterTemplate(): TableTemplateState {
         val seed = 3
-        val template = defaultTableTemplateState()
+        val template = newBlankTableTemplateState(rows = 2, cols = 4)
         val cell = template.cells.first()
         return updateCell(template, cell.cellId) {
             it.copy(

@@ -81,8 +81,6 @@ internal fun BottomEditorPanel(
     templateState: TableTemplateState,
     resolvedByCellId: Map<String, String>,
     resolvedCells: List<ResolvedCell>,
-    hasGroup1: Boolean,
-    hasGroup2: Boolean,
     previewNow: Date,
     previewCounterDigits: Int,
     scopeNextCounter: Int,
@@ -104,7 +102,6 @@ internal fun BottomEditorPanel(
     modifier: Modifier = Modifier,
     onToggleFileNameForSelected: (cellId: String, enabled: Boolean) -> Unit,
     onReorderFileNameSlots: (fromIndex: Int, toIndex: Int) -> Unit,
-    onPathGroupActionForSelected: (PathGroupAction) -> Unit,
     onSetDataTypeForSelected: (TableCellDataType) -> Unit,
     onSetCounterScopeModeForSelected: (CounterScopeMode) -> Unit,
     onResetCounterSeedForSelected: () -> Unit,
@@ -519,11 +516,8 @@ internal fun BottomEditorPanel(
                             cell = selectedCell,
                             templateState = templateState,
                             baseResolvedByCellId = resolvedByCellId,
-                            hasGroup1 = hasGroup1,
-                            hasGroup2 = hasGroup2,
                             onToggleFileNameForCell = onToggleFileNameForSelected,
                             onReorderFileNameSlots = onReorderFileNameSlots,
-                            onPathGroupAction = onPathGroupActionForSelected,
                             onSetDataType = onSetDataTypeForSelected,
                             onSetCounterScopeMode = onSetCounterScopeModeForSelected,
                             onResetCounterSeed = onResetCounterSeedForSelected,
@@ -538,7 +532,6 @@ internal fun BottomEditorPanel(
                             timeFormat = timeFormat,
                             phraseSets = phraseSets,
                             showFileNameSection = false,
-                            showPathGroupSection = false,
                             compactForBottomPanel = true
                         )
                     }

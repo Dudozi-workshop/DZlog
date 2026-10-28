@@ -1,93 +1,35 @@
 package com.dudoziworkshop.dzlog.ui.log
 
-import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecentCaptureNavigationTest {
-
-    @Test
-    fun `root original path maps to root and original photos title`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/original/")
-
-        assertEquals(DzlogMediaStoreReader.ROOT_G1 to ORIGINAL_PHOTOS_TITLE, parsed)
+    @Test fun rootFolderTitle() {
+        assertEquals("DZlog", folderTitleFromRelativePath("Pictures/DZlog/"))
+        assertEquals("DZlog", folderTitleFromRelativePath("Pictures/DZlog/original/"))
     }
 
-    @Test
-    fun `g1 original path maps to g1 and original photos title`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/N600/original/")
-
-        assertEquals("N600" to ORIGINAL_PHOTOS_TITLE, parsed)
+    @Test fun folderTitlesRespectAnyDepthAndTrailingSlash() {
+        assertEquals("Project", folderTitleFromRelativePath("Pictures/DZlog/Project/"))
+        assertEquals("Project / Photos", folderTitleFromRelativePath("Pictures/DZlog/Project/Photos"))
+        assertEquals("Project / Photos / Day1", folderTitleFromRelativePath("Pictures/DZlog/Project/Photos/Day1/"))
+        assertEquals("Project / Photos / Day1", folderTitleFromRelativePath("Pictures/DZlog/Project/Photos/Day1/original"))
+        assertEquals("Project", folderTitleFromRelativePath("Pictures/DZlog/Project/original/"))
     }
 
-    @Test
-    fun `g1 g2 original path keeps g1 and g2 labels`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/N600/A1/original/")
-
-        assertEquals("N600" to "A1", parsed)
+    @Test fun invalidFolderTitleFallsBackToRoot() {
+        assertEquals("DZlog", folderTitleFromRelativePath("Pictures/Other/Folder"))
+        assertEquals("DZlog", folderTitleFromRelativePath(""))
     }
 
-    @Test
-    fun `root water path maps to root and empty g2`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/")
-
-        assertEquals(DzlogMediaStoreReader.ROOT_G1 to "", parsed)
-    }
-
-    @Test
-    fun `g1 water path maps to g1 and empty g2`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/N600/")
-
-        assertEquals("N600" to "", parsed)
-    }
-
-    @Test
-    fun `g1 g2 water path maps to g1 and g2`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/N600/A1/")
-
-        assertEquals("N600" to "A1", parsed)
-    }
-
-    @Test
-    fun `root original path without trailing slash still maps to original photos`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/original")
-
-        assertEquals(DzlogMediaStoreReader.ROOT_G1 to ORIGINAL_PHOTOS_TITLE, parsed)
-    }
-
-    @Test
-    fun `g1 original path without trailing slash still maps to original photos`() {
-        val parsed = parseG1G2FromRelativePath("Pictures/DZlog/N600/original")
-
-        assertEquals("N600" to ORIGINAL_PHOTOS_TITLE, parsed)
-    }
-
-
-    @Test
-    fun `isOriginalRelativePath returns true for root original with and without trailing slash`() {
+    @Test fun originalSuffixRecognizedAtAnyDepth() {
         assertTrue(isOriginalRelativePath("Pictures/DZlog/original/"))
         assertTrue(isOriginalRelativePath("Pictures/DZlog/original"))
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/P/original/"))
+        assertTrue(isOriginalRelativePath("Pictures/DZlog/P/Q/R/original"))
+        assertFalse(isOriginalRelativePath("Pictures/DZlog/P/Q/R/"))
+        assertFalse(isOriginalRelativePath("Pictures/DZlog/P/originals/"))
     }
-
-    @Test
-    fun `isOriginalRelativePath returns true for g1 original with and without trailing slash`() {
-        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/original/"))
-        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/original"))
-    }
-
-    @Test
-    fun `isOriginalRelativePath returns true for g1 g2 original with and without trailing slash`() {
-        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/A1/original/"))
-        assertTrue(isOriginalRelativePath("Pictures/DZlog/N600/A1/original"))
-    }
-
-    @Test
-    fun `isOriginalRelativePath returns false for water paths`() {
-        assertFalse(isOriginalRelativePath("Pictures/DZlog/"))
-        assertFalse(isOriginalRelativePath("Pictures/DZlog/N600/"))
-        assertFalse(isOriginalRelativePath("Pictures/DZlog/N600/A1/"))
-    }
-
 }

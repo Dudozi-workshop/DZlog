@@ -5,7 +5,6 @@ import com.dudoziworkshop.dzlog.domain.model.CounterScopeMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.ui.table.PathGroupAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -38,20 +37,6 @@ class TableEditorSelectedCellActionBinderTest {
         )
 
         assertFalse(updated)
-    }
-
-    @Test
-    fun apply_path_group_action_updates_template() {
-        val template = defaultTableTemplateState()
-        val selected = template.cells.first()
-        var updatedTemplate: TableTemplateState? = null
-
-        TableEditorSelectedCellActionBinder.applyPathGroupActionForSelected(
-            bindings(template, selected) { updatedTemplate = it },
-            PathGroupAction.G1,
-        )
-
-        assertEquals(selected.cellId, updatedTemplate?.cells?.first { it.groupLevel.name == "G1" }?.cellId)
     }
 
     @Test

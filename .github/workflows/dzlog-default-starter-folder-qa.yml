@@ -1,0 +1,56 @@
+name: DZlog Default Starter and Folder Navigation QA
+
+on:
+  push:
+    branches:
+      - refactor/default-template-retire-groups-20261026
+    paths:
+      - 'app/**'
+      - '.github/workflows/dzlog-default-starter-folder-qa.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dzlog-pr94-focused
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android API 36
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Focused starter, editor and folder navigation tests
+        run: |
+          bash ./gradlew :app:testDebugUnitTest --tests '*OnboardingStarterCatalogTest' --tests '*OnboardingCatalogStartupPolicyTest' --tests '*OnboardingInstallStateTest' --tests '*TableStructureMutationTest' --tests '*TableEditorInlineEditActionsTest' --tests '*TableEditorSelectedCellActionBinderTest' --tests '*CounterManagerScopePrefixTest' --tests '*CounterScopePathPolicyTest' --tests '*CaptureNamingPolicyPathConsistencyTest' --tests '*GalleryFolderIndexTest' --tests '*RecentCaptureNavigationTest' --tests '*FolderBreadcrumbTitleTest' :app:compileDebugKotlin --stacktrace
+
+      - name: Build separate-install PR94 QA APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=pr94fix -PdzlogDebugVersionCode=1000094 --stacktrace
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.pr94fix' versionCode='1000094'"
+          cp "$APK" DZlog-pr94-qa.apk
+      - name: Upload isolated PR94 QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-pr94fix-starter-folder-qa-apk
+          path: DZlog-pr94-qa.apk
+          if-no-files-found: error
+          retention-days: 14

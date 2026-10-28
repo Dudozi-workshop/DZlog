@@ -7,7 +7,7 @@ import org.json.JSONArray
 
 /**
  * This inspection never writes to DataStore. Call it BEFORE legacy catalog migration.
- * Unknown media state is deliberately not proof of a new installation.
+ * Only this package's persisted catalog/setup state is proof of an existing install.
  */
 enum class CatalogStartupRoute {
     RESTORE_CATALOG,
@@ -27,19 +27,15 @@ internal fun decodeCatalogWithoutDataLoss(json: String): List<SavedTableTemplate
 }
 
 /**
- * Before runtime permissions, a verified fresh package with no saved state can
- * display informational introduction pages even if media cannot yet be inspected.
- * After permission setup, requireVerifiedMediaForOnboarding rejects any unknown
- * media result before a template can be created. Prior photos always veto the offer.
+ * Shared MediaStore photos can belong to a previously installed package.
+ * Do not let them suppress setup for a verified fresh app installation.
+ * Saved/invalid template catalogs and persisted setup flags always take priority.
  */
 fun decideCatalogStartupRoute(
     catalogJson: String?,
     legacyJson: String?,
     hasOtherSavedState: Boolean,
-    verifiedNoExistingMedia: Boolean,
     verifiedFreshInstall: Boolean = false,
-    knownExistingMedia: Boolean = false,
-    requireVerifiedMediaForOnboarding: Boolean = false,
 ): CatalogStartupRoute {
     if (catalogJson != null) {
         return if (decodeCatalogWithoutDataLoss(catalogJson) != null) {
@@ -55,14 +51,10 @@ fun decideCatalogStartupRoute(
             CatalogStartupRoute.RECOVERY_REQUIRED
         }
     }
-    // Existing content and package updates never trigger fresh onboarding.
-    if (hasOtherSavedState || knownExistingMedia || !verifiedFreshInstall) {
+    // Saved state or an updated package vetoes fresh onboarding.
+    // The contents of shared Pictures/DZlog are intentionally irrelevant.
+    if (hasOtherSavedState || !verifiedFreshInstall) {
         return CatalogStartupRoute.CONTINUE_EXISTING
-    }
-    // A newly installed package alone is insufficient proof that old photos are absent.
-    // Fail closed if the post-permission MediaStore check did not complete.
-    if (requireVerifiedMediaForOnboarding && !verifiedNoExistingMedia) {
-        return CatalogStartupRoute.RECOVERY_REQUIRED
     }
     return CatalogStartupRoute.OFFER_ONBOARDING
 }

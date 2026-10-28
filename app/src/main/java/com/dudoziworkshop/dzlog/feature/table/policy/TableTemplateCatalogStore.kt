@@ -25,10 +25,7 @@ data class TableTemplateCatalogSnapshot(
 /** Read-only startup decision for the future onboarding route; no template is created here. */
 suspend fun inspectTableTemplateCatalogStartup(
     context: Context,
-    verifiedNoExistingMedia: Boolean,
     verifiedFreshInstall: Boolean = false,
-    knownExistingMedia: Boolean = false,
-    requireVerifiedMediaForOnboarding: Boolean = false,
     // Internal settings such as billing flags are not proof of a completed onboarding.
     ignoreOtherSavedState: Boolean = false,
 ): CatalogStartupRoute {
@@ -42,10 +39,7 @@ suspend fun inspectTableTemplateCatalogStartup(
             (!ignoreOtherSavedState && prefs.asMap().keys.any {
                 it != KEY_TABLE_TEMPLATES_JSON && it != KEY_TABLE_TEMPLATE_JSON
             }),
-        verifiedNoExistingMedia = verifiedNoExistingMedia,
         verifiedFreshInstall = verifiedFreshInstall,
-        knownExistingMedia = knownExistingMedia,
-        requireVerifiedMediaForOnboarding = requireVerifiedMediaForOnboarding,
     )
 }
 
@@ -75,7 +69,7 @@ suspend fun loadOrMigrateTableTemplateCatalog(context: Context): TableTemplateCa
             ?: error("Stored legacy template is unreadable. Refusing to overwrite it.")
     val style = loadTableStyleState(context)
     val migrated = createSavedTableTemplate(
-        name = "기본 템플릿",
+        name = if (legacyJson == null) "기본 촬영" else "기본 템플릿",
         templateState = legacyTemplate,
         styleState = style,
     )

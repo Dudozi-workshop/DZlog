@@ -138,7 +138,7 @@ fun CameraScreen(
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     phraseUndoHistory: CapturePhraseUndoHistory,
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
@@ -221,7 +221,7 @@ fun CameraPreview(
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
     phraseUndoHistory: CapturePhraseUndoHistory,
     verifiedTier: com.dudoziworkshop.dzlog.feature.table.policy.SaveRuleTier =
@@ -842,9 +842,9 @@ fun CameraPreview(
                             if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) onOpenAlbum()
                             else Toast.makeText(context, "저장 완료 후 앨범으로 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
                         },
-                        onOpenRecentCaptureGrid = { g1, g2, path, start ->
+                        onOpenRecentCaptureGrid = { path ->
                             if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) {
-                                onOpenRecentCaptureGrid(g1, g2, path, start)
+                                onOpenRecentCaptureGrid(path)
                             } else {
                                 Toast.makeText(context, "저장 완료 후 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
                             }

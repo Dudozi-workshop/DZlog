@@ -72,7 +72,7 @@ fun HomeScreen(
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit = onOpenTableEditor,
     onOpenAlbum: () -> Unit,
-    onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
 ) {
     var showSaveInfo by remember { mutableStateOf(false) }
     val homeViewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()

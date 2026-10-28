@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.data.backup
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -47,7 +46,6 @@ internal object LocalTemplateBackupValidator {
                 }
                 enumValue<TableCellKind>(requiredString(c, "kind"))
                 enumValue<TableCellDataType>(requiredString(c, "dataType"))
-                enumValue<GroupLevel>(requiredString(c, "groupLevel"))
                 require(c.opt("rawText") is String) { "셀 문자열이 올바르지 않습니다." }
                 c.optString("phraseSetId").takeIf { it.isNotBlank() }?.let { phraseId ->
                     require(phraseId.length < 200) { "순환문구 참조가 잘못되었습니다." }

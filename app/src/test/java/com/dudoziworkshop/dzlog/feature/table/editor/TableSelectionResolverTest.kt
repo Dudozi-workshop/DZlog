@@ -1,7 +1,6 @@
 package com.dudoziworkshop.dzlog.feature.table.editor
 
 import com.dudoziworkshop.dzlog.domain.model.CellValue
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
@@ -22,7 +21,6 @@ class TableSelectionResolverTest {
                     dataType = TableCellDataType.TEXT,
                     rawText = "",
                     typedValue = CellValue.Text(""),
-                    groupLevel = GroupLevel.NONE,
                 )
             }
         }

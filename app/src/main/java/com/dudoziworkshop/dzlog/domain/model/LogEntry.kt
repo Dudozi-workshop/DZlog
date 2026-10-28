@@ -8,7 +8,5 @@ data class LogEntry(
     val savedContentUris: List<Uri>,
     val displayName: String,
     val isNameAdjusted: Boolean,
-    val createdAt: Long,
-    val group1: String,
-    val group2: String
+    val createdAt: Long
 )

@@ -37,7 +37,6 @@ class CaptureReceiptRecoveryPolicyTest {
         val snapshot = CaptureJobSnapshot(
             request = CaptureRequest(
                 relativePath = "Pictures/DZlog/",
-                group1 = "", group2 = "",
                 displayName = "snap_$next.jpg",
                 resolvedCells = emptyList(),
                 watermarkCells = emptyList(),

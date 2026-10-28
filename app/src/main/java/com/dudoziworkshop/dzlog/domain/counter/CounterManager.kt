@@ -8,7 +8,6 @@ import com.dudoziworkshop.dzlog.data.counter.toCounterScanTarget
 import com.dudoziworkshop.dzlog.data.counterindex.CounterIndexRepository
 import com.dudoziworkshop.dzlog.domain.model.CellKey
 import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
-import com.dudoziworkshop.dzlog.domain.model.GroupLevel
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.naming.sanitizeFilePart
@@ -50,30 +49,6 @@ object CounterManager {
             CounterScanTarget.BOTH -> listOf(normalizedBaseRel, originalRel)
         }
     }
-
-    /**
-     * Build a counter-stream key for relativePath.
-     *
-     * Rationale:
-     * - Physical save path is derived from (group1, group2).
-     * - If G2 is *enabled* but its value is blank, the physical path becomes the same as G1-only.
-     *   We must prevent counter streams from mixing between:
-     *     (A) G1-only
-     *     (B) G1 + (G2 enabled but empty)
-     *
-     * This function keeps the physical path unchanged, but adds a virtual suffix for DB keying.
-     */
-    fun computeCounterStreamRelativePathKey(
-        baseRelativePath: String,
-        hasG2Group: Boolean,
-        group2Value: String
-    ): String {
-        if (!hasG2Group) return baseRelativePath
-        if (group2Value.isNotBlank()) return baseRelativePath
-        // Virtual stream key: distinguish empty-enabled G2 from true G1-only.
-        return "$baseRelativePath|g2=enabled_empty"
-    }
-
 
     /**
      * 카운터 스트림용 prefix 계산
@@ -174,42 +149,6 @@ object CounterManager {
         } else base
     }
 
-    /**
-     * 카운터 스트림용 prefix(단일 소스)
-     *
-     * - basePrefix: 슬롯/해결값 기반 prefix (COUNTER 제외)
-     * - g2Enabled : "G2 그룹 셀 존재 여부" (값이 비어도 true)
-     * - streamPrefix = computeCounterPrefix(...) + "|g2=0/1"
-     *
-     * 요구사항:
-     * - 저장경로가 우연히 같아도(G2 값이 비어 g1 폴더만 쓰는 경우 등),
-     *   "G2 그룹을 쓰는 템플릿"과 "G1만 쓰는 템플릿"의 카운팅 스트림은 분리되어야 한다.
-     */
-    fun computeCounterStreamPrefix(
-        resolvedCells: List<ResolvedCell>,
-        fnDelim: String,
-        fileNameSlots: List<CellKey?>,
-        includeFilenameInScope: Boolean,
-        scopeOptions: CounterScopeOptions = CounterScopeOptions(),
-    ): String {
-        val basePrefix = computeCounterPrefix(
-            resolvedCells = resolvedCells,
-            fnDelim = fnDelim,
-            fileNameSlots = fileNameSlots,
-            includeFilenameInScope = includeFilenameInScope,
-            scopeOptions = scopeOptions,
-        )
-        val g2Enabled = resolvedCells.any { it.raw?.groupLevel == GroupLevel.G2 }
-        val tag = if (g2Enabled) "g2=1" else "g2=0"
-        return "$basePrefix|$tag"
-    }
-
-    private fun toScanPath(relativePathKey: String): String {
-        // relativePathKey may include virtual stream discriminator (e.g. "|g2=enabled_empty").
-        // MediaStore path filtering must use physical folder path only.
-        return relativePathKey.substringBefore("|g2=", relativePathKey)
-    }
-
     private fun normalizeRelativePathPrefix(baseRel: String): String {
         val trimmed = baseRel.trim()
         if (trimmed.isBlank()) return ""
@@ -246,7 +185,7 @@ object CounterManager {
         val rawStreamPrefix = counterPrefix
         // 주요 정책: stream prefix(내부 스코프 분리키)와 파일명 파싱 prefix를 분리한다.
         val physicalFileNamePrefix = scanPrefix
-        val physicalPath = toScanPath(relativePath)
+        val physicalPath = relativePath
         val scanTarget = saveMode.toCounterScanTarget()
         val scanPaths = if (physicalPath.isBlank()) {
             emptyList()

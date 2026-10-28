@@ -6,8 +6,6 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.withDataType
 import com.dudoziworkshop.dzlog.feature.table.editor.updateCell
-import com.dudoziworkshop.dzlog.ui.table.PathGroupAction
-import com.dudoziworkshop.dzlog.ui.table.applyPathGroupAction
 
 data class TableEditorSelectedCellActionBindings(
     val currentTemplate: () -> TableTemplateState,
@@ -23,19 +21,6 @@ object TableEditorSelectedCellActionBinder {
         updateSelectedCellTemplate(bindings) { current ->
             current.withDataType(type)
         }
-    }
-
-    fun applyPathGroupActionForSelected(
-        bindings: TableEditorSelectedCellActionBindings,
-        action: PathGroupAction,
-    ) {
-        val cell = bindings.currentSelectedCell() ?: return
-        val updated = applyPathGroupAction(
-            state = bindings.currentTemplate(),
-            targetCellId = cell.cellId,
-            action = action,
-        )
-        bindings.updateTemplateDraft(updated)
     }
 
     fun setCounterScopeModeForSelected(

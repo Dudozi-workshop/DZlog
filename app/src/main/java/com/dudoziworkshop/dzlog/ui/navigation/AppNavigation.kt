@@ -79,7 +79,7 @@ import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
 import com.dudoziworkshop.dzlog.ui.log.LogViewerScreen
-import com.dudoziworkshop.dzlog.ui.log.ORIGINAL_PHOTOS_TITLE
+import com.dudoziworkshop.dzlog.ui.log.folderTitleFromRelativePath
 import com.dudoziworkshop.dzlog.ui.log.isOriginalRelativePath
 import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2Screen
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListScreen
@@ -103,8 +103,6 @@ enum class AppScreen {
     SETTINGS,
     CREDITS,
     ALBUM_FOLDER,
-    ALBUM_G1,
-    ALBUM_G2,
     ALBUM_GRID,
     ALBUM_VIEWER,
     QUICK_RESULTS
@@ -129,8 +127,6 @@ enum class OriginalParent {
 }
 
 data class AlbumLocation(
-    val g1: String,
-    val g2Label: String,
     val relativePath: String,
     val originalLinkPath: String?
 )
@@ -151,7 +147,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
     var viewerEntrySource by rememberSaveable { mutableStateOf(ViewerEntrySource.GRID) }
 
-// 앨범(G1/G2/그리드/뷰어) 상태
+// 앨범(폴더/그리드/뷰어) 상태
     var albumLocation by remember { mutableStateOf<AlbumLocation?>(null) }
     var originalNavContext by remember { mutableStateOf<OriginalNavContext?>(null) }
     var albumGridEntryScreen by rememberSaveable { mutableStateOf(AppScreen.ALBUM_FOLDER) }
@@ -395,7 +391,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         val previousActiveId = tableTemplateViewModel.activeTemplateId
         val activeId = editorReplacementId ?: previousActiveId
         if (activeId == null || tableTemplateViewModel.templates.none { it.id == activeId }) return false
-        // A pending capture still owns its original template snapshot.
+        // Preserve the pending capture's original immutable template snapshot.
         if (!CaptureAsyncRuntime.canSaveEditedTemplate(activeId)) return false
 
         return runCatching {
@@ -581,8 +577,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
 
     fun isAlbumScreen(target: AppScreen): Boolean =
         target == AppScreen.ALBUM_FOLDER ||
-        target == AppScreen.ALBUM_G1 ||
-            target == AppScreen.ALBUM_G2 ||
             target == AppScreen.ALBUM_GRID ||
             target == AppScreen.ALBUM_VIEWER ||
             target == AppScreen.QUICK_RESULTS
@@ -652,14 +646,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
         originalPath: String,
         returnLocationIfWater: AlbumLocation?
     ) {
-        val current = albumLocation
-        val g1 = current?.g1 ?: return
-        val g2Label = current.g2Label
-        val normalizedOriginalPath = originalPath.trim()
+        if (albumLocation == null) return
         albumLocation = AlbumLocation(
-            g1 = g1,
-            g2Label = g2Label,
-            relativePath = normalizedOriginalPath,
+            relativePath = originalPath.trim(),
             originalLinkPath = null
         )
         originalNavContext = when (parent) {
@@ -719,10 +708,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
         })
     }
 
-    fun openRecentCaptureGrid(g1: String, g2: String, relativePath: String, startIndex: Int) {
+    fun openRecentCaptureGrid(relativePath: String) {
         val location = AlbumLocation(
-            g1 = g1,
-            g2Label = g2.trim(),
             relativePath = relativePath.trim(),
             originalLinkPath = null
         )
@@ -742,7 +729,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 returnLocationIfWater = null
             )
         }
-        albumGridEntryScreen = AppScreen.ALBUM_G2
+        albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         albumEntryScreen = screen
         // 정책: Home recent에서 진입한 Grid만 별도 출처로 기록해 back target을 Home으로 고정한다.
         gridEntrySource = if (screen == AppScreen.HOME) GridEntrySource.HOME_RECENT else GridEntrySource.NORMAL
@@ -751,22 +738,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
 
-    fun buildGridHeaderTitle(location: AlbumLocation): String {
-        val g1 = location.g1.trim()
-        val rawG2 = location.g2Label.trim()
-
-        val isOriginalLikeLabel = rawG2 == ORIGINAL_PHOTOS_TITLE ||
-            rawG2.contains("원본") ||
-            rawG2.equals("original", ignoreCase = true)
-
-        val g2LabelToShow = rawG2.takeIf {
-            it.isNotBlank() &&
-                it != g1 &&
-                !isOriginalLikeLabel
-        }
-
-        return g2LabelToShow?.let { "$g1 / $it" } ?: g1
-    }
+    fun buildGridHeaderTitle(location: AlbumLocation): String =
+        folderTitleFromRelativePath(location.relativePath)
 
     fun handleAlbumGridBack() {
         if (isSelectionMode) {
@@ -851,8 +824,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     else screen = rootAlbumBackTarget()
                 }
             }
-            AppScreen.ALBUM_G1 -> screen = AppScreen.ALBUM_FOLDER
-            AppScreen.ALBUM_G2 -> screen = AppScreen.ALBUM_FOLDER
         }
     }
 
@@ -1067,8 +1038,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenPhoto = { photos, index ->
                         val relativePath = photos.getOrNull(index)?.relativePath ?: albumFolderPath
                         albumLocation = AlbumLocation(
-                            g1 = "",
-                            g2Label = "",
                             relativePath = relativePath,
                             originalLinkPath = if (isOriginalRelativePath(relativePath)) null else relativePath + "original/",
                         )
@@ -1090,10 +1059,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
 
-            AppScreen.ALBUM_G1, AppScreen.ALBUM_G2 -> {
-                // Legacy routes are redirected; new entrypoints only use ALBUM_FOLDER.
-                screen = AppScreen.ALBUM_FOLDER
-            }
             AppScreen.QUICK_RESULTS -> {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
@@ -1111,7 +1076,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         if (index >= 0) {
                             gridItems = visiblePhotos
                             viewerStartIndex = index
-                            albumLocation = AlbumLocation("", "", visiblePhotos[index].relativePath, null)
+                            albumLocation = AlbumLocation(visiblePhotos[index].relativePath, null)
                             viewerEntrySource = ViewerEntrySource.QUICK_RESULTS
                             screen = AppScreen.ALBUM_VIEWER
                         }

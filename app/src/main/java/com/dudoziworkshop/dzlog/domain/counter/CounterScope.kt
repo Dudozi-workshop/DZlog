@@ -24,12 +24,11 @@ fun buildCounterScope(
     relativePathOverride: String? = null,
 ): CounterScope {
     // 주요 정책(path 축): 카운터 path 키는 pathSlotDrafts에서 계산된 최종 relativePath를 기준으로 한다.
-    // relativePathOverride가 있으면 groupLevel(G1/G2) 상태와 무관하게 그대로 사용한다.
     val relativePathKey = (relativePathOverride ?: "Pictures/DZlog/").let { path ->
         val trimmed = path.trim()
         if (trimmed.isBlank()) "Pictures/DZlog/" else if (trimmed.endsWith('/')) trimmed else "$trimmed/"
     }
-    val streamPrefix = CounterManager.computeCounterStreamPrefix(
+    val streamPrefix = CounterManager.computeCounterPrefix(
         resolvedCells = resolvedCells,
         fnDelim = fnDelim,
         fileNameSlots = fileNameSlots,
