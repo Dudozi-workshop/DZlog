@@ -67,7 +67,7 @@ def enter_directory(name):
     raise AssertionError(f"Folder {name!r} not visible in the picker")
 
 def choose_saf_folder():
-    tap_any(["DZlog 폴더 연결", "폴더 연결", "연결하기"], timeout=45)
+    tap_any(["Pictures 폴더 선택하기", "연결하기", "폴더 연결", "DZlog 폴더 연결"], timeout=45)
     root = picker(timeout=80)
     checkpoint("05-folder-picker")
     # Latest integration onboarding asks for Pictures, and DZlog is created
@@ -104,7 +104,7 @@ def main():
     ui.tap("시작하기", "사용 준비하기")
     checkpoint("02-intro-features")
     ui.tap("사용 준비하기")
-    ui.wait_for("DZlog 폴더 연결",timeout=50)
+    ui.wait_for("Pictures 폴더",timeout=50)
     checkpoint("03-permission-setup")
     assert_alive("permission setup")
     choose_saf_folder()
