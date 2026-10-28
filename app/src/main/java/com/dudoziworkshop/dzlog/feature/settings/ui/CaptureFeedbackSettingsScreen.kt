@@ -66,6 +66,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     var draftVolume by remember { mutableFloatStateOf(settings.captureSoundVolume.toFloat()) }
     LaunchedEffect(settings.captureSoundVolume) { draftVolume = settings.captureSoundVolume.toFloat() }
+    val isDefault = settings.captureSoundChoice == CaptureSoundChoice.SYSTEM
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -144,7 +145,7 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
             }
 
             Text(
-                "사용자 정의 효과음 음량  ${draftVolume.roundToInt()}%",
+                if (isDefault) "기본 촬영음 (기기 음량 적용)" else "촬영 효과음 음량  ${draftVolume.roundToInt()}%",
                 style = DDZTypography.Body,
                 color = DDZColor.TextPrimary,
             )
@@ -157,19 +158,15 @@ fun CaptureFeedbackSettingsScreen(onBack: () -> Unit) {
                     }
                 },
                 valueRange = 0f..100f,
-                enabled = settings.captureSoundChoice != CaptureSoundChoice.SYSTEM,
+                enabled = !isDefault,
                 colors = SliderDefaults.colors(
                     thumbColor = DDZColor.Selected,
                     activeTrackColor = DDZColor.Selected,
                 ),
             )
             Text(
-                "미리 듣기는 기기 미디어 음량을 사용하며 0%에서는 소리가 나지 않습니다.",
-                style = DDZTypography.Caption,
-                color = DDZColor.TextSecondary,
-            )
-            Text(
-                "Android 기본 셔터음은 시스템 정책을 따르므로 앱에서 별도로 음량을 조절할 수 없습니다.",
+                if (isDefault) "Android 기본 촬영음은 앱에서 음량을 조절할 수 없습니다."
+                else "선택한 효과음은 앱 음량 설정과 기기 미디어 음량을 따릅니다.",
                 style = DDZTypography.Caption,
                 color = DDZColor.TextSecondary,
             )

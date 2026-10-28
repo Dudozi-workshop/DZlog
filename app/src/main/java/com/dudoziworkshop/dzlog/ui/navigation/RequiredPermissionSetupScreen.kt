@@ -82,7 +82,7 @@ internal fun RequiredPermissionSetupScreen(
             "휴대폰 권한 설정 열기"
         currentStep == RequiredSetupStep.CAMERA -> "카메라 권한 허용하기"
         currentStep == RequiredSetupStep.PHOTOS -> "사진 접근 허용하기"
-        onboarding -> "저장 폴더 연결하기"
+        onboarding -> "Pictures 폴더 선택하기"
         else -> "DZlog 폴더 연결"
     }
 
@@ -104,7 +104,12 @@ internal fun RequiredPermissionSetupScreen(
             verticalArrangement = Arrangement.spacedBy(if (onboarding) 10.dp else 14.dp),
         ) {
             Text(
-                if (onboarding) "필요한 권한을\n설정해 주세요." else "필요한 권한을 확인해 주세요",
+                when {
+                    onboarding && currentStep == RequiredSetupStep.FOLDER ->
+                        "Pictures 폴더를\n선택해 주세요."
+                    onboarding -> "필요한 권한을\n설정해 주세요."
+                    else -> "필요한 권한을 확인해 주세요"
+                },
                 style = if (onboarding) typography.ScreenTitle.copy(
                     fontSize = OnboardingTextStyles.PageTitle.fontSize,
                     lineHeight = OnboardingTextStyles.PageTitle.lineHeight,
@@ -135,6 +140,7 @@ internal fun RequiredPermissionSetupScreen(
                 state.photos,
                 cameraRequestAttempted,
                 photoRequestAttempted,
+                onboarding = onboarding,
             )
             if (onboarding) OnboardingPermissionArtwork()
             if (!notice.isNullOrBlank()) {
@@ -188,7 +194,7 @@ private fun OnboardingPermissionOverview(
             }, state.photos == GalleryMediaAccess.FULL,
         )
         OnboardingPermissionCard(
-            "저장 폴더", "사진과 하위 폴더를 정리해 관리해요.",
+            "저장 폴더", "Pictures 폴더를 선택해 연결해요.",
             Icons.Default.Folder, Color(0xFF91A77E),
             if (folderConnected) "연결됨" else "연결 필요", folderConnected,
             if (!folderConnected && currentStep == RequiredSetupStep.FOLDER) onAction else null,

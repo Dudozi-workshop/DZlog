@@ -15,11 +15,14 @@ class TableTemplateCatalogLiveInputTest {
         model.restoreCatalog(listOf(item), "a")
         val saved = updateQuickCellValues(initial, mapOf(initial.cells.single().cellId to "first"))
         val live = updateQuickCellValues(saved, mapOf(initial.cells.single().cellId to "first\nsecond"))
+        val startRevision = model.stateRevision
         model.updateStateOnly(live)
-        model.applyPersistedCatalog(listOf(item.copy(templateState = saved)), "a", saved)
         assertEquals(live, model.tableTemplateState)
-        assertEquals(saved, model.templates.single().templateState)
-        model.applyPersistedCatalog(listOf(item.copy(templateState = live)), "a", live)
+        assertEquals(live, model.templates.single().templateState)
+        model.applyPersistedCatalog(listOf(item.copy(templateState = saved)), "a", saved, startRevision)
+        assertEquals(live, model.tableTemplateState)
+        assertEquals(live, model.templates.single().templateState)
+        model.applyPersistedCatalog(listOf(item.copy(templateState = live)), "a", live, model.stateRevision)
         assertEquals(live, model.templates.single().templateState)
     }
 
@@ -30,9 +33,21 @@ class TableTemplateCatalogLiveInputTest {
         val model = TableTemplateCatalogViewModel()
         model.restoreCatalog(listOf(a, b), "a")
         model.activate("b")
-        model.applyPersistedCatalog(listOf(a), "a", state)
+        model.applyPersistedCatalog(listOf(a), "a", state, model.stateRevision)
         assertEquals("b", model.activeTemplateId)
         assertEquals(b.templateState, model.tableTemplateState)
         assertEquals(2, model.templates.size)
     }
+    @Test fun completedCameraCaptureUpdatesEditorPhrasePosition() {
+        val initial = newBlankTableTemplateState(1, 1)
+        val item = createSavedTableTemplate(name = "A", templateState = initial, styleState = TableStyleState(), id = "a")
+        val model = TableTemplateCatalogViewModel()
+        model.restoreCatalog(listOf(item), "a")
+        val revision = model.stateRevision
+        val progressed = initial.copy(cells = initial.cells.map { it.copy(phraseIndex = 1) })
+        model.applyPersistedCatalog(listOf(item.copy(templateState = progressed)), "a", progressed, revision)
+        assertEquals(progressed, model.tableTemplateState)
+        assertEquals(progressed, model.templates.single().templateState)
+    }
+
 }

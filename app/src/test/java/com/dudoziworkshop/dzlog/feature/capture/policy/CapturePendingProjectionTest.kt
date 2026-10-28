@@ -248,4 +248,49 @@ class CapturePendingProjectionTest {
             while (outstanding.isNotEmpty()) commitOldest()
         }
     }
+    @Test fun sameTemplateExternalEditReplacesPreviousCaptureCache() {
+        val projection = CapturePendingProjection()
+        assertTrue(projection.bindTemplate("table-a"))
+        val old = template.copy(phraseSets = listOf(
+            RotatingPhraseSet("phrases", "Set", listOf("OLD", "OTHER"))
+        ), cells = listOf(counter, phrase.copy(phraseSetId = "phrases")))
+        val captured = old.applyPatch(shot("old", 1, 1).templatePatch)
+        projection.recordCommittedTemplate(captured)
+        val edited = old.copy(
+            phraseSets = listOf(RotatingPhraseSet("phrases", "Set", listOf("NEW", "NEXT"))),
+            cells = listOf(counter, phrase.copy(phraseSetId = "phrases", phraseIndex = 0)),
+        )
+        assertTrue(projection.canSaveEditedTemplate("table-a"))
+        assertTrue(projection.invalidateCommittedAfterExternalEdit("table-a"))
+        assertEquals(edited, projection.previewTemplate(edited))
+        assertEquals(
+            "NEW",
+            PhraseResolver.resolveSelectedTextByCellId(
+                edited.cells, edited.phraseSets, 1
+            ).getValue("phrase"),
+        )
+    }
+
+    @Test fun pendingCapturePreventsExternalEditInvalidation() {
+        val projection = CapturePendingProjection()
+        assertTrue(projection.bindTemplate("table-a"))
+        projection.add(shot("one", 1, 1))
+        assertTrue(!projection.canSaveEditedTemplate("table-a"))
+        assertTrue(!projection.invalidateCommittedAfterExternalEdit("table-a"))
+        assertEquals(1, projection.pendingCount())
+        assertEquals(1, projection.previewTemplate(template).cells[1].phraseIndex)
+        projection.completeFirst("one")
+        assertTrue(projection.canSaveEditedTemplate("table-a"))
+    }
+
+    @Test fun editingOtherTemplateDoesNotResetCurrentCaptureProgress() {
+        val projection = CapturePendingProjection()
+        assertTrue(projection.bindTemplate("table-a"))
+        val captured = template.applyPatch(shot("one", 1, 1).templatePatch)
+        projection.recordCommittedTemplate(captured)
+        assertTrue(projection.canSaveEditedTemplate("table-b"))
+        assertTrue(!projection.invalidateCommittedAfterExternalEdit("table-b"))
+        assertEquals(captured, projection.previewTemplate(template))
+    }
+
 }

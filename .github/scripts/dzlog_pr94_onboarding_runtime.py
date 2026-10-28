@@ -53,76 +53,46 @@ def assert_alive(where):
     if fatal:
         raise AssertionError("AndroidRuntime error at "+where+": "+str(fatal))
 
-def scroll_to_folder(folder_name, max_scrolls=14):
-    """Navigate a DocumentsUI folder by its exact visible label."""
-    for attempt in range(max_scrolls + 1):
-        root = picker(timeout=30)
-        matched = [
-            n for n in nodes(root) if (n.get("text") or "").strip() == folder_name
-        ]
-        if matched:
-            # Use the exact DocumentsUI hierarchy we just inspected.
-            # Fetching a second hierarchy via ui.tap() can race a picker
-            # re-layout and incorrectly report that the visible item vanished.
-            x, y = ui.target(root, folder_name)
+def enter_directory(name):
+    """Use the current DocumentsUI hierarchy, not a second stale dump."""
+    for attempt in range(14):
+        root = picker(timeout=40)
+        entries = [n for n in nodes(root) if (n.get("text") or "").strip() == name]
+        if entries:
+            x, y = ui.target(root, name)
             ui.adb("shell", "input", "tap", str(x), str(y))
-            return picker(timeout=35)
-        if attempt < max_scrolls:
-            ui.adb("shell", "input", "swipe", "570", "1860", "570", "760", "400")
-            time.sleep(1)
-    raise AssertionError(f"Folder {folder_name!r} not found after scrolling")
+            return picker(timeout=40)
+        ui.adb("shell", "input", "swipe", "570", "1860", "570", "760", "400")
+        time.sleep(1)
+    raise AssertionError(f"Folder {name!r} not visible in the picker")
 
 def choose_saf_folder():
     tap_any(["DZlog 폴더 연결", "폴더 연결", "연결하기"], timeout=45)
     root = picker(timeout=80)
     checkpoint("05-folder-picker")
-    # Initial URI is advisory; Android DocumentsUI often opens device root
-    # instead of the intended Pictures/DZlog tree. Never select the root.
-    if contains(root, "Can’t use this folder") or contains(root, "Can't use this folder"):
-        root = scroll_to_folder("Pictures")
-        checkpoint("05b-picker-pictures")
-    elif not any((n.get("text") or "").strip() == "Pictures" for n in nodes(root)):
-        # The picker may already be in Pictures/DZlog, or may be in Pictures.
-        headings = [(n.get("text") or "").strip() for n in nodes(root)]
-        if "DZlog" not in headings:
-            root = scroll_to_folder("Pictures")
-            checkpoint("05b-picker-pictures")
-    if not any((n.get("text") or "").strip() == "DZlog" for n in nodes(root)) or any(
-        (n.get("text") or "").strip() == "Pictures" for n in nodes(root)
-    ):
-        root = scroll_to_folder("DZlog")
-        checkpoint("05c-picker-exact-dzlog")
-    else:
-        # A directory listing containing 'DZlog' does not prove that DZlog
-        # itself is selected; always enter the child when the header differs.
-        titles = [(n.get("text") or "").strip() for n in nodes(root)]
-        if titles.count("DZlog") == 1 and "Pictures" in titles:
-            root = scroll_to_folder("DZlog")
-            checkpoint("05c-picker-exact-dzlog")
-    # At exact directory the picker title must name DZlog (not device root).
-    root = picker(timeout=30)
-    titles = [(n.get("text") or "").strip() for n in nodes(root)]
-    if "DZlog" not in titles or any("use this folder" in t.lower() and "can't" in t.lower() for t in titles):
-        checkpoint("05d-invalid-folder")
-        raise AssertionError("SAF picker is not at the exact DZlog folder")
-    if any("Can’t use this folder" in t or "Can't use this folder" in t for t in titles):
-        checkpoint("05d-folder-blocked")
-        raise AssertionError("SAF provider does not allow selected directory")
-    if not (contains(root,"USE THIS FOLDER") or contains(root,"이 폴더 사용")):
-        raise AssertionError("The exact DZlog folder has no permission action")
+    # Latest integration onboarding asks for Pictures, and DZlog is created
+    # inside it by GalleryFolderStorage. Do not require a preexisting DZlog.
+    def is_pictures_directory(root):
+        return any((n.get("resource-id") or "").endswith(":id/breadcrumb_text")
+                   and (n.get("text") or "").strip() == "Pictures" for n in nodes(root))
+    if not is_pictures_directory(root):
+        root = enter_directory("Pictures")
+    checkpoint("05b-picker-pictures")
+    if not is_pictures_directory(root):
+        raise AssertionError("DocumentsUI did not navigate into Pictures")
+    if not (contains(root, "USE THIS FOLDER") or contains(root, "이 폴더 사용")):
+        raise AssertionError("Pictures folder is not selectable")
     tap_any(["USE THIS FOLDER", "Use this folder", "이 폴더 사용"])
     root = ui.hierarchy()
-    if any(contains(root,n) for n in ["ALLOW", "Allow", "허용"]):
+    if any(contains(root, n) for n in ["ALLOW", "Allow", "허용"]):
         tap_any(["ALLOW", "Allow", "허용"])
-    root = ui.hierarchy()
-    checkpoint("05e-folder-link-return")
-    return root
+    checkpoint("05c-pictures-linked")
+    return ui.hierarchy()
 
 def main():
-    ui.adb("shell","mkdir","-p","/sdcard/Pictures/DZlog")
-    # A clean-install runtime check. Shared-photo eligibility is separately
-    # covered by the catalog startup policy unit regression.
-    ui.adb("shell","test","-d","/sdcard/Pictures/DZlog")
+    # Fresh device: the app must provision Pictures/DZlog after the user
+    # selects Pictures. Do not create the child folder in the test setup.
+    ui.adb("shell","mkdir","-p","/sdcard/Pictures")
     ui.adb("install","-r","app/build/outputs/apk/debug/app-debug.apk",timeout=170)
     for p in ("android.permission.CAMERA","android.permission.READ_MEDIA_IMAGES"):
         ui.adb("shell","pm","grant",PKG,p)

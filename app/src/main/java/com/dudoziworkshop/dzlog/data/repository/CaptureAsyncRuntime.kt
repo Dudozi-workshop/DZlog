@@ -14,6 +14,15 @@ import kotlinx.coroutines.SupervisorJob
 internal object CaptureAsyncRuntime {
     @Volatile private var service: CaptureAsyncCaptureService? = null
 
+    /** No service is created just to check an editor save. */
+    fun canSaveEditedTemplate(templateId: String): Boolean =
+        service?.pendingProjection?.canSaveEditedTemplate(templateId) ?: true
+
+    /** Notify a living camera session after a successful external table edit. */
+    fun onExternalTemplateSaved(templateId: String) {
+        service?.pendingProjection?.invalidateCommittedAfterExternalEdit(templateId)
+    }
+
     fun get(context: Context, repository: DzlogRepositoryImpl): CaptureAsyncCaptureService =
         service ?: synchronized(this) {
             service ?: CaptureAsyncCaptureService(
