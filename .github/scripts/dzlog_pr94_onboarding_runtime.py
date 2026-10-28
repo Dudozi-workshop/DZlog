@@ -61,7 +61,11 @@ def scroll_to_folder(folder_name, max_scrolls=14):
             n for n in nodes(root) if (n.get("text") or "").strip() == folder_name
         ]
         if matched:
-            ui.tap(folder_name)
+            # Use the exact DocumentsUI hierarchy we just inspected.
+            # Fetching a second hierarchy via ui.tap() can race a picker
+            # re-layout and incorrectly report that the visible item vanished.
+            x, y = ui.target(root, folder_name)
+            ui.adb("shell", "input", "tap", str(x), str(y))
             return picker(timeout=35)
         if attempt < max_scrolls:
             ui.adb("shell", "input", "swipe", "570", "1860", "570", "760", "400")
