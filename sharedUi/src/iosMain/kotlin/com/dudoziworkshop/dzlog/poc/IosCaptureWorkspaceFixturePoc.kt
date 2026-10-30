@@ -76,6 +76,29 @@ internal fun IosCaptureWorkspaceFixturePoc() {
         Button(enabled = !busy, onClick = {
             busy = true
             try {
+                val overlay = IosTableOverlayRenderer.renderPng(
+                    imageWidth = 128, imageHeight = 128,
+                    rows = 1, cols = 1, resolvedTexts = listOf("13"),
+                    style = template.styleState, widthRatio = 60, heightRatio = 20,
+                )
+                val output = IosCaptureResultRenderer.compositeJpeg(captureFixtureJpeg(), overlay)
+                val result = Image.makeFromEncoded(output)
+                check(result.width == 128 && result.height == 128)
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 2, listOf("13"), template.styleState,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException)
+                status = "표 데이터 오버레이 합성 완료"
+            } catch (error: Throwable) {
+                status = "실패: " + error.message.orEmpty()
+            } finally {
+                busy = false
+            }
+        }) { Text("표 데이터 합성 검증") }
+        Button(enabled = !busy, onClick = {
+            busy = true
+            try {
                 val source = captureFixtureJpeg()
                 val overlay = Surface.makeRasterN32Premul(128, 128)
                 overlay.canvas.clear(0x00000000)
