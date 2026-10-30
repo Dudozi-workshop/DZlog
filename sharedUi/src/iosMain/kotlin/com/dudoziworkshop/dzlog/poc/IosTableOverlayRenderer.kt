@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
@@ -78,6 +80,40 @@ internal object IosTableOverlayRenderer {
         return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)) {
             "표 오버레이 인코딩 실패"
         }.bytes
+    }
+
+    /**
+     * Map the capture pipeline's resolved text by cell coordinates rather than
+     * assuming the resolver preserves a particular list order.
+     * Span and positioning parity are intentionally withheld until implemented.
+     */
+    fun renderResolvedPreviewPng(
+        imageWidth: Int,
+        imageHeight: Int,
+        template: TableTemplateState,
+        preview: FinalCapturePreview,
+        style: TableStyleState,
+        widthRatio: Int = 60,
+        heightRatio: Int = 20,
+    ): ByteArray {
+        require(template.rows > 0 && template.cols > 0)
+        val byPosition = preview.resolvedCells.associate { cell ->
+            val raw = requireNotNull(cell.raw) { "셀 좌표를 확인할 수 없습니다." }
+            require(raw.rowSpan == 1 && raw.colSpan == 1) {
+                "병합된 셀은 iOS 표 합성에서 아직 지원하지 않습니다."
+            }
+            require(raw.rowIndex in 0 until template.rows && raw.colIndex in 0 until template.cols)
+            (raw.rowIndex to raw.colIndex) to cell.resolvedText
+        }
+        require(byPosition.size == preview.resolvedCells.size) { "중복된 표 셀 좌표가 있습니다." }
+        val texts = List(template.rows * template.cols) { index ->
+            val coordinate = index / template.cols to index % template.cols
+            requireNotNull(byPosition[coordinate]) { "표 셀 좌표가 누락됐습니다." }
+        }
+        return renderPng(
+            imageWidth, imageHeight, template.rows, template.cols, texts, style,
+            widthRatio, heightRatio, template.rowWeights, template.colWeights,
+        )
     }
 
     private fun edges(count: Int, weights: List<Float>?): List<Float> {
