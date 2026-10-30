@@ -23,6 +23,12 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
+import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
+import com.dudoziworkshop.dzlog.domain.preview.buildScope
+import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
@@ -76,9 +82,31 @@ internal fun IosCaptureWorkspaceFixturePoc() {
         Button(enabled = !busy, onClick = {
             busy = true
             try {
-                val overlay = IosTableOverlayRenderer.renderPng(
+                val now = tableEditorNow()
+                val scopeState = buildScope(CaptureScopeInput(
+                    templateState = template.templateState, captureNow = now, counterDigits = 3,
+                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                    timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                    includeFilenameInCounterScope = false,
+                    saveMode = SaveMode.WATERMARK_ONLY, phraseProgressCursor = 0,
+                ))
+                val preview = buildCapturePreview(scopeState, FinalCapturePreviewInput(
+                    templateState = template.templateState, captureNow = now, counterDigits = 3,
+                    dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                    timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                    fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+                    includePathInCounterScope = false,
+                    includeFilenameInCounterScope = false,
+                    saveMode = SaveMode.WATERMARK_ONLY,
+                    syncedCounter = FIXTURE_COUNTER, phraseProgressCursor = 0,
+                ))
+                check(preview.resolvedCells.single().resolvedText == "012") {
+                    "최종 촬영 번호가 반영되지 않았습니다."
+                }
+                val overlay = IosTableOverlayRenderer.renderResolvedPreviewPng(
                     imageWidth = 128, imageHeight = 128,
-                    rows = 1, cols = 1, resolvedTexts = listOf("13"),
+                    template = template.templateState, preview = preview,
                     style = template.styleState, widthRatio = 60, heightRatio = 20,
                 )
                 val output = IosCaptureResultRenderer.compositeJpeg(captureFixtureJpeg(), overlay)
