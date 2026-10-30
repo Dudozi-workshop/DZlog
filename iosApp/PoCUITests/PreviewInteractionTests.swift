@@ -118,6 +118,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("저장 상태: 합성 JPEG 생성·크기 검증 완료").waitForExistence(timeout: 20))
     }
 
+    func testCaptureResolvedTableOverlayProducesJpeg() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 데이터 합성 검증")
+        XCTAssertTrue(text("저장 상태: 표 데이터 오버레이 합성 완료").waitForExistence(timeout: 20))
+    }
+
     // Denied permission must never start a camera session or allow capturing.
     // This test-only argument forces denial; real OS permission prompts need device QA.
     func testCameraPermissionDeniedBlocksCapture() {
