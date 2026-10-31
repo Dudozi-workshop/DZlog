@@ -89,6 +89,7 @@ internal fun CameraBottomControls(
     settingsWriter: CameraSettingsWriter,
     captureReady: Boolean,
     latestImage: MediaImageItem?,
+    projectCaptureCount: Int? = null,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
     sessionCaptureStack: MutableList<List<Uri>>,
@@ -135,6 +136,7 @@ internal fun CameraBottomControls(
             ui = ui,
             latestImage = latestImage,
             enabledNow = captureReady,
+            isProjectMode = projectCaptureCount != null,
             sessionCaptureStack = sessionCaptureStack,
             undoPending = undoPending,
             onOpenAlbum = onOpenAlbum,
@@ -403,7 +405,7 @@ internal fun CameraBottomControls(
 
         // The compact completed-shot count now sits over the first (18%-width) recent-photo slot.
         // The existing save-progress/error indicator moves to the Undo-side slot.
-        sessionCaptureBadgeCount(sessionCaptureStack)?.let { count ->
+        (projectCaptureCount?.coerceAtLeast(0) ?: sessionCaptureBadgeCount(sessionCaptureStack))?.let { count ->
             val recentCenter = BottomControlsHorizontalPadding +
                 (maxWidth - BottomControlsHorizontalPadding * 2f) * 0.09f
             SessionCaptureCountBadge(
@@ -448,6 +450,7 @@ private fun BoxScope.CameraBottomBarRow(
     ui: CameraUiState,
     latestImage: MediaImageItem?,
     enabledNow: Boolean,
+    isProjectMode: Boolean,
     sessionCaptureStack: MutableList<List<Uri>>,
     undoPending: Boolean,
     onOpenAlbum: () -> Unit,
@@ -477,9 +480,9 @@ private fun BoxScope.CameraBottomBarRow(
                     latestImage = latestImage,
                     onClick = {
                         ui.dismissCameraInteractions()
-                        if (sessionCaptureStack.isNotEmpty()) {
-                            // Quick Results is a session surface even if a
-                            // thumbnail is still loading or all shots were deleted.
+                        if (isProjectMode || sessionCaptureStack.isNotEmpty()) {
+                            // Project mode opens its persistent results, even when
+                            // its current camera session contains no shutters.
                             val (g1, g2) = latestImage?.let {
                                 parseG1G2FromRelativePath(it.relativePath)
                             } ?: ("" to "")

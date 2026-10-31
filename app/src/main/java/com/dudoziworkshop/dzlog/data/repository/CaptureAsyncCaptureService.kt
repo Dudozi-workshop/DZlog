@@ -103,6 +103,10 @@ internal class CaptureAsyncCaptureService(
     suspend fun persistCommittedCapture(receipt: CapturePendingStore.PendingCapture): Boolean =
         recordStore.appendCommitted(CaptureRecordReceiptMapper.fromCompleted(receipt))
 
+    /** Camera Undo reports confirmed file removals, not requested targets. */
+    suspend fun afterVerifiedMediaDeletion(deletedUris: Set<String>): Int =
+        recordStore.afterVerifiedDeletion(deletedUris)
+
     fun acknowledgeTemplateApplied(id: String) = store.acknowledgeTemplateApplied(id)
 
     fun outstandingCount(): Int = queue.outstandingCount()

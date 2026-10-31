@@ -151,6 +151,8 @@ fun CameraScreen(
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
     projectId: String? = null,
+    projectCaptureCount: Int = 0,
+    projectLatestImage: com.dudoziworkshop.dzlog.domain.model.MediaImageItem? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -187,6 +189,8 @@ fun CameraScreen(
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
                 projectId = projectId,
+                projectCaptureCount = projectCaptureCount,
+                projectLatestImage = projectLatestImage,
                 quickEditSelectionMemory = quickEditSelectionMemory,
                 onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
@@ -236,6 +240,8 @@ fun CameraPreview(
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
     projectId: String? = null,
+    projectCaptureCount: Int = 0,
+    projectLatestImage: com.dudoziworkshop.dzlog.domain.model.MediaImageItem? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -523,6 +529,21 @@ fun CameraPreview(
     var pendingUndoWarningDisable by remember { mutableStateOf<List<String>?>(null) }
     var undoDeletionIncomplete by remember { mutableStateOf(phraseUndoHistory.hasIncompleteDeletion()) }
     fun syncAfterUndoDelete(deletedUris: List<Uri>) {
+        if (deletedUris.isNotEmpty()) {
+            val verifiedUris = deletedUris.map(Uri::toString).toSet()
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        asyncCaptureService.afterVerifiedMediaDeletion(verifiedUris)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    android.util.Log.e("DZlogCaptureProject", "Undo media index update failed", error)
+                    ui.capture.pendingSaveError = true
+                }
+            }
+        }
         val entry = phraseUndoHistory.deleted(deletedUris.map(Uri::toString))
         val optOut = pendingUndoWarningDisable
         if (entry != null && optOut != null && entry.initialUris == optOut.toSet()) {
@@ -846,7 +867,8 @@ fun CameraPreview(
                             !ui.capture.pendingSaveError &&
                             !ui.capture.isRecoveringPendingCaptures &&
                             ui.capture.pendingSaveCount < 3,
-                        latestImage = latestImage,
+                        latestImage = if (projectId != null) projectLatestImage else latestImage,
+                        projectCaptureCount = projectCaptureCount.takeIf { projectId != null },
                         onOpenAlbum = {
                             if (ui.capture.pendingSaveCount == 0 || ui.capture.pendingSaveError) onOpenAlbum()
                             else Toast.makeText(context, "저장 완료 후 앨범으로 이동할 수 있습니다.", Toast.LENGTH_SHORT).show()
