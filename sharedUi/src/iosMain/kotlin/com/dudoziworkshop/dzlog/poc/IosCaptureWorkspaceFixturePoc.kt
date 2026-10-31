@@ -133,6 +133,20 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                 }.exceptionOrNull() is IllegalArgumentException) {
                     "잘못된 열 비율이 차단되지 않았습니다."
                 }
+                val movedOverlay = IosTableOverlayRenderer.renderPng(
+                    128, 128, 1, 1, listOf("13"), template.styleState,
+                    widthRatio = 40, heightRatio = 20,
+                    offsetXRatio = 0.25f, offsetYRatio = 0.25f,
+                )
+                check(Image.makeFromEncoded(movedOverlay).width == 128)
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        widthRatio = 60, heightRatio = 20, offsetXRatio = 0.8f,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "이미지 밖 표 위치가 차단되지 않았습니다."
+                }
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
