@@ -14,8 +14,8 @@ import kotlin.math.sin
 
 /**
  * First native overlay slice: resolved row-major text and weighted table geometry.
- * Caller resolves dynamic cell values before rendering. Position/rotation parity
- * with Android's camera scene is a separate integration gate.
+ * Caller resolves dynamic cell values before rendering. Translation and rotation
+ * are supported, but Android camera placement parity is a separate integration gate.
  */
 internal object IosTableOverlayRenderer {
     fun renderPng(
@@ -38,8 +38,11 @@ internal object IosTableOverlayRenderer {
         require(resolvedTexts.size == rows * cols) { "표 셀 개수가 일치하지 않습니다." }
         val xEdges = edges(cols, colWeights)
         val yEdges = edges(rows, rowWeights)
-        val tableW = imageWidth * (widthRatio.coerceIn(10, 100) / 100f)
-        val tableH = imageWidth * (heightRatio.coerceIn(10, 100) / 100f)
+        require(widthRatio in 10..100 && heightRatio in 10..100) {
+            "표 크기 비율이 올바르지 않습니다."
+        }
+        val tableW = imageWidth * (widthRatio / 100f)
+        val tableH = imageWidth * (heightRatio / 100f)
         require(offsetXRatio in 0f..1f && offsetYRatio in 0f..1f) {
             "표 위치 비율이 올바르지 않습니다."
         }
