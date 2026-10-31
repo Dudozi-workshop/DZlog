@@ -24,6 +24,13 @@ internal data class ProjectCaptureReadResult(
     val latestPhoto: MediaImageItem?,
 )
 
+/** One indexed project summary. Images are verified through a single MediaStore scan. */
+internal data class ProjectCaptureSummary(
+    val captureCount: Int = 0,
+    val lastCapturedAtMillis: Long? = null,
+    val recentPhotos: List<MediaImageItem> = emptyList(),
+)
+
 /**
  * One MediaStore scan per requested entry/refresh. Legacy v1 import is safe to
  * repeat, does not delete the source DataStore, and cannot claim another
@@ -49,6 +56,39 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
             }
             DzlogMediaStoreReader(context.contentResolver).loadLatestImageInSession(uriGroups)
         }
+
+    /** One scan for the whole management list, not a scan per project row. */
+    suspend fun readSummaries(
+        registry: CaptureProjectRegistry,
+    ): Map<String, ProjectCaptureSummary> = withContext(Dispatchers.IO) {
+        val photos = DzlogMediaStoreReader(context.contentResolver)
+            .loadImagesUnderPrefix("Pictures/DZlog/")
+        val report = migration.importAvailable(
+            registry,
+            photos.map { photo ->
+                LegacyCapturePhoto(
+                    uri = photo.uri.toString(),
+                    relativePath = photo.relativePath,
+                    dateAddedSeconds = photo.dateAddedSeconds,
+                )
+            },
+        )
+        if (report.conflicts.isNotEmpty()) {
+            Log.w("DZlogProjectRead", "Legacy media conflicts: ${report.conflicts.size}")
+        }
+        val byUri = photos.associateBy { it.uri.toString() }
+        registry.projects.associate { project ->
+            val found = records.forProject(project.id).mapNotNull { record ->
+                val photo = record.resultUri?.let(byUri::get) ?: record.originalUri?.let(byUri::get)
+                photo?.let { record.capturedAtMillis to it }
+            }
+            project.id to ProjectCaptureSummary(
+                captureCount = found.size,
+                lastCapturedAtMillis = found.firstOrNull()?.first,
+                recentPhotos = found.take(3).map { it.second },
+            )
+        }
+    }
 
     suspend fun readProject(
         registry: CaptureProjectRegistry,
