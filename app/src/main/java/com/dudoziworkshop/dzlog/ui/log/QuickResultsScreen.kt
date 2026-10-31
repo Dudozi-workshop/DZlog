@@ -62,6 +62,7 @@ internal fun QuickResultsScreen(
     onOpenCapture: (List<QuickResultCapture>, Int) -> Unit,
     onOpenAlbum: () -> Unit,
     onReturnToCamera: () -> Unit,
+    isProjectResults: Boolean = false,
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
@@ -88,8 +89,8 @@ internal fun QuickResultsScreen(
     Column(Modifier.fillMaxSize().background(DDZColor.Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
-                Text("이번 촬영 ${captures.size}건", color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "프로젝트 결과" else "빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+                Text(if (isProjectResults) "프로젝트 누적 ${captures.size}건" else "이번 촬영 ${captures.size}건", color = DDZColor.TextSecondary)
             }
             AlbumViewAction(onClick = onOpenAlbum)
         }
@@ -118,11 +119,11 @@ internal fun QuickResultsScreen(
 
         if (captures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("이번 촬영 사진이 없습니다.", modifier = Modifier.tutorialTarget("camera.results"), color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "프로젝트 촬영 사진이 없습니다." else "이번 촬영 사진이 없습니다.", modifier = Modifier.tutorialTarget("camera.results"), color = DDZColor.TextSecondary)
             }
         } else if (visibleCaptures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "선택한 폴더에 프로젝트 사진이 없습니다." else "선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
             }
         } else {
             LazyColumn(

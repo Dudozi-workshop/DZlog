@@ -76,6 +76,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
+import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureReadViewModel
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
@@ -184,6 +185,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val captureProjectRegistry by captureProjectStore.changes.collectAsState(
         initial = CaptureProjectRegistry(),
     )
+    val projectReadViewModel: ProjectCaptureReadViewModel = viewModel()
+    var activeProjectCaptureCount by remember { mutableIntStateOf(0) }
+
     val pendingTutorialInvite by remember(context) {
         context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
     }.collectAsState(initial = false)
@@ -704,13 +708,43 @@ fun AppRoot(startOnCamera: Boolean = false) {
         navigateTo(AppScreen.QUICK_RESULTS)
     }
 
-    LaunchedEffect(screen, cameraSessionCaptureStack.size, captureProjectRegistry.active?.captureCount) {
-        if (screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
-        val persistedGroups = captureProjectRegistry.active?.captureUriGroups.orEmpty()
-        val liveGroups = cameraSessionCaptureStack.map { group -> group.map(Uri::toString) }
-        // Preserve the latest in-flight view until the project's receipt is committed.
-        val savedGroups = persistedGroups + liveGroups.filterNot { it in persistedGroups }
-        if (savedGroups.isEmpty()) {
+    // Entering Home or Quick Results refreshes project metadata from the same
+    // verified MediaStore/Room projection. General Quick Results remain session-only.
+    LaunchedEffect(screen, captureProjectRegistry.activeId, captureProjectRegistry.projects) {
+        val projectId = captureProjectRegistry.activeId
+        if (screen != AppScreen.HOME && screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
+        if (projectId == null) {
+            activeProjectCaptureCount = 0
+        } else {
+            try {
+                val result = projectReadViewModel.readProject(captureProjectRegistry, projectId)
+                activeProjectCaptureCount = result.visible.captureCount
+                if (screen == AppScreen.QUICK_RESULTS) {
+                    quickResultsPhotos = result.photos
+                    quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                        result.visible.uriGroupsOldestFirst,
+                        result.photos.map { QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath) },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.e("DZlogProjectRead", "Project result refresh failed", error)
+                // Never substitute another project's images after an uncertain read.
+                if (screen == AppScreen.QUICK_RESULTS) {
+                    quickResultsPhotos = emptyList()
+                    quickResultsCaptures = emptyList()
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(screen, cameraSessionCaptureStack.size, captureProjectRegistry.activeId) {
+        if (screen != AppScreen.QUICK_RESULTS || captureProjectRegistry.activeId != null) {
+            return@LaunchedEffect
+        }
+        val groups = cameraSessionCaptureStack.map { group -> group.map(Uri::toString) }
+        if (groups.isEmpty()) {
             quickResultsPhotos = emptyList()
             quickResultsCaptures = emptyList()
             return@LaunchedEffect
@@ -719,7 +753,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             DzlogMediaStoreReader(context.contentResolver).loadImagesUnderPrefix("Pictures/DZlog/")
         }
         quickResultsPhotos = photos
-        quickResultsCaptures = QuickResultsSessionPolicy.captures(savedGroups, photos.map {
+        quickResultsCaptures = QuickResultsSessionPolicy.captures(groups, photos.map {
             QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath)
         })
     }
@@ -918,7 +952,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
-                projectCaptureCount = captureProjectRegistry.active?.captureCount ?: 0,
+                projectCaptureCount = if (captureProjectRegistry.activeId != null) activeProjectCaptureCount else 0,
                 onOpenActiveProject = ::openQuickResults,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
@@ -1107,6 +1141,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
+                    isProjectResults = captureProjectRegistry.activeId != null,
                     gridColumns = appSettings.quickResultsGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { count ->
