@@ -50,7 +50,7 @@ internal object IosTableOverlayRenderer {
         val textPaint = Paint().apply { color = textColor; isAntiAlias = true }
         val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
             (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
-        val font = Font(Typeface.makeDefault(), fontSize)
+        val font = Font(Typeface.makeFromName("Arial", org.jetbrains.skia.FontStyle.NORMAL), fontSize)
         for (r in 0 until rows) for (c in 0 until cols) {
             val left = xEdges[c] * tableW
             val right = xEdges[c + 1] * tableW
