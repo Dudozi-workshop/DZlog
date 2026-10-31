@@ -741,8 +741,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
 
     // Entering Home or Quick Results refreshes project metadata from the same
     // verified MediaStore/Room projection. General Quick Results remain session-only.
-    LaunchedEffect(screen, captureProjectRegistry.activeId, captureProjectRegistry.projects) {
-        val projectId = captureProjectRegistry.activeId
+    LaunchedEffect(screen, captureProjectRegistry.activeId, captureProjectRegistry.projects, viewedProjectResultsId) {
+        val projectId = if (screen == AppScreen.QUICK_RESULTS) viewedProjectResultsId ?: captureProjectRegistry.activeId else captureProjectRegistry.activeId
         if (screen != AppScreen.HOME && screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
         if (projectId == null) {
             activeProjectCaptureCount = 0
@@ -756,9 +756,11 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
             try {
                 val result = projectReadViewModel.readProject(captureProjectRegistry, projectId)
-                activeProjectCaptureCount = result.visible.captureCount
-                activeProjectLatestPhoto = result.latestPhoto
-                loadedProjectPreviewId = projectId
+                if (projectId == captureProjectRegistry.activeId) {
+                    activeProjectCaptureCount = result.visible.captureCount
+                    activeProjectLatestPhoto = result.latestPhoto
+                    loadedProjectPreviewId = projectId
+                }
                 if (screen == AppScreen.QUICK_RESULTS) {
                     quickResultsPhotos = result.photos
                     quickResultsCaptures = QuickResultsSessionPolicy.captures(
@@ -805,7 +807,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     LaunchedEffect(screen, cameraSessionCaptureStack.size, captureProjectRegistry.activeId) {
-        if (screen != AppScreen.QUICK_RESULTS || captureProjectRegistry.activeId != null) {
+        if (screen != AppScreen.QUICK_RESULTS || viewedProjectResultsId != null || captureProjectRegistry.activeId != null) {
             return@LaunchedEffect
         }
         val groups = cameraSessionCaptureStack.map { group -> group.map(Uri::toString) }
@@ -933,7 +935,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
             AppScreen.QUICK_RESULTS -> {
                 returnToQuickResultsFromAlbum = false
-                screen = AppScreen.CAMERA
+                screen = if (viewedProjectResultsId != null) AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
+                viewedProjectResultsId = null
             }
 
             AppScreen.ALBUM_GRID -> {
@@ -1254,7 +1257,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
-                    isProjectResults = captureProjectRegistry.activeId != null,
+                    isProjectResults = (viewedProjectResultsId ?: captureProjectRegistry.activeId) != null,
                     gridColumns = appSettings.quickResultsGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { count ->
@@ -1276,7 +1279,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onReturnToCamera = {
                         returnToQuickResultsFromAlbum = false
-                        screen = AppScreen.CAMERA
+                        screen = if (viewedProjectResultsId != null) AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
+                        viewedProjectResultsId = null
                     },
                 )
                 }
