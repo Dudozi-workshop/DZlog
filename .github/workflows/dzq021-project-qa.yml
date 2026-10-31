@@ -35,7 +35,8 @@ jobs:
       - name: Compile and test project state
         run: |
           bash ./gradlew --no-daemon :app:testDebugUnitTest \
-            --tests 'com.dudoziworkshop.dzlog.domain.project.*'
+            --tests 'com.dudoziworkshop.dzlog.domain.project.*' \
+            --tests 'com.dudoziworkshop.dzlog.data.project.*'
       - name: Build isolated active-project QA APK
         if: github.event_name == 'workflow_dispatch'
         run: |
