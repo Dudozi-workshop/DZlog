@@ -35,7 +35,7 @@ jobs:
       - name: Compile and test project state
         run: |
           bash ./gradlew --no-daemon :app:testDebugUnitTest \
-            --tests 'com.dudoziworkshop.dzlog.domain.project.CaptureProjectRegistryTest'
+            --tests 'com.dudoziworkshop.dzlog.domain.project.*'
       - name: Build isolated active-project QA APK
         run: |
           bash ./gradlew --no-daemon :app:assembleDebug \
