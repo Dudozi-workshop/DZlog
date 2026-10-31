@@ -116,10 +116,13 @@ internal object IosTableOverlayRenderer {
     }
 
     private fun edges(count: Int, weights: List<Float>?): List<Float> {
-        val values = weights?.takeIf {
-            it.size == count && it.all { w -> w > 0f && !w.isNaN() && !w.isInfinite() }
-        } ?: List(count) { 1f }
+        require(weights == null || (weights.size == count &&
+            weights.all { w -> w > 0f && !w.isNaN() && !w.isInfinite() })) {
+            "표 행·열 비율이 올바르지 않습니다."
+        }
+        val values = weights ?: List(count) { 1f }
         val sum = values.sum()
+        require(sum > 0f && !sum.isInfinite()) { "표 행·열 비율 합계가 올바르지 않습니다." }
         var running = 0f
         return buildList {
             add(0f)
