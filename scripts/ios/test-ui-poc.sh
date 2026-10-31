@@ -4,6 +4,15 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
+  media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureResolvedTableOverlayProducesJpeg
+  ) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
@@ -34,6 +43,7 @@ shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
 # Bound native XCTest execution and preserve a partial transcript on simulator stalls.
 case "$test_scope" in
   settings) limit_seconds=480 ;;
+  media) limit_seconds=600 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
   full) limit_seconds=1200 ;;

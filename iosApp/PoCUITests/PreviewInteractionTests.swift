@@ -21,6 +21,136 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
     }
 
+
+    func testMediaFixturePhotoKitSaveAndRelaunch() {
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
+            let allow = alert.buttons["Allow Full Access"]
+            if allow.exists { allow.tap(); return true }
+            let older = alert.buttons["Allow Access to All Photos"]
+            if older.exists { older.tap(); return true }
+            return false
+        }
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        tapButton("테스트 사진 저장")
+        // Trigger the interruption monitor and allow PhotoKit to finish asynchronously.
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+            let alert = springboard.alerts.firstMatch
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            }
+        }
+        XCTAssertTrue(text("저장: 저장 완료: 2개").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("사진 3개").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
+        // After a camera round trip the home and saved assets must remain readable.
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 20))
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("사진 3개").waitForExistence(timeout: 20))
+    }
+
+    // Synthetic JPEG exercises the same iOS workspace/PhotoKit coordinator as the home camera.
+    // No simulator camera or production preference key is used.
+    func testCaptureWorkspaceCommitAndRelaunch() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
+            }
+            return false
+        }
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("테스트 촬영 저장")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+            let alert = springboard.alerts.firstMatch
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            }
+        }
+        XCTAssertTrue(text("저장 상태: 원본 저장·워크스페이스 확정").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("다음 촬영 번호: 13").exists)
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+
+        app.terminate()
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("다음 촬영 번호: 13").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+    }
+
+    // BOTH must reject missing rendered bytes without committing a counter or a pending journal.
+    func testBothModeMissingRenderedJpegIsRejected() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("BOTH 합성 누락 검증")
+        XCTAssertTrue(text("저장 상태: 합성 이미지 누락 차단·번호 유지").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("다음 촬영 번호: 12").exists)
+    }
+
+    func testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 합성 어댑터 검증")
+        XCTAssertTrue(text("저장 상태: 합성 JPEG 생성·크기 검증 완료").waitForExistence(timeout: 20))
+    }
+
+    func testCaptureResolvedTableOverlayProducesJpeg() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 데이터 합성 검증")
+        XCTAssertTrue(text("저장 상태: 표 데이터 오버레이 합성 완료").waitForExistence(timeout: 20))
+    }
+
+    // Denied permission must never start a camera session or allow capturing.
+    // This test-only argument forces denial; real OS permission prompts need device QA.
+    func testCameraPermissionDeniedBlocksCapture() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("저장 완료 수: 0").exists)
+        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+    }
+
+    // Real home entry uses the Swift permission gate and preserves the home VC on return.
+    func testHomeCameraPermissionDeniedEntryAndReturn() {
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(button("촬영 시작").isEnabled)
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+        tapButton("뒤로가기")
+        XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("최근 촬영").exists) // Home content is restored; counter text is not an exposed AX node.
+    }
+
     private func text(_ label: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
