@@ -26,6 +26,8 @@ internal object IosTableOverlayRenderer {
         heightRatio: Int = 20,
         rowWeights: List<Float>? = null,
         colWeights: List<Float>? = null,
+        offsetXRatio: Float = 0f,
+        offsetYRatio: Float = 0f,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
@@ -34,14 +36,21 @@ internal object IosTableOverlayRenderer {
         val yEdges = edges(rows, rowWeights)
         val tableW = imageWidth * (widthRatio.coerceIn(10, 100) / 100f)
         val tableH = imageWidth * (heightRatio.coerceIn(10, 100) / 100f)
-        require(tableH <= imageHeight) { "표가 이미지 높이를 초과합니다." }
+        require(offsetXRatio in 0f..1f && offsetYRatio in 0f..1f) {
+            "표 위치 비율이 올바르지 않습니다."
+        }
+        val originX = imageWidth * offsetXRatio
+        val originY = imageHeight * offsetYRatio
+        require(originX + tableW <= imageWidth && originY + tableH <= imageHeight) {
+            "표가 이미지 영역을 벗어납니다."
+        }
         val surface = Surface.makeRasterN32Premul(imageWidth, imageHeight)
         surface.canvas.clear(0x00000000)
         val backgroundColor = if (style.bgStyle == 1) 0x00FFFFFF else 0x00000000
         if (style.bgStyle != 2 && style.bgAlpha > 0) {
             val alpha = style.bgAlpha.coerceIn(0, 255)
             val bg = Paint().apply { color = (alpha shl 24) or backgroundColor }
-            surface.canvas.drawRect(Rect.makeXYWH(0f, 0f, tableW, tableH), bg)
+            surface.canvas.drawRect(Rect.makeXYWH(originX, originY, tableW, tableH), bg)
         }
         val textColor = if (style.textColorMode == 1) {
             if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
@@ -51,10 +60,10 @@ internal object IosTableOverlayRenderer {
             (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
         val font = Font(null, fontSize)
         for (r in 0 until rows) for (c in 0 until cols) {
-            val left = xEdges[c] * tableW
-            val right = xEdges[c + 1] * tableW
-            val top = yEdges[r] * tableH
-            val bottom = yEdges[r + 1] * tableH
+            val left = originX + xEdges[c] * tableW
+            val right = originX + xEdges[c + 1] * tableW
+            val top = originY + yEdges[r] * tableH
+            val bottom = originY + yEdges[r + 1] * tableH
             val value = resolvedTexts[r * cols + c]
             val textW = font.measureTextWidth(value)
             val x = when (style.textAlign) {
@@ -73,8 +82,8 @@ internal object IosTableOverlayRenderer {
                 color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
                 strokeWidth = 1.2f
             }
-            for (x in xEdges) surface.canvas.drawLine(x * tableW, 0f, x * tableW, tableH, grid)
-            for (y in yEdges) surface.canvas.drawLine(0f, y * tableH, tableW, y * tableH, grid)
+            for (x in xEdges) surface.canvas.drawLine(originX + x * tableW, originY, originX + x * tableW, originY + tableH, grid)
+            for (y in yEdges) surface.canvas.drawLine(originX, originY + y * tableH, originX + tableW, originY + y * tableH, grid)
         }
         return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)) {
             "표 오버레이 인코딩 실패"
