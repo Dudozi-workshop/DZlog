@@ -147,6 +147,22 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                 }.exceptionOrNull() is IllegalArgumentException) {
                     "이미지 밖 표 위치가 차단되지 않았습니다."
                 }
+                val rotatedOverlay = IosTableOverlayRenderer.renderPng(
+                    128, 128, 1, 1, listOf("13"), template.styleState,
+                    widthRatio = 40, heightRatio = 20,
+                    offsetXRatio = 0.25f, offsetYRatio = 0.25f,
+                    rotationDegrees = 30f,
+                )
+                check(Image.makeFromEncoded(rotatedOverlay).height == 128)
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        widthRatio = 60, heightRatio = 20,
+                        rotationDegrees = 90f,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "회전된 표의 경계 초과가 차단되지 않았습니다."
+                }
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
