@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -73,6 +74,8 @@ fun HomeScreen(
     onOpenSaveSettings: () -> Unit = onOpenTableEditor,
     onOpenAlbum: () -> Unit,
     projectCaptureCount: Int = 0,
+    activeProjectId: String? = null,
+    projectLatestImage: MediaImageItem? = null,
     onOpenActiveProject: () -> Unit = {},
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
 ) {
@@ -81,7 +84,12 @@ fun HomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     val settings = uiState.settings
     val nextCounterPreview = uiState.nextCounterPreview
-    val latestImage = uiState.latestImage
+    val isProjectMode = activeProjectId != null
+    // A project with zero photos must not inherit the global recent image.
+    val latestImage = if (isProjectMode) projectLatestImage else uiState.latestImage
+    val latestImageTimeText = if (isProjectMode) {
+        homeViewModel.formatRecentCaptureTime(latestImage?.dateAddedSeconds ?: 0L)
+    } else uiState.latestImageTimeText
 
     androidx.compose.runtime.DisposableEffect(homeViewModel) {
         homeViewModel.activate(tableTemplateState)
@@ -215,13 +223,15 @@ fun HomeScreen(
                     ) {
                         HomeRecentCaptureSection(
                             image = latestImage,
-                            timeText = uiState.latestImageTimeText,
+                            timeText = latestImageTimeText,
                             onOpenAlbum = onOpenAlbum,
                             onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
+                            isProjectMode = isProjectMode,
+                            onOpenProjectResults = onOpenActiveProject,
                         )
                     }
 
-                    if (projectCaptureCount > 0) {
+                    if (isProjectMode) {
                         Text(
                             text = "진행 중 프로젝트 · ${projectCaptureCount}회 촬영 · 다시 보기",
                             style = DDZTypography.Secondary,

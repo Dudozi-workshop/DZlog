@@ -40,6 +40,8 @@ internal fun HomeRecentCaptureSection(
     timeText: String,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
+    isProjectMode: Boolean = false,
+    onOpenProjectResults: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val homeImageRequest = androidx.compose.runtime.remember(context, image?.uri) {
@@ -58,7 +60,7 @@ internal fun HomeRecentCaptureSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = stringResource(com.dudoziworkshop.dzlog.R.string.home_recent_capture),
+            text = if (isProjectMode) "프로젝트 최근 촬영" else stringResource(com.dudoziworkshop.dzlog.R.string.home_recent_capture),
             style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
             color = DDZColor.TextSecondary,
             modifier = Modifier.weight(1f),
@@ -89,8 +91,12 @@ internal fun HomeRecentCaptureSection(
                             RoundedCornerShape(HomeUiSpec.RecentImageRadius),
                         )
                         .clickable {
-                            val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
-                            onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
+                            if (isProjectMode) {
+                                onOpenProjectResults()
+                            } else {
+                                val (g1, g2) = parseG1G2FromRelativePath(image.relativePath)
+                                onOpenRecentCaptureGrid(g1, g2, image.relativePath, 0)
+                            }
                         },
                 ) {
                     AsyncImage(

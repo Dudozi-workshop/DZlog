@@ -119,7 +119,7 @@ internal class HomeViewModel(
         }
     }
 
-    private fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
+    internal fun formatRecentCaptureTime(dateAddedSeconds: Long): String {
         if (dateAddedSeconds <= 0L) return "-"
         val captureDate = Date(dateAddedSeconds * 1_000L)
         val todayKey = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
