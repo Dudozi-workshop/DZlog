@@ -8,6 +8,9 @@ import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * First native overlay slice: resolved row-major text and weighted table geometry.
@@ -28,6 +31,7 @@ internal object IosTableOverlayRenderer {
         colWeights: List<Float>? = null,
         offsetXRatio: Float = 0f,
         offsetYRatio: Float = 0f,
+        rotationDegrees: Float = 0f,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
@@ -41,11 +45,22 @@ internal object IosTableOverlayRenderer {
         }
         val originX = imageWidth * offsetXRatio
         val originY = imageHeight * offsetYRatio
-        require(originX + tableW <= imageWidth && originY + tableH <= imageHeight) {
-            "표가 이미지 영역을 벗어납니다."
+        require(rotationDegrees.isFinite()) { "표 회전값이 올바르지 않습니다." }
+        val angle = rotationDegrees * (kotlin.math.PI / 180.0)
+        val rotatedW = abs(tableW * cos(angle)) + abs(tableH * sin(angle))
+        val rotatedH = abs(tableW * sin(angle)) + abs(tableH * cos(angle))
+        val centerX = originX + tableW / 2f
+        val centerY = originY + tableH / 2f
+        require(centerX - rotatedW / 2 >= 0 && centerX + rotatedW / 2 <= imageWidth &&
+            centerY - rotatedH / 2 >= 0 && centerY + rotatedH / 2 <= imageHeight) {
+            "회전된 표가 이미지 영역을 벗어납니다."
         }
         val surface = Surface.makeRasterN32Premul(imageWidth, imageHeight)
         surface.canvas.clear(0x00000000)
+        surface.canvas.save()
+        surface.canvas.translate(centerX, centerY)
+        surface.canvas.rotate(rotationDegrees)
+        surface.canvas.translate(-centerX, -centerY)
         val backgroundColor = if (style.bgStyle == 1) 0x00FFFFFF else 0x00000000
         if (style.bgStyle != 2 && style.bgAlpha > 0) {
             val alpha = style.bgAlpha.coerceIn(0, 255)
@@ -85,6 +100,7 @@ internal object IosTableOverlayRenderer {
             for (x in xEdges) surface.canvas.drawLine(originX + x * tableW, originY, originX + x * tableW, originY + tableH, grid)
             for (y in yEdges) surface.canvas.drawLine(originX, originY + y * tableH, originX + tableW, originY + y * tableH, grid)
         }
+        surface.canvas.restore()
         return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)) {
             "표 오버레이 인코딩 실패"
         }.bytes
