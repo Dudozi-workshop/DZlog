@@ -117,6 +117,22 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                         128, 128, 1, 2, listOf("13"), template.styleState,
                     )
                 }.exceptionOrNull() is IllegalArgumentException)
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        rowWeights = listOf(0f),
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "잘못된 행 비율이 차단되지 않았습니다."
+                }
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        colWeights = listOf(Float.POSITIVE_INFINITY),
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "잘못된 열 비율이 차단되지 않았습니다."
+                }
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
