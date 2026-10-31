@@ -16,8 +16,9 @@ import org.json.JSONObject
 private val PROJECT_REGISTRY_KEY = stringPreferencesKey("dzlog_capture_projects_v1")
 
 /**
- * Store only references to already committed MediaStore photos. Do not move or
- * delete photos here; session Undo remains separate and transient.
+ * Transitional project metadata store. Preserve version-1 URI references from
+ * prototype installs; an indexed CaptureRecord store will be added separately.
+ * Neither this store nor project selection moves or deletes any media files.
  */
 class CaptureProjectStore(private val context: Context) {
     val changes: Flow<CaptureProjectRegistry> = context.dataStore.data.map { prefs ->
@@ -26,44 +27,53 @@ class CaptureProjectStore(private val context: Context) {
 
     suspend fun load(): CaptureProjectRegistry = changes.first()
 
-    suspend fun appendCommittedCapture(savedUris: List<String>): CaptureProjectRegistry {
-        val id = UUID.randomUUID().toString()
-        val now = System.currentTimeMillis()
-        var committed: CaptureProjectRegistry? = null
-        context.dataStore.edit { prefs ->
-            val current = decodeProjects(prefs[PROJECT_REGISTRY_KEY])
-            val next = current.appendCommittedCapture(savedUris, id, now)
-            if (next != current) prefs[PROJECT_REGISTRY_KEY] = encodeProjects(next)
-            committed = next
-        }
-        return requireNotNull(committed)
+    suspend fun createProject(name: String, initialTemplateId: String? = null): CaptureProjectRegistry {
+        val projectId = UUID.randomUUID().toString()
+        val createdAt = System.currentTimeMillis()
+        return updateRegistry { it.createProject(projectId, name, createdAt, initialTemplateId) }
     }
+
+    suspend fun selectProject(projectId: String?): CaptureProjectRegistry =
+        updateRegistry { it.selectProject(projectId) }
+
+    suspend fun rememberTemplate(templateId: String): CaptureProjectRegistry =
+        updateRegistry { it.rememberTemplate(templateId) }
+
+    /** Legacy callback; only an explicitly selected project may receive it. */
+    suspend fun appendCommittedCapture(savedUris: List<String>): CaptureProjectRegistry =
+        updateRegistry { it.appendCommittedCapture(savedUris) }
 
     suspend fun completeActive(): CaptureProjectRegistry {
-        val now = System.currentTimeMillis()
-        var committed: CaptureProjectRegistry? = null
-        context.dataStore.edit { prefs ->
-            val current = decodeProjects(prefs[PROJECT_REGISTRY_KEY])
-            val next = current.completeActive(now)
-            if (next != current) prefs[PROJECT_REGISTRY_KEY] = encodeProjects(next)
-            committed = next
-        }
-        return requireNotNull(committed)
+        val timestamp = System.currentTimeMillis()
+        return updateRegistry { it.completeActive(timestamp) }
     }
 
-    suspend fun rename(projectId: String, name: String): CaptureProjectRegistry {
-        var committed: CaptureProjectRegistry? = null
+    suspend fun completeProject(projectId: String): CaptureProjectRegistry {
+        val timestamp = System.currentTimeMillis()
+        return updateRegistry { it.completeProject(projectId, timestamp) }
+    }
+
+    suspend fun reopenProject(projectId: String): CaptureProjectRegistry =
+        updateRegistry { it.reopenProject(projectId) }
+
+    suspend fun rename(projectId: String, name: String): CaptureProjectRegistry =
+        updateRegistry { it.rename(projectId, name) }
+
+    private suspend fun updateRegistry(
+        transform: (CaptureProjectRegistry) -> CaptureProjectRegistry,
+    ): CaptureProjectRegistry {
+        var updated: CaptureProjectRegistry? = null
         context.dataStore.edit { prefs ->
             val current = decodeProjects(prefs[PROJECT_REGISTRY_KEY])
-            val next = current.rename(projectId, name)
+            val next = transform(current)
             if (next != current) prefs[PROJECT_REGISTRY_KEY] = encodeProjects(next)
-            committed = next
+            updated = next
         }
-        return requireNotNull(committed)
+        return requireNotNull(updated)
     }
 }
 
-/** Reject malformed saved project data rather than silently erasing it. */
+/** Invalid saved data throws instead of silently resetting existing projects. */
 private fun decodeProjects(raw: String?): CaptureProjectRegistry {
     if (raw == null) return CaptureProjectRegistry()
     val root = JSONObject(raw)
@@ -81,16 +91,24 @@ private fun decodeProjects(raw: String?): CaptureProjectRegistry {
                 val group = groups.getJSONArray(groupIndex)
                 (0 until group.length()).map(group::getString)
             },
+            lastTemplateId = entry.optionalString("lastTemplateId"),
         )
     }
-    val activeId = if (root.isNull("activeId")) null else root.getString("activeId")
-    return CaptureProjectRegistry(projects, activeId)
+    return CaptureProjectRegistry(
+        projects = projects,
+        activeId = root.optionalString("activeId"),
+        generalLastTemplateId = root.optionalString("generalLastTemplateId"),
+    )
 }
+
+private fun JSONObject.optionalString(key: String): String? =
+    if (!has(key) || isNull(key)) null else getString(key)
 
 private fun encodeProjects(value: CaptureProjectRegistry): String =
     JSONObject().apply {
         put("version", 1)
         put("activeId", value.activeId ?: JSONObject.NULL)
+        put("generalLastTemplateId", value.generalLastTemplateId ?: JSONObject.NULL)
         put("projects", JSONArray().apply {
             value.projects.forEach { project ->
                 put(JSONObject().apply {
@@ -98,6 +116,7 @@ private fun encodeProjects(value: CaptureProjectRegistry): String =
                     put("title", project.title)
                     put("createdAt", project.createdAt)
                     put("completedAt", project.completedAt ?: JSONObject.NULL)
+                    put("lastTemplateId", project.lastTemplateId ?: JSONObject.NULL)
                     put("captures", JSONArray().apply {
                         project.captureUriGroups.forEach { uris ->
                             put(JSONArray().apply { uris.forEach { uri -> put(uri) } })

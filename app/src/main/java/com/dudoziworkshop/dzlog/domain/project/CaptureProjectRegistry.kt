@@ -1,8 +1,9 @@
 package com.dudoziworkshop.dzlog.domain.project
 
 /**
- * A project is a logical collection of committed shutter presses, not a
- * directory or an Undo history. Original+result URIs stay in one capture group.
+ * A named, persistent capture session. Media URI groups are retained for
+ * backwards compatibility with the original DZQ-021 prototype; new capture
+ * records will live in an independent indexed repository.
  */
 data class CaptureProject(
     val id: String,
@@ -10,7 +11,9 @@ data class CaptureProject(
     val createdAt: Long,
     val completedAt: Long? = null,
     val captureUriGroups: List<List<String>> = emptyList(),
+    val lastTemplateId: String? = null,
 ) {
+    /** Open/completed status is separate from the currently selected project. */
     val isActive: Boolean get() = completedAt == null
     val captureCount: Int get() = captureUriGroups.size
 }
@@ -18,53 +21,97 @@ data class CaptureProject(
 data class CaptureProjectRegistry(
     val projects: List<CaptureProject> = emptyList(),
     val activeId: String? = null,
+    val generalLastTemplateId: String? = null,
 ) {
     init {
         require(projects.map { it.id }.distinct().size == projects.size) { "Duplicate project IDs" }
         require(activeId == null || projects.any { it.id == activeId && it.isActive }) {
-            "Active project must exist and remain open"
+            "Selected project must exist and remain open"
         }
+        require(generalLastTemplateId == null || generalLastTemplateId.isNotBlank())
+        require(projects.all { it.lastTemplateId == null || it.lastTemplateId.isNotBlank() })
     }
 
     val active: CaptureProject? get() = projects.firstOrNull { it.id == activeId }
 
-    /** Call only for a durable capture receipt; never for pending photo writes. */
-    fun appendCommittedCapture(
-        savedUris: List<String>,
-        newProjectId: String,
+    /** Creation alone never changes the current capture target. */
+    fun createProject(
+        projectId: String,
+        name: String,
         timestamp: Long,
+        initialTemplateId: String? = null,
     ): CaptureProjectRegistry {
-        val group = savedUris.map(String::trim).filter(String::isNotEmpty).distinct()
-        if (group.isEmpty()) return this
-        val current = active
-        if (current != null && current.captureUriGroups.any { it == group }) return this
-
-        if (current == null) {
-            require(newProjectId.isNotBlank() && projects.none { it.id == newProjectId })
-            val fresh = CaptureProject(
-                id = newProjectId,
-                title = "프로젝트 ${projects.size + 1}",
-                createdAt = timestamp,
-                captureUriGroups = listOf(group),
-            )
-            return copy(projects = projects + fresh, activeId = fresh.id)
+        val normalizedName = name.trim().take(80)
+        require(projectId.isNotBlank() && projects.none { it.id == projectId }) {
+            "Project ID must be unique and nonblank"
         }
-        return copy(projects = projects.map { project ->
-            if (project.id == current.id) project.copy(
-                captureUriGroups = project.captureUriGroups + listOf(group),
-            ) else project
+        require(normalizedName.isNotBlank()) { "A project name is required" }
+        require(timestamp >= 0L)
+        require(initialTemplateId == null || initialTemplateId.isNotBlank())
+        return copy(projects = projects + CaptureProject(
+            id = projectId,
+            title = normalizedName,
+            createdAt = timestamp,
+            lastTemplateId = initialTemplateId,
+        ))
+    }
+
+    /** A null selection explicitly returns to general shooting. */
+    fun selectProject(projectId: String?): CaptureProjectRegistry {
+        require(projectId == null || projects.any { it.id == projectId && it.isActive }) {
+            "Only an open project can be selected"
+        }
+        return if (activeId == projectId) this else copy(activeId = projectId)
+    }
+
+    /** Templates are shared. Only the last selected template ID is remembered. */
+    fun rememberTemplate(templateId: String): CaptureProjectRegistry {
+        require(templateId.isNotBlank())
+        val selected = active ?: return if (generalLastTemplateId == templateId) this
+        else copy(generalLastTemplateId = templateId)
+        if (selected.lastTemplateId == templateId) return this
+        return copy(projects = projects.map { item ->
+            if (item.id == selected.id) item.copy(lastTemplateId = templateId) else item
         })
     }
 
-    /** Completes the current project without deleting its images or files. */
-    fun completeActive(timestamp: Long): CaptureProjectRegistry {
-        val id = activeId ?: return this
+    /**
+     * Legacy URI receipt path until CaptureRecord repository integration.
+     * General shooting must not implicitly create or select a project.
+     */
+    fun appendCommittedCapture(savedUris: List<String>): CaptureProjectRegistry {
+        val selected = active ?: return this
+        val group = savedUris.map(String::trim).filter(String::isNotEmpty).distinct()
+        if (group.isEmpty() || selected.captureUriGroups.any { it == group }) return this
+        return copy(projects = projects.map { item ->
+            if (item.id == selected.id) item.copy(
+                captureUriGroups = item.captureUriGroups + listOf(group),
+            ) else item
+        })
+    }
+
+    fun completeActive(timestamp: Long): CaptureProjectRegistry =
+        activeId?.let { completeProject(it, timestamp) } ?: this
+
+    fun completeProject(projectId: String, timestamp: Long): CaptureProjectRegistry {
+        require(timestamp >= 0L)
+        val project = requireNotNull(find(projectId)) { "Unknown project" }
+        if (!project.isActive) return this
         return copy(
             projects = projects.map { item ->
-                if (item.id == id) item.copy(completedAt = timestamp) else item
+                if (item.id == projectId) item.copy(completedAt = timestamp) else item
             },
-            activeId = null,
+            activeId = activeId.takeUnless { it == projectId },
         )
+    }
+
+    /** Reopening never activates the project or changes the active template. */
+    fun reopenProject(projectId: String): CaptureProjectRegistry {
+        val project = requireNotNull(find(projectId)) { "Unknown project" }
+        if (project.isActive) return this
+        return copy(projects = projects.map { item ->
+            if (item.id == projectId) item.copy(completedAt = null) else item
+        })
     }
 
     fun rename(projectId: String, title: String): CaptureProjectRegistry {
@@ -75,6 +122,6 @@ data class CaptureProjectRegistry(
         })
     }
 
-    /** Browsing completed projects must never revive a capture Undo stack. */
+    /** Browsing historical projects must never revive a camera Undo stack. */
     fun find(projectId: String): CaptureProject? = projects.firstOrNull { it.id == projectId }
 }

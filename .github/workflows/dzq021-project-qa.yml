@@ -37,10 +37,12 @@ jobs:
           bash ./gradlew --no-daemon :app:testDebugUnitTest \
             --tests 'com.dudoziworkshop.dzlog.domain.project.*'
       - name: Build isolated active-project QA APK
+        if: github.event_name == 'workflow_dispatch'
         run: |
           bash ./gradlew --no-daemon :app:assembleDebug \
             -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=project1
       - name: Upload project QA APK
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: dzlog-project1-qa-apk
