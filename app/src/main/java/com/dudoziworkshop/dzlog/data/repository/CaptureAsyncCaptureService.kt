@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.repository
 
 import android.content.Context
 import androidx.camera.core.ImageCapture
+import com.dudoziworkshop.dzlog.data.project.CaptureRecordRoomStore
 import com.dudoziworkshop.dzlog.domain.model.LogEntry
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureReservationScope
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePendingProjection
@@ -35,6 +36,7 @@ internal class CaptureAsyncCaptureService(
     internal val stateVersion = mutableStateVersion.asStateFlow()
     private fun signalChange() { mutableStateVersion.update { it + 1 } }
     private val store = CapturePendingStore(appContext)
+    private val recordStore = CaptureRecordRoomStore(appContext)
     private val gateway = CaptureStagedCameraGateway(appContext, store, applicationScope)
     private val mutableEvents =
         MutableSharedFlow<CaptureQueueCoordinator.Event>(extraBufferCapacity = 32)
@@ -96,6 +98,10 @@ internal class CaptureAsyncCaptureService(
             ),
         )
     }
+
+    /** Persist before acknowledgement; retry uses the same capture ID after a crash. */
+    suspend fun persistCommittedCapture(receipt: CapturePendingStore.PendingCapture): Boolean =
+        recordStore.appendCommitted(CaptureRecordReceiptMapper.fromCompleted(receipt))
 
     fun acknowledgeTemplateApplied(id: String) = store.acknowledgeTemplateApplied(id)
 

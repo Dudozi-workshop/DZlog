@@ -206,15 +206,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
     // An editor-only choice; camera activation is committed by saveV2EditSession.
     var editorReplacementId by remember { mutableStateOf<String?>(null) }
     val appScope = rememberCoroutineScope()
-    fun recordCommittedProjectCapture() {
-        // CaptureTrigger already pushed a durable URI group before this callback.
-        val latest = cameraSessionCaptureStack.lastOrNull()?.map(Uri::toString).orEmpty()
-        if (latest.isEmpty()) return
-        appScope.launch {
-            runCatching { captureProjectStore.appendCommittedCapture(latest) }
-                .onFailure { android.util.Log.e("DZlogCaptureProject", "Project receipt not saved", it) }
-        }
-    }
     var firstCaptureWriteScheduled by remember { mutableStateOf(false) }
     // ON-04 appears only when the new user explicitly chooses to open the camera.
     var firstGuidePhase by rememberSaveable(startOnCamera) {
@@ -897,7 +888,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
-                        recordCommittedProjectCapture()
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
@@ -956,7 +946,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     phraseUndoHistory = cameraPhraseUndoHistory,
                     verifiedTier = verifiedProTier,
                     onCaptureCommitted = {
-                        recordCommittedProjectCapture()
                         captureTemplateId?.let { id ->
                             val timestamp = System.currentTimeMillis()
                             tableTemplateViewModel.markUsed(id, timestamp)
