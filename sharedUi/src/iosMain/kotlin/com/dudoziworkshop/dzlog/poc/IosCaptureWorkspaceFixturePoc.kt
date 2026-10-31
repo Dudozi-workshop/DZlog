@@ -163,6 +163,22 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                 }.exceptionOrNull() is IllegalArgumentException) {
                     "회전된 표의 경계 초과가 차단되지 않았습니다."
                 }
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        widthRatio = 101,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "잘못된 표 너비가 차단되지 않았습니다."
+                }
+                check(runCatching {
+                    IosTableOverlayRenderer.renderPng(
+                        128, 128, 1, 1, listOf("13"), template.styleState,
+                        heightRatio = 0,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "잘못된 표 높이가 차단되지 않았습니다."
+                }
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
