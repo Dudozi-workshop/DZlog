@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
@@ -122,6 +123,9 @@ internal object IosTableOverlayRenderer {
         style: TableStyleState,
         widthRatio: Int = 60,
         heightRatio: Int = 20,
+        offsetXRatio: Float = 0f,
+        offsetYRatio: Float = 0f,
+        rotationDegrees: Float = 0f,
     ): ByteArray {
         require(template.rows > 0 && template.cols > 0)
         val byPosition = preview.resolvedCells.associate { cell ->
@@ -140,6 +144,51 @@ internal object IosTableOverlayRenderer {
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
+            offsetXRatio, offsetYRatio, rotationDegrees,
+        )
+    }
+
+    /**
+     * Match Android's anchor and CUSTOM offset convention: offset percentages
+     * are measured across the remaining free space, not the full image.
+     * The renderer still rejects any rotated layout that crosses image bounds.
+     */
+    fun renderAndroidAnchoredPng(
+        imageWidth: Int,
+        imageHeight: Int,
+        template: TableTemplateState,
+        preview: FinalCapturePreview,
+        style: TableStyleState,
+        anchor: WatermarkTableAnchor,
+        offsetXPercent: Int,
+        offsetYPercent: Int,
+        widthRatio: Int,
+        heightRatio: Int,
+        rotationCwDeg: Int = 0,
+    ): ByteArray {
+        require(offsetXPercent in 0..100 && offsetYPercent in 0..100)
+        require(widthRatio in 10..100 && heightRatio in 10..100)
+        val width = imageWidth * widthRatio / 100f
+        val height = imageWidth * heightRatio / 100f
+        val availableX = imageWidth - width
+        val availableY = imageHeight - height
+        require(availableY >= 0f) { "표가 이미지 높이를 초과합니다." }
+        val x = when (anchor) {
+            WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.BOTTOM_LEFT -> 0f
+            WatermarkTableAnchor.TOP_RIGHT, WatermarkTableAnchor.BOTTOM_RIGHT -> availableX
+            WatermarkTableAnchor.CUSTOM -> availableX * offsetXPercent / 100f
+        }
+        val y = when (anchor) {
+            WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.TOP_RIGHT -> 0f
+            WatermarkTableAnchor.BOTTOM_LEFT, WatermarkTableAnchor.BOTTOM_RIGHT -> availableY
+            WatermarkTableAnchor.CUSTOM -> availableY * offsetYPercent / 100f
+        }
+        return renderResolvedPreviewPng(
+            imageWidth, imageHeight, template, preview, style,
+            widthRatio, heightRatio,
+            offsetXRatio = x / imageWidth,
+            offsetYRatio = y / imageHeight,
+            rotationDegrees = rotationCwDeg.toFloat(),
         )
     }
 
