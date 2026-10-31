@@ -75,6 +75,8 @@ fun HomeScreen(
     onOpenAlbum: () -> Unit,
     projectCaptureCount: Int = 0,
     activeProjectId: String? = null,
+    activeProjectName: String? = null,
+    onOpenProjectPicker: () -> Unit = {},
     projectLatestImage: MediaImageItem? = null,
     onOpenActiveProject: () -> Unit = {},
     onOpenRecentCaptureGrid: (g1: String, g2: String, relativePath: String, startIndex: Int) -> Unit,
@@ -155,6 +157,13 @@ fun HomeScreen(
                     }
 
                     Spacer(Modifier.height(heroTopGap))
+                    Text(
+                        text = activeProjectName ?: "일반 촬영 · 프로젝트 선택",
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenProjectPicker)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        color = DDZColor.PrimaryDark,
+                        style = DDZTypography.Secondary,
+                    )
 
                     Column(
                         modifier = Modifier

@@ -77,6 +77,11 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureReadViewModel
+import com.dudoziworkshop.dzlog.ui.project.ProjectManagementViewModel
+import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureSummary
+import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
+import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
+import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
 import kotlinx.coroutines.flow.collectLatest
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -110,7 +115,9 @@ enum class AppScreen {
     ALBUM_G2,
     ALBUM_GRID,
     ALBUM_VIEWER,
-    QUICK_RESULTS
+    QUICK_RESULTS,
+    PROJECT_LIST,
+    PROJECT_DETAIL,
 }
 
 enum class GridEntrySource {
@@ -187,6 +194,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
         initial = CaptureProjectRegistry(),
     )
     val projectReadViewModel: ProjectCaptureReadViewModel = viewModel()
+    val projectManagement: ProjectManagementViewModel = viewModel()
+    var showProjectPicker by remember { mutableStateOf(false) }
+    var projectListCreateInitially by remember { mutableStateOf(false) }
+    var projectDetailsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var projectSummaries by remember { mutableStateOf<Map<String, ProjectCaptureSummary>>(emptyMap()) }
+    var viewedProjectResultsId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeProjectCaptureCount by remember { mutableIntStateOf(0) }
     var activeProjectLatestPhoto by remember { mutableStateOf<com.dudoziworkshop.dzlog.domain.model.MediaImageItem?>(null) }
     var loadedProjectPreviewId by remember { mutableStateOf<String?>(null) }
@@ -707,8 +720,23 @@ fun AppRoot(startOnCamera: Boolean = false) {
         else AppScreen.HOME
 
     fun openQuickResults() {
+        viewedProjectResultsId = null
         albumEntryScreen = AppScreen.CAMERA
         navigateTo(AppScreen.QUICK_RESULTS)
+    }
+
+    fun openProjectList(create: Boolean = false) {
+        showProjectPicker = false
+        projectListCreateInitially = create
+        navigateTo(AppScreen.PROJECT_LIST)
+    }
+
+    LaunchedEffect(screen, captureProjectRegistry.projects) {
+        if (screen == AppScreen.PROJECT_LIST || screen == AppScreen.PROJECT_DETAIL) {
+            try { projectSummaries = projectReadViewModel.readSummaries(captureProjectRegistry) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { android.util.Log.e("DZlogProject", "Project list read failed", error) }
+        }
     }
 
     // Entering Home or Quick Results refreshes project metadata from the same
@@ -896,6 +924,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 }
             }
 
+            AppScreen.PROJECT_LIST -> screen = AppScreen.HOME
+            AppScreen.PROJECT_DETAIL -> screen = AppScreen.PROJECT_LIST
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
@@ -973,6 +1003,41 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }
 
         when (screen) {
+            AppScreen.PROJECT_LIST -> ProjectListScreen(
+                projects = captureProjectRegistry.projects,
+                summaries = projectSummaries,
+                activeId = captureProjectRegistry.activeId,
+                createInitially = projectListCreateInitially,
+                onBack = { navigateTo(AppScreen.HOME) },
+                onCreate = { title -> appScope.launch {
+                    try {
+                        val id = projectManagement.create(title, tableTemplateViewModel.activeTemplateId)
+                        projectDetailsId = id
+                        projectListCreateInitially = false
+                        navigateTo(AppScreen.PROJECT_DETAIL)
+                    } catch (error: Exception) { Toast.makeText(context, error.message ?: "프로젝트 생성 실패", Toast.LENGTH_SHORT).show() }
+                } },
+                onOpenProject = { id -> projectDetailsId = id; navigateTo(AppScreen.PROJECT_DETAIL) },
+            )
+            AppScreen.PROJECT_DETAIL -> {
+                val project = projectDetailsId?.let(captureProjectRegistry::find)
+                if (project == null) {
+                    LaunchedEffect(Unit) { screen = AppScreen.PROJECT_LIST }
+                } else ProjectDetailScreen(
+                    project = project,
+                    summary = projectSummaries[project.id] ?: ProjectCaptureSummary(),
+                    selected = captureProjectRegistry.activeId == project.id,
+                    onBack = { screen = AppScreen.PROJECT_LIST },
+                    onContinue = { appScope.launch {
+                        try { projectManagement.select(project.id); navigateTo(AppScreen.CAMERA) }
+                        catch (error: Exception) { Toast.makeText(context, error.message ?: "프로젝트 선택 실패", Toast.LENGTH_SHORT).show() }
+                    } },
+                    onShowAll = { viewedProjectResultsId = project.id; albumEntryScreen = AppScreen.PROJECT_DETAIL; navigateTo(AppScreen.QUICK_RESULTS) },
+                    onRename = { name -> appScope.launch { projectManagement.rename(project.id, name) } },
+                    onComplete = { appScope.launch { try { projectManagement.complete(project.id) } catch (error: Exception) { Toast.makeText(context, error.message ?: "완료 실패", Toast.LENGTH_SHORT).show() } } },
+                    onReopen = { appScope.launch { projectManagement.reopen(project.id) } },
+                )
+            }
             AppScreen.HOME -> HomeScreen(
                 tableTemplateState = tableTemplateState,
                 activeTemplateName = tableTemplateViewModel.templates
@@ -994,6 +1059,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 projectCaptureCount =
                     if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
                 activeProjectId = captureProjectRegistry.activeId,
+                activeProjectName = captureProjectRegistry.active?.title,
+                onOpenProjectPicker = { showProjectPicker = true },
                 projectLatestImage = activeProjectLatestPhoto.takeIf {
                     loadedProjectPreviewId == captureProjectRegistry.activeId
                 },
@@ -1346,6 +1413,17 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
             }
         }
+        if (showProjectPicker) ProjectPickerDialog(
+            projects = captureProjectRegistry.projects,
+            activeId = captureProjectRegistry.activeId,
+            onSelect = { id -> appScope.launch {
+                try { projectManagement.select(id); showProjectPicker = false }
+                catch (error: Exception) { Toast.makeText(context, error.message ?: "프로젝트 선택 실패", Toast.LENGTH_SHORT).show() }
+            } },
+            onCreate = { openProjectList(true) },
+            onManage = { openProjectList(false) },
+            onDismiss = { showProjectPicker = false },
+        )
         if (startOnCamera && screen == AppScreen.CAMERA &&
             firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
         ) {
