@@ -18,7 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
+      # Build the GitHub test-merge of PR #86 against the latest Android integration.
+      # This is a QA-only branch workflow, not an integration/release change.
       - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/86/merge
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
