@@ -150,6 +150,7 @@ fun CameraScreen(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
+    projectId: String? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -185,6 +186,7 @@ fun CameraScreen(
                 quickTemplateName = quickTemplateName,
                 quickTemplates = quickTemplates,
                 quickTemplateId = quickTemplateId,
+                projectId = projectId,
                 quickEditSelectionMemory = quickEditSelectionMemory,
                 onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
@@ -233,6 +235,7 @@ fun CameraPreview(
     quickTemplateName: String = "",
     quickTemplates: List<SavedTableTemplate> = emptyList(),
     quickTemplateId: String? = null,
+    projectId: String? = null,
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -641,6 +644,7 @@ fun CameraPreview(
         scopedCounterStream = scopedCounterStream,
         tableTemplateState = effectiveTemplate,
         templateId = quickTemplateId,
+        projectId = projectId,
         fnDelim = fnDelim,
         repository = repository,
         asyncService = asyncCaptureService,

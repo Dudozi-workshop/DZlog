@@ -59,6 +59,7 @@ internal fun handleCaptureClick(
     scopedCounterStream: CaptureScopedCounterStream,
     tableTemplateState: TableTemplateState,
     templateId: String? = null,
+    projectId: String? = null,
     counterDigits: Int,
     fnDelim: String,
     captureAspect: CaptureAspect,
@@ -172,6 +173,7 @@ internal fun handleCaptureClick(
                         tablePatch = finalCapturePreview.tablePatch,
                         counterStream = streamKey,
                         templateId = templateId,
+                        projectId = projectId,
                     )
                 },
             )
