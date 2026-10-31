@@ -1,6 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialDemoProgress
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.sin
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
@@ -84,6 +89,12 @@ internal fun TableEditorRuleListEditor(
     onItemsChange: (List<MockRuleItem?>) -> Unit,
 ) {
     val compactItems = items.filterNotNull()
+    val loc = LocalTutorialLocation.current
+    val gestureGuide = LocalTutorialReadOnly.current && loc?.areaId == "saving"
+    val demo = LocalTutorialDemoProgress.current
+    val wave = sin((demo.coerceIn(0f, 1f) * Math.PI).toFloat())
+    val deleteDemo = gestureGuide && loc?.pageId in setOf("filename/remove", "folder/remove")
+    val orderDemo = gestureGuide && loc?.pageId in setOf("filename/order", "folder/order")
     var editingIndex by remember { mutableStateOf<Int?>(null) }
     var editorTarget by remember { mutableStateOf<RuleEditorTarget?>(null) }
     var manualDraft by remember { mutableStateOf("") }
@@ -140,7 +151,7 @@ internal fun TableEditorRuleListEditor(
         emitCompacted(reordered)
     }
 
-    Column(Modifier.tutorialTarget("saving.rules"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     if (compactItems.isNotEmpty()) Text("항목을 왼쪽으로 밀면 삭제할 수 있어요.",
         style = DDZTypography.Caption, color = DDZColor.TextMuted)
     LazyColumn(
@@ -203,6 +214,14 @@ internal fun TableEditorRuleListEditor(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .then(if (index == 0 && (deleteDemo || orderDemo)) Modifier.graphicsLayer {
+                                translationX = if (deleteDemo) -size.width * 0.27f * wave else 0f
+                                translationY = if (orderDemo) size.height * 0.65f * wave else 0f
+                            } else Modifier)
+                            .then(if (index == 1 && orderDemo) Modifier.graphicsLayer {
+                                translationY = -size.height * 0.65f * wave
+                            } else Modifier)
+                            .then(if (index == 0) Modifier.tutorialTarget("saving.rules.first") else Modifier)
                             .background(
                                 if (isDragging) DDZColor.SurfaceSoft else DDZColor.Surface,
                                 RoundedCornerShape(14.dp),
@@ -215,12 +234,14 @@ internal fun TableEditorRuleListEditor(
                             imageVector = Icons.Default.DragHandle,
                             contentDescription = "순서 변경",
                             tint = DDZColor.IconMuted,
-                            modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
+                            modifier = with(this@ReorderableItem) { Modifier.draggableHandle() }
+                                .then(if (index == 0) Modifier.tutorialTarget("saving.rules.handle") else Modifier),
                         )
                         Text(
                             text = item.value.ifBlank { "값 없음" },
                             modifier = Modifier
                                 .weight(1f)
+                                .then(if (index == 0) Modifier.tutorialTarget("saving.rules.value") else Modifier)
                                 .clickable {
                                     editingIndex = index
                                     manualDraft = if (item.sourceType == MockRuleSourceType.MANUAL) item.value else ""
@@ -443,37 +464,44 @@ internal fun TableEditorRuleListEditor(
                     onDismiss = { editorTarget = null },
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        saveRuleSourceChoices.chunked(2).forEach { choices ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                choices.forEach { type ->
-                                    val isSelected = target == RuleEditorTarget.TYPE && active?.sourceType == type
-                                    DDZButton(
-                                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
-                                        modifier = Modifier.weight(1f).semantics { selected = isSelected },
-                                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
-                                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
-                                        onClick = {
-                                            if (type == MockRuleSourceType.CELL) {
-                                                // Only commit after a concrete cell is chosen.
-                                                editorTarget = if (target == RuleEditorTarget.ADD) {
-                                                    RuleEditorTarget.ADD_CELL
-                                                } else {
-                                                    RuleEditorTarget.CHANGE_TO_CELL
-                                                }
-                                            } else {
-                                                val next = defaultRuleItem(type)
-                                                if (target == RuleEditorTarget.ADD) append(next)
-                                                else {
-                                                    val index = editingIndex ?: return@DDZButton
-                                                    replaceAt(index, next)
-                                                }
-                                            }
-                                        },
-                                    )
+                        SaveRuleSourceChoiceButtons(
+                            selected = if (target == RuleEditorTarget.TYPE) active?.sourceType else null,
+                            onSelect = { type ->
+                                if (type == MockRuleSourceType.CELL) {
+                                    editorTarget = if (target == RuleEditorTarget.ADD)
+                                        RuleEditorTarget.ADD_CELL else RuleEditorTarget.CHANGE_TO_CELL
+                                } else {
+                                    val next = defaultRuleItem(type)
+                                    if (target == RuleEditorTarget.ADD) append(next)
+                                    else editingIndex?.let { replaceAt(it, next) }
                                 }
-                            }
-                        }
+                            },
+                        )
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Exact same source options in production rule editor and passive saving tutorial. */
+@Composable
+internal fun SaveRuleSourceChoiceButtons(
+    selected: MockRuleSourceType? = null,
+    onSelect: (MockRuleSourceType) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        saveRuleSourceChoices.chunked(2).forEach { choices ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                choices.forEach { type ->
+                    val isSelected = selected == type
+                    DDZButton(
+                        text = ruleTypeLabel(type), leadingIcon = ruleTypeIcon(type),
+                        modifier = Modifier.weight(1f).semantics { this.selected = isSelected },
+                        minHeight = 56.dp, style = DDZButtonStyle.Secondary,
+                        containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
+                        onClick = { onSelect(type) },
+                    )
                 }
             }
         }

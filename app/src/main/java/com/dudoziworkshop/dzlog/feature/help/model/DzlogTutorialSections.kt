@@ -75,9 +75,26 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("gallery", "앨범", listOf(
             from("gallery", "overview", "앨범 화면과 탐색", "home", "browse"),
-            from("gallery", "folders", "폴더와 하위 폴더 관리", "folders"),
-            from("gallery", "photos", "사진 선택·공유·삭제", "photos"),
-            from("gallery", "viewer", "사진 보기와 원본·결과", "viewer"),
+            from("gallery", "folders", "폴더와 하위 폴더 관리", "folders").copy(
+                pageOrder = listOf("folders/new", "folders", "folders/rename",
+                    "folders/destination", "folders/move", "folders/delete"),
+            ),
+            from("gallery", "photos", "사진 선택·공유·삭제", "photos").copy(
+                pageOrder = listOf("photos", "photos/select", "photos/actions",
+                    "photos/destination", "photos/original-choice", "photos/move", "photos/delete"),
+            ),
+            custom("viewer", "사진 상세보기",
+                Triple("viewer", "사진 상세보기", "사진을 누르면 크게 볼 수 있어요. 상단에는 파일명과 현재 사진 순서가 표시돼요."),
+                Triple("viewer/menu", "상단 더보기 메뉴", "오른쪽 위 메뉴에서 원본 보기, 다른 폴더로 이동, 사진 정보를 선택할 수 있어요."),
+                Triple("viewer/original", "원본·결과사진", "상단 메뉴에서 원본 보기를 누르면 합성 결과와 촬영 원본을 비교할 수 있어요."),
+                Triple("viewer/photo", "확대와 사진 넘기기", "두 손가락으로 확대·축소하고 좌우로 밀어 다른 사진을 볼 수 있어요."),
+                Triple("viewer/favorite", "즐겨찾기", "하트 버튼으로 사진을 즐겨찾기에 추가하거나 해제해요."),
+                Triple("viewer/share", "사진 공유", "공유 버튼을 누르면 사진을 다른 앱으로 보낼 수 있어요."),
+                Triple("viewer/info", "사진 정보", "정보 버튼을 누르거나 사진을 위로 밀면 파일명, 저장경로, 촬영일시를 확인할 수 있어요."),
+                Triple("viewer/delete", "사진 삭제", "아래 휴지통 버튼을 누르면 사진 삭제 확인창이 열려요."),
+                Triple("viewer/delete-confirm", "삭제 확인과 원본 포함", "확인창에서 삭제 대상과 원본 포함 여부를 선택해요. 안내에서는 실제로 삭제되지 않아요."),
+                Triple("viewer/filmstrip", "하단 사진 목록", "아래 사진 목록을 펼치면 앞뒤 사진을 썸네일로 빠르게 찾아볼 수 있어요."),
+            ),
         )),
         TutorialArea("table-detail", "표 편집", listOf(
             from("table-detail", "overview", "표 상세 화면 구성", "sections"),
@@ -90,11 +107,8 @@ internal object DzlogTutorialSections {
         )),
         TutorialArea("saving", "저장설정", listOf(
             from("saving", "filename", "파일명 구성", "overview", "filename"),
-            from("saving", "folder", "저장 위치와 방식", "folder", "advanced"),
+            from("saving", "folder", "저장경로 구성", "folder"),
             from("saving", "counter", "자동번호와 동기화", "counter"),
-            custom("rotation", "순환문구와 자동값",
-                Triple("rotation", "순환문구", "저장하지 않는 예시 표에서 순환문구의 목록·세트·변경 주기를 살펴봐요. 저장 규칙에서는 이 셀을 연결해 촬영마다 달라지는 값을 사용할 수 있어요."),
-                Triple("automatic", "자동값", "날짜·시간·자동번호는 설정한 규칙에 따라 생성돼요.")),
         )),
         TutorialArea("settings", "앱 설정", listOf(
             custom("environment", "앱 환경",

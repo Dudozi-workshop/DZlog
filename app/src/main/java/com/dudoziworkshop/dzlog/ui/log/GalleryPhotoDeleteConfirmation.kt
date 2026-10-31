@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoDeletePlan
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoDeletion
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
@@ -41,8 +42,15 @@ internal fun GalleryPhotoDeleteConfirmation(
         GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
     }
     var includeOriginals by remember(selected, allPhotos) { mutableStateOf(false) }
-    val prepared = remember(selected, allPhotos, includeOriginals) {
-        runCatching { GalleryPhotoDeletion.prepare(selected, allPhotos, includeOriginals) }
+    val readOnlyTour = LocalTutorialReadOnly.current
+    val prepared = remember(selected, allPhotos, includeOriginals, readOnlyTour) {
+        runCatching {
+            if (readOnlyTour) {
+                // Sample android.resource URIs are never valid MediaStore deletion targets.
+                val included = if (includeOriginals) GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos) else emptyList()
+                GalleryPhotoDeletePlan((selected + included).distinctBy { it.id })
+            } else GalleryPhotoDeletion.prepare(selected, allPhotos, includeOriginals)
+        }
     }
     val plan = prepared.getOrNull()
 

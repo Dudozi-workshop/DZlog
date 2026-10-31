@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp" android:height="360dp"
+    android:viewportWidth="360" android:viewportHeight="360">
+    <!-- Table overlay for the same bundled photograph as its corresponding original. -->
+    <path android:fillColor="#CCFFFFFF" android:strokeColor="#AA745943" android:strokeWidth="2"
+        android:pathData="M 174,218 L 344,218 L 344,324 L 174,324 Z"/>
+    <path android:strokeColor="#AA745943" android:strokeWidth="1.5"
+        android:pathData="M 174,244 L 344,244 M 174,271 L 344,271 M 174,297 L 344,297 M 230,218 L 230,324 M 287,218 L 287,324"/>
+    <path android:fillColor="#AA937562" android:pathData="M 180,226 L 217,226 L 217,231 L 180,231 Z M 238,226 L 274,226 L 274,231 L 238,231 Z M 294,226 L 332,226 L 332,231 L 294,231 Z"/>
+</vector>

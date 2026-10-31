@@ -1,0 +1,44 @@
+name: DZlog Tutorial Polish QA
+
+on:
+  push:
+    branches:
+      - feat/tutorial-v2-ux-polish-20261020
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-tutorial-polish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      # Build the GitHub test-merge of PR #86 against the latest Android integration.
+      # This is a QA-only branch workflow, not an integration/release change.
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/86/merge
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android API 36
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+      - name: Focused guide tests and compile
+        run: bash ./gradlew :app:testDebugUnitTest --tests '*DzlogTutorialCatalogTest' --tests '*DzlogTutorialSectionsTest' :app:compileDebugKotlin --stacktrace
+      - name: Build isolated QA APK
+        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tutorialpolish -PdzlogDebugVersionCode=${{ github.run_number }} --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-tutorial-polish-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

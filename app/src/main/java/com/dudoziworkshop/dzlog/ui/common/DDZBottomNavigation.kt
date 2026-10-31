@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 
@@ -25,6 +26,7 @@ data class DDZBottomNavigationItem(
     val icon: ImageVector,
     val selected: Boolean,
     val onClick: () -> Unit,
+    val guideTarget: String? = null,
 )
 
 @Composable
@@ -69,6 +71,7 @@ private fun DDZBottomNavigationItemView(
 
     Column(
         modifier = modifier
+            .then(item.guideTarget?.let { Modifier.tutorialTarget(it) } ?: Modifier)
             .clip(RoundedCornerShape(12.dp))
             .background(containerColor)
             .clickable(onClick = item.onClick)
