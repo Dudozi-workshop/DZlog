@@ -146,12 +146,19 @@ class CapturePendingStoreTest {
     }
 
     @Test fun snapshotRoundTripPreservesSavePolicyAndProgress() {
-        val before = snapshot(9).copy(templateId = "template-9")
+        val before = snapshot(9).copy(templateId = "template-9", projectId = "project-A")
         val after = CaptureJobSnapshotCodec.decode(CaptureJobSnapshotCodec.encode(before))
         assertEquals("template-9", after.templateId)
+        assertEquals("project-A", after.projectId)
+        assertEquals("project-A", CaptureJobSnapshotCodec.decode(
+            CaptureJobSnapshotCodec.encode(before)
+        ).projectId)
         // Existing version-1 staging files have no templateId and must stay readable.
         val oldJson = CaptureJobSnapshotCodec.encode(before).apply { remove("templateId") }
         assertEquals(null, CaptureJobSnapshotCodec.decode(oldJson).templateId)
+        // A v1 journal without projectId belongs to ordinary shooting.
+        oldJson.remove("projectId")
+        assertEquals(null, CaptureJobSnapshotCodec.decode(oldJson).projectId)
         assertEquals(before.request.displayName, after.request.displayName)
         assertEquals(before.request.saveMode, after.request.saveMode)
         assertEquals(before.request.watermark, after.request.watermark)
