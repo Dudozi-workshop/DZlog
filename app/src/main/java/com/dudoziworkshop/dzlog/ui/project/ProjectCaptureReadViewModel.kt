@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.project
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
@@ -35,6 +36,19 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
 
     fun observeProject(projectId: String): Flow<List<CaptureRecord>> =
         records.observeProject(projectId)
+
+    /**
+     * Camera-only lightweight refresh: Room already owns the ordered captures.
+     * Query individual saved media URIs for the latest readable thumbnail,
+     * avoiding a full Pictures/DZlog scan for every shutter press.
+     */
+    suspend fun latestIndexedProjectPhoto(records: List<CaptureRecord>): MediaImageItem? =
+        withContext(Dispatchers.IO) {
+            val uriGroups = records.asReversed().map { record ->
+                listOfNotNull(record.resultUri, record.originalUri).map(Uri::parse)
+            }
+            DzlogMediaStoreReader(context.contentResolver).loadLatestImageInSession(uriGroups)
+        }
 
     suspend fun readProject(
         registry: CaptureProjectRegistry,

@@ -77,6 +77,7 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureReadViewModel
+import kotlinx.coroutines.flow.collectLatest
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
@@ -187,6 +188,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     )
     val projectReadViewModel: ProjectCaptureReadViewModel = viewModel()
     var activeProjectCaptureCount by remember { mutableIntStateOf(0) }
+    var activeProjectLatestPhoto by remember { mutableStateOf<com.dudoziworkshop.dzlog.domain.model.MediaImageItem?>(null) }
+    var loadedProjectPreviewId by remember { mutableStateOf<String?>(null) }
 
     val pendingTutorialInvite by remember(context) {
         context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
@@ -715,10 +718,19 @@ fun AppRoot(startOnCamera: Boolean = false) {
         if (screen != AppScreen.HOME && screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
         if (projectId == null) {
             activeProjectCaptureCount = 0
+            activeProjectLatestPhoto = null
+            loadedProjectPreviewId = null
         } else {
+            if (loadedProjectPreviewId != projectId) {
+                activeProjectCaptureCount = 0
+                activeProjectLatestPhoto = null
+                loadedProjectPreviewId = null
+            }
             try {
                 val result = projectReadViewModel.readProject(captureProjectRegistry, projectId)
                 activeProjectCaptureCount = result.visible.captureCount
+                activeProjectLatestPhoto = result.latestPhoto
+                loadedProjectPreviewId = projectId
                 if (screen == AppScreen.QUICK_RESULTS) {
                     quickResultsPhotos = result.photos
                     quickResultsCaptures = QuickResultsSessionPolicy.captures(
@@ -730,11 +742,36 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 throw cancelled
             } catch (error: Exception) {
                 android.util.Log.e("DZlogProjectRead", "Project result refresh failed", error)
+                activeProjectCaptureCount = 0
+                activeProjectLatestPhoto = null
+                loadedProjectPreviewId = null
                 // Never substitute another project's images after an uncertain read.
                 if (screen == AppScreen.QUICK_RESULTS) {
                     quickResultsPhotos = emptyList()
                     quickResultsCaptures = emptyList()
                 }
+            }
+        }
+    }
+
+    // Observe new Room receipts and verified Undo deletions while the camera stays
+    // visible. These lightweight lookups do not scan the full gallery per shot.
+    LaunchedEffect(screen, captureProjectRegistry.activeId) {
+        val projectId = captureProjectRegistry.activeId
+        if (screen != AppScreen.CAMERA || projectId == null) return@LaunchedEffect
+        projectReadViewModel.observeProject(projectId).collectLatest { records ->
+            try {
+                val latest = projectReadViewModel.latestIndexedProjectPhoto(records)
+                activeProjectCaptureCount = records.size
+                activeProjectLatestPhoto = latest
+                loadedProjectPreviewId = projectId
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.e("DZlogProjectRead", "Project camera preview failed", error)
+                activeProjectCaptureCount = 0
+                activeProjectLatestPhoto = null
+                loadedProjectPreviewId = null
             }
         }
     }
@@ -912,6 +949,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry.activeId,
+                    projectCaptureCount = if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
+                    projectLatestImage = activeProjectLatestPhoto.takeIf { loadedProjectPreviewId == captureProjectRegistry.activeId },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
@@ -952,7 +991,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
-                projectCaptureCount = if (captureProjectRegistry.activeId != null) activeProjectCaptureCount else 0,
+                projectCaptureCount =
+                    if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
+                activeProjectId = captureProjectRegistry.activeId,
+                projectLatestImage = activeProjectLatestPhoto.takeIf {
+                    loadedProjectPreviewId == captureProjectRegistry.activeId
+                },
                 onOpenActiveProject = ::openQuickResults,
                 onOpenRecentCaptureGrid = ::openRecentCaptureGrid
             )
@@ -970,6 +1014,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry.activeId,
+                    projectCaptureCount = if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
+                    projectLatestImage = activeProjectLatestPhoto.takeIf { loadedProjectPreviewId == captureProjectRegistry.activeId },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
