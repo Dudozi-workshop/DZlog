@@ -36,6 +36,40 @@ internal class IosCameraCaptureSession(
      * ORIGINAL_ONLY until its persisted Android placement/style contract
      * is available; this path is deliberately not enabled by default.
      */
+    /**
+     * Camera-facing entry point for a fully specified placement. Using the
+     * Android free-space anchor convention prevents callers from guessing
+     * absolute offsets. The production mode gate remains unchanged.
+     */
+    suspend fun saveAndroidPlacedJpeg(
+        jpeg: ByteArray,
+        anchor: IosTableAnchor,
+        offsetXPercent: Int,
+        offsetYPercent: Int,
+        widthRatio: Int,
+        heightRatio: Int,
+        rotationCwDeg: Int = 0,
+    ): Boolean {
+        val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
+        return saveJpeg(jpeg, renderForPreview = { preview ->
+            val image = Image.makeFromEncoded(jpeg)
+            val overlay = IosTableOverlayRenderer.renderAndroidAnchoredPng(
+                imageWidth = image.width,
+                imageHeight = image.height,
+                template = doc.template.templateState,
+                preview = preview,
+                style = doc.template.styleState,
+                anchor = anchor,
+                offsetXPercent = offsetXPercent,
+                offsetYPercent = offsetYPercent,
+                widthRatio = widthRatio,
+                heightRatio = heightRatio,
+                rotationCwDeg = rotationCwDeg,
+            )
+            IosCaptureResultRenderer.compositeJpeg(jpeg, overlay)
+        })
+    }
+
     suspend fun saveCompositedJpeg(
         jpeg: ByteArray,
         widthRatio: Int,
