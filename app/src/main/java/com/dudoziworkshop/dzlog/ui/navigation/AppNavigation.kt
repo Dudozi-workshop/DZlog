@@ -1475,10 +1475,6 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                     .filter { photo -> photo.id in changedIds && refreshed.none { it.uri == photo.uri } }
                                     .mapTo(mutableSetOf()) { it.uri.toString() }
                                 val newProjectId = viewedProjectResultsId ?: captureProjectRegistry.activeId
-                                if (actualDeletedUris.isNotEmpty()) {
-                                    com.dudoziworkshop.dzlog.data.project.CaptureRecordRoomStore(context)
-                                        .afterVerifiedDeletion(actualDeletedUris)
-                                }
                                 if (newProjectId != null) {
                                     val projectResult = projectReadViewModel.readProject(
                                         captureProjectRegistry, newProjectId,
@@ -1502,6 +1498,16 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                         },
                                     )
                                 }
+                            }
+                        }
+                    },
+                    onVerifiedCaptureDeletion = { ids ->
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS && ids.isNotEmpty()) {
+                            val verifiedUris = quickResultsPhotos.filter { it.id in ids }
+                                .mapTo(mutableSetOf()) { it.uri.toString() }
+                            appScope.launch(Dispatchers.IO) {
+                                com.dudoziworkshop.dzlog.data.project.CaptureRecordRoomStore(context)
+                                    .afterVerifiedDeletion(verifiedUris)
                             }
                         }
                     },

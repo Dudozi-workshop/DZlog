@@ -117,6 +117,7 @@ fun LogViewerScreen(
     quickResultCaptureGroups: List<com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture> = emptyList(),
     quickResultAllPhotos: List<MediaImageItem> = emptyList(),
     onSessionMediaChanged: (Set<Long>) -> Unit = {},
+    onVerifiedCaptureDeletion: (Set<Long>) -> Unit = {},
 ) {
     val context = LocalContext.current
     val resolver = context.contentResolver
@@ -436,6 +437,7 @@ fun LogViewerScreen(
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
                 onSessionMediaChanged(deletedIds)
+                onVerifiedCaptureDeletion(deletedIds)
                 if (items.any { it.id in deletedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
                     pendingViewerIndex = update.currentIndex
