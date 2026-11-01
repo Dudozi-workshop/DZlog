@@ -179,6 +179,24 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                 }.exceptionOrNull() is IllegalArgumentException) {
                     "잘못된 표 높이가 차단되지 않았습니다."
                 }
+                val anchored = IosTableOverlayRenderer.renderAndroidAnchoredPng(
+                    imageWidth = 128, imageHeight = 128,
+                    template = template.templateState, preview = preview,
+                    style = template.styleState,
+                    anchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.BOTTOM_RIGHT,
+                    offsetXPercent = 0, offsetYPercent = 0,
+                    widthRatio = 40, heightRatio = 20,
+                )
+                check(Image.makeFromEncoded(anchored).width == 128)
+                val custom = IosTableOverlayRenderer.renderAndroidAnchoredPng(
+                    imageWidth = 128, imageHeight = 128,
+                    template = template.templateState, preview = preview,
+                    style = template.styleState,
+                    anchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.CUSTOM,
+                    offsetXPercent = 50, offsetYPercent = 50,
+                    widthRatio = 40, heightRatio = 20,
+                )
+                check(Image.makeFromEncoded(custom).height == 128)
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
