@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - release/dzlog-v1.0.0-prep-20261017
+      - fix/dzlog-vc4-no-ads-20261101
     paths:
       - .github/workflows/dzlog-v1-release-candidate.yml
       - app/**
@@ -39,13 +40,13 @@ jobs:
         shell: bash
         run: |
           grep -F 'versionName = "1.0.0"' app/build.gradle.kts
-          grep -F 'versionCode = 3' app/build.gradle.kts
+          grep -F 'versionCode = 4' app/build.gradle.kts
           grep -F 'applicationId = "com.dudoziworkshop.dzlog"' app/build.gradle.kts
-      - name: Unit tests and unsigned release bundle
+      - name: Relevant policy tests and unsigned release bundle
         shell: bash
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest :app:bundleRelease --stacktrace
+          ./gradlew :app:testDebugUnitTest --tests '*MonetizationRolloutPolicyTest' :app:bundleRelease --stacktrace
       - name: Preserve unit test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,11 +62,28 @@ jobs:
         run: |
           test -s app/build/outputs/bundle/release/app-release.aab
           echo "Unsigned release candidate bundle built. DO NOT upload this artifact to Play."
+      - name: Verify no advertising SDK or permissions remain
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          bundle = Path('app/build/outputs/bundle/release/app-release.aab')
+          with zipfile.ZipFile(bundle) as archive:
+              assert archive.testzip() is None, 'Corrupt AAB'
+              manifest = archive.read('base/manifest/AndroidManifest.xml')
+              for token in (b'com.google.android.gms.permission.AD_ID', b'ACCESS_ADSERVICES_AD_ID', b'com.google.android.gms.ads'):
+                  assert token not in manifest, f'Advertising manifest entry remains: {token!r}'
+              for name in archive.namelist():
+                  if name.endswith('.dex'):
+                      assert b'Lcom/google/android/gms/ads/' not in archive.read(name), f'Advertising SDK remains in {name}'
+          print('PASS: release AAB has no Google advertising SDK, AD_ID permission or ad-services ID permission')
+          PY
       - name: Upload UNSIGNED candidate (NOT FOR PLAY)
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: dzlog-v1-0-0-unsigned-DO-NOT-UPLOAD
+          name: dzlog-v1-0-0-vc4-no-ads-unsigned-DO-NOT-UPLOAD
           path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7

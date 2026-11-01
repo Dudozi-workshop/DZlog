@@ -19,7 +19,6 @@ guavaAndroid = "33.2.1-android"
 
 coroutines = "1.8.1"
 billing = "9.1.0"
-playServicesAds = "24.4.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -60,4 +59,3 @@ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 
 google-billing = { group = "com.android.billingclient", name = "billing", version.ref = "billing" }
-google-play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
