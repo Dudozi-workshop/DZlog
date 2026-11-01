@@ -82,6 +82,7 @@ import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureSummary
 import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
+import com.dudoziworkshop.dzlog.domain.project.ProjectTemplateSelectionPolicy
 import kotlinx.coroutines.flow.collectLatest
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
@@ -399,6 +400,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 items = tableTemplateViewModel.templates, activeTemplateId = previousId, templateState = current)
             tableCatalogCoordinator.activate(items = next, activeTemplateId = templateId)
             tableTemplateViewModel.setCatalog(next, templateId)
+            projectManagement.rememberTemplate(templateId)
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -439,6 +441,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             )
 
             tableTemplateViewModel.setCatalog(updatedItems, activeId)
+            projectManagement.rememberTemplate(activeId)
             if (pendingNewTemplateId == activeId) {
                 pendingNewTemplateId = null
                 pendingNewTemplatePreviousActiveId = null
@@ -456,6 +459,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 activeTemplateId = target.id,
             )
             tableTemplateViewModel.activate(target.id)
+            projectManagement.rememberTemplate(target.id)
             screen = templateListEntryScreen
         }
     }
@@ -723,6 +727,46 @@ fun AppRoot(startOnCamera: Boolean = false) {
         viewedProjectResultsId = null
         albumEntryScreen = AppScreen.CAMERA
         navigateTo(AppScreen.QUICK_RESULTS)
+    }
+
+    /** One explicit target switch: restore the shared template ID, never clone state. */
+    suspend fun selectCaptureProject(projectId: String?) {
+        check(projectManagement.canChangeCaptureTarget()) {
+            "사진 저장 완료 후 프로젝트를 변경할 수 있습니다."
+        }
+        val before = tableTemplateViewModel.activeTemplateId
+        val choice = ProjectTemplateSelectionPolicy.choose(
+            captureProjectRegistry, projectId,
+            tableTemplateViewModel.templates.map { it.id }, before,
+        )
+        val next = choice.templateId
+        if (next != null && next != before) {
+            tableCatalogCoordinator.activate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = next,
+            )
+            tableTemplateViewModel.activate(next)
+        }
+        try {
+            projectManagement.select(projectId)
+            next?.let { projectManagement.rememberTemplate(it) }
+            // A -> B -> A is still a new Undo boundary.
+            if (captureProjectRegistry.activeId != projectId) {
+                cameraPhraseUndoHistory.clear()
+                cameraSessionCaptureStack.clear()
+            }
+            if (choice.rememberedTemplateMissing) {
+                Toast.makeText(context, "삭제된 템플릿 대신 사용 가능한 양식을 선택했어요.", Toast.LENGTH_SHORT).show()
+            }
+        } catch (error: Exception) {
+            if (next != null && next != before && before != null) {
+                runCatching {
+                    tableCatalogCoordinator.activate(tableTemplateViewModel.templates, before)
+                    tableTemplateViewModel.activate(before)
+                }
+            }
+            throw error
+        }
     }
 
     fun openProjectList(create: Boolean = false) {
@@ -1032,7 +1076,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     selected = captureProjectRegistry.activeId == project.id,
                     onBack = { screen = AppScreen.PROJECT_LIST },
                     onContinue = { appScope.launch {
-                        try { projectManagement.select(project.id); navigateTo(AppScreen.CAMERA) }
+                        try { selectCaptureProject(project.id); navigateTo(AppScreen.CAMERA) }
                         catch (error: Exception) { Toast.makeText(context, error.message ?: "프로젝트 선택 실패", Toast.LENGTH_SHORT).show() }
                     } },
                     onShowAll = { viewedProjectResultsId = project.id; albumEntryScreen = AppScreen.PROJECT_DETAIL; navigateTo(AppScreen.QUICK_RESULTS) },
@@ -1421,7 +1465,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             projects = captureProjectRegistry.projects,
             activeId = captureProjectRegistry.activeId,
             onSelect = { id -> appScope.launch {
-                try { projectManagement.select(id); showProjectPicker = false }
+                try { selectCaptureProject(id); showProjectPicker = false }
                 catch (error: Exception) { Toast.makeText(context, error.message ?: "프로젝트 선택 실패", Toast.LENGTH_SHORT).show() }
             } },
             onCreate = { openProjectList(true) },
