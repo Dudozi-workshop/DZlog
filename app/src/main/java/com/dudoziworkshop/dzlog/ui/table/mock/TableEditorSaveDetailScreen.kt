@@ -110,7 +110,7 @@ internal fun TableEditorSaveDetailScreen(
             when (detail) {
                 TableEditorSaveDetail.FILE_NAME -> {
                     PreviewCard(
-                        label = "현재 파일명",
+                        label = if (LocalTutorialReadOnly.current) "예시 파일명" else "현재 파일명",
                         value = fileNamePreview,
                     )
                     Text("파일명 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
@@ -141,7 +141,7 @@ internal fun TableEditorSaveDetailScreen(
 
                 TableEditorSaveDetail.SAVE_PATH -> {
                     PreviewCard(
-                        label = "현재 저장 위치",
+                        label = if (LocalTutorialReadOnly.current) "예시 저장 위치" else "현재 저장 위치",
                         value = pathPreview,
                     )
                     Text("폴더 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
