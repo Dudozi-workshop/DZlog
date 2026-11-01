@@ -40,6 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
@@ -129,10 +131,7 @@ internal fun GalleryMoveDestinationPicker(
         if (parent == null) onCancel() else path = parent
     }
 
-    Dialog(
-        onDismissRequest = ::goBack,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
+    val pickerContent: @Composable () -> Unit = {
         // The footer is outside the scrolling content; system bars never overlap the action.
         Column(
             Modifier.fillMaxSize().background(DDZColor.Background)
@@ -253,6 +252,7 @@ internal fun GalleryMoveDestinationPicker(
             }
             Column(
                 modifier = Modifier.fillMaxWidth()
+                    .tutorialTarget("gallery.destination-action")
                     .background(DDZColor.Surface)
                     .padding(top = 8.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -274,5 +274,13 @@ internal fun GalleryMoveDestinationPicker(
                 )
             }
         }
+    }
+    if (LocalTutorialReadOnly.current) {
+        pickerContent()
+    } else {
+        Dialog(
+            onDismissRequest = ::goBack,
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) { pickerContent() }
     }
 }

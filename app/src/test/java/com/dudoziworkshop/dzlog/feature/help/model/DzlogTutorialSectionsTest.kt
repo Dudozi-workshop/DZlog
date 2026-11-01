@@ -1,5 +1,10 @@
 package com.dudoziworkshop.dzlog.feature.help.model
 
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2SessionState
+import com.dudoziworkshop.dzlog.ui.table.mock.formatMockCounter
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -7,7 +12,7 @@ class DzlogTutorialSectionsTest {
     @Test fun allApprovedAreasSessionsAndDetailedScenesAreReachable() {
         assertEquals(listOf("home", "camera", "gallery", "table-detail", "saving", "settings"),
             DzlogTutorialSections.areas.map { it.id })
-        assertEquals(24, DzlogTutorialSections.areas.sumOf { it.sessions.size })
+        assertEquals(23, DzlogTutorialSections.areas.sumOf { it.sessions.size })
         DzlogTutorialSections.areas.forEach { area ->
             assertEquals(area.sessions.size, area.sessions.map { it.id }.toSet().size)
             area.sessions.forEach { session ->
@@ -54,6 +59,48 @@ class DzlogTutorialSectionsTest {
         assertEquals(listOf("save/template", "save/template-confirm", "save/undo", "save/redo", "save", "save/decision"),
             area.sessions.last().guidePages().map { it.id })
     }
+    @Test fun galleryOverviewFollowsActualScreenOrder() {
+        val pages = DzlogTutorialSections.area("gallery")!!.sessions.first().guidePages()
+        assertEquals(listOf("home", "home/tabs", "home/recent", "home/folders",
+            "browse", "browse/folders", "browse/photos"), pages.map { it.id })
+        assertTrue(pages.all { it.title.isNotBlank() && it.instruction.isNotBlank() })
+    }
+
+    @Test fun galleryMoveFlowSelectsDestinationBeforeFinalConfirmation() {
+        val gallery = DzlogTutorialSections.area("gallery")!!
+        val folders = gallery.sessions.first { it.id == "folders" }.guidePages().map { it.id }
+        val photos = gallery.sessions.first { it.id == "photos" }.guidePages().map { it.id }
+        assertEquals("folders/new", folders.first())
+        assertEquals("folders", folders[1])
+        assertTrue(folders.indexOf("folders/destination") < folders.indexOf("folders/move"))
+        assertTrue(photos.indexOf("photos/destination") < photos.indexOf("photos/original-choice"))
+        assertTrue(photos.indexOf("photos/original-choice") < photos.indexOf("photos/move"))
+        assertEquals(30, gallery.sessions.sumOf { it.guidePages().size })
+        val viewer = gallery.sessions.first { it.id == "viewer" }.guidePages()
+        assertEquals("viewer/menu", viewer[1].id)
+    }
+
+    @Test fun galleryViewerGuideCoversAllPhotoDetailControls() {
+        val viewer = DzlogTutorialSections.area("gallery")!!.sessions.first { it.id == "viewer" }
+        assertEquals(listOf(
+            "viewer", "viewer/menu", "viewer/original", "viewer/photo",
+            "viewer/favorite", "viewer/share", "viewer/info", "viewer/delete",
+            "viewer/delete-confirm", "viewer/filmstrip",
+        ), viewer.guidePages().map { it.id })
+    }
+
+    @Test fun savingGuideExplainsEntranceBeforeEachDetailScreen() {
+        val saving = DzlogTutorialSections.area("saving")!!
+        assertEquals(listOf("overview", "overview/menu", "filename", "filename/open"),
+            saving.sessions.first { it.id == "filename" }.guidePages().take(4).map { it.id })
+        assertEquals(listOf("folder", "folder/open", "folder/parts", "folder/add", "folder/copy"),
+            saving.sessions.first { it.id == "folder" }.guidePages().map { it.id })
+        assertEquals(listOf("counter", "counter/open", "counter/next"),
+            saving.sessions.first { it.id == "counter" }.guidePages().take(3).map { it.id })
+        assertEquals(24, saving.sessions.sumOf { it.guidePages().size })
+        assertEquals(listOf("filename", "folder", "counter"), saving.sessions.map { it.id })
+    }
+
     @Test fun resumeUsesStableSceneIdsAndFallsBackAfterContentChanges() {
         val pages = DzlogTutorialSections.area("saving")!!.sessions.first { it.id == "counter" }.guidePages()
         val sync = pages.first { it.id == "counter/sync" }
@@ -61,4 +108,45 @@ class DzlogTutorialSectionsTest {
         assertEquals(0, tutorialPageIndex(pages, "removed-page"))
         assertEquals(0, tutorialPageIndex(pages, ""))
     }
+    @Test fun savingTutorialUsesFixedFilenameAndPathWithoutMutatingUserTemplate() {
+        val empty = TableTemplateState(rows = 1, cols = 1, cells = emptyList())
+        val one = empty.copy(
+            fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "개인파일")) + List(4) { null },
+            pathSlotDrafts = listOf(TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "개인폴더")) + List(4) { null },
+        )
+        val expected = savingTutorialPreviewTemplate(empty)
+        val preview = savingTutorialPreviewTemplate(one)
+        assertEquals(expected.fileNameSlotDrafts, preview.fileNameSlotDrafts)
+        assertEquals(expected.pathSlotDrafts, preview.pathSlotDrafts)
+        assertEquals(listOf("현장기록", null), preview.fileNameSlotDrafts.take(2).map { it?.manualText })
+        assertEquals(listOf("현장기록", null), preview.pathSlotDrafts.take(2).map { it?.manualText })
+        assertEquals("DATE", preview.fileNameSlotDrafts[1]?.formatType)
+        assertEquals("DATE", preview.pathSlotDrafts[1]?.formatType)
+        assertEquals("개인파일", one.fileNameSlotDrafts[0]?.manualText)
+        assertEquals("개인폴더", one.pathSlotDrafts[0]?.manualText)
+    }
+
+    @Test fun isolatedSavingGuideCounterStartsAt001() {
+        val session = TableEditorV2SessionState(
+            initialTemplateState = TableTemplateState(rows = 1, cols = 1, cells = emptyList()),
+            initialStyleState = TableStyleState(),
+            includePathInCounterScope = false,
+            includeFilenameInCounterScope = false,
+            initialCounterPadding = 3,
+        )
+        session.initializeCounterState(1, usesAutoNext = false)
+        assertEquals(1, session.draftNextCounter)
+        assertEquals(3, session.draftCounterPadding)
+        assertFalse(session.draftUsesAutoNext)
+        assertEquals("001", formatMockCounter(session.draftNextCounter ?: 1, session.draftCounterPadding))
+    }
+
+    @Test fun savingSourceChoiceExplanationMatchesTheActualFourOptions() {
+        val sources = DzlogTutorialSections.area("saving")!!
+            .sessions.first { it.id == "filename" }
+            .guidePages().first { it.id == "filename/sources" }.instruction
+        assertTrue(sources.contains("네 가지"))
+        assertFalse(sources.contains("순환문구"))
+    }
+
 }

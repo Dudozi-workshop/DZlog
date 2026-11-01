@@ -64,7 +64,8 @@ internal fun LiveTutorialHost(
     var replay by remember(location) { mutableIntStateOf(0) }
     val demo = remember(location) { Animatable(0f) }
     val hasDemo = (areaId == "camera" && page.id !in setOf("recent", "details")) ||
-        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/"))
+        (areaId == "table-detail" && sessionId == "style" && page.id.startsWith("style/")) ||
+        (areaId == "saving" && page.id in setOf("filename/order", "filename/remove"))
     LaunchedEffect(location, replay) {
         demo.snapTo(0f)
         if (hasDemo) {
@@ -88,6 +89,7 @@ internal fun LiveTutorialHost(
         if (contents) {
             TutorialContentsScreen(area, location, progress,
                 onResume = { contents = false },
+                onExit = onClose,
                 onJump = { entry ->
                     progress.save(entry)
                     if (entry.sessionId == sessionId) { pageId = entry.pageId; contents = false }
@@ -105,10 +107,14 @@ internal fun LiveTutorialHost(
                         (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                         else if (areaId == "table-detail" && page.id in setOf("save/template-confirm", "save/decision"))
                             with(density) { cardHeight.toDp() } + 32.dp + WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        else if (areaId == "gallery" && page.id == "viewer/delete-confirm")
+                            with(density) { cardHeight.toDp() } + 20.dp
                         else 0.dp),
                     LocalTutorialCardBottomSpace provides (if ((areaId == "camera" && cameraGuideAtBottom(page.id)) ||
-                        (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete", "photos/move", "photos/delete")))
-                        (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp else 0.dp),
+                        (areaId == "gallery" && page.id in setOf("folders/new", "folders/rename", "folders/move", "folders/delete",
+                            "photos/original-choice", "photos/move", "photos/delete")))
+                        (if (areaId in setOf("gallery", "saving")) with(density) { cardHeight.toDp() } + 20.dp
+                        else (236 * density.fontScale.coerceAtLeast(1f)).dp + 32.dp) else 0.dp),
                     LocalTutorialReadOnly provides true,
                 ) { screen(displayLocation) }
                 if (areaId == "camera" && displayLocation.pageId == "pinch") {
@@ -151,17 +157,29 @@ internal fun LiveTutorialHost(
                 val availableBelow = if (target == null) 0f else hostHeight - target.bottom - gap
                 val availableAbove = if (target == null) 0f else target.top - topY - gap
                 val isDialogStep = page.id in setOf(
-                    "folders/new", "folders/rename", "folders/move", "folders/delete",
-                    "photos/move", "photos/delete"
+                    "folders/new", "folders/rename", "folders/move", "folders/destination", "folders/delete",
+                    "photos/original-choice", "photos/move", "photos/destination",
+                    "photos/delete", "viewer/delete-confirm"
                 )
                 when {
                     // Keep gallery overview, folder browsing and photo selection guidance low.
-                    page.id in setOf("home", "browse", "photos/select") -> bottomY
-                    // Selected-photo actions need a central card, clear of bottom controls.
-                    page.id == "photos/actions" -> ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
+                    page.id in setOf("home", "home/tabs", "home/recent", "home/folders", "browse",
+                        "browse/folders", "browse/photos", "photos", "photos/select") -> bottomY
+                    page.id in setOf("folders", "photos/actions") -> topY
+                    // The folder popup and photo action bar are lower than their guide text.
                     // Dialogs should be shifted upward by their owners; reserve the bottom
                     // for the guide rather than moving the guide over the dialog.
+                    page.id in setOf("folders/destination", "photos/destination") ->
+                        // A full-screen picker is never relaid out for the floating guide.
+                        // Keep its header/breadcrumbs and bottom action in their real positions.
+                        if (target != null) (target.top - cardHeight - gap).coerceIn(topY, bottomY)
+                        else ((topY + bottomY) / 2f).coerceIn(topY, bottomY)
+                    page.id == "viewer/delete-confirm" -> topY
                     isDialogStep -> bottomY
+                    sessionId == "viewer" -> when (page.id) {
+                        "viewer/info", "viewer/filmstrip", "viewer/favorite", "viewer/share", "viewer/delete" -> topY
+                        else -> bottomY
+                    }
                     target == null -> if (sessionId in setOf("viewer", "photos")) topY else bottomY
                     availableBelow >= cardHeight + gap -> bottomY
                     availableAbove >= cardHeight + gap -> topY
@@ -175,9 +193,13 @@ internal fun LiveTutorialHost(
                 "save" -> if (page.id in setOf("save/template", "save/template-confirm", "save/decision")) topY else bottomY
                 else -> desiredY.coerceIn(topY, bottomY)
             }
-            areaId == "saving" -> when (sessionId) {
-                "filename", "folder", "counter" -> if (page.id.endsWith("/preview")) bottomY else topY
-                else -> desiredY.coerceIn(topY, bottomY)
+            areaId == "saving" -> when (page.id) {
+                // One fixed lower zone during ordinary navigation. Only actual sheets
+                // move the guide to the top; targets never move the actual screen.
+                "overview", "overview/menu", "filename", "folder", "counter",
+                "filename/sources", "filename/copy", "folder/add", "folder/copy",
+                "counter/input", "counter/reset" -> topY
+                else -> bottomY
             }
             // Keep the guide anchored across consecutive steps. The underlying settings
             // list scrolls to the selected row; the popup no longer chases its position.
@@ -297,21 +319,57 @@ private fun tutorialTarget(location: TutorialLocation, parent: String): String =
         else -> "settings.capture"
     }
     "gallery" -> when {
-        location.sessionId == "viewer" -> "gallery.viewer-actions"
-        location.pageId in setOf("photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
-        location.sessionId == "photos" && location.pageId != "photos/select" -> "gallery.selection-actions"
+        location.sessionId == "overview" -> when (location.pageId) {
+            "home" -> "gallery.header"
+            "home/tabs" -> "gallery.tabs"
+            "home/recent" -> "gallery.recent"
+            "home/folders" -> "gallery.folders"
+            "browse" -> "gallery.breadcrumbs"
+            "browse/folders" -> "gallery.child-folders"
+            "browse/photos" -> "gallery.folder-photos"
+            else -> "gallery.content"
+        }
+        location.sessionId == "viewer" -> when (location.pageId) {
+            "viewer" -> "gallery.viewer-top"
+            "viewer/photo", "viewer/original" -> "gallery.viewer-photo"
+            "viewer/menu" -> "gallery.viewer-menu"
+            "viewer/favorite" -> "gallery.viewer-favorite"
+            "viewer/share" -> "gallery.viewer-share"
+            "viewer/info" -> "gallery.viewer-info"
+            "viewer/delete" -> "gallery.viewer-delete"
+            "viewer/delete-confirm" -> "guide.dialog"
+            "viewer/filmstrip" -> "gallery.viewer-filmstrip"
+            else -> "gallery.viewer-actions"
+        }
+        location.pageId in setOf("photos/destination", "folders/destination") -> "gallery.destination-action"
+        location.pageId == "folders/path" -> "gallery.breadcrumbs"
+        location.pageId == "photos" -> "gallery.photo-grid"
+        location.pageId in setOf("photos/select", "photos/result") -> "gallery.selection-header"
+        location.pageId in setOf("photos/original-choice", "photos/move", "photos/delete", "folders/new", "folders/rename", "folders/move", "folders/delete") -> "guide.dialog"
+        location.pageId == "photos/actions" -> "gallery.selection-actions"
+        location.pageId == "folders" -> "gallery.folder-menu-button"
+        location.sessionId == "folders" -> "gallery.child-folders"
         parent == "browse" -> "gallery.breadcrumbs"
         else -> "gallery.content"
     }
     "saving" -> when (location.pageId) {
-        "filename/copy", "folder/copy", "counter/input", "counter/reset" -> "guide.dialog"
-        "filename/preview" -> "saving.preview.현재 파일명"
-        "folder" -> "saving.preview.현재 저장 위치"
-        "filename/sources" -> "saving.add"
-        "filename/parts", "filename/edit", "filename/order", "filename/remove", "folder/parts" -> "saving.rules"
-        "counter/next" -> "saving.next"
+        "overview" -> "table.tab.saving"
+        "overview/menu" -> "saving.menu"
+        "filename" -> "saving.menu.filename"
+        "folder" -> "saving.menu.folder"
+        "counter" -> "saving.menu.counter"
+        "filename/open", "filename/preview" -> "saving.preview.현재 파일명"
+        "folder/open" -> "saving.preview.현재 저장 위치"
+        "counter/open", "counter/next" -> "saving.next"
+        "filename/sources", "filename/copy", "folder/add", "folder/copy",
+        "counter/input", "counter/reset" -> "guide.dialog"
+        "filename/parts", "filename/remove", "folder/parts" -> "saving.rules.first"
+        "filename/edit" -> "saving.rules.value"
+        "filename/order" -> "saving.rules.handle"
         "counter/digits" -> "saving.digits"
         "counter/sync" -> "saving.sync"
+        "counter/scope" -> "saving.scope"
+        "advanced" -> "saving.mode"
         else -> if (location.sessionId == "rotation") "table.panel" else "saving.detail"
     }
     "table-detail" -> when (location.sessionId) {

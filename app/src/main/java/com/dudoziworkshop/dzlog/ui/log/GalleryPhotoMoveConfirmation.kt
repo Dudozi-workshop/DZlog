@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePlan
@@ -36,8 +38,15 @@ internal fun GalleryPhotoMoveConfirmation(
     val originals = remember(selected, allPhotos) {
         GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
     }
-    var includeOriginals by remember(selected, destinationPath) { mutableStateOf<Boolean?>(null) }
-    var finalStep by remember(selected, destinationPath) { mutableStateOf(false) }
+    val readOnlyTour = LocalTutorialReadOnly.current
+    val guideChoice = readOnlyTour && LocalTutorialLocation.current?.pageId == "photos/original-choice"
+    // Show the real choice and final-confirmation states on successive guide pages.
+    var includeOriginals by remember(selected, destinationPath, readOnlyTour, guideChoice) {
+        mutableStateOf<Boolean?>(if (readOnlyTour) true else null)
+    }
+    var finalStep by remember(selected, destinationPath, readOnlyTour, guideChoice) {
+        mutableStateOf(readOnlyTour && !guideChoice)
+    }
     val showFinal = originals.isEmpty() || finalStep
     val planned = remember(selected, originals, destinationPath, includeOriginals) {
         runCatching {

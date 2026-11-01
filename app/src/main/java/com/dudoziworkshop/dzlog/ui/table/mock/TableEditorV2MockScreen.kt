@@ -154,15 +154,20 @@ fun TableEditorV2Screen(
     hasPendingTemplateSelection: Boolean = false,
     onSwitchTemplate: (String) -> Unit = {},
 ) {
-    val session = remember {
+    val isolatedSavingGuide = LocalTutorialReadOnly.current &&
+        LocalTutorialLocation.current?.areaId == "saving"
+    val session = remember(isolatedSavingGuide) {
         TableEditorV2SessionState(
             initialTemplateState = templateState,
             initialStyleState = styleState,
             includePathInCounterScope = includePathInCounterScope,
             includeFilenameInCounterScope = includeFilenameInCounterScope,
             initialSaveMode = saveMode,
-            initialCounterPadding = counterPadding,
-        )
+            initialCounterPadding = if (isolatedSavingGuide) 3 else counterPadding,
+        ).also { session ->
+            // A demo-only counter never reads or changes the user's capture progress.
+            if (isolatedSavingGuide) session.initializeCounterState(1, usesAutoNext = false)
+        }
     }
     val draftTemplateState = session.draftTemplateState
     val styleGuide = LocalTutorialLocation.current?.takeIf { it.areaId == "table-detail" && it.sessionId == "style" }
@@ -198,7 +203,11 @@ fun TableEditorV2Screen(
             mode = if (!saving && tourLocation.sessionId == "structure") MockMode.LAYOUT else MockMode.EDIT
             showStyle = !saving && tourLocation.sessionId == "style"
             showSaveRules = saving && tourLocation.sessionId != "rotation"
-            saveDetailTrail = if (saving && tourLocation.sessionId != "rotation") listOf(when (tourLocation.sessionId) {
+            // Present the real Save Settings menu before entering each detail screen.
+            val menuGuidePage = tourLocation.pageId in setOf(
+                "overview", "overview/menu", "filename", "folder", "counter"
+            )
+            saveDetailTrail = if (saving && tourLocation.sessionId != "rotation" && !menuGuidePage) listOf(when (tourLocation.sessionId) {
                 "filename" -> TableEditorSaveDetail.FILE_NAME
                 "folder" -> if (tourLocation.pageId == "advanced") TableEditorSaveDetail.SAVE_MODE else TableEditorSaveDetail.SAVE_PATH
                 "counter" -> if (tourLocation.pageId.endsWith("/scope")) TableEditorSaveDetail.AUTO_NUMBER_ADVANCED else TableEditorSaveDetail.AUTO_NUMBER

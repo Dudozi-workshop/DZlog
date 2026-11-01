@@ -44,6 +44,7 @@ internal fun MockBottomBar(
                 icon = Icons.Filled.Save,
                 selected = active == MockBottomTab.SAVE,
                 onClick = onSaveRules,
+                guideTarget = "table.tab.saving",
             ),
         ),
     )

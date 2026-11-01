@@ -69,6 +69,7 @@ internal fun TableEditorSaveDetailScreen(
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
     var pendingCopyDirection by remember(detail) { mutableStateOf<SaveRuleCopyDirection?>(null) }
     val guide = LocalTutorialLocation.current
+    val showSavingExample = LocalTutorialReadOnly.current && guide?.areaId == "saving"
     androidx.compose.runtime.LaunchedEffect(guide?.pageId) {
         if (guide?.areaId == "saving") {
             showCounterInput = guide.pageId == "counter/input"
@@ -110,7 +111,7 @@ internal fun TableEditorSaveDetailScreen(
             when (detail) {
                 TableEditorSaveDetail.FILE_NAME -> {
                     PreviewCard(
-                        label = "현재 파일명",
+                        label = if (showSavingExample) "예시 파일명" else "현재 파일명",
                         value = fileNamePreview,
                     )
                     Text("파일명 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
@@ -141,7 +142,7 @@ internal fun TableEditorSaveDetailScreen(
 
                 TableEditorSaveDetail.SAVE_PATH -> {
                     PreviewCard(
-                        label = "현재 저장 위치",
+                        label = if (showSavingExample) "예시 저장 위치" else "현재 저장 위치",
                         value = pathPreview,
                     )
                     Text("폴더 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
@@ -175,6 +176,7 @@ internal fun TableEditorSaveDetailScreen(
                 TableEditorSaveDetail.SAVE_MODE -> {
                     Text(
                         "저장할 이미지",
+                        modifier = Modifier.tutorialTarget("saving.mode"),
                         style = DDZTypography.SettingLabel,
                         color = DDZColor.TextPrimary,
                     )
@@ -290,7 +292,7 @@ internal fun TableEditorSaveDetailScreen(
                 }
 
                 TableEditorSaveDetail.AUTO_NUMBER_ADVANCED -> {
-                    Text("번호 구분 기준", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
+                    Text("번호 구분 기준", modifier = Modifier.tutorialTarget("saving.scope"), style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
                     ScopeOption(
                         title = "저장 위치별 번호 분리",
                         description = "폴더가 다르면 번호를 따로 사용합니다.",
