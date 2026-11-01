@@ -87,7 +87,7 @@ Write-Host "Verifying the signed AAB..."
 if ($LASTEXITCODE -ne 0) {
     throw "Signed AAB verification failed. Do not upload this file to Google Play."
 }
-Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead($OutputAab)
 try {
     $signatures = @($archive.Entries | Where-Object {
