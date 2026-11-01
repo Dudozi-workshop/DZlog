@@ -14,6 +14,7 @@ import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
+import org.jetbrains.skia.Image
 import platform.Foundation.NSUUID
 
 /**
@@ -29,6 +30,39 @@ internal class IosCameraCaptureSession(
     private val coordinator = IosCaptureSaveCoordinator(media)
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
+
+    /**
+     * Preview-locked native compositor. The production camera gate stays
+     * ORIGINAL_ONLY until its persisted Android placement/style contract
+     * is available; this path is deliberately not enabled by default.
+     */
+    suspend fun saveCompositedJpeg(
+        jpeg: ByteArray,
+        widthRatio: Int,
+        heightRatio: Int,
+        offsetXRatio: Float,
+        offsetYRatio: Float,
+        rotationDegrees: Float,
+    ): Boolean {
+        val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
+        return saveJpeg(jpeg, renderForPreview = { preview ->
+            val image = Image.makeFromEncoded(jpeg)
+            val overlay = IosTableOverlayRenderer.renderResolvedPreviewPng(
+                imageWidth = image.width,
+                imageHeight = image.height,
+                template = doc.template.templateState,
+                preview = preview,
+                style = doc.template.styleState,
+                widthRatio = widthRatio,
+                heightRatio = heightRatio,
+                offsetXRatio = offsetXRatio,
+                offsetYRatio = offsetYRatio,
+                rotationDegrees = rotationDegrees,
+            )
+            IosCaptureResultRenderer.compositeJpeg(jpeg, overlay)
+        })
+    }
+
 
     suspend fun saveJpeg(
         jpeg: ByteArray,
