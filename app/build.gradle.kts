@@ -26,7 +26,7 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.dudoziworkshop.dzlog"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = "1.0.0"
         manifestPlaceholders["dzlogAppLabel"] = "@string/app_name"
     }
@@ -156,7 +156,6 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.google.billing)
-    implementation(libs.google.play.services.ads)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
