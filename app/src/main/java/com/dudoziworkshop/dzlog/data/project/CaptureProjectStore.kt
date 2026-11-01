@@ -59,6 +59,10 @@ class CaptureProjectStore(private val context: Context) {
     suspend fun rename(projectId: String, name: String): CaptureProjectRegistry =
         updateRegistry { it.rename(projectId, name) }
 
+    /** No file operation, no conversion to the general capture session. */
+    suspend fun deleteProject(projectId: String): CaptureProjectRegistry =
+        updateRegistry { it.deleteProject(projectId) }
+
     private suspend fun updateRegistry(
         transform: (CaptureProjectRegistry) -> CaptureProjectRegistry,
     ): CaptureProjectRegistry {

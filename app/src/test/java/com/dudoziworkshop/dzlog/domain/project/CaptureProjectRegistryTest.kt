@@ -129,6 +129,40 @@ class CaptureProjectRegistryTest {
         }
     }
 
+    @Test fun deletingSelectedProjectRemovesOnlyMetadataAndReturnsToGeneral() {
+        val before = CaptureProjectRegistry()
+            .rememberTemplate("general-T")
+            .createProject("A", "A", 1L)
+            .createProject("B", "B", 2L)
+            .selectProject("A")
+            .appendCommittedCapture(listOf("content://a/result", "content://a/original"))
+        val preserved = before.find("A")!!.captureUriGroups.single().toList()
+        val deleted = before.deleteProject("A")
+        assertNull(deleted.activeId)
+        assertNull(deleted.find("A"))
+        assertEquals("general-T", deleted.generalLastTemplateId)
+        assertEquals(before.find("B"), deleted.find("B"))
+        // No content URIs are ever reassigned as ordinary-capture groups.
+        assertTrue(deleted.projects.flatMap { it.captureUriGroups }.none { it == preserved })
+        assertEquals(before.active!!.captureUriGroups.single(), preserved)
+    }
+
+    @Test fun deletingUnselectedProjectPreservesCurrentlySelectedProject() {
+        val before = project("A").createProject("B", "B", 2L).selectProject("A")
+        val after = before.deleteProject("B")
+        assertEquals("A", after.activeId)
+        assertEquals(before.find("A"), after.find("A"))
+        assertNull(after.find("B"))
+    }
+
+    @Test fun deletingUnknownProjectFailsClosed() {
+        val before = project("A")
+        assertThrows(IllegalArgumentException::class.java) {
+            before.deleteProject("missing")
+        }
+        assertEquals(1, before.projects.size)
+    }
+
     @Test fun legacyProjectWithUriGroupsRemainsReadableByModel() {
         val legacy = CaptureProject(
             id = "old",

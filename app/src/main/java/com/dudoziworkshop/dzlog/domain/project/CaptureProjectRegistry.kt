@@ -114,6 +114,18 @@ data class CaptureProjectRegistry(
         })
     }
 
+    /**
+     * Remove only the named project metadata. The caller MUST NOT delete photos
+     * or reclassify records as ordinary shooting in this operation.
+     */
+    fun deleteProject(projectId: String): CaptureProjectRegistry {
+        requireNotNull(find(projectId)) { "Unknown project" }
+        return copy(
+            projects = projects.filterNot { it.id == projectId },
+            activeId = activeId.takeUnless { it == projectId },
+        )
+    }
+
     fun rename(projectId: String, title: String): CaptureProjectRegistry {
         val normalized = title.trim().take(80)
         if (normalized.isBlank()) return this
