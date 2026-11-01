@@ -59,8 +59,13 @@ internal object IosTableOverlayRenderer {
         val rotatedH = abs(tableW * sin(angle)) + abs(tableH * cos(angle))
         val centerX = originX + tableW / 2f
         val centerY = originY + tableH / 2f
-        require(centerX - rotatedW / 2 >= 0 && centerX + rotatedW / 2 <= imageWidth &&
-            centerY - rotatedH / 2 >= 0 && centerY + rotatedH / 2 <= imageHeight) {
+        // Pixel-space arithmetic can round a flush right/bottom anchor a few
+        // thousandths beyond the edge; do not reject that valid placement.
+        val edgeTolerance = 0.01
+        require(centerX - rotatedW / 2 >= -edgeTolerance &&
+            centerX + rotatedW / 2 <= imageWidth + edgeTolerance &&
+            centerY - rotatedH / 2 >= -edgeTolerance &&
+            centerY + rotatedH / 2 <= imageHeight + edgeTolerance) {
             "회전된 표가 이미지 영역을 벗어납니다."
         }
         val surface = Surface.makeRasterN32Premul(imageWidth, imageHeight)
