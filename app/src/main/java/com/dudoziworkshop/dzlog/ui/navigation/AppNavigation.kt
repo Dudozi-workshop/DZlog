@@ -82,6 +82,7 @@ import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureSummary
 import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
+import com.dudoziworkshop.dzlog.ui.project.ProjectMediaDeleteDialog
 import com.dudoziworkshop.dzlog.domain.project.ProjectTemplateSelectionPolicy
 import kotlinx.coroutines.flow.collectLatest
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
@@ -199,6 +200,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var showProjectPicker by remember { mutableStateOf(false) }
     var projectListCreateInitially by remember { mutableStateOf(false) }
     var projectDetailsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var projectPendingPhotoDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     var projectSummaries by remember { mutableStateOf<Map<String, ProjectCaptureSummary>>(emptyMap()) }
     var viewedProjectResultsId by rememberSaveable { mutableStateOf<String?>(null) }
     var activeProjectCaptureCount by remember { mutableIntStateOf(0) }
@@ -1093,6 +1095,16 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onRename = { name -> appScope.launch { projectManagement.rename(project.id, name) } },
                     onComplete = { appScope.launch { try { projectManagement.complete(project.id) } catch (error: Exception) { Toast.makeText(context, error.message ?: "완료 실패", Toast.LENGTH_SHORT).show() } } },
                     onReopen = { appScope.launch { projectManagement.reopen(project.id) } },
+                    onDeleteMetadata = { appScope.launch {
+                        try {
+                            projectManagement.deleteMetadataOnly(project.id)
+                            projectDetailsId = null
+                            screen = AppScreen.PROJECT_LIST
+                        } catch (error: Exception) {
+                            Toast.makeText(context, error.message ?: "프로젝트 삭제 실패", Toast.LENGTH_LONG).show()
+                        }
+                    } },
+                    onDeleteWithMedia = { projectPendingPhotoDeletionId = project.id },
                 )
             }
             AppScreen.HOME -> HomeScreen(
@@ -1476,6 +1488,19 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
             }
+        }
+        projectPendingPhotoDeletionId?.let { targetId ->
+            ProjectMediaDeleteDialog(
+                projectId = targetId,
+                onPrepare = projectManagement::prepareMediaDeletion,
+                onFinish = projectManagement::finalizeMediaDeletion,
+                onDeleted = {
+                    projectPendingPhotoDeletionId = null
+                    projectDetailsId = null
+                    screen = AppScreen.PROJECT_LIST
+                },
+                onDismiss = { projectPendingPhotoDeletionId = null },
+            )
         }
         if (showProjectPicker) ProjectPickerDialog(
             projects = captureProjectRegistry.projects,

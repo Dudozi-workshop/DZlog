@@ -53,10 +53,13 @@ internal fun ProjectDetailScreen(
     onRename: (String) -> Unit,
     onComplete: () -> Unit,
     onReopen: () -> Unit,
+    onDeleteMetadata: () -> Unit,
+    onDeleteWithMedia: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showComplete by remember { mutableStateOf(false) }
+    var showDeleteOptions by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -84,6 +87,10 @@ internal fun ProjectDetailScreen(
                     ) else DropdownMenuItem(
                         text = { Text("프로젝트 재개") },
                         onClick = { menuOpen = false; onReopen() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("프로젝트 삭제", color = DDZColor.Destructive) },
+                        onClick = { menuOpen = false; showDeleteOptions = true },
                     )
                 }
             }
@@ -155,4 +162,31 @@ internal fun ProjectDetailScreen(
             TextButton(onClick = { showComplete = false }) { Text("취소") }
         },
     )
+    if (showDeleteOptions) AlertDialog(
+        onDismissRequest = { showDeleteOptions = false },
+        title = { Text("프로젝트 삭제") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("프로젝트만 삭제하면 연결된 사진은 기존 저장 위치에 남습니다.")
+                Text("사진까지 삭제하면 Android의 파일별 삭제 확인을 거칩니다.")
+                Text("삭제한 프로젝트는 복구할 수 없습니다.", color = DDZColor.Destructive)
+            }
+        },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = {
+                    showDeleteOptions = false
+                    onDeleteMetadata()
+                }) { Text("프로젝트만 삭제 · 사진 유지") }
+                TextButton(onClick = {
+                    showDeleteOptions = false
+                    onDeleteWithMedia()
+                }) { Text("프로젝트 및 연결 사진 삭제", color = DDZColor.Destructive) }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showDeleteOptions = false }) { Text("취소") }
+        },
+    )
+
 }
