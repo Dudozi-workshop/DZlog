@@ -56,21 +56,33 @@ fi
 zip_hash="$(sha256sum "$artifact" | cut -d ' ' -f 1 | tr '[:upper:]' '[:lower:]')"
 [[ "$zip_hash" == "$EXPECTED_ZIP_SHA256" ]] || fail "Artifact ZIP checksum mismatch. Use the exact unsigned artifact from run 41273005089. Got $zip_hash"
 
-missing=()
-for tool in keytool jarsigner unzip; do
-  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
-done
-if (( ${#missing[@]} > 0 )); then
+# On Android 17 (especially Google Play Termux), OpenJDK 21 may abort native
+# registration of ProtoLogNative when launching keytool/jarsigner. Use Java 26
+# explicitly instead of relying on Termux's alternatives selection.
+command -v unzip >/dev/null 2>&1 || {
   if command -v pkg >/dev/null 2>&1; then
-    info 'Installing the official Termux OpenJDK and unzip tools (one-time setup).'
-    pkg install -y openjdk-17 unzip || fail 'Termux installation failed. Try: pkg update -y && pkg install -y openjdk-17 unzip'
+    pkg install -y unzip || fail 'Could not install unzip.'
   else
-    fail "Missing tools: ${missing[*]}. Use Termux and install: pkg install -y openjdk-17 unzip"
+    fail 'unzip is required.'
+  fi
+}
+termux_prefix="${PREFIX:-/data/data/com.termux/files/usr}"
+jdk26_home="$termux_prefix/lib/jvm/java-26-openjdk"
+if [[ ! -x "$jdk26_home/bin/keytool" || ! -x "$jdk26_home/bin/jarsigner" ]]; then
+  if command -v pkg >/dev/null 2>&1; then
+    info 'Installing OpenJDK 26 to avoid the known Android 17 ProtoLogNative crash in Java 21.'
+    pkg install -y openjdk-26 || fail 'OpenJDK 26 is not available in the configured Termux repository. Do not install unsigned or third-party JDK binaries.'
+  else
+    fail 'OpenJDK 26 is required for this Termux setup.'
   fi
 fi
-for tool in keytool jarsigner unzip; do
-  command -v "$tool" >/dev/null 2>&1 || fail "Still missing $tool after setup."
-done
+[[ -x "$jdk26_home/bin/keytool" && -x "$jdk26_home/bin/jarsigner" ]] || fail 'OpenJDK 26 keytool or jarsigner missing.'
+KEYTOOL="$jdk26_home/bin/keytool"
+JARSIGNER="$jdk26_home/bin/jarsigner"
+# Check the Java toolchain before asking for any private password.
+"$KEYTOOL" -help >/dev/null 2>&1 || fail 'OpenJDK 26 keytool did not start. Native Java runtime crash; no signing was attempted.'
+"$JARSIGNER" -help >/dev/null 2>&1 || fail 'OpenJDK 26 jarsigner did not start. No signing was attempted.'
+info 'OpenJDK 26 keytool and jarsigner are usable.'
 
 out="$downloads/$OUTPUT_FILENAME"
 [[ ! -e "$out" ]] || fail "Signed output already exists. Move it aside before a new attempt: $out"
@@ -83,7 +95,7 @@ entry="$(unzip -Z -1 "$artifact" | grep -E '(^|/)app-release\.aab$' | head -n 1 
 [[ -n "$entry" ]] || fail 'GitHub artifact ZIP does not contain app-release.aab.'
 unzip -p "$artifact" "$entry" > "$workdir/unsigned.aab"
 [[ -s "$workdir/unsigned.aab" ]] || fail 'Extracted AAB is empty.'
-unzip -Z -1 "$workdir/unsigned.aab" | grep -Fxq 'base/manifest/AndroidManifest.xml' || fail 'The unsigned file is not a recognizable Android App Bundle.'
+unzip -Z -1 "$workdir/unsigned.aab" | grep -Fx 'base/manifest/AndroidManifest.xml' >/dev/null || fail 'The unsigned file is not a recognizable Android App Bundle.'
 
 info 'Checking the private upload key locally.'
 printf 'Enter the UPLOAD KEY password here (hidden, never sent): ' >&2
@@ -91,17 +103,17 @@ IFS= read -r -s DZLOG_UPLOAD_KEY_PASSWORD || fail 'Could not read password from 
 printf '\n' >&2
 [[ -n "$DZLOG_UPLOAD_KEY_PASSWORD" ]] || fail 'The keystore password cannot be empty.'
 export DZLOG_UPLOAD_KEY_PASSWORD
-keytool -exportcert -alias upload -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keystore "$workdir/upload.jks" -file "$workdir/certificate.der" || fail 'Could not open keystore/alias upload.'
+"$KEYTOOL" -exportcert -alias upload -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keystore "$workdir/upload.jks" -file "$workdir/certificate.der" || fail 'Could not open keystore/alias upload.'
 cert_fingerprint="$(keytool -printcert -file "$workdir/certificate.der" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
 [[ "$cert_fingerprint" == "$EXPECTED_UPLOAD_SHA256" ]] || fail 'Local upload key certificate differs from the approved Play upload key. Signing STOPPED.'
 info 'Upload certificate SHA-256 verified. Signing AAB locally with alias upload.'
-jarsigner -keystore "$workdir/upload.jks" -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keypass:env DZLOG_UPLOAD_KEY_PASSWORD -digestalg SHA-256 -sigalg SHA256withRSA -signedjar "$workdir/signed.aab" "$workdir/unsigned.aab" upload || fail 'jarsigner failed. Check the local upload key password.'
+"$JARSIGNER" -keystore "$workdir/upload.jks" -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keypass:env DZLOG_UPLOAD_KEY_PASSWORD -digestalg SHA-256 -sigalg SHA256withRSA -signedjar "$workdir/signed.aab" "$workdir/unsigned.aab" upload || fail 'jarsigner failed. Check the local upload key password.'
 unset DZLOG_UPLOAD_KEY_PASSWORD
 [[ -s "$workdir/signed.aab" ]] || fail 'Signed output was not created.'
 
 info 'Verifying AAB signature and the signer certificate fingerprint.'
 verify_log="$workdir/verify.log"
-jarsigner -verify -verbose -certs "$workdir/signed.aab" > "$verify_log" 2>&1 || fail 'jarsigner signature verification failed.'
+"$JARSIGNER" -verify -verbose -certs "$workdir/signed.aab" > "$verify_log" 2>&1 || fail 'jarsigner signature verification failed.'
 grep -Fq 'jar verified.' "$verify_log" || fail 'jarsigner did not report jar verified.'
 unzip -Z -1 "$workdir/signed.aab" | grep -Eq '^META-INF/[^/]+\.(RSA|EC|DSA)$' || fail 'No AAB signature block was found.'
 signed_fingerprint="$(keytool -printcert -jarfile "$workdir/signed.aab" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
