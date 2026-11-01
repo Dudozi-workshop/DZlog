@@ -61,6 +61,8 @@ def file_sha256(path):
 
 
 def sign(artifact, keystore):
+    if shutil.which('openssl') is None:
+        fail('OpenSSL CLI is missing. In Termux run: pkg install -y openssl-tool, then run again. No keystore password was read.')
     output = artifact.parent / OUTPUT_NAME
     if output.exists():
         fail(f'Signed output already exists: {output}. Do not overwrite it.')
