@@ -9,6 +9,7 @@ import com.dudoziworkshop.dzlog.domain.media.buildCaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
+import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.buildScope
@@ -29,19 +30,12 @@ internal class IosCameraCaptureSession(
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
-    suspend fun saveJpeg(jpeg: ByteArray, renderedJpeg: ByteArray? = null): Boolean {
+    suspend fun saveJpeg(
+        jpeg: ByteArray,
+        renderedJpeg: ByteArray? = null,
+        renderForPreview: ((FinalCapturePreview) -> ByteArray)? = null,
+    ): Boolean {
         val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
-        // Fail closed: RESULT/BOTH must never silently persist an uncomposited original.
-        val payloads = when (doc.saveMode) {
-            SaveMode.ORIGINAL_ONLY -> mapOf(CaptureMediaRole.ORIGINAL to jpeg)
-            SaveMode.WATERMARK_ONLY -> mapOf(
-                CaptureMediaRole.RESULT to checkNotNull(renderedJpeg) { "표 합성 이미지가 필요합니다." },
-            )
-            SaveMode.BOTH -> mapOf(
-                CaptureMediaRole.RESULT to checkNotNull(renderedJpeg) { "표 합성 이미지가 필요합니다." },
-                CaptureMediaRole.ORIGINAL to jpeg,
-            )
-        }
         val counter = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
         check(!hasPending()) { "이전 촬영 기록 복구가 필요합니다." }
 
@@ -65,6 +59,26 @@ internal class IosCameraCaptureSession(
             includeFilenameInCounterScope = doc.includeFilenameInScope,
             saveMode = doc.saveMode, syncedCounter = counter, phraseProgressCursor = 0,
         ))
+        // Render from the exact preview used for the save plan. Never allow a
+        // separately recomputed counter, timestamp, or phrase value.
+        require(renderedJpeg == null || renderForPreview == null) {
+            "표 합성 이미지는 한 가지 방식으로만 제공해야 합니다."
+        }
+        val resultJpeg = when (doc.saveMode) {
+            SaveMode.ORIGINAL_ONLY -> null
+            SaveMode.WATERMARK_ONLY, SaveMode.BOTH ->
+                renderedJpeg ?: renderForPreview?.invoke(preview)
+        }
+        val payloads = when (doc.saveMode) {
+            SaveMode.ORIGINAL_ONLY -> mapOf(CaptureMediaRole.ORIGINAL to jpeg)
+            SaveMode.WATERMARK_ONLY -> mapOf(
+                CaptureMediaRole.RESULT to checkNotNull(resultJpeg) { "표 합성 이미지가 필요합니다." },
+            )
+            SaveMode.BOTH -> mapOf(
+                CaptureMediaRole.RESULT to checkNotNull(resultJpeg) { "표 합성 이미지가 필요합니다." },
+                CaptureMediaRole.ORIGINAL to jpeg,
+            )
+        }
         val plan = buildCaptureMediaSavePlan(
             preview, doc.saveMode, NSUUID().UUIDString.lowercase(),
         )
