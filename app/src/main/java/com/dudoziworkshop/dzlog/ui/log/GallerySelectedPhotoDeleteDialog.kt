@@ -29,6 +29,8 @@ internal fun GallerySelectedPhotoDeleteDialog(
     reader: DzlogMediaStoreReader,
     onVerified: (Set<Long>) -> Unit,
     onClose: () -> Unit,
+    /** Quick Results deletes every file of the SAME captured shutter. */
+    captureGroupMode: Boolean = false,
 ) {
     var loading by remember(selected) { mutableStateOf(true) }
     var snapshot by remember(selected) { mutableStateOf<List<MediaImageItem>?>(null) }
@@ -63,6 +65,7 @@ internal fun GallerySelectedPhotoDeleteDialog(
             selected = selected,
             allPhotos = photos,
             busy = false,
+            captureGroupMode = captureGroupMode,
             onCancel = onClose,
             onConfirm = { plan ->
                 if (!action.busy && retry == null) {

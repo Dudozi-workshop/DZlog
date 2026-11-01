@@ -31,6 +31,7 @@ internal fun GalleryPhotoDeleteConfirmation(
     selected: List<MediaImageItem>,
     allPhotos: List<MediaImageItem>,
     busy: Boolean,
+    captureGroupMode: Boolean = false,
     onCancel: () -> Unit,
     onConfirm: (GalleryPhotoDeletePlan) -> Unit,
 ) {
@@ -38,26 +39,31 @@ internal fun GalleryPhotoDeleteConfirmation(
     val spacing = LocalDDZSpacing.current
     val typography = LocalDDZTypography.current
     val originals = remember(selected, allPhotos) {
-        GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
+        if (captureGroupMode) emptyList() else GalleryPhotoMovePolicy.pairedOriginals(selected, allPhotos)
     }
     var includeOriginals by remember(selected, allPhotos) { mutableStateOf(false) }
     val prepared = remember(selected, allPhotos, includeOriginals) {
-        runCatching { GalleryPhotoDeletion.prepare(selected, allPhotos, includeOriginals) }
+        runCatching { GalleryPhotoDeletion.prepare(selected, allPhotos, if (captureGroupMode) false else includeOriginals) }
     }
     val plan = prepared.getOrNull()
 
     DDZContentDialog(
-        title = "선택한 사진을 삭제할까요?",
+        title = if (captureGroupMode) "촬영 1건을 삭제할까요?" else "선택한 사진을 삭제할까요?",
         onDismiss = { if (!busy) onCancel() },
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
-                Text("삭제할 사진과 원본 포함 여부를 확인해 주세요.",
-                    style = typography.Body, color = colors.TextSecondary)
-                GalleryFolderInfoCard(
-                    name = "선택한 사진",
-                    detail = "사진 ${selected.distinctBy { it.id }.size}장 · 연결된 원본 ${originals.size}장",
+                Text(
+                    if (captureGroupMode) "촬영 1회에 연결된 결과사진과 원본사진을 함께 삭제합니다."
+                    else "삭제할 사진과 원본 포함 여부를 확인해 주세요.",
+                    style = typography.Body, color = colors.TextSecondary,
                 )
-                if (originals.isNotEmpty()) {
+                GalleryFolderInfoCard(
+                    name = if (captureGroupMode) "촬영 1건" else "선택한 사진",
+                    detail = if (captureGroupMode) {
+                        "삭제할 실제 사진 ${selected.distinctBy { it.id }.size}개"
+                    } else "사진 ${selected.distinctBy { it.id }.size}장 · 연결된 원본 ${originals.size}장",
+                )
+                if (!captureGroupMode && originals.isNotEmpty()) {
                     DDZButton(
                         text = if (!includeOriginals) "✓ 선택한 사진만 삭제" else "선택한 사진만 삭제",
                         onClick = { includeOriginals = false },
