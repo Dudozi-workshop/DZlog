@@ -183,7 +183,7 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                     imageWidth = 128, imageHeight = 128,
                     template = template.templateState, preview = preview,
                     style = template.styleState,
-                    anchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.BOTTOM_RIGHT,
+                    anchor = IosTableAnchor.BOTTOM_RIGHT,
                     offsetXPercent = 0, offsetYPercent = 0,
                     widthRatio = 40, heightRatio = 20,
                 )
@@ -192,7 +192,7 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                     imageWidth = 128, imageHeight = 128,
                     template = template.templateState, preview = preview,
                     style = template.styleState,
-                    anchor = com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor.CUSTOM,
+                    anchor = IosTableAnchor.CUSTOM,
                     offsetXPercent = 50, offsetYPercent = 50,
                     widthRatio = 40, heightRatio = 20,
                 )
