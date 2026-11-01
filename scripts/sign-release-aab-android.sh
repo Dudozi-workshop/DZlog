@@ -104,7 +104,7 @@ printf '\n' >&2
 [[ -n "$DZLOG_UPLOAD_KEY_PASSWORD" ]] || fail 'The keystore password cannot be empty.'
 export DZLOG_UPLOAD_KEY_PASSWORD
 "$KEYTOOL" -exportcert -alias upload -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keystore "$workdir/upload.jks" -file "$workdir/certificate.der" || fail 'Could not open keystore/alias upload.'
-cert_fingerprint="$(keytool -printcert -file "$workdir/certificate.der" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+cert_fingerprint="$("$KEYTOOL" -printcert -file "$workdir/certificate.der" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
 [[ "$cert_fingerprint" == "$EXPECTED_UPLOAD_SHA256" ]] || fail 'Local upload key certificate differs from the approved Play upload key. Signing STOPPED.'
 info 'Upload certificate SHA-256 verified. Signing AAB locally with alias upload.'
 "$JARSIGNER" -keystore "$workdir/upload.jks" -storetype PKCS12 -storepass:env DZLOG_UPLOAD_KEY_PASSWORD -keypass:env DZLOG_UPLOAD_KEY_PASSWORD -digestalg SHA-256 -sigalg SHA256withRSA -signedjar "$workdir/signed.aab" "$workdir/unsigned.aab" upload || fail 'jarsigner failed. Check the local upload key password.'
@@ -116,7 +116,7 @@ verify_log="$workdir/verify.log"
 "$JARSIGNER" -verify -verbose -certs "$workdir/signed.aab" > "$verify_log" 2>&1 || fail 'jarsigner signature verification failed.'
 grep -Fq 'jar verified.' "$verify_log" || fail 'jarsigner did not report jar verified.'
 unzip -Z -1 "$workdir/signed.aab" | grep -Eq '^META-INF/[^/]+\.(RSA|EC|DSA)$' || fail 'No AAB signature block was found.'
-signed_fingerprint="$(keytool -printcert -jarfile "$workdir/signed.aab" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+signed_fingerprint="$("$KEYTOOL" -printcert -jarfile "$workdir/signed.aab" | grep -m 1 'SHA256:' | sed -E 's/.*SHA256:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
 [[ "$signed_fingerprint" == "$EXPECTED_UPLOAD_SHA256" ]] || fail 'Signed AAB signer certificate does not match expected upload key.'
 
 cp -- "$workdir/signed.aab" "$out"
