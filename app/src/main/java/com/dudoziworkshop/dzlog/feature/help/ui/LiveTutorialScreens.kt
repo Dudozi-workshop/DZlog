@@ -77,7 +77,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
             else -> key(location.areaId, location.sessionId) {
                 // Read-only fixture only when the current template lacks two draggable rules.
                 val savingPreviewTemplate = remember(template, location.areaId, location.sessionId) {
-                    if (location.areaId == "saving" && location.sessionId == "filename") {
+                    if (location.areaId == "saving") {
                         savingTutorialPreviewTemplate(template)
                     } else template
                 }
