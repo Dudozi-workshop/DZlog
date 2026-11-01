@@ -1,8 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
-import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
-import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,39 +10,71 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Button
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.domain.project.CaptureProject
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.ui.common.NextCaptureInfoFields
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
+private enum class CaptureInfoList { PROJECT, TEMPLATE }
+
+/**
+ * Reuses the existing camera-centre popup. Selectors expand INSIDE the fixed
+ * popup, never open a second modal over the live camera.
+ * During pending saves, callers must pass canChangeSelection=false. This view
+ * still permits reading the project, template, filename and save paths.
+ */
 @Composable
 internal fun CameraNextCaptureInfoPopup(
     nextFileName: String,
     relativePaths: List<String>,
     onOpenSaveSettings: () -> Unit,
     onDismiss: () -> Unit,
+    projects: List<CaptureProject> = emptyList(),
+    selectedProjectId: String? = null,
+    templates: List<SavedTableTemplate> = emptyList(),
+    selectedTemplateId: String? = null,
+    canChangeSelection: Boolean = true,
+    onSelectProject: (String?) -> Unit = {},
+    onSelectTemplate: (String) -> Unit = {},
+    onManageProjects: () -> Unit = {},
+    onOpenTableEditor: () -> Unit = {},
 ) {
+    var expanded by remember { mutableStateOf<CaptureInfoList?>(null) }
+    val projectName = projects.firstOrNull { it.id == selectedProjectId }?.title ?: "일반 촬영"
+    val templateName = templates.firstOrNull { it.id == selectedTemplateId }?.name ?: "선택된 템플릿 없음"
     BackHandler(onBack = onDismiss)
-    Box(Modifier.fillMaxSize().padding(bottom = com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialCardBottomSpace.current)) {
+    Box(
+        Modifier.fillMaxSize().padding(bottom = LocalTutorialCardBottomSpace.current),
+    ) {
         Box(
             Modifier.fillMaxSize()
                 .background(DDZColor.PrimaryDark.copy(alpha = 0.20f))
@@ -53,7 +82,7 @@ internal fun CameraNextCaptureInfoPopup(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onDismiss,
-                )
+                ),
         )
         Surface(
             modifier = Modifier
@@ -61,16 +90,16 @@ internal fun CameraNextCaptureInfoPopup(
                 .then(if (LocalTutorialReadOnly.current) Modifier.statusBarsPadding() else Modifier)
                 .padding(horizontal = 20.dp)
                 .fillMaxWidth()
-                .widthIn(max = 360.dp).tutorialTarget("camera.next-info"),
+                .widthIn(max = 360.dp)
+                .heightIn(max = 560.dp)
+                .tutorialTarget("camera.next-info"),
             shape = RoundedCornerShape(16.dp),
             color = DDZColor.Card,
             shadowElevation = 6.dp,
         ) {
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text("다음 촬영 정보", style = DDZTypography.OverlayTitleCompact, color = DDZColor.Primary)
@@ -78,14 +107,133 @@ internal fun CameraNextCaptureInfoPopup(
                         Icon(Icons.Default.Close, contentDescription = "닫기")
                     }
                 }
-                com.dudoziworkshop.dzlog.ui.common.NextCaptureInfoFields(
+                CaptureInfoSelectionHeader(
+                    title = "프로젝트",
+                    value = projectName,
+                    onClick = {
+                        expanded = if (expanded == CaptureInfoList.PROJECT) null else CaptureInfoList.PROJECT
+                    },
+                )
+                if (expanded == CaptureInfoList.PROJECT) {
+                    Column(Modifier.heightIn(max = 158.dp).verticalScroll(rememberScrollState())) {
+                        CaptureInfoChoiceRow(
+                            name = "일반 촬영",
+                            selected = selectedProjectId == null,
+                            enabled = canChangeSelection,
+                            onClick = { expanded = null; onSelectProject(null) },
+                        )
+                        projects.filter(CaptureProject::isActive)
+                            .sortedByDescending(CaptureProject::createdAt)
+                            .forEach { project ->
+                                CaptureInfoChoiceRow(
+                                    name = project.title,
+                                    selected = selectedProjectId == project.id,
+                                    enabled = canChangeSelection,
+                                    onClick = { expanded = null; onSelectProject(project.id) },
+                                )
+                            }
+                        TextButton(
+                            onClick = onManageProjects,
+                            enabled = canChangeSelection,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("프로젝트 만들기 · 관리") }
+                    }
+                }
+                CaptureInfoSelectionHeader(
+                    title = "템플릿",
+                    value = templateName,
+                    onClick = {
+                        expanded = if (expanded == CaptureInfoList.TEMPLATE) null else CaptureInfoList.TEMPLATE
+                    },
+                )
+                if (expanded == CaptureInfoList.TEMPLATE) {
+                    Column(Modifier.heightIn(max = 158.dp).verticalScroll(rememberScrollState())) {
+                        if (templates.isEmpty()) {
+                            Text("사용 가능한 템플릿이 없습니다.", style = DDZTypography.Secondary,
+                                color = DDZColor.TextSecondary)
+                        }
+                        templates.forEach { template ->
+                            CaptureInfoChoiceRow(
+                                name = template.name,
+                                selected = template.id == selectedTemplateId,
+                                enabled = canChangeSelection,
+                                onClick = { expanded = null; onSelectTemplate(template.id) },
+                            )
+                        }
+                    }
+                }
+                if (!canChangeSelection && !LocalTutorialReadOnly.current) {
+                    Text(
+                        "저장·복원 또는 Undo 처리가 끝나면 프로젝트와 템플릿을 변경할 수 있어요.",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary,
+                    )
+                }
+                NextCaptureInfoFields(
                     fileName = nextFileName,
                     relativePaths = relativePaths,
                 )
-                Button(onClick = onOpenSaveSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text("저장 설정으로 이동")
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(
+                        onClick = onOpenTableEditor,
+                        enabled = canChangeSelection,
+                        modifier = Modifier.weight(1f),
+                    ) { Text("표 편집") }
+                    Button(
+                        onClick = onOpenSaveSettings,
+                        enabled = canChangeSelection,
+                        modifier = Modifier.weight(1f),
+                    ) { Text("저장 설정") }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CaptureInfoSelectionHeader(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(title + " · 선택", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+        Text(value + "  ▾", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun CaptureInfoChoiceRow(
+    name: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clickable(enabled = enabled && !selected, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            name,
+            modifier = Modifier.weight(1f),
+            style = DDZTypography.Body,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = if (selected) DDZColor.PrimaryDark else DDZColor.TextPrimary,
+        )
+        if (selected) Icon(Icons.Default.Check, contentDescription = "현재 선택",
+            tint = DDZColor.SelectedDark)
     }
 }

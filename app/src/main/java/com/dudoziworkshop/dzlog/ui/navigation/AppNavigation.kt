@@ -395,12 +395,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
         val previousId = tableTemplateViewModel.activeTemplateId ?: return false
         if (!hasRestoredTemplate || tableTemplateViewModel.templates.none { it.id == templateId }) return false
         if (previousId == templateId) return true
+        if (screen == AppScreen.CAMERA && !projectManagement.canChangeCaptureTarget()) return false
         return try {
             val next = replaceActiveSavedTableTemplate(
                 items = tableTemplateViewModel.templates, activeTemplateId = previousId, templateState = current)
             tableCatalogCoordinator.activate(items = next, activeTemplateId = templateId)
             tableTemplateViewModel.setCatalog(next, templateId)
             projectManagement.rememberTemplate(templateId)
+            cameraPhraseUndoHistory.clear() // Every template switch is a new Undo boundary.
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -735,6 +737,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
             "사진 저장 완료 후 프로젝트를 변경할 수 있습니다."
         }
         val before = tableTemplateViewModel.activeTemplateId
+        // Preserve the outgoing context's last template before switching targets.
+        if (captureProjectRegistry.activeId != projectId) before?.let { projectManagement.rememberTemplate(it) }
         val choice = ProjectTemplateSelectionPolicy.choose(
             captureProjectRegistry, projectId,
             tableTemplateViewModel.templates.map { it.id }, before,
@@ -1028,8 +1032,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     projectId = captureProjectRegistry.activeId,
                     projectCaptureCount = if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
                     projectLatestImage = activeProjectLatestPhoto.takeIf { loadedProjectPreviewId == captureProjectRegistry.activeId },
+                    projects = captureProjectRegistry.projects,
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
+                    onSelectProject = { target ->
+                        selectCaptureProject(target)
+                        true
+                    },
+                    onManageProjects = { openProjectList() },
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
@@ -1130,8 +1140,14 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     projectId = captureProjectRegistry.activeId,
                     projectCaptureCount = if (loadedProjectPreviewId == captureProjectRegistry.activeId) activeProjectCaptureCount else 0,
                     projectLatestImage = activeProjectLatestPhoto.takeIf { loadedProjectPreviewId == captureProjectRegistry.activeId },
+                    projects = captureProjectRegistry.projects,
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
+                    onSelectProject = { target ->
+                        selectCaptureProject(target)
+                        true
+                    },
+                    onManageProjects = { openProjectList() },
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,

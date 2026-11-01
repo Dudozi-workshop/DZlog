@@ -99,6 +99,8 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickValueSheet
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTopBar
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
+import com.dudoziworkshop.dzlog.domain.project.CaptureProject
+import com.dudoziworkshop.dzlog.feature.capture.policy.CameraSelectionChangePolicy
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
@@ -153,6 +155,9 @@ fun CameraScreen(
     projectId: String? = null,
     projectCaptureCount: Int = 0,
     projectLatestImage: com.dudoziworkshop.dzlog.domain.model.MediaImageItem? = null,
+    projects: List<CaptureProject> = emptyList(),
+    onSelectProject: suspend (String?) -> Boolean = { false },
+    onManageProjects: () -> Unit = {},
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -191,6 +196,9 @@ fun CameraScreen(
                 projectId = projectId,
                 projectCaptureCount = projectCaptureCount,
                 projectLatestImage = projectLatestImage,
+                projects = projects,
+                onSelectProject = onSelectProject,
+                onManageProjects = onManageProjects,
                 quickEditSelectionMemory = quickEditSelectionMemory,
                 onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
@@ -242,6 +250,9 @@ fun CameraPreview(
     projectId: String? = null,
     projectCaptureCount: Int = 0,
     projectLatestImage: com.dudoziworkshop.dzlog.domain.model.MediaImageItem? = null,
+    projects: List<CaptureProject> = emptyList(),
+    onSelectProject: suspend (String?) -> Boolean = { false },
+    onManageProjects: () -> Unit = {},
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -1033,18 +1044,69 @@ fun CameraPreview(
             )
         }
         if (showNextCaptureInfo || (readOnlyTour && tourLocation?.pageId in listOf("filename", "path", "counter"))) {
+            val changesEnabled = CameraSelectionChangePolicy.canChange(
+                readOnlyTour = readOnlyTour,
+                isCapturing = ui.capture.isCapturing,
+                pendingSaveCount = ui.capture.pendingSaveCount,
+                pendingSaveError = ui.capture.pendingSaveError,
+                isRecoveringPendingCaptures = ui.capture.isRecoveringPendingCaptures,
+                pendingPreviewCaptureId = ui.capture.pendingPreviewCaptureId,
+                undoPending = undoDeleteController.isBusy || undoPhraseSaving ||
+                    undoDeletionIncomplete || undoPathWarning != null,
+            )
             CameraNextCaptureInfoPopup(
                 nextFileName = topDisplayName,
                 relativePaths = capturePhysicalSavePaths(
                     finalCapturePreview?.relativePathPreview ?: captureScopeState.relativePathPreview,
                     appSettings.saveMode,
                 ),
+                projects = projects,
+                selectedProjectId = projectId,
+                templates = quickTemplates,
+                selectedTemplateId = quickTemplateId,
+                canChangeSelection = changesEnabled,
+                onSelectProject = { target ->
+                    if (changesEnabled && target != projectId) scope.launch {
+                        try {
+                            if (!onSelectProject(target)) {
+                                Toast.makeText(context, "프로젝트를 전환하지 못했어요.", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Toast.makeText(context, error.message ?: "프로젝트 전환 실패", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onSelectTemplate = { target ->
+                    if (changesEnabled && target != quickTemplateId) scope.launch {
+                        try {
+                            if (!onQuickTemplateSelect(target, effectiveTemplate)) {
+                                Toast.makeText(context, "템플릿을 변경하지 못했어요.", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Toast.makeText(context, error.message ?: "템플릿 변경 실패", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onManageProjects = {
+                    if (changesEnabled) {
+                        showNextCaptureInfo = false
+                        onManageProjects()
+                    }
+                },
+                onOpenTableEditor = {
+                    if (changesEnabled) {
+                        showNextCaptureInfo = false
+                        onOpenTableEditor()
+                    }
+                },
                 onOpenSaveSettings = {
-                    if (ui.capture.pendingSaveCount == 0) {
+                    if (changesEnabled) {
                         showNextCaptureInfo = false
                         onOpenSaveSettings()
-                    } else {
-                        Toast.makeText(context, "저장 완료 후 설정을 변경할 수 있습니다.", Toast.LENGTH_SHORT).show()
                     }
                 },
                 onDismiss = { showNextCaptureInfo = false },
