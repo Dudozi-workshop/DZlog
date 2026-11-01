@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsCaptureDeletePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -113,6 +114,7 @@ fun LogViewerScreen(
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
     isQuickResultsViewer: Boolean = false,
+    quickResultCaptureGroups: List<com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture> = emptyList(),
     onSessionMediaChanged: (Set<Long>) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -412,9 +414,30 @@ fun LogViewerScreen(
     }
 
     deleteItem?.let { requested ->
-        GalleryViewerDeleteDialog(
-            item = requested,
+        val deleteSelection = remember(requested, quickResultCaptureGroups, isQuickResultsViewer) {
+            if (!isQuickResultsViewer) listOf(requested)
+            else {
+                val uris = QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
+                    requested.uri.toString(), quickResultCaptureGroups,
+                )
+                val photoIndex = (items + quickResultCaptureGroups.flatMap { capture ->
+                    listOfNotNull(capture.original, capture.result).mapNotNull { linked ->
+                        // The caller owns all loaded MediaStore items; the exact
+                        // requested list is resolved before the dialog is opened.
+                        if (linked.uri == requested.uri.toString()) requested else null
+                    }
+                }).associateBy { it.uri.toString() }
+                // Resolve the original through a verified snapshot below; do not
+                // silently fall back to deleting only one of two linked files.
+                uris.map { uri -> requireNotNull(photoIndex[uri]) {
+                    "연결된 원본·결과 목록을 새로 불러와 주세요."
+                } }
+            }
+        }
+        GallerySelectedPhotoDeleteDialog(
+            selected = deleteSelection,
             reader = reader,
+            captureGroupMode = isQuickResultsViewer,
             onVerified = { deletedIds ->
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
