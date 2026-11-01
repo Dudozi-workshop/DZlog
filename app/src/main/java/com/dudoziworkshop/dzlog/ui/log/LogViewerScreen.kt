@@ -115,6 +115,7 @@ fun LogViewerScreen(
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
     isQuickResultsViewer: Boolean = false,
     quickResultCaptureGroups: List<com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture> = emptyList(),
+    quickResultAllPhotos: List<MediaImageItem> = emptyList(),
     onSessionMediaChanged: (Set<Long>) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -414,23 +415,16 @@ fun LogViewerScreen(
     }
 
     deleteItem?.let { requested ->
-        val deleteSelection = remember(requested, quickResultCaptureGroups, isQuickResultsViewer) {
-            if (!isQuickResultsViewer) listOf(requested)
-            else {
-                val uris = QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
+        val deleteSelection = remember(
+            requested, quickResultCaptureGroups, quickResultAllPhotos, isQuickResultsViewer,
+        ) {
+            if (!isQuickResultsViewer) listOf(requested) else {
+                val targetUris = QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
                     requested.uri.toString(), quickResultCaptureGroups,
                 )
-                val photoIndex = (items + quickResultCaptureGroups.flatMap { capture ->
-                    listOfNotNull(capture.original, capture.result).mapNotNull { linked ->
-                        // The caller owns all loaded MediaStore items; the exact
-                        // requested list is resolved before the dialog is opened.
-                        if (linked.uri == requested.uri.toString()) requested else null
-                    }
-                }).associateBy { it.uri.toString() }
-                // Resolve the original through a verified snapshot below; do not
-                // silently fall back to deleting only one of two linked files.
-                uris.map { uri -> requireNotNull(photoIndex[uri]) {
-                    "연결된 원본·결과 목록을 새로 불러와 주세요."
+                val byUri = quickResultAllPhotos.associateBy { it.uri.toString() }
+                targetUris.map { uri -> requireNotNull(byUri[uri]) {
+                    "연결된 원본·결과 사진이 변경됐습니다. 목록을 새로 확인해 주세요."
                 } }
             }
         }
