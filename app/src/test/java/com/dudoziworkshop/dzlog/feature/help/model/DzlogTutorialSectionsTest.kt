@@ -105,23 +105,22 @@ class DzlogTutorialSectionsTest {
         assertEquals(0, tutorialPageIndex(pages, "removed-page"))
         assertEquals(0, tutorialPageIndex(pages, ""))
     }
-    @Test fun savingGesturesShowTwoItemsWithoutMutatingTheUserTemplate() {
+    @Test fun savingTutorialUsesFixedFilenameAndPathWithoutMutatingUserTemplate() {
         val empty = TableTemplateState(rows = 1, cols = 1, cells = emptyList())
-        val preview = savingTutorialPreviewTemplate(empty)
-        assertTrue(empty.fileNameSlotDrafts.all { it == null })
-        assertEquals(2, preview.fileNameSlotDrafts.count { it != null })
-        assertEquals("MANUAL", preview.fileNameSlotDrafts[0]?.kind)
-        assertEquals("FORMAT", preview.fileNameSlotDrafts[1]?.kind)
-
-        val existing = TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "기존")
-        val one = empty.copy(fileNameSlotDrafts = listOf(existing) + List(4) { null })
-        val supplemented = savingTutorialPreviewTemplate(one)
-        assertEquals(existing, supplemented.fileNameSlotDrafts.first())
-        assertEquals(2, supplemented.fileNameSlotDrafts.count { it != null })
-        assertEquals(1, one.fileNameSlotDrafts.count { it != null })
-
-        val ready = empty.copy(fileNameSlotDrafts = listOf(existing, existing) + List(3) { null })
-        assertSame(ready, savingTutorialPreviewTemplate(ready))
+        val one = empty.copy(
+            fileNameSlotDrafts = listOf(TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "개인파일")) + List(4) { null },
+            pathSlotDrafts = listOf(TableEditorSlotDraft(kind = "MANUAL", label = "직접입력", manualText = "개인폴더")) + List(4) { null },
+        )
+        val expected = savingTutorialPreviewTemplate(empty)
+        val preview = savingTutorialPreviewTemplate(one)
+        assertEquals(expected.fileNameSlotDrafts, preview.fileNameSlotDrafts)
+        assertEquals(expected.pathSlotDrafts, preview.pathSlotDrafts)
+        assertEquals(listOf("현장기록", null), preview.fileNameSlotDrafts.take(2).map { it?.manualText })
+        assertEquals(listOf("현장기록", null), preview.pathSlotDrafts.take(2).map { it?.manualText })
+        assertEquals("DATE", preview.fileNameSlotDrafts[1]?.formatType)
+        assertEquals("DATE", preview.pathSlotDrafts[1]?.formatType)
+        assertEquals("개인파일", one.fileNameSlotDrafts[0]?.manualText)
+        assertEquals("개인폴더", one.pathSlotDrafts[0]?.manualText)
     }
 
     @Test fun savingSourceChoiceExplanationMatchesTheActualFourOptions() {
