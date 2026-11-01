@@ -2,7 +2,6 @@ package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
-import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
@@ -18,6 +17,11 @@ import kotlin.math.sin
  * Caller resolves dynamic cell values before rendering. Translation and rotation
  * are supported, but Android camera placement parity is a separate integration gate.
  */
+/** iOS-local mirror of Android's five anchor options; no Android source dependency. */
+internal enum class IosTableAnchor {
+    TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, CUSTOM,
+}
+
 internal object IosTableOverlayRenderer {
     fun renderPng(
         imageWidth: Int,
@@ -159,7 +163,7 @@ internal object IosTableOverlayRenderer {
         template: TableTemplateState,
         preview: FinalCapturePreview,
         style: TableStyleState,
-        anchor: WatermarkTableAnchor,
+        anchor: IosTableAnchor,
         offsetXPercent: Int,
         offsetYPercent: Int,
         widthRatio: Int,
@@ -174,14 +178,14 @@ internal object IosTableOverlayRenderer {
         val availableY = imageHeight - height
         require(availableY >= 0f) { "표가 이미지 높이를 초과합니다." }
         val x = when (anchor) {
-            WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.BOTTOM_LEFT -> 0f
-            WatermarkTableAnchor.TOP_RIGHT, WatermarkTableAnchor.BOTTOM_RIGHT -> availableX
-            WatermarkTableAnchor.CUSTOM -> availableX * offsetXPercent / 100f
+            IosTableAnchor.TOP_LEFT, IosTableAnchor.BOTTOM_LEFT -> 0f
+            IosTableAnchor.TOP_RIGHT, IosTableAnchor.BOTTOM_RIGHT -> availableX
+            IosTableAnchor.CUSTOM -> availableX * offsetXPercent / 100f
         }
         val y = when (anchor) {
-            WatermarkTableAnchor.TOP_LEFT, WatermarkTableAnchor.TOP_RIGHT -> 0f
-            WatermarkTableAnchor.BOTTOM_LEFT, WatermarkTableAnchor.BOTTOM_RIGHT -> availableY
-            WatermarkTableAnchor.CUSTOM -> availableY * offsetYPercent / 100f
+            IosTableAnchor.TOP_LEFT, IosTableAnchor.TOP_RIGHT -> 0f
+            IosTableAnchor.BOTTOM_LEFT, IosTableAnchor.BOTTOM_RIGHT -> availableY
+            IosTableAnchor.CUSTOM -> availableY * offsetYPercent / 100f
         }
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style,
