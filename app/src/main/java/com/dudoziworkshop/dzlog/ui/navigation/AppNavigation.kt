@@ -1471,16 +1471,37 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                     DzlogMediaStoreReader(context.contentResolver)
                                         .loadImagesUnderPrefix("Pictures/DZlog/")
                                 }
-                                quickResultsPhotos = refreshed
-                                val groups = cameraSessionCaptureStack.map { group ->
-                                    group.map(Uri::toString)
+                                val actualDeletedUris = quickResultsPhotos
+                                    .filter { photo -> photo.id in changedIds && refreshed.none { it.uri == photo.uri } }
+                                    .mapTo(mutableSetOf()) { it.uri.toString() }
+                                val newProjectId = viewedProjectResultsId ?: captureProjectRegistry.activeId
+                                if (actualDeletedUris.isNotEmpty()) {
+                                    com.dudoziworkshop.dzlog.data.project.CaptureRecordRoomStore(context)
+                                        .afterVerifiedDeletion(actualDeletedUris)
                                 }
-                                quickResultsCaptures = QuickResultsSessionPolicy.captures(
-                                    groups,
-                                    refreshed.map { photo ->
-                                        QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
-                                    },
-                                )
+                                if (newProjectId != null) {
+                                    val projectResult = projectReadViewModel.readProject(
+                                        captureProjectRegistry, newProjectId,
+                                    )
+                                    quickResultsPhotos = projectResult.photos
+                                    quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                        projectResult.visible.uriGroupsOldestFirst,
+                                        projectResult.photos.map { photo ->
+                                            QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
+                                        },
+                                    )
+                                } else {
+                                    quickResultsPhotos = refreshed
+                                    val groups = cameraSessionCaptureStack.map { group ->
+                                        group.map(Uri::toString)
+                                    }
+                                    quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                        groups,
+                                        refreshed.map { photo ->
+                                            QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
+                                        },
+                                    )
+                                }
                             }
                         }
                     },
