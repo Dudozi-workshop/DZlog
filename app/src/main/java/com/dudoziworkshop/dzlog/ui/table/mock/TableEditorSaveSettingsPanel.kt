@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import com.dudoziworkshop.dzlog.feature.help.ui.tutorialTarget
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialLocation
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,8 @@ internal fun TableEditorSaveSettingsPanel(
     onOpenDetail: (TableEditorSaveDetail) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val showSavingExample = LocalTutorialReadOnly.current &&
+        LocalTutorialLocation.current?.areaId == "saving"
     Column(
         modifier = modifier
             .fillMaxWidth().tutorialTarget("saving.menu")
@@ -46,13 +50,13 @@ internal fun TableEditorSaveSettingsPanel(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.fillMaxWidth().tutorialTarget("saving.menu.filename")) { TableEditorSettingRow(
-            label = "파일명",
+            label = if (showSavingExample) "예시 파일명" else "파일명",
             leadingIcon = Icons.Filled.Description,
             value = fileNamePreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.FILE_NAME) },
         ) }
         Box(Modifier.fillMaxWidth().tutorialTarget("saving.menu.folder")) { TableEditorSettingRow(
-            label = "저장경로",
+            label = if (showSavingExample) "예시 저장경로" else "저장경로",
             leadingIcon = Icons.Filled.Folder,
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },

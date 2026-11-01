@@ -2,6 +2,9 @@ package com.dudoziworkshop.dzlog.feature.help.model
 
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2SessionState
+import com.dudoziworkshop.dzlog.ui.table.mock.formatMockCounter
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -121,6 +124,21 @@ class DzlogTutorialSectionsTest {
         assertEquals("DATE", preview.pathSlotDrafts[1]?.formatType)
         assertEquals("개인파일", one.fileNameSlotDrafts[0]?.manualText)
         assertEquals("개인폴더", one.pathSlotDrafts[0]?.manualText)
+    }
+
+    @Test fun isolatedSavingGuideCounterStartsAt001() {
+        val session = TableEditorV2SessionState(
+            initialTemplateState = TableTemplateState(rows = 1, cols = 1, cells = emptyList()),
+            initialStyleState = TableStyleState(),
+            includePathInCounterScope = false,
+            includeFilenameInCounterScope = false,
+            initialCounterPadding = 3,
+        )
+        session.initializeCounterState(1, usesAutoNext = false)
+        assertEquals(1, session.draftNextCounter)
+        assertEquals(3, session.draftCounterPadding)
+        assertFalse(session.draftUsesAutoNext)
+        assertEquals("001", formatMockCounter(session.draftNextCounter ?: 1, session.draftCounterPadding))
     }
 
     @Test fun savingSourceChoiceExplanationMatchesTheActualFourOptions() {

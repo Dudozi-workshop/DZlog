@@ -154,15 +154,20 @@ fun TableEditorV2Screen(
     hasPendingTemplateSelection: Boolean = false,
     onSwitchTemplate: (String) -> Unit = {},
 ) {
-    val session = remember {
+    val isolatedSavingGuide = LocalTutorialReadOnly.current &&
+        LocalTutorialLocation.current?.areaId == "saving"
+    val session = remember(isolatedSavingGuide) {
         TableEditorV2SessionState(
             initialTemplateState = templateState,
             initialStyleState = styleState,
             includePathInCounterScope = includePathInCounterScope,
             includeFilenameInCounterScope = includeFilenameInCounterScope,
             initialSaveMode = saveMode,
-            initialCounterPadding = counterPadding,
-        )
+            initialCounterPadding = if (isolatedSavingGuide) 3 else counterPadding,
+        ).also { session ->
+            // A demo-only counter never reads or changes the user's capture progress.
+            if (isolatedSavingGuide) session.initializeCounterState(1, usesAutoNext = false)
+        }
     }
     val draftTemplateState = session.draftTemplateState
     val styleGuide = LocalTutorialLocation.current?.takeIf { it.areaId == "table-detail" && it.sessionId == "style" }

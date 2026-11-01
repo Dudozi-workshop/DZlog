@@ -75,7 +75,7 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 else -> SettingsRootScreen(onBack = {})
             }
             else -> key(location.areaId, location.sessionId) {
-                // Read-only fixture only when the current template lacks two draggable rules.
+                // Both saving examples are local, deterministic and independent of user rules.
                 val savingPreviewTemplate = remember(template, location.areaId, location.sessionId) {
                     if (location.areaId == "saving") {
                         savingTutorialPreviewTemplate(template)
@@ -88,7 +88,8 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                         includeFilenameInCounterScope = settings.includeFilenameInCounterScope,
                         saveMode = settings.saveMode, counterPadding = settings.counterPadding,
                         styleState = style, openSaveSettingsInitially = location.areaId == "saving",
-                        onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {}, templateName = templateName)
+                        onSave = { _, _, _, _, _, _, _, _ -> false }, onBack = {},
+                        templateName = if (location.areaId == "saving") "예시 양식" else templateName)
                     if (location.areaId == "saving" && location.pageId in setOf("folder/add", "filename/sources")) {
                         // Reuse the real source choices in a separate read-only overlay.
                         // Neither the editor nor its scrolling content is repositioned.

@@ -69,6 +69,7 @@ internal fun TableEditorSaveDetailScreen(
     var counterInputDraft by remember(nextCounter) { mutableStateOf(nextCounter.toString()) }
     var pendingCopyDirection by remember(detail) { mutableStateOf<SaveRuleCopyDirection?>(null) }
     val guide = LocalTutorialLocation.current
+    val showSavingExample = LocalTutorialReadOnly.current && guide?.areaId == "saving"
     androidx.compose.runtime.LaunchedEffect(guide?.pageId) {
         if (guide?.areaId == "saving") {
             showCounterInput = guide.pageId == "counter/input"
@@ -110,7 +111,7 @@ internal fun TableEditorSaveDetailScreen(
             when (detail) {
                 TableEditorSaveDetail.FILE_NAME -> {
                     PreviewCard(
-                        label = if (LocalTutorialReadOnly.current) "예시 파일명" else "현재 파일명",
+                        label = if (showSavingExample) "예시 파일명" else "현재 파일명",
                         value = fileNamePreview,
                     )
                     Text("파일명 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
@@ -141,7 +142,7 @@ internal fun TableEditorSaveDetailScreen(
 
                 TableEditorSaveDetail.SAVE_PATH -> {
                     PreviewCard(
-                        label = if (LocalTutorialReadOnly.current) "예시 저장 위치" else "현재 저장 위치",
+                        label = if (showSavingExample) "예시 저장 위치" else "현재 저장 위치",
                         value = pathPreview,
                     )
                     Text("폴더 구성", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
