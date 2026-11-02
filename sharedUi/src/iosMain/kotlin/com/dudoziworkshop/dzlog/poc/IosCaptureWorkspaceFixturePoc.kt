@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.EditorDocument
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
+import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
@@ -277,6 +279,8 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                     )
                     val before = EditorWorkspace(listOf(doc), template.id)
                     check(store.save(before)) { "테스트 워크스페이스 준비 실패" }
+                    val media = PhotoKitCaptureMediaRepository()
+                    val knownCaptures = media.listSavedAssets().map { it.captureId }.toSet()
                     val committed = IosCameraCaptureSession(CAPTURE_FIXTURE_KEY, before)
                         .saveAndroidPlacedJpeg(
                             jpeg = captureFixtureJpeg(),
@@ -285,6 +289,13 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                             widthRatio = 40, heightRatio = 20,
                         )
                     check(committed) { "BOTH PhotoKit 저장 후 상태 확정 실패" }
+                    val newAssets = media.listSavedAssets().filter { it.captureId !in knownCaptures }
+                    check(newAssets.size == 2 && newAssets.map { it.captureId }.distinct().size == 1 &&
+                        newAssets.map { it.asset.target.role }.toSet() ==
+                            setOf(CaptureMediaRole.ORIGINAL, CaptureMediaRole.RESULT) &&
+                        newAssets.map { it.asset.assetId }.distinct().size == 2) {
+                        "BOTH 저장된 원본·합성본의 PhotoKit 기록이 올바르지 않습니다."
+                    }
                     val after = store.load(template)
                     check(after.active?.nextCounter == FIXTURE_COUNTER + 1) {
                         "BOTH 저장 후 다음 촬영 번호가 잘못됐습니다."
