@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import android.content.Context
 import com.dudoziworkshop.dzlog.domain.project.CaptureReservation
+import com.dudoziworkshop.dzlog.domain.project.CaptureMediaPresence
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -103,6 +104,59 @@ class CaptureRecordRoomStoreTest {
         assertEquals(0, store.afterVerifiedDeletion(emptySet()))
         assertEquals(0, store.afterVerifiedDeletion(setOf("content://other")))
         assertEquals(a, store.findById("a"))
+    }
+
+    @Test fun mediaMoveUpdatesPathWithoutChangingProjectOrShutter() = runBlocking {
+        val saved = record("moved", project = "A")
+        store.appendCommitted(saved)
+        val changed = store.reconcileProjectMedia(
+            "A", mapOf(
+                requireNotNull(saved.resultUri) to
+                    CaptureMediaPresence.Present("Pictures/Elsewhere/"),
+            )
+        )
+        val after = requireNotNull(store.findById(saved.captureId))
+        assertEquals(1, changed)
+        assertEquals("A", after.projectId)
+        assertEquals(saved.resultUri, after.resultUri)
+        assertEquals("Pictures/Elsewhere/", after.resultRelativePath)
+        assertEquals(saved.originalRelativePath, after.originalRelativePath)
+    }
+
+    @Test fun externalDeletionIsPartialUntilLastPhotoIsMissing() = runBlocking {
+        val saved = record("partial")
+        store.appendCommitted(saved)
+        assertEquals(1, store.reconcileProjectMedia("A", mapOf(
+            requireNotNull(saved.resultUri) to CaptureMediaPresence.ConfirmedMissing,
+            requireNotNull(saved.originalUri) to CaptureMediaPresence.Unknown,
+        )))
+        assertEquals(1, store.countForProject("A"))
+        assertEquals(saved.originalUri, store.findById("partial")?.displayUri)
+        assertEquals(1, store.reconcileProjectMedia("A", mapOf(
+            requireNotNull(saved.originalUri) to CaptureMediaPresence.ConfirmedMissing,
+        )))
+        assertEquals(0, store.countForProject("A"))
+        assertNull(store.findById("partial"))
+    }
+
+    @Test fun unknownReadCannotEraseOrMovePhoto() = runBlocking {
+        val saved = record("unknown")
+        store.appendCommitted(saved)
+        assertEquals(0, store.reconcileProjectMedia("A",
+            saved.mediaUris.associateWith { CaptureMediaPresence.Unknown }))
+        assertEquals(saved, store.findById("unknown"))
+    }
+
+    @Test fun anotherProjectIsNeverModifiedByExternalReconciliation() = runBlocking {
+        val a = record("A1", project = "A")
+        val b = record("B1", project = "B")
+        store.appendCommitted(a)
+        store.appendCommitted(b)
+        assertEquals(1, store.reconcileProjectMedia("A", mapOf(
+            requireNotNull(a.resultUri) to CaptureMediaPresence.ConfirmedMissing,
+            requireNotNull(b.resultUri) to CaptureMediaPresence.ConfirmedMissing,
+        )))
+        assertEquals(b, store.findById("B1"))
     }
 
     @Test fun dbReopenKeepsRecords() = runBlocking {

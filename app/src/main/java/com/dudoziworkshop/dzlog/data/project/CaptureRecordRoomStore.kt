@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
 import com.dudoziworkshop.dzlog.domain.project.CaptureRecord
+import com.dudoziworkshop.dzlog.domain.project.CaptureMediaPresence
+import com.dudoziworkshop.dzlog.domain.project.CaptureMediaReconcilePolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -78,6 +80,34 @@ internal class CaptureRecordRoomStore(private val db: CaptureRecordRoomDatabase)
 
     suspend fun latestForProject(projectId: String): CaptureRecord? =
         db.captureRecordDao().latestForProject(projectId)?.toDomain()
+
+    /**
+     * Synchronize only the named project's indexed URI references after
+     * explicit MediaStore checks. A successful move updates the path while
+     * keeping the project/capture ID. Unknown reads preserve original data.
+     * The transaction re-reads current rows so stale snapshots cannot revive
+     * a capture that was deleted elsewhere.
+     */
+    suspend fun reconcileProjectMedia(
+        projectId: String,
+        observations: Map<String, CaptureMediaPresence>,
+    ): Int {
+        if (observations.isEmpty()) return 0
+        return db.withTransaction {
+            val dao = db.captureRecordDao()
+            var changed = 0
+            dao.findForProject(projectId).forEach { row ->
+                val current = row.toDomain()
+                val updated = CaptureMediaReconcilePolicy.reconcile(current, observations)
+                if (updated != current) {
+                    if (updated == null) dao.deleteById(row.captureId)
+                    else dao.update(CaptureRecordEntity.from(updated))
+                    changed++
+                }
+            }
+            changed
+        }
+    }
 
     /**
      * The caller supplies actual, successfully deleted URIs (not requested
