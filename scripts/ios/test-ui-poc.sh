@@ -9,6 +9,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeCompositedJpegPhotoKitSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureResolvedTableOverlayProducesJpeg
