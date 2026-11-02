@@ -34,6 +34,16 @@ import platform.UIKit.UIView
 
 private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
 
+/** Explicit placement contract; absent until persisted iOS settings are mapped. */
+internal data class IosCaptureTablePlacement(
+    val anchor: IosTableAnchor,
+    val offsetXPercent: Int,
+    val offsetYPercent: Int,
+    val widthRatio: Int,
+    val heightRatio: Int,
+    val rotationCwDeg: Int = 0,
+)
+
 /**
  * Device-only AVFoundation -> PhotoKit proof of flow, behind --camera-flow.
  * Does not claim Android table overlay rendering or camera feature parity.
@@ -44,6 +54,7 @@ internal fun IosCameraCapturePoc(
     permissionGranted: Boolean,
     onBack: (() -> Unit)? = null,
     session: IosCameraCaptureSession? = null,
+    tablePlacement: IosCaptureTablePlacement? = null,
 ) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }
@@ -116,7 +127,19 @@ internal fun IosCameraCapturePoc(
                         try {
                             val jpeg = result.getOrThrow()
                             val committed = if (session != null) {
-                                session.saveJpeg(jpeg)
+                                if (tablePlacement == null) {
+                                    session.saveJpeg(jpeg)
+                                } else {
+                                    session.saveAndroidPlacedJpeg(
+                                        jpeg = jpeg,
+                                        anchor = tablePlacement.anchor,
+                                        offsetXPercent = tablePlacement.offsetXPercent,
+                                        offsetYPercent = tablePlacement.offsetYPercent,
+                                        widthRatio = tablePlacement.widthRatio,
+                                        heightRatio = tablePlacement.heightRatio,
+                                        rotationCwDeg = tablePlacement.rotationCwDeg,
+                                    )
+                                }
                             } else {
                                 check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
                                 saveStandaloneCameraFixture(jpeg, repository)
