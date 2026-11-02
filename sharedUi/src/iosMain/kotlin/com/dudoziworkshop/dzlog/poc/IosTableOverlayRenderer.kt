@@ -48,7 +48,9 @@ internal object IosTableOverlayRenderer {
         }
         val tableW = imageWidth * (widthRatio / 100f)
         val tableH = imageWidth * (heightRatio / 100f)
-        require(offsetXRatio in 0f..1f && offsetYRatio in 0f..1f) {
+        // A 90-degree CUSTOM anchor can have a negative *unrotated* origin;
+        // only the final rotated bounds must stay within the photograph.
+        require(offsetXRatio.isFinite() && offsetYRatio.isFinite()) {
             "표 위치 비율이 올바르지 않습니다."
         }
         val originX = imageWidth * offsetXRatio
@@ -177,11 +179,21 @@ internal object IosTableOverlayRenderer {
     ): ByteArray {
         require(offsetXPercent in 0..100 && offsetYPercent in 0..100)
         require(widthRatio in 10..100 && heightRatio in 10..100)
+        // Android uses the rotated bounding box (not the raw table box)
+        // when positioning CUSTOM tables at 90 degrees.
+        require(rotationCwDeg == 0 || rotationCwDeg == 90) {
+            "지원하지 않는 표 회전 각도입니다."
+        }
         val width = imageWidth * widthRatio / 100f
         val height = imageWidth * heightRatio / 100f
-        val availableX = imageWidth - width
-        val availableY = imageHeight - height
-        require(availableY >= 0f) { "표가 이미지 높이를 초과합니다." }
+        val customRotated = anchor == IosTableAnchor.CUSTOM && rotationCwDeg == 90
+        val boundsW = if (customRotated) height else width
+        val boundsH = if (customRotated) width else height
+        val availableX = imageWidth - boundsW
+        val availableY = imageHeight - boundsH
+        require(availableX >= 0f && availableY >= 0f) {
+            "회전된 표가 이미지 영역을 초과합니다."
+        }
         val x = when (anchor) {
             IosTableAnchor.TOP_LEFT, IosTableAnchor.BOTTOM_LEFT -> 0f
             IosTableAnchor.TOP_RIGHT, IosTableAnchor.BOTTOM_RIGHT -> availableX
@@ -192,11 +204,15 @@ internal object IosTableOverlayRenderer {
             IosTableAnchor.BOTTOM_LEFT, IosTableAnchor.BOTTOM_RIGHT -> availableY
             IosTableAnchor.CUSTOM -> availableY * offsetYPercent / 100f
         }
+        // Convert Android's bounding-box position back to the raw table's
+        // top-left before Skia rotates around its center.
+        val rawX = if (customRotated) x + (boundsW - width) / 2f else x
+        val rawY = if (customRotated) y + (boundsH - height) / 2f else y
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style,
             widthRatio, heightRatio,
-            offsetXRatio = x / imageWidth,
-            offsetYRatio = y / imageHeight,
+            offsetXRatio = rawX / imageWidth,
+            offsetYRatio = rawY / imageHeight,
             rotationDegrees = rotationCwDeg.toFloat(),
         )
     }
