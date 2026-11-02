@@ -8,9 +8,9 @@ import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.domain.project.CaptureMediaPresence
 
 /**
- * Check each indexed URI directly, including photos moved outside DZlog.
- * A missing cursor, invalid result or read exception is UNKNOWN (not deleted).
- * Queries run on Dispatchers.IO in the caller.
+ * Exact MediaStore lookups (including images moved outside DZlog).
+ * Null cursors and read errors are UNKNOWN; only a successful zero-row
+ * response confirms absence. Run on Dispatchers.IO.
  */
 internal class CaptureMediaPresenceReader(private val resolver: ContentResolver) {
     internal data class Inspection(
@@ -30,9 +30,9 @@ internal class CaptureMediaPresenceReader(private val resolver: ContentResolver)
             if (existing != null) {
                 observations[raw] = CaptureMediaPresence.Present(existing.relativePath)
             } else {
-                val item = inspectOne(raw)
-                observations[raw] = item.first
-                item.second?.let(movedPhotos::add)
+                val (presence, photo) = inspectOne(raw)
+                observations[raw] = presence
+                photo?.let(movedPhotos::add)
             }
         }
         return Inspection(observations, movedPhotos)
@@ -60,7 +60,7 @@ internal class CaptureMediaPresenceReader(private val resolver: ContentResolver)
                 val path = it.getString(
                     it.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
                 ).orEmpty()
-                if (id != expectedId || path.isBlank() || it.moveToNext()) {
+                if (it.count != 1 || id != expectedId || path.isBlank()) {
                     return CaptureMediaPresence.Unknown to null
                 }
                 val photo = MediaImageItem(
