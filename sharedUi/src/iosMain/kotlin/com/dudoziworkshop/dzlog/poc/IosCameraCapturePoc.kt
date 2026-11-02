@@ -42,7 +42,19 @@ internal data class IosCaptureTablePlacement(
     val widthRatio: Int,
     val heightRatio: Int,
     val rotationCwDeg: Int = 0,
-)
+) {
+    init {
+        require(offsetXPercent in 0..100 && offsetYPercent in 0..100) {
+            "표 위치 비율이 올바르지 않습니다."
+        }
+        require(widthRatio in 10..100 && heightRatio in 10..100) {
+            "표 크기 비율이 올바르지 않습니다."
+        }
+        require(rotationCwDeg in 0..359) {
+            "표 회전 각도가 올바르지 않습니다."
+        }
+    }
+}
 
 /**
  * Device-only AVFoundation -> PhotoKit proof of flow, behind --camera-flow.
