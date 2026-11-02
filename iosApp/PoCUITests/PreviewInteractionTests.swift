@@ -100,6 +100,36 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("자동번호 셀: 13").exists)
     }
 
+    // In the simulator, a synthetic frame drives the real two-role PhotoKit
+    // transaction and workspace commit, then verifies persistent counter state.
+    func testBothModeCompositedJpegPhotoKitSaveAndRelaunch() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
+            }
+            return false
+        }
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("BOTH 합성 실제 저장 검증")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+            let alert = springboard.alerts.firstMatch
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            }
+        }
+        XCTAssertTrue(text("저장 상태: BOTH 합성·원본 저장·번호 확정").waitForExistence(timeout: 45))
+        XCTAssertTrue(text("다음 촬영 번호: 13").exists)
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+        app.terminate()
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("다음 촬영 번호: 13").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+    }
+
     // BOTH must reject missing rendered bytes without committing a counter or a pending journal.
     func testBothModeMissingRenderedJpegIsRejected() {
         app.launchArguments = ["--capture-workspace-flow"]
