@@ -199,6 +199,35 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                     widthRatio = 40, heightRatio = 20,
                 )
                 check(Image.makeFromEncoded(custom).height == 128)
+                // Android CUSTOM 90-degree placements use the rotated box's
+                // available space, including corners requiring negative raw X.
+                for (percent in listOf(0, 50, 100)) {
+                    val rotatedCustom = IosTableOverlayRenderer.renderAndroidAnchoredPng(
+                        imageWidth = 128, imageHeight = 128,
+                        template = template.templateState, preview = preview,
+                        style = template.styleState,
+                        anchor = IosTableAnchor.CUSTOM,
+                        offsetXPercent = percent, offsetYPercent = percent,
+                        widthRatio = 40, heightRatio = 20,
+                        rotationCwDeg = 90,
+                    )
+                    check(Image.makeFromEncoded(rotatedCustom).width == 128) {
+                        "회전된 CUSTOM 표 위치 검증 실패: $percent"
+                    }
+                }
+                check(runCatching {
+                    IosTableOverlayRenderer.renderAndroidAnchoredPng(
+                        imageWidth = 128, imageHeight = 128,
+                        template = template.templateState, preview = preview,
+                        style = template.styleState,
+                        anchor = IosTableAnchor.CUSTOM,
+                        offsetXPercent = 50, offsetYPercent = 50,
+                        widthRatio = 40, heightRatio = 20,
+                        rotationCwDeg = 45,
+                    )
+                }.exceptionOrNull() is IllegalArgumentException) {
+                    "Android 미지원 회전 각도가 차단되지 않았습니다."
+                }
                 status = "표 데이터 오버레이 합성 완료"
             } catch (error: Throwable) {
                 status = "실패: " + error.message.orEmpty()
