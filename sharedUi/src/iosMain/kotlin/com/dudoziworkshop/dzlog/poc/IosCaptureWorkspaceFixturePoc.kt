@@ -264,6 +264,50 @@ internal fun IosCaptureWorkspaceFixturePoc() {
         }) { Text("BOTH 합성 누락 검증") }
         Button(enabled = !busy, onClick = {
             busy = true
+            status = "BOTH 합성 저장 중"
+            scope.launch {
+                try {
+                    check(!IosCameraCaptureSession.hasPending()) {
+                        "이전 촬영 기록이 미완료 상태입니다."
+                    }
+                    val doc = EditorDocument(
+                        template, saveMode = SaveMode.BOTH,
+                        counterPadding = 3, nextCounter = FIXTURE_COUNTER,
+                        usesAutoNext = false,
+                    )
+                    val before = EditorWorkspace(listOf(doc), template.id)
+                    check(store.save(before)) { "테스트 워크스페이스 준비 실패" }
+                    val committed = IosCameraCaptureSession(CAPTURE_FIXTURE_KEY, before)
+                        .saveAndroidPlacedJpeg(
+                            jpeg = captureFixtureJpeg(),
+                            anchor = IosTableAnchor.BOTTOM_RIGHT,
+                            offsetXPercent = 0, offsetYPercent = 0,
+                            widthRatio = 40, heightRatio = 20,
+                        )
+                    check(committed) { "BOTH PhotoKit 저장 후 상태 확정 실패" }
+                    val after = store.load(template)
+                    check(after.active?.nextCounter == FIXTURE_COUNTER + 1) {
+                        "BOTH 저장 후 다음 촬영 번호가 잘못됐습니다."
+                    }
+                    val counterCell = after.active?.template?.templateState?.cells?.singleOrNull()
+                        ?.typedValue as? CellValue.CounterSeed
+                    check(counterCell?.start == FIXTURE_COUNTER + 1) {
+                        "BOTH 저장 후 표 자동번호가 잘못됐습니다."
+                    }
+                    check(!IosCameraCaptureSession.hasPending()) {
+                        "정상 저장 후 미완료 기록이 남았습니다."
+                    }
+                    workspace = after
+                    status = "BOTH 합성·원본 저장·번호 확정"
+                } catch (error: Throwable) {
+                    status = "실패: " + error.message.orEmpty()
+                } finally {
+                    busy = false
+                }
+            }
+        }) { Text("BOTH 합성 실제 저장 검증") }
+        Button(enabled = !busy, onClick = {
+            busy = true
             status = "저장 중"
             scope.launch {
                 try {
