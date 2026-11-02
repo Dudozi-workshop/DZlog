@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.project.CaptureRecordRoomStore
+import com.dudoziworkshop.dzlog.data.project.CaptureMediaPresenceReader
 import com.dudoziworkshop.dzlog.data.project.LegacyCaptureMigration
 import com.dudoziworkshop.dzlog.data.project.LegacyCapturePhoto
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
@@ -39,6 +40,7 @@ internal data class ProjectCaptureSummary(
 internal class ProjectCaptureReadViewModel(application: Application) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val records = CaptureRecordRoomStore(context)
+    private val presence = CaptureMediaPresenceReader(context.contentResolver)
     private val migration = LegacyCaptureMigration(records)
 
     fun observeProject(projectId: String): Flow<List<CaptureRecord>> =
@@ -56,6 +58,24 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
             }
             DzlogMediaStoreReader(context.contentResolver).loadLatestImageInSession(uriGroups)
         }
+
+    /**
+     * Called only when Home, project list/detail or Quick Results is entered.
+     * External moves keep capture ownership; only confirmed-absent media
+     * references are removed. Unknown (inaccessible) photos are preserved.
+     */
+    private suspend fun reconcileIndexed(
+        projectId: String,
+        dzlogPhotos: List<MediaImageItem>,
+    ): List<MediaImageItem> {
+        val indexed = records.forProject(projectId)
+        val inspected = presence.inspect(
+            indexed.flatMapTo(mutableSetOf()) { it.mediaUris },
+            dzlogPhotos,
+        )
+        records.reconcileProjectMedia(projectId, inspected.observations)
+        return dzlogPhotos + inspected.found
+    }
 
     /** One scan for the whole management list, not a scan per project row. */
     suspend fun readSummaries(
@@ -76,8 +96,9 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
         if (report.conflicts.isNotEmpty()) {
             Log.w("DZlogProjectRead", "Legacy media conflicts: ${report.conflicts.size}")
         }
-        val byUri = photos.associateBy { it.uri.toString() }
         registry.projects.associate { project ->
+            val visiblePhotos = reconcileIndexed(project.id, photos)
+            val byUri = visiblePhotos.associateBy { it.uri.toString() }
             val found = records.forProject(project.id).mapNotNull { record ->
                 val photo = record.resultUri?.let(byUri::get) ?: record.originalUri?.let(byUri::get)
                 photo?.let { record.capturedAtMillis to it }
@@ -110,15 +131,17 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
         if (report.conflicts.isNotEmpty()) {
             Log.w("DZlogProjectRead", "Legacy media ownership conflicts: " + report.conflicts.size)
         }
-        // No guessed file entries: only currently available photos may appear.
-        val byUri = photos.associateBy { it.uri.toString() }
+        // Exact per-URI checks include media moved outside Pictures/DZlog.
+        // No inference from folder absence; only observed photos are displayed.
+        val visiblePhotos = reconcileIndexed(projectId, photos)
+        val byUri = visiblePhotos.associateBy { it.uri.toString() }
         val visible = ProjectCaptureReadPolicy.visible(
             records = records.forProject(projectId),
             availableUris = byUri.keys,
         )
         ProjectCaptureReadResult(
             visible = visible,
-            photos = photos,
+            photos = visiblePhotos,
             latestPhoto = visible.latestUri?.let(byUri::get),
         )
     }
