@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.project.CaptureProjectStore
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
 import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
@@ -173,6 +174,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val tableTemplateState = tableTemplateViewModel.tableTemplateState
 
     val context = LocalContext.current
+    val captureProjectStore = remember(context) { CaptureProjectStore(context) }
+    // A nullable initial value prevents treating an uninitialized persisted
+    // project selection as ordinary shooting, especially on camera-first launch.
+    val captureProjectRegistry by remember(captureProjectStore) {
+        captureProjectStore.changes
+    }.collectAsState(initial = null)
     val pendingTutorialInvite by remember(context) {
         context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
     }.collectAsState(initial = false)
@@ -834,7 +841,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         if (keepCameraAliveBehindAlbum) {
             val captureTemplateId = tableTemplateViewModel.activeTemplateId
             Box(modifier = Modifier.alpha(0f)) {
-                CameraScreen(
+                if (captureProjectRegistry != null) CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
                     onPersistCapturedTemplate = { updated ->
@@ -843,6 +850,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    projectId = captureProjectRegistry?.activeId,
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
@@ -889,7 +897,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.CAMERA -> {
                 // Captured by this trigger's closure, never read a later active selection at completion.
                 val captureTemplateId = tableTemplateViewModel.activeTemplateId
-                CameraScreen(
+                if (captureProjectRegistry != null) CameraScreen(
                     tableTemplateState = tableTemplateState,
                     onTemplateChange = ::updateTemplateState,
                     onPersistCapturedTemplate = { updated ->
@@ -898,6 +906,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateName = tableTemplateViewModel.templates.firstOrNull { it.id == tableTemplateViewModel.activeTemplateId }?.name.orEmpty(),
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
+                    projectId = captureProjectRegistry?.activeId,
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
