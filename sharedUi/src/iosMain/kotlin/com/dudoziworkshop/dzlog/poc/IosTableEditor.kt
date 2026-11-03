@@ -85,6 +85,7 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
         check(decoded.documents.zip(value.documents).all { (a, b) ->
             a.nextCounter == b.nextCounter && a.usesAutoNext == b.usesAutoNext &&
                 a.counterPadding == b.counterPadding && a.saveMode == b.saveMode &&
+                a.capturePlacement == b.capturePlacement &&
                 a.includePathInScope == b.includePathInScope && a.includeFilenameInScope == b.includeFilenameInScope
         })
         NSUserDefaults.standardUserDefaults.setObject(encoded, forKey = workspaceKey)
@@ -98,3 +99,4 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
     }
 }
 internal const val IOS_NAVIGATION_TEST_KEY = "dzlog.ios.navigation.uitest.v1"
+

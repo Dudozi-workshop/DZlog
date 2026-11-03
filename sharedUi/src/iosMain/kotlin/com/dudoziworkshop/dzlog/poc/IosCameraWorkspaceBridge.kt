@@ -32,6 +32,15 @@ internal class IosCameraCaptureSession(
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
+    /** One camera entry point for all modes, using only this document's saved placement. */
+    suspend fun saveConfiguredJpeg(jpeg: ByteArray): Boolean {
+        val doc = checkNotNull(workspace.active)
+        if (doc.saveMode == SaveMode.ORIGINAL_ONLY) return saveJpeg(jpeg)
+        val placement = checkNotNull(tablePlacement) { "촬영 전 표 배치를 저장해 주세요." }
+        return saveAndroidPlacedJpeg(jpeg, placement.anchor, placement.offsetXPercent,
+            placement.offsetYPercent, placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
+    }
+
     /** Only explicitly persisted placement is passed to the camera. */
     val tablePlacement: IosCaptureTablePlacement?
         get() = workspace.active?.capturePlacement?.let { saved ->
@@ -203,9 +212,17 @@ internal object IosCameraWorkspaceBridge {
         private set
 
     fun prepare(editorKey: String, workspace: EditorWorkspace): String? {
+        current = null
         val document = workspace.active ?: return "촬영 전 템플릿을 선택해 주세요."
         if (document.saveMode != SaveMode.ORIGINAL_ONLY) {
-            return "현재 iOS 촬영 검증은 원본 저장 모드만 지원합니다."
+            val placement = document.capturePlacement ?: return "촬영 전 표 배치를 저장해 주세요."
+            if (placement.rotationCwDeg !in listOf(0, 90) ||
+                (placement.rotationCwDeg != 0 && placement.anchor != EditorCaptureAnchor.CUSTOM)) {
+                return "90도 회전은 사용자 지정 위치에서 설정해 주세요."
+            }
+            if (document.template.templateState.cells.any { it.rowSpan != 1 || it.colSpan != 1 }) {
+                return "병합된 표는 아직 결과 사진 저장을 지원하지 않습니다. 원본 저장을 선택해 주세요."
+            }
         }
         if (document.nextCounter == null) return "먼저 촬영 번호를 확정해 주세요."
         if (IosCameraCaptureSession.hasPending()) {
@@ -219,3 +236,4 @@ internal object IosCameraWorkspaceBridge {
         current = null
     }
 }
+

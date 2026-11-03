@@ -45,6 +45,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     val editorPlatform = remember { IosTableEditorPlatform { notice = it } }
     var showEditor by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
+    var showCaptureSettings by remember { mutableStateOf(false) }
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
     var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     var recentPhotoName by remember { mutableStateOf("") }
@@ -93,6 +94,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     val templates = workspace.documents.map { it.template }
     val leaf = rememberHomeLeafPainter()
     fun persist(next: EditorWorkspace): Boolean {
+        if (IosCameraCaptureSession.hasPending()) {
+            notice = "이전 촬영 기록을 복구한 후 설정을 변경해 주세요."
+            return false
+        }
         if (!loadFailed && store.save(next)) { workspace = next; return true }
         notice = "변경 내용을 저장하지 못했습니다. 다시 시도해 주세요."
         return false
@@ -127,7 +132,11 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             NamingFormatDefaults.FILE_NAME_DELIMITER, savedDocument.includePathInScope, savedDocument.includeFilenameInScope,
             savedDocument.saveMode, savedDocument.nextCounter, 0))
     }
-    if (showGallery) {
+    if (showCaptureSettings) {
+        IosCaptureSettingsScreen(savedDocument, onBack = { showCaptureSettings = false }, onApply = { updated ->
+            if (persist(workspace.save(updated))) showCaptureSettings = false
+        })
+    } else if (showGallery) {
         IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })
     } else if (showEditor) {
         key(currentTemplate.id) {
@@ -210,7 +219,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                     NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
                 } else {
                     val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
-                    if (issue != null) notice = issue
+                    if (issue != null) {
+                        if (workspace.active != null && !IosCameraCaptureSession.hasPending()) showCaptureSettings = true
+                        notice = issue
+                    }
                     else NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
                 }
             },
@@ -249,7 +261,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             relativePaths = if (selected) listOf("사진 저장 연결 전") else listOf("PoC/현장 기록/", "PoC/보관/"),
             onOpenSaveSettings = {
                 showSaveInfo = false
-                if (workspace.documents.isEmpty()) showList = true else openEditor(workspace.activeTemplateId, false, true)
+                if (workspace.documents.isEmpty()) showList = true else showCaptureSettings = true
             }, onDismiss = { showSaveInfo = false }, settingsEnabled = !loadFailed && selected,
         )
     }
@@ -267,3 +279,4 @@ private fun rememberHomeLeafPainter(): Painter {
     }
     return remember(bitmap) { BitmapPainter(bitmap) }
 }
+

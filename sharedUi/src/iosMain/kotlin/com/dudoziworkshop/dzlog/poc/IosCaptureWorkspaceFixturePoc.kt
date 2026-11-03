@@ -15,6 +15,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor
+import com.dudoziworkshop.dzlog.data.template.EditorCapturePlacement
 import com.dudoziworkshop.dzlog.data.template.EditorDocument
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -305,18 +307,18 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                         template, saveMode = SaveMode.BOTH,
                         counterPadding = 3, nextCounter = FIXTURE_COUNTER,
                         usesAutoNext = false,
+                        capturePlacement = EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 0, 0, 40, 20),
                     )
                     val before = EditorWorkspace(listOf(doc), template.id)
                     check(store.save(before)) { "테스트 워크스페이스 준비 실패" }
                     val media = PhotoKitCaptureMediaRepository()
                     val knownCaptures = media.listSavedAssets().map { it.captureId }.toSet()
-                    val committed = IosCameraCaptureSession(CAPTURE_FIXTURE_KEY, before)
-                        .saveAndroidPlacedJpeg(
-                            jpeg = captureFixtureJpeg(),
-                            anchor = IosTableAnchor.BOTTOM_RIGHT,
-                            offsetXPercent = 0, offsetYPercent = 0,
-                            widthRatio = 40, heightRatio = 20,
-                        )
+                    val restored = store.load(template)
+                    check(restored == before) { "저장한 배치 설정이 복원되지 않았습니다." }
+                    check(IosCameraWorkspaceBridge.prepare(CAPTURE_FIXTURE_KEY, restored) == null)
+                    val committed = checkNotNull(IosCameraWorkspaceBridge.current)
+                        .saveConfiguredJpeg(captureFixtureJpeg())
+                    IosCameraWorkspaceBridge.clear()
                     check(committed) { "BOTH PhotoKit 저장 후 상태 확정 실패" }
                     val newAssets = media.listSavedAssets().filter { it.captureId !in knownCaptures }
                     check(newAssets.size == 2 && newAssets.map { it.captureId }.distinct().size == 1 &&
@@ -361,7 +363,7 @@ internal fun IosCaptureWorkspaceFixturePoc() {
                     val before = EditorWorkspace(listOf(doc), template.id)
                     check(store.save(before)) { "테스트 워크스페이스 준비 실패" }
                     val committed = IosCameraCaptureSession(CAPTURE_FIXTURE_KEY, before)
-                        .saveJpeg(captureFixtureJpeg())
+                        .saveConfiguredJpeg(captureFixtureJpeg())
                     check(committed) { "PhotoKit 저장 후 상태 확정 실패" }
                     val after = store.load(template)
                     check(after.active?.nextCounter == FIXTURE_COUNTER + 1)
@@ -387,3 +389,4 @@ private fun captureFixtureJpeg(): ByteArray {
         "Cannot encode iOS capture workspace JPEG fixture."
     }.bytes
 }
+

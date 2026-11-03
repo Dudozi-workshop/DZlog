@@ -139,19 +139,7 @@ internal fun IosCameraCapturePoc(
                         try {
                             val jpeg = result.getOrThrow()
                             val committed = if (session != null) {
-                                if (tablePlacement == null) {
-                                    session.saveJpeg(jpeg)
-                                } else {
-                                    session.saveAndroidPlacedJpeg(
-                                        jpeg = jpeg,
-                                        anchor = tablePlacement.anchor,
-                                        offsetXPercent = tablePlacement.offsetXPercent,
-                                        offsetYPercent = tablePlacement.offsetYPercent,
-                                        widthRatio = tablePlacement.widthRatio,
-                                        heightRatio = tablePlacement.heightRatio,
-                                        rotationCwDeg = tablePlacement.rotationCwDeg,
-                                    )
-                                }
+                                session.saveConfiguredJpeg(jpeg)
                             } else {
                                 check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
                                 saveStandaloneCameraFixture(jpeg, repository)
@@ -199,3 +187,4 @@ private suspend fun saveStandaloneCameraFixture(
     val receipt = repository.saveAllOrRollback(plan, mapOf(CaptureMediaRole.ORIGINAL to jpeg))
     check(receipt.assets.size == 1)
 }
+
