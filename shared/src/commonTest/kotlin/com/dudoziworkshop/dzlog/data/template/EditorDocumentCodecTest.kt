@@ -33,7 +33,7 @@ class EditorDocumentCodecTest {
     @Test fun legacyDocumentsWithoutPlacementRemainReadable() {
         val document = sample()
         val encoded = EditorDocumentCodec.encode(document)
-        val placementField = ",\\\"placementV1\\\":"
+        val placementField = "," + '"' + "placementV1" + '"' + ":"
         assertTrue(encoded.contains(placementField))
         val legacy = encoded.substringBefore(placementField) + "}"
         assertEquals(document, EditorDocumentCodec.decode(legacy))
