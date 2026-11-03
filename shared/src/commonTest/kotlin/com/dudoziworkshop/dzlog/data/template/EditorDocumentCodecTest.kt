@@ -21,6 +21,50 @@ class EditorDocumentCodecTest {
         assertEquals(CellValue.CounterSeed(27), restored.template.templateState.cells.single().typedValue)
     }
 
+    @Test fun persistsConfiguredPlacementAlongsideAllExistingDocumentFields() {
+        val placement = EditorCapturePlacement(
+            anchor = EditorCaptureAnchor.CUSTOM, offsetXPercent = 100,
+            offsetYPercent = 0, widthRatio = 40, heightRatio = 100, rotationCwDeg = 359,
+        )
+        val document = sample().copy(capturePlacement = placement)
+        assertEquals(document, EditorDocumentCodec.decode(EditorDocumentCodec.encode(document)))
+    }
+
+    @Test fun legacyDocumentsWithoutPlacementRemainReadable() {
+        val document = sample()
+        val encoded = EditorDocumentCodec.encode(document)
+        val placementField = ",\\\"placementV1\\\":"
+        assertTrue(encoded.contains(placementField))
+        val legacy = encoded.substringBefore(placementField) + "}"
+        assertEquals(document, EditorDocumentCodec.decode(legacy))
+        assertNull(EditorDocumentCodec.decode(legacy).capturePlacement)
+    }
+
+    @Test fun placementAcceptsAnchorAndBoundaryCombinations() {
+        EditorCaptureAnchor.values().forEach { anchor ->
+            listOf(0, 100).forEach { offset ->
+                listOf(10, 100).forEach { size ->
+                    listOf(0, 359).forEach { rotation ->
+                        val placement = EditorCapturePlacement(
+                            anchor, offset, offset, size, size, rotation,
+                        )
+                        assertEquals(anchor, placement.anchor)
+                        assertEquals(rotation, placement.rotationCwDeg)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun placementRejectsInvalidBounds() {
+        val anchor = EditorCaptureAnchor.CUSTOM
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, -1, 0, 40, 40) }
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 101, 40, 40) }
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 9, 40) }
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 40, 101) }
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 40, 40, 360) }
+    }
+
     @Test fun rejectsCorruptAndUnsupportedDocumentsInsteadOfSilentlyResetting() {
         assertFails { EditorDocumentCodec.decode("broken") }
         assertFails { EditorDocumentCodec.decode(EditorDocumentCodec.encode(sample()).replace("\"schema\":1", "\"schema\":2")) }
