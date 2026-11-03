@@ -54,6 +54,7 @@ internal fun ProjectDetailScreen(
     onComplete: () -> Unit,
     onReopen: () -> Unit,
     onDeleteMetadata: () -> Unit,
+    onDeleteWithMedia: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
@@ -90,6 +91,10 @@ internal fun ProjectDetailScreen(
                     DropdownMenuItem(
                         text = { Text("프로젝트만 삭제 · 사진 유지") },
                         onClick = { menuOpen = false; showDeleteMetadata = true },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("프로젝트 및 연결 사진 삭제", color = DDZColor.Destructive) },
+                        onClick = { menuOpen = false; onDeleteWithMedia() },
                     )
                 }
             }

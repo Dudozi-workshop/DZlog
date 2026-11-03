@@ -44,6 +44,7 @@ import com.dudoziworkshop.dzlog.ui.project.ProjectManagementViewModel
 import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
 import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
+import com.dudoziworkshop.dzlog.ui.project.ProjectMediaDeleteDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
 import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
@@ -194,6 +195,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     var showProjectPicker by remember { mutableStateOf(false) }
     var openProjectListWithCreate by remember { mutableStateOf(false) }
     var projectDetailsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var projectPendingMediaDeletionId by rememberSaveable { mutableStateOf<String?>(null) }
     var viewedProjectResultsId by rememberSaveable { mutableStateOf<String?>(null) }
     var projectSummaries by remember {
         mutableStateOf<Map<String, ProjectCaptureSummary>>(emptyMap())
@@ -1078,6 +1080,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             }
                         }
                     },
+                    onDeleteWithMedia = {
+                        projectPendingMediaDeletionId = project.id
+                    },
                 )
             }
             AppScreen.HOME -> HomeScreen(
@@ -1445,6 +1450,23 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 )
             }
             }
+        }
+        projectPendingMediaDeletionId?.let { targetId ->
+            ProjectMediaDeleteDialog(
+                projectId = targetId,
+                onPrepare = projectManagement::prepareMediaDeletion,
+                onFinish = projectManagement::finalizeMediaDeletion,
+                onDeleted = {
+                    projectPendingMediaDeletionId = null
+                    if (captureProjectRegistry?.activeId == targetId) {
+                        cameraPhraseUndoHistory.clear()
+                        cameraSessionCaptureStack.clear()
+                    }
+                    projectDetailsId = null
+                    screen = AppScreen.PROJECT_LIST
+                },
+                onDismiss = { projectPendingMediaDeletionId = null },
+            )
         }
         if (showProjectPicker) ProjectPickerDialog(
             projects = captureProjectRegistry?.projects.orEmpty(),
