@@ -78,6 +78,19 @@ class IosCaptureWorkspaceJournalTest {
         }
     }
 
+    @Test fun rollbackSignalCannotDiscardAnotherCaptureOrEditedWorkspace() {
+        withFixture { defaults, workspace, plan ->
+            val journal = IosCaptureWorkspaceJournal(defaults, "journal")
+            journal.stage(workspace, checkNotNull(workspace.active), plan)
+            assertFalse(journal.abortConfirmedRollback("another-capture", workspace))
+            val changed = workspace.copy(documents = workspace.documents.map { it.copy(nextCounter = 99) })
+            assertFalse(journal.abortConfirmedRollback(plan.captureId, changed))
+            assertTrue(journal.hasPending())
+            assertTrue(journal.abortConfirmedRollback(plan.captureId, workspace))
+            assertFalse(journal.hasPending())
+        }
+    }
+
     private fun withFixture(block: (NSUserDefaults, EditorWorkspace, com.dudoziworkshop.dzlog.domain.media.CaptureMediaSavePlan) -> Unit) {
         val suite = "dzlog.capture.journal.test.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)
@@ -111,3 +124,4 @@ class IosCaptureWorkspaceJournalTest {
         }
     }
 }
+

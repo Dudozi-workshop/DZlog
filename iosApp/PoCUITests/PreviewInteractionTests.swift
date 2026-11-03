@@ -323,12 +323,13 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testHomeTemplatePreviewSelectionAndBack() throws {
-        app.launchArguments = ["--home-navigation"]
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
         XCTAssertTrue(homeTemplateButton().exists)
         XCTAssertTrue(try screenContains("기본 촬영"))
         XCTAssertTrue(try screenContains("다음 촬영 번호 0001"))
-        XCTAssertTrue(text("아직 촬영한 사진이 없어요.").waitForExistence(timeout: 10))
+        // Other tests legitimately create PhotoKit assets in the same app sandbox.
+        XCTAssertTrue(text("최근 촬영").waitForExistence(timeout: 10))
         let home = XCTAttachment(screenshot: app.screenshot())
         home.name = "shared-home-empty"
         home.lifetime = .keepAlways
@@ -357,14 +358,14 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testHomeSaveInfoDisplaysAndDismisses() throws {
-        app.launchArguments = ["--home-navigation"]
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
         tapButton("저장 정보")
         XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
-        XCTAssertTrue(text("ios-sample_0001").waitForExistence(timeout: 10))
-        XCTAssertFalse(text("ios-sample_0001.jpg").exists, "Keep existing extension-free display")
-        XCTAssertTrue(text("PoC/현장 기록/").exists)
-        XCTAssertTrue(text("PoC/보관/").exists)
+        XCTAssertTrue(text("템플릿을 선택해 주세요.").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("ios-sample_0001").exists)
+        XCTAssertFalse(text("PoC/현장 기록/").exists)
+        XCTAssertFalse(text("PoC/보관/").exists)
         XCTAssertFalse(button("저장 설정 열기").isEnabled, "Unavailable settings must stay disabled")
         let sheet = XCTAttachment(screenshot: app.screenshot())
         sheet.name = "shared-home-save-info"
@@ -376,7 +377,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(text("다음 촬영 저장 정보").exists)
         tapButton("저장 정보")
         XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
-        XCTAssertTrue(text("ios-sample_0001").exists)
+        XCTAssertTrue(text("템플릿을 선택해 주세요.").exists)
     }
 
     private func panelText(_ label: String) -> XCUIElement {

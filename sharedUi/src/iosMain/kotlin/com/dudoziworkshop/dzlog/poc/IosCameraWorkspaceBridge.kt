@@ -62,14 +62,9 @@ internal class IosCameraCaptureSession(
         }
 
     /**
-     * Preview-locked native compositor. The production camera gate stays
-     * ORIGINAL_ONLY until its persisted Android placement/style contract
-     * is available; this path is deliberately not enabled by default.
-     */
-    /**
      * Camera-facing entry point for a fully specified placement. Using the
      * Android free-space anchor convention prevents callers from guessing
-     * absolute offsets. The production mode gate remains unchanged.
+     * absolute offsets. Home capture passes only the persisted iOS placement.
      */
     suspend fun saveAndroidPlacedJpeg(
         jpeg: ByteArray,

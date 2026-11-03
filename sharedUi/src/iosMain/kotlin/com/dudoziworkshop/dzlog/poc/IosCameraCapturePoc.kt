@@ -34,7 +34,7 @@ import platform.UIKit.UIView
 
 private const val CAMERA_POC_PATH = "Pictures/DZlog/Camera-M3A/"
 
-/** Explicit placement contract; absent until persisted iOS settings are mapped. */
+/** Explicit placement mapped from the selected iOS document. */
 internal data class IosCaptureTablePlacement(
     val anchor: IosTableAnchor,
     val offsetXPercent: Int,
@@ -59,14 +59,13 @@ internal data class IosCaptureTablePlacement(
 /**
  * Device-only AVFoundation -> PhotoKit proof of flow, behind --camera-flow.
  * Does not claim Android table overlay rendering or camera feature parity.
- * The normal iOS home/camera entry point remains unchanged during M3-A.
+ * Home captures use a persisted document; the standalone route is an isolated fixture.
  */
 @Composable
 internal fun IosCameraCapturePoc(
     permissionGranted: Boolean,
     onBack: (() -> Unit)? = null,
     session: IosCameraCaptureSession? = null,
-    tablePlacement: IosCaptureTablePlacement? = null,
 ) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }

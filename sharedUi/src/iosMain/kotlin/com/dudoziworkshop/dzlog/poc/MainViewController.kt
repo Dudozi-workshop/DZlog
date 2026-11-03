@@ -29,7 +29,6 @@ fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = C
         IosCameraCapturePoc(
             permissionGranted = cameraPermissionGranted,
             session = session,
-            tablePlacement = session?.tablePlacement,
             onBack = {
                 IosCameraWorkspaceBridge.clear()
                 IosCameraReturnSignal.noteCameraClosed()
