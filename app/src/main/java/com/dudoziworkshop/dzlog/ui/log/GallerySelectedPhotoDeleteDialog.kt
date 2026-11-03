@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 internal fun GallerySelectedPhotoDeleteDialog(
     selected: List<MediaImageItem>,
     reader: DzlogMediaStoreReader,
+    allowIncludeOriginals: Boolean = true,
     onVerified: (Set<Long>) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -63,6 +64,7 @@ internal fun GallerySelectedPhotoDeleteDialog(
             selected = selected,
             allPhotos = photos,
             busy = false,
+            allowIncludeOriginals = allowIncludeOriginals,
             onCancel = onClose,
             onConfirm = { plan ->
                 if (!action.busy && retry == null) {

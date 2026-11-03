@@ -86,6 +86,7 @@ internal fun ProjectMediaDeleteDialog(
         GallerySelectedPhotoDeleteDialog(
             selected = snapshot.photos,
             reader = reader,
+            allowIncludeOriginals = false,
             onVerified = { ids -> verifiedIds.value = verifiedIds.value + ids },
             onClose = {
                 showGalleryDeletion = false

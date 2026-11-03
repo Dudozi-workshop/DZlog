@@ -32,6 +32,7 @@ internal fun GalleryPhotoDeleteConfirmation(
     selected: List<MediaImageItem>,
     allPhotos: List<MediaImageItem>,
     busy: Boolean,
+    allowIncludeOriginals: Boolean = true,
     onCancel: () -> Unit,
     onConfirm: (GalleryPhotoDeletePlan) -> Unit,
 ) {
@@ -65,7 +66,7 @@ internal fun GalleryPhotoDeleteConfirmation(
                     name = "선택한 사진",
                     detail = "사진 ${selected.distinctBy { it.id }.size}장 · 연결된 원본 ${originals.size}장",
                 )
-                if (originals.isNotEmpty()) {
+                if (allowIncludeOriginals && originals.isNotEmpty()) {
                     DDZButton(
                         text = if (!includeOriginals) "✓ 선택한 사진만 삭제" else "선택한 사진만 삭제",
                         onClick = { includeOriginals = false },
