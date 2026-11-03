@@ -23,6 +23,7 @@ internal data class ProjectCaptureReadResult(
     val visible: VisibleProjectCaptures,
     val photos: List<MediaImageItem>,
     val latestPhoto: MediaImageItem?,
+    val captures: List<com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture> = emptyList(),
 )
 
 /** One indexed project summary. Images are verified through a single MediaStore scan. */
@@ -143,6 +144,14 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
             visible = visible,
             photos = visiblePhotos,
             latestPhoto = visible.latestUri?.let(byUri::get),
+            captures = ProjectCaptureReadPolicy.quickResults(
+                records = records.forProject(projectId),
+                availablePhotos = visiblePhotos.map {
+                    com.dudoziworkshop.dzlog.domain.quickresults.QuickResultPhoto(
+                        it.uri.toString(), it.displayName, it.relativePath,
+                    )
+                },
+            ),
         )
     }
 }
