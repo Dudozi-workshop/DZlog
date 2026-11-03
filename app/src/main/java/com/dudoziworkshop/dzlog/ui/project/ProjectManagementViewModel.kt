@@ -3,6 +3,8 @@ package com.dudoziworkshop.dzlog.ui.project
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.dudoziworkshop.dzlog.data.project.CaptureProjectStore
+import com.dudoziworkshop.dzlog.data.project.ProjectMediaDeleteCoordinator
+import com.dudoziworkshop.dzlog.data.project.PreparedProjectMediaDeletion
 import com.dudoziworkshop.dzlog.data.repository.CapturePendingStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +17,7 @@ internal class ProjectManagementViewModel(application: Application) : AndroidVie
     private val context = application.applicationContext
     private val projects = CaptureProjectStore(context)
     private val pending = CapturePendingStore(context)
+    private val mediaDeletion = ProjectMediaDeleteCoordinator(context)
 
     suspend fun create(name: String, templateId: String?): String =
         projects.createProject(name, templateId).projects.last().id
@@ -55,5 +58,15 @@ internal class ProjectManagementViewModel(application: Application) : AndroidVie
     suspend fun deleteMetadataOnly(projectId: String) {
         check(canChangeCaptureTarget()) { "사진 저장 처리가 끝나면 삭제할 수 있습니다." }
         projects.deleteProject(projectId)
+    }
+
+    suspend fun prepareMediaDeletion(projectId: String): PreparedProjectMediaDeletion {
+        check(canChangeCaptureTarget()) { "사진 저장 처리가 끝나면 삭제할 수 있습니다." }
+        return mediaDeletion.prepare(projectId)
+    }
+
+    suspend fun finalizeMediaDeletion(prepared: PreparedProjectMediaDeletion): Boolean {
+        check(canChangeCaptureTarget()) { "사진 저장 처리가 끝나면 삭제할 수 있습니다." }
+        return mediaDeletion.finalizeAfterAndroid(prepared)
     }
 }
