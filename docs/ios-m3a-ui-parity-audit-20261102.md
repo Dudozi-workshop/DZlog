@@ -55,6 +55,26 @@
 4. **Render parity**: matched Android/iOS image fixtures for cells, fonts, background, weights, merged cells, positions, 0/90-degree rotation and camera image orientation. Keep unsupported cases blocked.
 5. **Capture enablement / gallery parity**: separately exercise ORIGINAL_ONLY, WATERMARK_ONLY, BOTH; verify PhotoKit two-role receipt, counter update, restart recovery and gallery flows; then perform actual iPhone QA.
 
+## 2026-11-03 verification closeout and next-stage handoff
+
+**Verified head before this documentation update:** `ea0c7a5137aef5b55f69371031edb6b171ec9416` (PR #87, Draft/unmerged).
+
+- Android Unified Mainline: **success**, run `41535117926`.
+- Shared Core iOS compile and tests: **success**, run `41535117775`.
+- M2 Shared UI PoC with focused PhotoKit save/relaunch: **success**, run `41535117814`.
+- M3-A iPhone ARM64 compile: **success**, run `41535117761`.
+- Root cause of prior gallery-count failure: Compose exposed the count label (e.g. `사진 5개`) to XCTest as an accessibility `Other` node, not `staticText`. Commit `ea0c7a51` updated **both** assertions to search all descendant element types; the test's minimum asset count requirement was preserved. PhotoKit index and asset save behavior needed no change.
+- No actual iPhone screenshot/interactive QA was performed. CI success proves the tested paths only, **not** end-user camera parity.
+
+### Next implementation checkpoint (do not assume completed)
+
+1. **Persisted placement contract:** `EditorDocument` in `shared/.../EditorDocumentCodec.kt` currently has save mode/counter fields but **no table-placement data**. Android stores placement in Android-only DataStore. Define and persist iOS placement with explicit source, versioning/migration and validation, without inventing Android settings or overwriting existing documents.
+2. **Camera presentation:** `CameraViewController` currently calls `IosCameraCapturePoc` with a session but not `tablePlacement`; default remains null. Wire only actual persisted placement; keep the `IosCameraWorkspaceBridge.prepare` ORIGINAL_ONLY gate until save/preview parity and missing placement behavior are tested.
+3. **Parity validation:** compare Android/iOS image fixtures for text/merged cells/style/orientation/rotation; test ORIGINAL_ONLY, WATERMARK_ONLY and BOTH with interrupted PhotoKit recovery. The current iOS camera is still a PoC surface with `테스트 사진 촬영`, not the Android camera UI.
+4. **Completion / merge:** implement camera and gallery UI parity, perform physical iPhone QA, obtain user approval before promoting Draft PR #87. Android behavior and stored data must remain unchanged.
+
+**Decision:** close the current PhotoKit UI-test/CI troubleshooting unit. Continue the separate persisted-placement and camera-parity work from this handoff; PR #87 remains open, Draft and unmerged. No user-side verification is required at this checkpoint.
+
 ## Release / merge gate
 
 - [ ] Documented UI screen/control parity and before/after screenshots
