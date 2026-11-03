@@ -63,6 +63,8 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
     activeTemplateName: String = "",
+    activeProjectName: String? = null,
+    onOpenProjectPicker: () -> Unit = {},
     onManageTemplates: () -> Unit = {},
     onOpenSettings: () -> Unit,
     showTutorialInvitation: Boolean = false,
@@ -145,6 +147,14 @@ fun HomeScreen(
                     }
 
                     Spacer(Modifier.height(heroTopGap))
+                    Text(
+                        text = activeProjectName ?: "일반 촬영 · 프로젝트 관리",
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenProjectPicker)
+                            .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding,
+                                vertical = 4.dp),
+                        style = DDZTypography.Secondary,
+                        color = DDZColor.SelectedDark,
+                    )
 
                     Column(
                         modifier = Modifier

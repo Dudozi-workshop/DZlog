@@ -37,6 +37,13 @@ import com.dudoziworkshop.dzlog.data.datastore.AppSettings
 import com.dudoziworkshop.dzlog.data.datastore.AppSettingsStore
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.project.CaptureProjectStore
+import com.dudoziworkshop.dzlog.domain.project.ProjectTemplateSelectionPolicy
+import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureReadViewModel
+import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureSummary
+import com.dudoziworkshop.dzlog.ui.project.ProjectManagementViewModel
+import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
+import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
+import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.MonetizationRolloutConfig
 import com.dudoziworkshop.dzlog.feature.table.policy.TemplateCollectionAction
@@ -106,7 +113,9 @@ enum class AppScreen {
     ALBUM_FOLDER,
     ALBUM_GRID,
     ALBUM_VIEWER,
-    QUICK_RESULTS
+    QUICK_RESULTS,
+    PROJECT_LIST,
+    PROJECT_DETAIL
 }
 
 enum class GridEntrySource {
@@ -180,6 +189,15 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val captureProjectRegistry by remember(captureProjectStore) {
         captureProjectStore.changes
     }.collectAsState(initial = null)
+    val projectManagement: ProjectManagementViewModel = viewModel()
+    val projectCaptureRead: ProjectCaptureReadViewModel = viewModel()
+    var showProjectPicker by remember { mutableStateOf(false) }
+    var openProjectListWithCreate by remember { mutableStateOf(false) }
+    var projectDetailsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var viewedProjectResultsId by rememberSaveable { mutableStateOf<String?>(null) }
+    var projectSummaries by remember {
+        mutableStateOf<Map<String, ProjectCaptureSummary>>(emptyMap())
+    }
     val pendingTutorialInvite by remember(context) {
         context.dataStore.data.map { it[KEY_TUTORIAL_OFFER_PENDING] == true }
     }.collectAsState(initial = false)
@@ -694,12 +712,86 @@ fun AppRoot(startOnCamera: Boolean = false) {
         else AppScreen.HOME
 
     fun openQuickResults() {
+        viewedProjectResultsId = captureProjectRegistry?.activeId
         albumEntryScreen = AppScreen.CAMERA
         navigateTo(AppScreen.QUICK_RESULTS)
     }
 
-    LaunchedEffect(screen, cameraSessionCaptureStack.size) {
+    fun openProjectList(create: Boolean = false) {
+        showProjectPicker = false
+        openProjectListWithCreate = create
+        navigateTo(AppScreen.PROJECT_LIST)
+    }
+
+    /**
+     * Preserve shared template objects. Only the remembered template ID changes
+     * across general/project contexts, and the old camera Undo is bounded.
+     */
+    suspend fun selectCaptureProject(targetId: String?): Boolean {
+        val registry = captureProjectRegistry ?: return false
+        if (!projectManagement.canChangeCaptureTarget()) return false
+        if (registry.activeId == targetId) return true
+        val before = tableTemplateViewModel.activeTemplateId
+        val choice = ProjectTemplateSelectionPolicy.choose(
+            registry = registry,
+            projectId = targetId,
+            availableTemplateIds = tableTemplateViewModel.templates.map { it.id },
+            currentTemplateId = before,
+        )
+        before?.let { captureProjectStore.rememberTemplate(it) }
+        val selected = choice.templateId
+        if (selected != null && selected != before) {
+            tableCatalogCoordinator.activate(
+                items = tableTemplateViewModel.templates,
+                activeTemplateId = selected,
+            )
+            tableTemplateViewModel.activate(selected)
+        }
+        projectManagement.select(targetId)
+        selected?.let { projectManagement.rememberTemplate(it) }
+        cameraPhraseUndoHistory.clear()
+        cameraSessionCaptureStack.clear()
+        return true
+    }
+
+    LaunchedEffect(screen, captureProjectRegistry) {
+        if (screen != AppScreen.PROJECT_LIST && screen != AppScreen.PROJECT_DETAIL) {
+            return@LaunchedEffect
+        }
+        val registry = captureProjectRegistry ?: return@LaunchedEffect
+        try {
+            projectSummaries = projectCaptureRead.readSummaries(registry)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            android.util.Log.e("DZlogProject", "Project list read failed", error)
+            projectSummaries = emptyMap()
+        }
+    }
+
+    LaunchedEffect(screen, cameraSessionCaptureStack.size, viewedProjectResultsId, captureProjectRegistry) {
         if (screen != AppScreen.QUICK_RESULTS) return@LaunchedEffect
+        val registry = captureProjectRegistry ?: return@LaunchedEffect
+        val viewedId = viewedProjectResultsId
+        if (viewedId != null) {
+            try {
+                val result = projectCaptureRead.readProject(registry, viewedId)
+                quickResultsPhotos = result.photos
+                quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                    result.visible.uriGroupsOldestFirst,
+                    result.photos.map {
+                        QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath)
+                    },
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.e("DZlogProject", "Project results read failed", error)
+                quickResultsPhotos = emptyList()
+                quickResultsCaptures = emptyList()
+            }
+            return@LaunchedEffect
+        }
         val savedGroups = cameraSessionCaptureStack.map { group -> group.map { it.toString() } }
         if (savedGroups.isEmpty()) {
             quickResultsPhotos = emptyList()
@@ -800,6 +892,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 }
             }
 
+            AppScreen.PROJECT_LIST -> screen = AppScreen.HOME
+            AppScreen.PROJECT_DETAIL -> screen = AppScreen.PROJECT_LIST
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
@@ -807,7 +901,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
             AppScreen.QUICK_RESULTS -> {
                 returnToQuickResultsFromAlbum = false
-                screen = AppScreen.CAMERA
+                screen = if (albumEntryScreen == AppScreen.PROJECT_DETAIL)
+                    AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
+                viewedProjectResultsId = null
             }
 
             AppScreen.ALBUM_GRID -> {
@@ -873,6 +969,92 @@ fun AppRoot(startOnCamera: Boolean = false) {
         }
 
         when (screen) {
+            AppScreen.PROJECT_LIST -> ProjectListScreen(
+                projects = captureProjectRegistry?.projects.orEmpty(),
+                summaries = projectSummaries,
+                activeId = captureProjectRegistry?.activeId,
+                createInitially = openProjectListWithCreate,
+                onBack = { navigateTo(AppScreen.HOME) },
+                onCreate = { name ->
+                    appScope.launch {
+                        try {
+                            val projectId = projectManagement.create(
+                                name, tableTemplateViewModel.activeTemplateId,
+                            )
+                            projectDetailsId = projectId
+                            openProjectListWithCreate = false
+                            navigateTo(AppScreen.PROJECT_DETAIL)
+                        } catch (error: Exception) {
+                            Toast.makeText(context,
+                                error.message ?: "프로젝트 생성 실패", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
+                onOpenProject = { id ->
+                    projectDetailsId = id
+                    navigateTo(AppScreen.PROJECT_DETAIL)
+                },
+            )
+            AppScreen.PROJECT_DETAIL -> {
+                val project = projectDetailsId?.let { captureProjectRegistry?.find(it) }
+                if (project == null) {
+                    LaunchedEffect(Unit) { screen = AppScreen.PROJECT_LIST }
+                } else ProjectDetailScreen(
+                    project = project,
+                    summary = projectSummaries[project.id] ?: ProjectCaptureSummary(),
+                    selected = captureProjectRegistry?.activeId == project.id,
+                    onBack = { screen = AppScreen.PROJECT_LIST },
+                    onContinue = {
+                        appScope.launch {
+                            try {
+                                if (selectCaptureProject(project.id)) navigateTo(AppScreen.CAMERA)
+                                else Toast.makeText(context,
+                                    "사진 저장 완료 후 프로젝트를 선택해 주세요.",
+                                    Toast.LENGTH_SHORT).show()
+                            } catch (error: Exception) {
+                                Toast.makeText(context,
+                                    error.message ?: "프로젝트 선택 실패",
+                                    Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    onShowAll = {
+                        viewedProjectResultsId = project.id
+                        albumEntryScreen = AppScreen.PROJECT_DETAIL
+                        navigateTo(AppScreen.QUICK_RESULTS)
+                    },
+                    onRename = { name ->
+                        appScope.launch {
+                            try { projectManagement.rename(project.id, name) }
+                            catch (error: Exception) {
+                                Toast.makeText(context,
+                                    error.message ?: "이름 변경 실패",
+                                    Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    onComplete = {
+                        appScope.launch {
+                            try { projectManagement.complete(project.id) }
+                            catch (error: Exception) {
+                                Toast.makeText(context,
+                                    error.message ?: "완료 처리 실패",
+                                    Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    onReopen = {
+                        appScope.launch {
+                            try { projectManagement.reopen(project.id) }
+                            catch (error: Exception) {
+                                Toast.makeText(context,
+                                    error.message ?: "재개 처리 실패",
+                                    Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                )
+            }
             AppScreen.HOME -> HomeScreen(
                 tableTemplateState = tableTemplateState,
                 activeTemplateName = tableTemplateViewModel.templates
@@ -891,7 +1073,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onOpenTableEditor = ::openActiveHomeTableEditor,
                 onOpenSaveSettings = ::openActiveSaveSettings,
                 onOpenAlbum = ::openAlbumRoot,
-                onOpenRecentCaptureGrid = ::openRecentCaptureGrid
+                onOpenRecentCaptureGrid = ::openRecentCaptureGrid,
+                activeProjectName = captureProjectRegistry?.active?.title,
+                onOpenProjectPicker = { showProjectPicker = true },
             )
 
             AppScreen.CAMERA -> {
@@ -1072,6 +1256,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
+                    isProjectResults = viewedProjectResultsId != null,
                     gridColumns = appSettings.quickResultsGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { count ->
@@ -1093,7 +1278,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     onOpenAlbum = ::openAlbumRoot,
                     onReturnToCamera = {
                         returnToQuickResultsFromAlbum = false
-                        screen = AppScreen.CAMERA
+                        screen = if (albumEntryScreen == AppScreen.PROJECT_DETAIL)
+                            AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
+                        viewedProjectResultsId = null
                     },
                 )
                 }
@@ -1230,6 +1417,30 @@ fun AppRoot(startOnCamera: Boolean = false) {
             }
             }
         }
+        if (showProjectPicker) ProjectPickerDialog(
+            projects = captureProjectRegistry?.projects.orEmpty(),
+            activeId = captureProjectRegistry?.activeId,
+            onSelect = { target ->
+                appScope.launch {
+                    try {
+                        if (selectCaptureProject(target)) {
+                            showProjectPicker = false
+                        } else {
+                            Toast.makeText(context,
+                                "사진 저장 완료 후 변경해 주세요.",
+                                Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (error: Exception) {
+                        Toast.makeText(context,
+                            error.message ?: "프로젝트 선택 실패",
+                            Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onCreate = { openProjectList(true) },
+            onManage = { openProjectList(false) },
+            onDismiss = { showProjectPicker = false },
+        )
         if (startOnCamera && screen == AppScreen.CAMERA &&
             firstGuidePhase != FirstCaptureGuidePhase.DISMISSED
         ) {
