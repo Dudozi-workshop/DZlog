@@ -115,7 +115,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             (workspace.active ?: workspace.documents.firstOrNull())?.template?.styleState
                 ?: com.dudoziworkshop.dzlog.feature.table.model.TableStyleState())
         // Like Android, a new draft is not persisted until Save; discard removes only this draft.
-        pendingNew = document.copy(template = item, nextCounter = null, usesAutoNext = true)
+        pendingNew = document.copy(template = item, nextCounter = null, usesAutoNext = true,
+            capturePlacement = null)
         openEditor(item.id, true)
     }
     fun unavailable() { notice = "이 기능은 아직 사용할 수 없습니다." }
@@ -147,6 +148,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                         currentTemplate.copy(templateState = table, styleState = style,
                             modifiedAt = tableEditorNow().epochMilliseconds),
                         pathScope, filenameScope, mode, padding, next, autoNext,
+                        capturePlacement = document.capturePlacement,
                     )
                     if (persist(workspace.save(updated))) { pendingNew = null; true } else false
                 },
