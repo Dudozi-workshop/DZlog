@@ -63,6 +63,7 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
                 availability = when {
                     !readable -> CaptureMediaAvailability.INACCESSIBLE
                     photos.exists(entry.asset.assetId) -> CaptureMediaAvailability.PRESENT
+                    !photos.hasFullReadAccess() -> CaptureMediaAvailability.INACCESSIBLE
                     else -> CaptureMediaAvailability.MISSING
                 },
             )
@@ -83,6 +84,9 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
         check(photos.hasReadAccess()) { "Photos read permission is needed for interrupted save recovery." }
 
         val surviving = pending.filter { photos.exists(it.asset.assetId) }
+        check(surviving.size == pending.size || photos.hasFullReadAccess()) {
+            "Full Photos access is needed to reconcile unavailable pending assets."
+        }
         when (surviving.size) {
             pending.size -> {
                 index.append(pending)
@@ -108,10 +112,12 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
             photos.remove(entries.map { it.asset.assetId })
         }.getOrDefault(false)
         if (removed) runCatching { index.clearPending() }
+        if (removed) throw PhotoKitSaveRolledBackException(
+            "PhotoKit capture rolled back after metadata failure.", cause)
         throw IllegalStateException(
-            if (removed) "PhotoKit capture rolled back after metadata failure."
-            else "PhotoKit metadata failed; automatic asset rollback also failed. Manual recovery is required.",
+            "PhotoKit metadata failed; automatic asset rollback also failed. Manual recovery is required.",
             cause,
         )
     }
 }
+

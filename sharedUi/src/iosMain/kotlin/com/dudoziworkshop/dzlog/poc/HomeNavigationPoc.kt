@@ -50,9 +50,16 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     var recentPhotoName by remember { mutableStateOf("") }
     val cameraReturnRevision = IosCameraReturnSignal.revision
-    LaunchedEffect(editorKey) {
+    var recoveryRevision by remember { mutableIntStateOf(0) }
+    var recoveryPending by remember { mutableStateOf(IosCameraCaptureSession.hasPending()) }
+    var recovering by remember { mutableStateOf(false) }
+    LaunchedEffect(editorKey, cameraReturnRevision, recoveryRevision) {
+        recoveryPending = IosCameraCaptureSession.hasPending()
         if (!loadFailed && IosCameraCaptureSession.hasPending()) {
+            recovering = true
             val recovered = runCatching { IosCameraCaptureSession.recover(store, template) }.getOrDefault(false)
+            recoveryPending = IosCameraCaptureSession.hasPending()
+            recovering = false
             if (recovered) {
                 runCatching { store.load(template) }.onSuccess { workspace = it }
             } else {
@@ -232,7 +239,9 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             modifier = Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
             bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding(),
-            captureEnabled = !loadFailed, settingsEnabled = !loadFailed, editingEnabled = !loadFailed, saveInfoEnabled = true,
+            captureEnabled = !loadFailed && !recoveryPending && !recovering,
+            settingsEnabled = !loadFailed && !recoveryPending && !recovering,
+            editingEnabled = !loadFailed && !recoveryPending && !recovering, saveInfoEnabled = true,
             background = { HomeAmbientContent(painter = leaf) },
             recentCapture = {
                 HomeRecentCaptureContent(
@@ -252,8 +261,9 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
         )
     }
     notice?.let { message ->
-        DDZConfirmDialog(title = "안내", message = message, confirmText = "확인", dismissText = "닫기",
-            onConfirm = { notice = null }, onDismiss = { notice = null })
+        DDZConfirmDialog(title = "안내", message = message,
+            confirmText = if (recoveryPending) "복구 재시도" else "확인", dismissText = "닫기",
+            onConfirm = { notice = null; if (recoveryPending) recoveryRevision += 1 }, onDismiss = { notice = null })
     }
     if (showSaveInfo) {
         HomeSaveInfoSheet(

@@ -31,9 +31,16 @@ internal data class PhotoKitCreatedBatch(
     val metadataError: Throwable? = null,
 )
 
+/** Only a confirmed failed PhotoKit transaction or confirmed rollback may use this signal. */
+internal class PhotoKitSaveRolledBackException(message: String, cause: Throwable? = null) :
+    IllegalStateException(message, cause)
+
 /** Only this iOS adapter touches Photos; Android MediaStore remains independent. */
 internal class PhotoKitAssetAccess {
     fun hasReadAccess(): Boolean = allowed(PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite))
+
+    fun hasFullReadAccess(): Boolean =
+        PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite) == PHAuthorizationStatusAuthorized
 
     suspend fun ensureReadWriteAccess() {
         var status = PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)
@@ -95,7 +102,7 @@ internal class PhotoKitAssetAccess {
                     // An unsuccessful PhotoKit change block has no committed assets.
                     runCatching { index.clearPending() }
                     continuation.resumeWithException(
-                        IllegalStateException("PhotoKit could not save capture: ${error?.localizedDescription}", metadataError),
+                        PhotoKitSaveRolledBackException("PhotoKit could not save capture: ${error?.localizedDescription}", metadataError),
                     )
                 } else {
                     continuation.resume(PhotoKitCreatedBatch(entries.toList(), metadataError))
@@ -106,6 +113,8 @@ internal class PhotoKitAssetAccess {
 
     suspend fun remove(assetIds: List<String>): Boolean {
         val assets = assetIds.mapNotNull(::find)
+        // Limited Photos access cannot prove an unreturned identifier was deleted.
+        if (assets.size != assetIds.size && !hasFullReadAccess()) return false
         if (assets.isEmpty()) return true
         return suspendCoroutine { continuation ->
             PHPhotoLibrary.sharedPhotoLibrary().performChanges({
@@ -157,3 +166,4 @@ internal class PhotoKitAssetAccess {
 
 private fun ByteArray.toNSData(): NSData =
     usePinned { pinned -> NSData.create(bytes = pinned.addressOf(0), length = size.toULong()) }
+

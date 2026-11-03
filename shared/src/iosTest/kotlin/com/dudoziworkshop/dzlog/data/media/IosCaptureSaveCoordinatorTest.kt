@@ -29,13 +29,15 @@ import platform.Foundation.NSUserDefaults
 class IosCaptureSaveCoordinatorTest {
     private class FakeMedia(
         private val fail: Boolean = false,
+        private val rolledBack: Boolean = false,
     ) : CaptureMediaRepository {
         var saved = emptyList<SavedCaptureMedia>()
         override suspend fun saveAllOrRollback(
             plan: CaptureMediaSavePlan, jpegByRole: Map<CaptureMediaRole, ByteArray>,
         ): ConfirmedCaptureMediaSave {
+            if (rolledBack) throw PhotoKitSaveRolledBackException("Confirmed transaction rollback")
             if (fail) error("Simulated PhotoKit failure")
-            val assets = plan.targets.map { PersistedCaptureAsset(it, "asset-12") }
+            val assets = plan.targets.mapIndexed { index, target -> PersistedCaptureAsset(target, "asset-12-$index") }
             saved = assets.map { SavedCaptureMedia(plan.captureId, it, CaptureMediaAvailability.PRESENT) }
             return plan.confirm(assets)
         }
@@ -102,6 +104,44 @@ class IosCaptureSaveCoordinatorTest {
         }
     }
 
+    @Test fun allModesRecoverCompleteReceiptsWithoutChangingSaveSettings() = runSynchronously {
+        for (mode in SaveMode.entries) withFixture(mode) { store, before, plan ->
+            val media = FakeMedia()
+            val coordinator = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(store, "pending"))
+            var actual = before
+            val payloads = plan.targets.associate { it.role to byteArrayOf(1) }
+            assertFalse(coordinator.saveAndCommit(before, checkNotNull(before.active), plan,
+                payloads, { actual }, { false }))
+            assertEquals(before, actual)
+            assertTrue(coordinator.hasPendingCapture())
+            assertTrue(coordinator.recoverPending({ actual }, { actual = it; true }))
+            assertEquals(13, actual.active?.nextCounter)
+            assertEquals(mode, actual.active?.saveMode)
+            assertEquals(before.active?.capturePlacement, actual.active?.capturePlacement)
+            assertFalse(coordinator.hasPendingCapture())
+            assertTrue(coordinator.recoverPending({ actual }, { error("Must not persist twice") }))
+        }
+    }
+
+    @Test fun confirmedRollbackClearsJournalAndAllowsRetryInEveryMode() = runSynchronously {
+        for (mode in SaveMode.entries) withFixture(mode) { store, before, plan ->
+            val journal = IosCaptureWorkspaceJournal(store, "pending")
+            val coordinator = IosCaptureSaveCoordinator(FakeMedia(rolledBack = true), journal)
+            val payloads = plan.targets.associate { it.role to byteArrayOf(1) }
+            assertFailsWith<PhotoKitSaveRolledBackException> {
+                runSynchronously {
+                    coordinator.saveAndCommit(before, checkNotNull(before.active), plan,
+                        payloads, { before }, { error("Rollback must not commit workspace") })
+                }
+            }
+            assertFalse(coordinator.hasPendingCapture())
+            var actual = before
+            assertTrue(IosCaptureSaveCoordinator(FakeMedia(), journal).saveAndCommit(
+                before, checkNotNull(before.active), plan, payloads, { actual }, { actual = it; true }))
+            assertEquals(13, actual.active?.nextCounter)
+        }
+    }
+
     private fun <T> runSynchronously(block: suspend () -> T): T {
         var completed: Result<T>? = null
         block.startCoroutine(object : Continuation<T> {
@@ -116,6 +156,7 @@ class IosCaptureSaveCoordinatorTest {
     }
 
     private suspend fun withFixture(
+        mode: SaveMode = SaveMode.ORIGINAL_ONLY,
         block: suspend (NSUserDefaults, EditorWorkspace, CaptureMediaSavePlan) -> Unit,
     ) {
         val suite = "dzlog.capture.coordinator.test.${NSUUID().UUIDString}"
@@ -123,14 +164,17 @@ class IosCaptureSaveCoordinatorTest {
         try {
             val template = SavedTableTemplate("field", "현장 기록", TableTemplateState(1, 1, emptyList()),
                 TableStyleState(), 0L)
-            val document = EditorDocument(template, saveMode = SaveMode.ORIGINAL_ONLY, nextCounter = 12)
+            val document = EditorDocument(template, saveMode = mode, nextCounter = 12,
+                capturePlacement = com.dudoziworkshop.dzlog.data.template.EditorCapturePlacement(
+                    com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor.CUSTOM, 25, 75, 40, 20, 90))
             val workspace = EditorWorkspace(listOf(document), "field")
             val path = "Pictures/DZlog/Field/"
             val preview = FinalCapturePreview(emptyList(), TablePatch.EMPTY, "Field_0012.jpg", 12, 0,
-                CounterScope(buildCounterPath(path, SaveMode.ORIGINAL_ONLY), "Field_", 12, false), path)
-            block(defaults, workspace, buildCaptureMediaSavePlan(preview, SaveMode.ORIGINAL_ONLY, "shot-12"))
+                CounterScope(buildCounterPath(path, mode), "Field_", 12, false), path)
+            block(defaults, workspace, buildCaptureMediaSavePlan(preview, mode, "shot-12"))
         } finally {
             defaults.removePersistentDomainForName(suite)
         }
     }
 }
+

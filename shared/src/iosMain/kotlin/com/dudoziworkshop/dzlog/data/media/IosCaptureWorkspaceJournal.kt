@@ -75,6 +75,14 @@ class IosCaptureWorkspaceJournal(
         return applyIfUnchanged(entry, loadWorkspace, persistWorkspace)
     }
 
+    /** A trusted PhotoKit failure proves no media survived; never infer this from an empty query. */
+    internal fun abortConfirmedRollback(captureId: String, current: EditorWorkspace): Boolean {
+        val entry = pending() ?: return true
+        if (entry.captureId != captureId || current != entry.before) return false
+        defaults.removeObjectForKey(key)
+        return defaults.synchronize()
+    }
+
     /**
      * Call after PhotoKit listSavedAssets() has reconciled pending asset writes.
      * Returns false and leaves the journal untouched unless ALL roles are PRESENT.
@@ -146,3 +154,4 @@ class IosCaptureWorkspaceJournal(
         )
     }
 }
+

@@ -33,7 +33,13 @@ class IosCaptureSaveCoordinator(
         }
         // The journal MUST be durable before issuing the irreversible PhotoKit write.
         journal.stage(originalWorkspace, selectedDocument, plan)
-        val receipt = media.saveAllOrRollback(plan, jpegByRole)
+        val receipt = try {
+            media.saveAllOrRollback(plan, jpegByRole)
+        } catch (failure: PhotoKitSaveRolledBackException) {
+            // Other exceptions remain pending: assets might exist without a receipt.
+            journal.abortConfirmedRollback(plan.captureId, loadWorkspace())
+            throw failure
+        }
         return journal.complete(receipt, loadWorkspace, persistWorkspace)
     }
 
@@ -45,3 +51,4 @@ class IosCaptureSaveCoordinator(
         return journal.recover(media.listSavedAssets(), loadWorkspace, persistWorkspace)
     }
 }
+
