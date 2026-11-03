@@ -25,9 +25,11 @@ fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = C
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
+        val session = remember { IosCameraWorkspaceBridge.current }
         IosCameraCapturePoc(
             permissionGranted = cameraPermissionGranted,
-            session = remember { IosCameraWorkspaceBridge.current },
+            session = session,
+            tablePlacement = session?.tablePlacement,
             onBack = {
                 IosCameraWorkspaceBridge.clear()
                 IosCameraReturnSignal.noteCameraClosed()
