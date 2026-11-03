@@ -35,7 +35,8 @@ jobs:
       - name: Compile and test DZQ-021 core
         run: |
           bash ./gradlew --no-daemon :app:testDebugUnitTest \
-            --tests 'com.dudoziworkshop.dzlog.domain.project.*'
+            --tests 'com.dudoziworkshop.dzlog.domain.project.*' \
+            --tests 'com.dudoziworkshop.dzlog.data.project.*'
       - name: Store focused reports
         if: always()
         uses: actions/upload-artifact@v4
