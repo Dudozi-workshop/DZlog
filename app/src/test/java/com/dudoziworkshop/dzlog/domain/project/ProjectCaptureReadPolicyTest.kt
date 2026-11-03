@@ -1,6 +1,8 @@
 package com.dudoziworkshop.dzlog.domain.project
 
 import org.junit.Assert.assertEquals
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultPhoto
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsCaptureDeletePolicy
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -56,6 +58,42 @@ class ProjectCaptureReadPolicyTest {
             listOf("content://a/2"),
         ), snapshot.uriGroupsOldestFirst)
         assertEquals("content://a/2", snapshot.latestUri)
+    }
+
+    @Test fun movedOriginalRetainsItsRoleAndExactlyPairedDeletionTarget() {
+        val record = capture("one", 10L)
+        val photos = listOf(
+            QuickResultPhoto(requireNotNull(record.resultUri), "result.jpg", "Pictures/DZlog/A/"),
+            QuickResultPhoto(requireNotNull(record.originalUri), "original.jpg", "Pictures/Exported/"),
+        )
+        val shown = ProjectCaptureReadPolicy.quickResults(listOf(record), photos)
+        assertEquals(1, shown.size)
+        assertEquals(record.resultUri, shown.single().result?.uri)
+        assertEquals(record.originalUri, shown.single().original?.uri)
+        assertEquals("Pictures/DZlog/A/", shown.single().folderPath)
+        assertEquals(record.mediaUris,
+            QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
+                requireNotNull(record.resultUri), shown,
+            ),
+        )
+    }
+
+    @Test fun movedOriginalOnlyCaptureStaysOriginalAndUsesItsActualLocation() {
+        val record = capture("one", 10L, result = null)
+        val photo = QuickResultPhoto(requireNotNull(record.originalUri), "original.jpg", "Pictures/Exported/")
+        val shown = ProjectCaptureReadPolicy.quickResults(listOf(record), listOf(photo)).single()
+        assertEquals(null, shown.result)
+        assertEquals(photo, shown.original)
+        assertEquals("Pictures/Exported/", shown.folderPath)
+    }
+
+    @Test fun missingResultLeavesOneOriginalWithOriginalRole() {
+        val record = capture("one", 10L)
+        val original = QuickResultPhoto(requireNotNull(record.originalUri), "original.jpg", "Pictures/DZlog/A/original/")
+        val shown = ProjectCaptureReadPolicy.quickResults(listOf(record), listOf(original)).single()
+        assertEquals(null, shown.result)
+        assertEquals(original, shown.original)
+        assertEquals("Pictures/DZlog/A/", shown.folderPath)
     }
 
     @Test fun missingNewestCaptureFallsBackToPreviousVisibleOne() {
