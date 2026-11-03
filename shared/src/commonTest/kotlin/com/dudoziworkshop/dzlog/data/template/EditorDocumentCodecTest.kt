@@ -33,9 +33,9 @@ class EditorDocumentCodecTest {
     @Test fun legacyDocumentsWithoutPlacementRemainReadable() {
         val document = sample()
         val encoded = EditorDocumentCodec.encode(document)
-        val placementField = "," + '"' + "placementV1" + '"' + ":"
-        assertTrue(encoded.contains(placementField))
-        val legacy = encoded.substringBefore(placementField) + "}"
+        // JSON object key order is not guaranteed on JVM or Native.
+        val legacy = encoded.replace(Regex("""(,"placementV1":null|"placementV1":null,)"""), "")
+        assertNotEquals(encoded, legacy)
         assertEquals(document, EditorDocumentCodec.decode(legacy))
         assertNull(EditorDocumentCodec.decode(legacy).capturePlacement)
     }
