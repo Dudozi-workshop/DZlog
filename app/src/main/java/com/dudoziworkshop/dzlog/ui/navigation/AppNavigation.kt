@@ -784,12 +784,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             try {
                 val result = projectCaptureRead.readProject(registry, viewedId)
                 quickResultsPhotos = result.photos
-                quickResultsCaptures = QuickResultsSessionPolicy.captures(
-                    result.visible.uriGroupsOldestFirst,
-                    result.photos.map {
-                        QuickResultPhoto(it.uri.toString(), it.displayName, it.relativePath)
-                    },
-                )
+                quickResultsCaptures = result.captures
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -1407,14 +1402,30 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                 else photosByUri[originalUri]?.let { resultUri to it }
                             }.toMap()
                         } else emptyMap(),
+                    quickResultDeleteItemsByDisplayedUri =
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            val byUri = quickResultsPhotos.associateBy { it.uri.toString() }
+                            quickResultsCaptures.mapNotNull { capture ->
+                                runCatching {
+                                    val targetUris = com.dudoziworkshop.dzlog.domain.quickresults
+                                        .QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
+                                            capture.displayedPhoto.uri, quickResultsCaptures,
+                                        )
+                                    capture.displayedPhoto.uri to targetUris.map { raw ->
+                                        requireNotNull(byUri[raw]) {
+                                            "촬영 원본/결과 파일이 변경되었습니다."
+                                        }
+                                    }
+                                }.getOrNull()
+                            }.toMap()
+                        } else emptyMap(),
                     onItemsReloaded = { updatedItems ->
                         gridItems = updatedItems
                     },
-                    onSessionMediaChanged = { changedIds ->
+                    onSessionMediaChanged = { changedIds, wereDeleted ->
                         if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
-                            // Gallery mutations must not trigger a camera phrase rollback.
-                            // Keep session groups intact for browsing, but fence changed
-                            // capture URIs from a subsequent camera Undo.
+                            // Moving is not deletion. Keep Undo state/counters intact,
+                            // but fence touched capture URIs from a later camera Undo.
                             val affectedUris = quickResultsPhotos
                                 .filter { it.id in changedIds }
                                 .map { it.uri.toString() }
@@ -1424,21 +1435,53 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             cameraPhraseUndoHistory.invalidateUndoForExistingCaptures(
                                 affectedGroups.flatMap { group -> group.map(Uri::toString) }
                             )
+                            val viewedId = viewedProjectResultsId
                             appScope.launch {
-                                val refreshed = withContext(Dispatchers.IO) {
-                                    DzlogMediaStoreReader(context.contentResolver)
-                                        .loadImagesUnderPrefix("Pictures/DZlog/")
+                                try {
+                                    if (wereDeleted && affectedUris.isNotEmpty()) {
+                                        // Gallery has already verified the exact missing IDs.
+                                        projectCaptureRead.afterVerifiedMediaDeletion(
+                                            affectedUris.toSet(),
+                                        )
+                                    }
+                                    if (viewedId != null) {
+                                        val registry = captureProjectRegistry
+                                            ?: error("프로젝트 목록을 확인할 수 없습니다.")
+                                        val snapshot = projectCaptureRead.readProject(registry, viewedId)
+                                        quickResultsPhotos = snapshot.photos
+                                        quickResultsCaptures = snapshot.captures
+                                    } else {
+                                        val refreshed = withContext(Dispatchers.IO) {
+                                            DzlogMediaStoreReader(context.contentResolver)
+                                                .loadImagesUnderPrefix("Pictures/DZlog/")
+                                        }
+                                        quickResultsPhotos = refreshed
+                                        val groups = cameraSessionCaptureStack.map { group ->
+                                            group.map(Uri::toString)
+                                        }
+                                        quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                            groups,
+                                            refreshed.map { photo ->
+                                                QuickResultPhoto(
+                                                    photo.uri.toString(), photo.displayName,
+                                                    photo.relativePath,
+                                                )
+                                            },
+                                        )
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    android.util.Log.e(
+                                        "DZlogQuickResults",
+                                        "Failed to reconcile changed media", error,
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        "사진 기록 갱신에 실패했습니다. 다시 들어와 확인해 주세요.",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
                                 }
-                                quickResultsPhotos = refreshed
-                                val groups = cameraSessionCaptureStack.map { group ->
-                                    group.map(Uri::toString)
-                                }
-                                quickResultsCaptures = QuickResultsSessionPolicy.captures(
-                                    groups,
-                                    refreshed.map { photo ->
-                                        QuickResultPhoto(photo.uri.toString(), photo.displayName, photo.relativePath)
-                                    },
-                                )
                             }
                         }
                     },
