@@ -35,7 +35,8 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
             val batch = photos.create(plan, jpegByRole, index)
             if (batch.metadataError != null || batch.entries.size != plan.targets.size) {
                 rollbackAndFail(batch.entries, batch.metadataError
-                    ?: IllegalStateException("PhotoKit returned an incomplete write receipt."))
+                    ?: IllegalStateException("PhotoKit returned an incomplete write receipt."),
+                    allCreatedAssetsTracked = batch.entries.size == plan.targets.size)
             }
 
             try {
@@ -107,12 +108,15 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
     private suspend fun rollbackAndFail(
         entries: List<IndexedCaptureMedia>,
         cause: Throwable,
+        allCreatedAssetsTracked: Boolean = true,
     ): Nothing {
         val removed = runCatching {
             photos.remove(entries.map { it.asset.assetId })
         }.getOrDefault(false)
         if (removed) runCatching { index.clearPending() }
-        if (removed) throw PhotoKitSaveRolledBackException(
+        // A missing placeholder may hide an untracked creation. Deleting only
+        // known IDs is not proof that the whole transaction was rolled back.
+        if (removed && allCreatedAssetsTracked) throw PhotoKitSaveRolledBackException(
             "PhotoKit capture rolled back after metadata failure.", cause)
         throw IllegalStateException(
             "PhotoKit metadata failed; automatic asset rollback also failed. Manual recovery is required.",
