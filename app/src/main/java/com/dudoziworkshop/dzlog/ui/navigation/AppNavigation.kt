@@ -1257,6 +1257,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
                     isProjectResults = viewedProjectResultsId != null,
+                    returnToProjectDetail = albumEntryScreen == AppScreen.PROJECT_DETAIL,
                     gridColumns = appSettings.quickResultsGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { count ->
