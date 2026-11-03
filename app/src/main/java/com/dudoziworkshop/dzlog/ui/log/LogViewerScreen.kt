@@ -115,7 +115,8 @@ fun LogViewerScreen(
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
     isQuickResultsViewer: Boolean = false,
-    onSessionMediaChanged: (Set<Long>) -> Unit = {},
+    quickResultDeleteItemsByDisplayedUri: Map<String, List<MediaImageItem>> = emptyMap(),
+    onSessionMediaChanged: (Set<Long>, Boolean) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val tourLocation = LocalTutorialLocation.current
@@ -417,7 +418,9 @@ fun LogViewerScreen(
                         onDelete = {
                             if (guidePage == null && !operationLocked && currentItem != null) {
                                 emptyAfterOperation = false
-                                deleteItem = currentItem
+                                // Delete the exact shutter, even when the user is
+                                // temporarily previewing its original image.
+                                deleteItem = if (isQuickResultsViewer) resultItem else currentItem
                             }
                         }
                     )
@@ -484,25 +487,58 @@ fun LogViewerScreen(
     }
 
     deleteItem?.let { requested ->
-        GalleryViewerDeleteDialog(
-            item = requested,
-            reader = reader,
-            onVerified = { deletedIds ->
+        // In Quick Results a capture is one shutter, not one MediaStore file.
+        // The caller must provide the verified result/original pair, never a
+        // filename/folder-derived companion. Gallery mode stays per-file.
+        val frozenSelection = if (isQuickResultsViewer) {
+            quickResultDeleteItemsByDisplayedUri[requested.uri.toString()]
+        } else null
+        if (isQuickResultsViewer && frozenSelection == null) {
+            AlertDialog(
+                onDismissRequest = { deleteItem = null },
+                title = { Text("촬영 기록 확인 필요") },
+                text = { Text("연결된 원본·결과 정보를 찾지 못했습니다. 빠른 결과를 새로 확인해 주세요.") },
+                confirmButton = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = { deleteItem = null }) {
+                        Text("확인")
+                    }
+                },
+            )
+        } else {
+            val onVerifiedDeletion: (Set<Long>) -> Unit = { deletedIds ->
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
-                onSessionMediaChanged(deletedIds)
+                onSessionMediaChanged(deletedIds, true)
                 if (items.any { it.id in deletedIds }) {
-                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
+                    val update = GalleryViewerDeletePolicy.reconcile(
+                        items.map { it.id }, pagerState.currentPage, deletedIds,
+                    )
                     pendingViewerIndex = update.currentIndex
                     emptyAfterOperation = update.ids.isEmpty()
                     onItemsReloaded(items.filter { it.id !in deletedIds })
                 }
-            },
-            onClose = {
+            }
+            val onDeleteClose = {
                 deleteItem = null
                 if (emptyAfterOperation) onRequestCloseViewer()
-            },
-        )
+            }
+            if (isQuickResultsViewer) {
+                GallerySelectedPhotoDeleteDialog(
+                    selected = requireNotNull(frozenSelection),
+                    reader = reader,
+                    allowIncludeOriginals = false,
+                    onVerified = onVerifiedDeletion,
+                    onClose = onDeleteClose,
+                )
+            } else {
+                GalleryViewerDeleteDialog(
+                    item = requested,
+                    reader = reader,
+                    onVerified = onVerifiedDeletion,
+                    onClose = onDeleteClose,
+                )
+            }
+        }
     }
 
     moveItem?.let { requested ->
@@ -510,7 +546,7 @@ fun LogViewerScreen(
             item = requested,
             reader = reader,
             onVerified = { movedIds ->
-                onSessionMediaChanged(movedIds)
+                onSessionMediaChanged(movedIds, false)
                 if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
                 if (items.any { it.id in movedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
