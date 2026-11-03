@@ -53,10 +53,12 @@ internal fun ProjectDetailScreen(
     onRename: (String) -> Unit,
     onComplete: () -> Unit,
     onReopen: () -> Unit,
+    onDeleteMetadata: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showComplete by remember { mutableStateOf(false) }
+    var showDeleteMetadata by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -84,6 +86,10 @@ internal fun ProjectDetailScreen(
                     ) else DropdownMenuItem(
                         text = { Text("프로젝트 재개") },
                         onClick = { menuOpen = false; onReopen() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("프로젝트만 삭제 · 사진 유지") },
+                        onClick = { menuOpen = false; showDeleteMetadata = true },
                     )
                 }
             }
@@ -153,6 +159,21 @@ internal fun ProjectDetailScreen(
         },
         dismissButton = {
             TextButton(onClick = { showComplete = false }) { Text("취소") }
+        },
+    )
+
+    if (showDeleteMetadata) AlertDialog(
+        onDismissRequest = { showDeleteMetadata = false },
+        title = { Text("프로젝트만 삭제할까요?") },
+        text = { Text("프로젝트 기록만 삭제합니다. 기존 원본·결과 사진은 저장 위치에 남으며 일반 촬영에 편입되지 않습니다.") },
+        confirmButton = {
+            TextButton(onClick = {
+                showDeleteMetadata = false
+                onDeleteMetadata()
+            }) { Text("프로젝트만 삭제") }
+        },
+        dismissButton = {
+            TextButton(onClick = { showDeleteMetadata = false }) { Text("취소") }
         },
     )
 

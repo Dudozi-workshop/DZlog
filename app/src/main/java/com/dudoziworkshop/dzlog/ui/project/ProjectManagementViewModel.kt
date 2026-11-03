@@ -50,4 +50,10 @@ internal class ProjectManagementViewModel(application: Application) : AndroidVie
     suspend fun reopen(projectId: String) {
         projects.reopenProject(projectId)
     }
+
+    /** Preserves every MediaStore image and its original capture provenance. */
+    suspend fun deleteMetadataOnly(projectId: String) {
+        check(canChangeCaptureTarget()) { "사진 저장 처리가 끝나면 삭제할 수 있습니다." }
+        projects.deleteProject(projectId)
+    }
 }

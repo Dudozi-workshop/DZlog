@@ -1061,6 +1061,23 @@ fun AppRoot(startOnCamera: Boolean = false) {
                             }
                         }
                     },
+                    onDeleteMetadata = {
+                        appScope.launch {
+                            try {
+                                projectManagement.deleteMetadataOnly(project.id)
+                                if (captureProjectRegistry?.activeId == project.id) {
+                                    cameraPhraseUndoHistory.clear()
+                                    cameraSessionCaptureStack.clear()
+                                }
+                                projectDetailsId = null
+                                screen = AppScreen.PROJECT_LIST
+                            } catch (error: Exception) {
+                                Toast.makeText(context,
+                                    error.message ?: "프로젝트 삭제 실패",
+                                    Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
                 )
             }
             AppScreen.HOME -> HomeScreen(
