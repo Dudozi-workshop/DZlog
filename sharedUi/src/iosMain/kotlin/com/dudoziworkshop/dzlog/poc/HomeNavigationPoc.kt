@@ -23,6 +23,7 @@ import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog
 import com.dudoziworkshop.dzlog.ui.home.*
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListContent
@@ -267,12 +268,14 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     }
     if (showSaveInfo) {
         HomeSaveInfoSheet(
-            fileName = if (selected) savedPreview.previewNaming.displayName else "ios-sample_0001.jpg",
-            relativePaths = if (selected) listOf("사진 저장 연결 전") else listOf("PoC/현장 기록/", "PoC/보관/"),
+            fileName = if (selected) savedPreview.previewNaming.displayName else "템플릿을 선택해 주세요.",
+            relativePaths = if (selected) capturePhysicalSavePaths(
+                savedPreview.previewNaming.relativePath, savedDocument.saveMode) else emptyList(),
             onOpenSaveSettings = {
                 showSaveInfo = false
                 if (workspace.documents.isEmpty()) showList = true else showCaptureSettings = true
-            }, onDismiss = { showSaveInfo = false }, settingsEnabled = !loadFailed && selected,
+            }, onDismiss = { showSaveInfo = false },
+            settingsEnabled = !loadFailed && selected && !recoveryPending && !recovering,
         )
     }
 }

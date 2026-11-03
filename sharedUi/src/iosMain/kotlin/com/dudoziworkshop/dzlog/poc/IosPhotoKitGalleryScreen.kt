@@ -47,22 +47,29 @@ internal fun IosPhotoKitGalleryScreen(
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var message by remember { mutableStateOf("사진 확인 중") }
     var loadError by remember { mutableStateOf<String?>(null) }
+    var refreshing by remember { mutableStateOf(false) }
 
     fun refresh() {
+        if (refreshing) return
+        refreshing = true
         scope.launch {
             try {
                 val fetched = repository.listSavedAssets().asReversed()
                 photos = fetched
                 if (selectedId == null || fetched.none { it.asset.assetId == selectedId }) {
                     val latestCapture = fetched.firstOrNull()?.captureId
-                    selectedId = fetched.firstOrNull {
-                        it.captureId == latestCapture && it.asset.target.role == CaptureMediaRole.RESULT
-                    }?.asset?.assetId ?: fetched.firstOrNull()?.asset?.assetId
+                    selectedId = (fetched.firstOrNull {
+                        it.captureId == latestCapture && it.asset.target.role == CaptureMediaRole.RESULT &&
+                            it.availability == CaptureMediaAvailability.PRESENT
+                    } ?: fetched.firstOrNull { it.availability == CaptureMediaAvailability.PRESENT }
+                        ?: fetched.firstOrNull())?.asset?.assetId
                 }
                 message = if (fetched.isEmpty()) "저장된 사진이 없습니다." else "저장 사진 ${fetched.size}개"
                 loadError = null
             } catch (error: Throwable) {
                 loadError = "갤러리 조회 실패: ${error.message}"
+            } finally {
+                refreshing = false
             }
         }
     }
@@ -78,9 +85,11 @@ internal fun IosPhotoKitGalleryScreen(
         }
         try {
             val bytes = repository.readAsset(selected.asset.assetId)
-            image = bytes?.takeIf { it.isNotEmpty() }?.let {
+            val decoded = bytes?.takeIf { it.isNotEmpty() }?.let {
                 SkiaImage.makeFromEncoded(it).toComposeImageBitmap()
             }
+            if (selectedId != selected.asset.assetId) return@LaunchedEffect
+            image = decoded
             if (image == null) message = "사진 파일을 읽을 수 없습니다."
             else message = "사진 복원 완료"
         } catch (error: Throwable) {
@@ -95,7 +104,7 @@ internal fun IosPhotoKitGalleryScreen(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onBack) { Text("뒤로가기") }
-            Button(onClick = ::refresh) { Text("새로고침") }
+            Button(onClick = ::refresh, enabled = !refreshing) { Text("새로고침") }
         }
         Text("갤러리")
         Text("사진 ${photos.size}개")
@@ -125,3 +134,4 @@ internal fun IosPhotoKitGalleryScreen(
         }
     }
 }
+
