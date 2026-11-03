@@ -39,7 +39,8 @@ jobs:
             --tests 'com.dudoziworkshop.dzlog.data.project.*' \
             --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' \
             --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureRecordReceiptMapperTest' \
-            --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CameraSelectionChangePolicyTest'
+            --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CameraSelectionChangePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsCaptureDeletePolicyTest'
       - name: Assemble Android debug QA APK
         run: bash ./gradlew --no-daemon :app:assembleDebug --stacktrace
       - name: Store Android debug APK
