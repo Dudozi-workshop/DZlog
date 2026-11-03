@@ -5,6 +5,8 @@ test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
@@ -44,7 +46,7 @@ shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
 # Bound native XCTest execution and preserve a partial transcript on simulator stalls.
 case "$test_scope" in
   settings) limit_seconds=480 ;;
-  media) limit_seconds=600 ;;
+  media) limit_seconds=900 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
   full) limit_seconds=1200 ;;
@@ -53,3 +55,4 @@ python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \
   xcodebuild test-without-building "${xcode_args[@]}" ${selection[@]+"${selection[@]}"} \
     -resultBundlePath "$evidence_dir/interaction.xcresult"
+

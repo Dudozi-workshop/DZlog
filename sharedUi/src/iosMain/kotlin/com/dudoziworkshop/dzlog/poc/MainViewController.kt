@@ -50,7 +50,9 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--configured-capture-flow")) {
+            IosConfiguredCaptureFixture()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
             IosCameraCapturePoc(permissionGranted = cameraPermissionGranted)
         } else if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
             PhotoKitMediaFlowPoc()
@@ -153,3 +155,4 @@ private fun formatPocTemplateDate(timestamp: Long, used: Boolean): String {
     return (if (used) "사용 " else "수정 ") + formatter.stringFromDate(
         NSDate.dateWithTimeIntervalSince1970(timestamp / 1000.0))
 }
+

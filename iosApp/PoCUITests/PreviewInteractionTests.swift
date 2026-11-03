@@ -21,6 +21,74 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
     }
 
+    // Only the sensor JPEG is synthetic. Exercise the user settings form and
+    // production configured save entry, then relaunch and read the real gallery.
+    func testConfiguredSaveModesAndGalleryAfterRelaunch() {
+        for (label, mode, placement) in [("원본만", "ORIGINAL_ONLY", "없음"),
+                                         ("결과만", "WATERMARK_ONLY", "BOTTOM_RIGHT"),
+                                         ("원본과 결과", "BOTH", "BOTTOM_RIGHT")] {
+            configureCaptureFixture(label)
+            XCTAssertTrue(text("모드: \(mode)").exists)
+            XCTAssertTrue(text("배치: \(placement)").exists)
+            tapButton("촬영 저장")
+            allowPhotosIfPrompted()
+            XCTAssertTrue(text("상태: 설정대로 저장 완료").waitForExistence(timeout: 45), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 13").exists)
+            app.terminate()
+            app.launchArguments = ["--configured-capture-flow"]
+            app.launch()
+            XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+            XCTAssertTrue(text("모드: \(mode)").exists)
+            XCTAssertTrue(text("배치: \(placement)").exists)
+            tapButton("갤러리 열기")
+            XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+            app.terminate()
+        }
+    }
+
+    func testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure() {
+        for label in ["원본만", "결과만", "원본과 결과"] {
+            configureCaptureFixture(label)
+            tapButton("저장 후 복구 대기")
+            allowPhotosIfPrompted()
+            XCTAssertTrue(text("상태: PhotoKit 저장·워크스페이스 복구 대기").waitForExistence(timeout: 45), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 12").exists)
+            XCTAssertFalse(button("촬영 저장").isEnabled)
+            app.terminate()
+            app.launchArguments = ["--configured-capture-flow"]
+            app.launch()
+            XCTAssertTrue(text("상태: 재실행 복구 완료").waitForExistence(timeout: 30), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 13").exists)
+            XCTAssertTrue(text("대기 기록: false").exists)
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+            XCTAssertTrue(text("대기 기록: false").exists)
+            tapButton("갤러리 열기")
+            XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+            app.terminate()
+        }
+    }
+
+    private func configureCaptureFixture(_ modeLabel: String) {
+        app.launchArguments = ["--configured-capture-flow", "--reset-configured-fixture"]
+        app.launch()
+        tapButton("촬영 설정 열기")
+        tapButton(modeLabel)
+        tapButton("설정 저장")
+        XCTAssertTrue(text("상태: 설정 복원 완료").waitForExistence(timeout: 20))
+    }
+
+    private func allowPhotosIfPrompted() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 3) {
+            let alert = springboard.alerts.firstMatch
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            }
+        }
+    }
+
 
     func testMediaFixturePhotoKitSaveAndRelaunch() {
         app.launchArguments = ["--media-flow"]
@@ -568,3 +636,4 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("선택한 템플릿 · 스크롤 검증").waitForExistence(timeout: 10))
     }
 }
+

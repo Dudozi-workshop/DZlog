@@ -25,6 +25,7 @@ import platform.Foundation.NSUUID
 internal class IosCameraCaptureSession(
     private val editorKey: String,
     private var workspace: EditorWorkspace,
+    private val persistWorkspace: ((EditorWorkspace) -> Boolean)? = null,
 ) {
     private val store = IosWorkspaceStore(editorKey)
     private val media = PhotoKitCaptureMediaRepository()
@@ -186,7 +187,7 @@ internal class IosCameraCaptureSession(
             originalWorkspace = workspace, selectedDocument = doc, plan = plan,
             jpegByRole = payloads,
             loadWorkspace = { store.load(doc.template) },
-            persistWorkspace = { store.save(it) },
+            persistWorkspace = { persistWorkspace?.invoke(it) ?: store.save(it) },
         )
         if (committed) workspace = store.load(doc.template)
         return committed
