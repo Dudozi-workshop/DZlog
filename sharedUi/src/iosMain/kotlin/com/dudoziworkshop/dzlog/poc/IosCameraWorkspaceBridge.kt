@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.data.media.IosCaptureSaveCoordinator
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
+import com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
@@ -30,6 +31,25 @@ internal class IosCameraCaptureSession(
     private val coordinator = IosCaptureSaveCoordinator(media)
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
+
+    /** Only explicitly persisted placement is passed to the camera. */
+    val tablePlacement: IosCaptureTablePlacement?
+        get() = workspace.active?.capturePlacement?.let { saved ->
+            IosCaptureTablePlacement(
+                anchor = when (saved.anchor) {
+                    EditorCaptureAnchor.TOP_LEFT -> IosTableAnchor.TOP_LEFT
+                    EditorCaptureAnchor.TOP_RIGHT -> IosTableAnchor.TOP_RIGHT
+                    EditorCaptureAnchor.BOTTOM_LEFT -> IosTableAnchor.BOTTOM_LEFT
+                    EditorCaptureAnchor.BOTTOM_RIGHT -> IosTableAnchor.BOTTOM_RIGHT
+                    EditorCaptureAnchor.CUSTOM -> IosTableAnchor.CUSTOM
+                },
+                offsetXPercent = saved.offsetXPercent,
+                offsetYPercent = saved.offsetYPercent,
+                widthRatio = saved.widthRatio,
+                heightRatio = saved.heightRatio,
+                rotationCwDeg = saved.rotationCwDeg,
+            )
+        }
 
     /**
      * Preview-locked native compositor. The production camera gate stays
