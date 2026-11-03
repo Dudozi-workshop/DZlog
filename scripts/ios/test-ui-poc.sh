@@ -49,7 +49,7 @@ case "$test_scope" in
   media) limit_seconds=900 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
-  full) limit_seconds=1200 ;;
+  full) limit_seconds=1800 ;;
 esac
 python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \

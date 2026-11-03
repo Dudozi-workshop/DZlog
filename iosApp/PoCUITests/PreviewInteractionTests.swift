@@ -10,6 +10,12 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     override func tearDown() {
+        guard app.state != .notRunning else {
+            let note = XCTAttachment(string: "Application was not running at teardown; preserve the original test failure.")
+            note.lifetime = .keepAlways
+            add(note)
+            return
+        }
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = name
         image.lifetime = .keepAlways
@@ -42,7 +48,6 @@ final class PreviewInteractionTests: XCTestCase {
             XCTAssertTrue(text("배치: \(placement)").exists)
             tapButton("갤러리 열기")
             XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
-            app.terminate()
         }
     }
 
@@ -66,11 +71,11 @@ final class PreviewInteractionTests: XCTestCase {
             XCTAssertTrue(text("대기 기록: false").exists)
             tapButton("갤러리 열기")
             XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
-            app.terminate()
         }
     }
 
     private func configureCaptureFixture(_ modeLabel: String) {
+        if app.state != .notRunning { app.terminate() }
         app.launchArguments = ["--configured-capture-flow", "--reset-configured-fixture"]
         app.launch()
         tapButton("촬영 설정 열기")
