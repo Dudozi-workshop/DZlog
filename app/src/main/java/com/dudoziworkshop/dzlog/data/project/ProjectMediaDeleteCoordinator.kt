@@ -81,8 +81,8 @@ internal class ProjectMediaDeleteCoordinator(context: Context) {
                 id != null && id >= 0L) {
                 "올바르지 않은 사진 URI가 있어 삭제를 중단했습니다."
             }
-            val otherOwner = records.findByMediaUri(raw)?.projectId
-            check(otherOwner == null || otherOwner == projectId) {
+            val owner = records.findByMediaUri(raw)
+            check(owner == null || owner.projectId == projectId) {
                 "다른 촬영 대상과 연결된 사진은 삭제할 수 없습니다."
             }
         }
