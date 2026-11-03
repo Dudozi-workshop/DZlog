@@ -390,11 +390,16 @@ fun AppRoot(startOnCamera: Boolean = false) {
         val previousId = tableTemplateViewModel.activeTemplateId ?: return false
         if (!hasRestoredTemplate || tableTemplateViewModel.templates.none { it.id == templateId }) return false
         if (previousId == templateId) return true
+        if (screen == AppScreen.CAMERA && !projectManagement.canChangeCaptureTarget()) {
+            return false
+        }
         return try {
             val next = replaceActiveSavedTableTemplate(
                 items = tableTemplateViewModel.templates, activeTemplateId = previousId, templateState = current)
             tableCatalogCoordinator.activate(items = next, activeTemplateId = templateId)
             tableTemplateViewModel.setCatalog(next, templateId)
+            projectManagement.rememberTemplate(templateId)
+            cameraPhraseUndoHistory.clear()
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -947,6 +952,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry?.activeId,
+                    projects = captureProjectRegistry?.projects.orEmpty(),
+                    onSelectProject = ::selectCaptureProject,
+                    onManageProjects = { openProjectList() },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
@@ -1091,6 +1099,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplates = tableTemplateViewModel.templates,
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry?.activeId,
+                    projects = captureProjectRegistry?.projects.orEmpty(),
+                    onSelectProject = ::selectCaptureProject,
+                    onManageProjects = { openProjectList() },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
                     onOpenTableEditor = { navigateTo(AppScreen.TABLE_TEMPLATES) },
