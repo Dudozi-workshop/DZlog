@@ -36,7 +36,9 @@ jobs:
         run: |
           bash ./gradlew --no-daemon :app:testDebugUnitTest \
             --tests 'com.dudoziworkshop.dzlog.domain.project.*' \
-            --tests 'com.dudoziworkshop.dzlog.data.project.*'
+            --tests 'com.dudoziworkshop.dzlog.data.project.*' \
+            --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' \
+            --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureRecordReceiptMapperTest'
       - name: Store focused reports
         if: always()
         uses: actions/upload-artifact@v4
