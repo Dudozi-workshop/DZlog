@@ -366,6 +366,11 @@ fun CameraPreview(
                     // to a different template merely because its ID is pending.
                     val applied = CaptureReceiptRecoveryPolicy.resolve(base, listOf(receipt))
                         ?.template ?: error("Capture receipt conflicts with active template")
+                    // The recovery journal is preserved if Room indexing fails.
+                    // A retried committed receipt uses the same shutter ID.
+                    withContext(Dispatchers.IO) {
+                        asyncCaptureService.persistCommittedCapture(receipt)
+                    }
                     // Never acknowledge a receipt until the catalog is durably saved.
                     check(persistCapturedTemplate.value(applied)) {
                         "Unable to persist captured template progression"
