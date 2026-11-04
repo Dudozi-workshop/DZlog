@@ -148,7 +148,10 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     val thumbnail by produceState<ImageBitmap?>(
                         if (entry.availability == CaptureMediaAvailability.PRESENT) thumbnails[entry.asset.assetId] else null,
                         entry.asset.assetId, entry.availability) {
-                        if (value == null && entry.availability == CaptureMediaAvailability.PRESENT) {
+                        if (entry.availability != CaptureMediaAvailability.PRESENT) {
+                            value = null
+                            thumbnails.remove(entry.asset.assetId)
+                        } else if (value == null) {
                             value = runCatching { repository.readThumbnail(entry.asset.assetId)?.let {
                                 SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
                             } }.getOrNull()
