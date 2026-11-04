@@ -14,6 +14,8 @@ import com.dudoziworkshop.dzlog.domain.project.CaptureProjectRegistry
 import com.dudoziworkshop.dzlog.domain.project.CaptureRecord
 import com.dudoziworkshop.dzlog.domain.project.ProjectCaptureReadPolicy
 import com.dudoziworkshop.dzlog.domain.project.VisibleProjectCaptures
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultCapture
+import com.dudoziworkshop.dzlog.domain.quickresults.QuickResultPhoto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -21,6 +23,7 @@ import kotlinx.coroutines.withContext
 /** Shared read result for the Home preview and accumulated project results. */
 internal data class ProjectCaptureReadResult(
     val visible: VisibleProjectCaptures,
+    val captures: List<QuickResultCapture>,
     val photos: List<MediaImageItem>,
     val latestPhoto: MediaImageItem?,
 )
@@ -141,12 +144,25 @@ internal class ProjectCaptureReadViewModel(application: Application) : AndroidVi
         // No inference from folder absence; only observed photos are displayed.
         val visiblePhotos = reconcileIndexed(projectId, photos)
         val byUri = visiblePhotos.associateBy { it.uri.toString() }
+        val indexedRecords = records.forProject(projectId)
         val visible = ProjectCaptureReadPolicy.visible(
-            records = records.forProject(projectId),
+            records = indexedRecords,
             availableUris = byUri.keys,
+        )
+        // Keep immutable original/result roles when a photo moves between folders.
+        val captures = ProjectCaptureReadPolicy.quickResults(
+            records = indexedRecords,
+            availablePhotos = visiblePhotos.map { photo ->
+                QuickResultPhoto(
+                    uri = photo.uri.toString(),
+                    displayName = photo.displayName,
+                    relativePath = photo.relativePath,
+                )
+            },
         )
         ProjectCaptureReadResult(
             visible = visible,
+            captures = captures,
             photos = visiblePhotos,
             latestPhoto = visible.latestUri?.let(byUri::get),
         )
