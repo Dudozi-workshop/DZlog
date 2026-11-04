@@ -49,8 +49,7 @@ final class PreviewInteractionTests: XCTestCase {
             XCTAssertTrue(text("모드: \(mode)").exists)
             XCTAssertTrue(text("배치: \(placement)").exists)
             tapButton("촬영 저장")
-            allowPhotosIfPrompted()
-            XCTAssertTrue(text("상태: 설정대로 저장 완료").waitForExistence(timeout: 45), app.debugDescription)
+            XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"), app.debugDescription)
             XCTAssertTrue(text("다음 번호: 13").exists)
             app.terminate()
             app.launchArguments = configuredArguments(merged: merged)
@@ -71,8 +70,7 @@ final class PreviewInteractionTests: XCTestCase {
         for label in ["원본만", "결과만", "원본과 결과"] {
             configureCaptureFixture(label, merged: merged)
             tapButton("저장 후 복구 대기")
-            allowPhotosIfPrompted()
-            XCTAssertTrue(text("상태: PhotoKit 저장·워크스페이스 복구 대기").waitForExistence(timeout: 45), app.debugDescription)
+            XCTAssertTrue(waitForPhotoState("상태: PhotoKit 저장·워크스페이스 복구 대기"), app.debugDescription)
             XCTAssertTrue(text("다음 번호: 12").exists)
             XCTAssertFalse(button("촬영 저장").isEnabled)
             app.terminate()
@@ -134,8 +132,7 @@ final class PreviewInteractionTests: XCTestCase {
     func testGalleryFolderGridViewerAndOriginalResultSwitch() {
         configureCaptureFixture("원본과 결과", merged: true)
         tapButton("촬영 저장")
-        allowPhotosIfPrompted()
-        XCTAssertTrue(text("상태: 설정대로 저장 완료").waitForExistence(timeout: 45))
+        XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
         XCTAssertTrue(text("사진 썸네일").waitForExistence(timeout: 30))
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
@@ -179,38 +176,32 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("상태: 설정 복원 완료").waitForExistence(timeout: 20))
     }
 
-    private func allowPhotosIfPrompted() {
+    // Observe completion and the asynchronous system prompt together. A fixed
+    // short prompt wait can expire before PhotoKit asks, while a long fixed wait
+    // delays every already-authorized save and still misses later dialogs.
+    private func waitForPhotoState(_ label: String, timeout: TimeInterval = 60) -> Bool {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
             let alert = springboard.alerts.firstMatch
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+            if alert.exists {
+                for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                    if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+                }
             }
+            if text(label).exists { return true }
+            Thread.sleep(forTimeInterval: 0.25)
         }
+        return text(label).exists
     }
 
 
     func testMediaFixturePhotoKitSaveAndRelaunch() {
         app.launchArguments = ["--media-flow"]
         app.launch()
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
-            let allow = alert.buttons["Allow Full Access"]
-            if allow.exists { allow.tap(); return true }
-            let older = alert.buttons["Allow Access to All Photos"]
-            if older.exists { older.tap(); return true }
-            return false
-        }
         XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
         tapButton("테스트 사진 저장")
-        // Trigger the interruption monitor and allow PhotoKit to finish asynchronously.
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
-            let alert = springboard.alerts.firstMatch
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
-            }
-        }
-        XCTAssertTrue(text("저장: 저장 완료: 2개").waitForExistence(timeout: 45))
+        XCTAssertTrue(waitForPhotoState("저장: 저장 완료: 2개"))
         XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
         XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
         app.terminate()
@@ -242,22 +233,9 @@ final class PreviewInteractionTests: XCTestCase {
     func testCaptureWorkspaceCommitAndRelaunch() {
         app.launchArguments = ["--capture-workspace-flow"]
         app.launch()
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
-            }
-            return false
-        }
         XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
         tapButton("테스트 촬영 저장")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
-            let alert = springboard.alerts.firstMatch
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
-            }
-        }
-        XCTAssertTrue(text("저장 상태: 원본 저장·워크스페이스 확정").waitForExistence(timeout: 45))
+        XCTAssertTrue(waitForPhotoState("저장 상태: 원본 저장·워크스페이스 확정"))
         XCTAssertTrue(text("다음 촬영 번호: 13").exists)
         XCTAssertTrue(text("자동번호 셀: 13").exists)
 
@@ -273,22 +251,9 @@ final class PreviewInteractionTests: XCTestCase {
     func testBothModeCompositedJpegPhotoKitSaveAndRelaunch() {
         app.launchArguments = ["--capture-workspace-flow"]
         app.launch()
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        addUIInterruptionMonitor(withDescription: "Photos permission") { alert in
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
-            }
-            return false
-        }
         XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
         tapButton("BOTH 합성 실제 저장 검증")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
-            let alert = springboard.alerts.firstMatch
-            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
-                if alert.buttons[name].exists { alert.buttons[name].tap(); break }
-            }
-        }
-        XCTAssertTrue(text("저장 상태: BOTH 합성·원본 저장·번호 확정").waitForExistence(timeout: 45))
+        XCTAssertTrue(waitForPhotoState("저장 상태: BOTH 합성·원본 저장·번호 확정"))
         XCTAssertTrue(text("다음 촬영 번호: 13").exists)
         XCTAssertTrue(text("자동번호 셀: 13").exists)
         app.terminate()
