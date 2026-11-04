@@ -71,11 +71,13 @@ class ProjectCaptureReadPolicyTest {
         assertEquals(record.resultUri, shown.single().result?.uri)
         assertEquals(record.originalUri, shown.single().original?.uri)
         assertEquals("Pictures/DZlog/A/", shown.single().folderPath)
-        assertEquals(record.mediaUris,
-            QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
-                requireNotNull(record.resultUri), shown,
-            ),
+        val targets = QuickResultsCaptureDeletePolicy.mediaUrisForCapture(
+            requireNotNull(record.resultUri), shown,
         )
+        // Quick Results returns result before original; record.mediaUris stores
+        // the same pair in original-first order. Both must target exactly this shutter.
+        assertEquals(listOf(record.resultUri, record.originalUri), targets)
+        assertEquals(record.mediaUris.toSet(), targets.toSet())
     }
 
     @Test fun movedOriginalOnlyCaptureStaysOriginalAndUsesItsActualLocation() {
