@@ -1402,6 +1402,12 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                 else photosByUri[originalUri]?.let { resultUri to it }
                             }.toMap()
                         } else emptyMap(),
+                    quickResultOriginalOnlyUris =
+                        if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
+                            quickResultsCaptures.mapNotNull { capture ->
+                                if (capture.result == null) capture.original?.uri else null
+                            }.toSet()
+                        } else emptySet(),
                     quickResultDeleteItemsByDisplayedUri =
                         if (viewerEntrySource == ViewerEntrySource.QUICK_RESULTS) {
                             val byUri = quickResultsPhotos.associateBy { it.uri.toString() }

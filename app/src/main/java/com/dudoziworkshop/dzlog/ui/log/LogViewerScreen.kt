@@ -115,6 +115,7 @@ fun LogViewerScreen(
     onItemsReloaded: (List<MediaImageItem>) -> Unit,
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
+    quickResultOriginalOnlyUris: Set<String> = emptySet(),
     isQuickResultsViewer: Boolean = false,
     quickResultDeleteItemsByDisplayedUri: Map<String, List<MediaImageItem>> = emptyMap(),
     onSessionMediaChanged: (Set<Long>, Boolean) -> Unit = { _, _ -> },
@@ -345,11 +346,18 @@ fun LogViewerScreen(
                 enabled = !operationLocked,
                 currentIndex = pagerState.currentPage,
                 total = items.size,
-                showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
+                // A project original remains an original after a physical folder move.
+                showingOriginal = originalPreview != null || currentItem?.let { photo ->
+                    if (isQuickResultsViewer) photo.uri.toString() in quickResultOriginalOnlyUris
+                    else GalleryPhotoMovePolicy.isOriginalPath(photo.relativePath)
+                } == true,
                 originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
-                onOriginal = if (originalPreview != null || resultItem?.let {
-                    !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) &&
-                        (!isQuickResultsViewer || quickResultOriginalByResultUri.containsKey(it.uri.toString()))
+                onOriginal = if (originalPreview != null || resultItem?.let { photo ->
+                    if (isQuickResultsViewer) {
+                        quickResultOriginalByResultUri.containsKey(photo.uri.toString())
+                    } else {
+                        !GalleryPhotoMovePolicy.isOriginalPath(photo.relativePath)
+                    }
                 } == true) ::showOriginal else null,
                 onMove = {
                     if (guidePage == null && !operationLocked && currentItem != null) {
