@@ -132,18 +132,20 @@ object QuickResultsSessionPolicy {
         after: List<QuickResultCapture>,
     ): List<String> {
         val beforeByDisplay = before.groupBy { it.displayedPhoto.uri }
-        val afterByMediaUri = after.flatMap { capture ->
+        // Keep list-position identity so duplicated or conflicting capture entries
+        // are not silently accepted as one owner of the same URI.
+        val afterByMediaUri = after.withIndex().flatMap { (index, capture) ->
             listOfNotNull(capture.result?.uri, capture.original?.uri).distinct()
-                .map { it to capture }
+                .map { uri -> uri to index }
         }.groupBy({ it.first }, { it.second })
 
         return openedDisplayUris.mapNotNull { displayedUri ->
             val previous = beforeByDisplay[displayedUri]?.singleOrNull()
                 ?: return@mapNotNull null
-            val successors = listOfNotNull(previous.result?.uri, previous.original?.uri)
+            val successorIndexes = listOfNotNull(previous.result?.uri, previous.original?.uri)
                 .flatMap { afterByMediaUri[it].orEmpty() }
                 .distinct()
-            successors.singleOrNull()?.displayedPhoto?.uri
+            successorIndexes.singleOrNull()?.let { after[it].displayedPhoto.uri }
         }.distinct()
     }
 
