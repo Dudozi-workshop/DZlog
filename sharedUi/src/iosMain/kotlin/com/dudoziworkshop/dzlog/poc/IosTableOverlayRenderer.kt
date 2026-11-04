@@ -37,10 +37,23 @@ internal object IosTableOverlayRenderer {
         offsetXRatio: Float = 0f,
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
+        cellRects: List<IosCaptureCellRect>? = null,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
         require(resolvedTexts.size == rows * cols) { "표 셀 개수가 일치하지 않습니다." }
+        val rects = cellRects ?: List(rows * cols) { IosCaptureCellRect(it / cols, it % cols, 1, 1) }
+        val owners = IntArray(rows * cols) { -1 }
+        rects.forEachIndexed { index, cell ->
+            require(cell.row in 0 until rows && cell.col in 0 until cols &&
+                cell.rows > 0 && cell.rows <= rows - cell.row &&
+                cell.cols > 0 && cell.cols <= cols - cell.col)
+            for (r in cell.row until cell.row + cell.rows) for (c in cell.col until cell.col + cell.cols) {
+                require(owners[r * cols + c] == -1) { "병합 영역이 서로 겹칩니다." }
+                owners[r * cols + c] = index
+            }
+        }
+        require(owners.all { it >= 0 }) { "표 셀 좌표가 누락됐습니다." }
         val xEdges = edges(cols, colWeights)
         val yEdges = edges(rows, rowWeights)
         require(widthRatio in 10..100 && heightRatio in 10..100) {
@@ -89,12 +102,12 @@ internal object IosTableOverlayRenderer {
         val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
             (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
         val font = Font(null, fontSize)
-        for (r in 0 until rows) for (c in 0 until cols) {
-            val left = originX + xEdges[c] * tableW
-            val right = originX + xEdges[c + 1] * tableW
-            val top = originY + yEdges[r] * tableH
-            val bottom = originY + yEdges[r + 1] * tableH
-            val value = resolvedTexts[r * cols + c]
+        for (cell in rects) {
+            val left = originX + xEdges[cell.col] * tableW
+            val right = originX + xEdges[cell.col + cell.cols] * tableW
+            val top = originY + yEdges[cell.row] * tableH
+            val bottom = originY + yEdges[cell.row + cell.rows] * tableH
+            val value = resolvedTexts[cell.row * cols + cell.col]
             val textW = font.measureTextWidth(value)
             val x = when (style.textAlign) {
                 1 -> (left + right - textW) / 2f
@@ -112,8 +125,21 @@ internal object IosTableOverlayRenderer {
                 color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
                 strokeWidth = 1.2f
             }
-            for (x in xEdges) surface.canvas.drawLine(originX + x * tableW, originY, originX + x * tableW, originY + tableH, grid)
-            for (y in yEdges) surface.canvas.drawLine(originX, originY + y * tableH, originX + tableW, originY + y * tableH, grid)
+            // Draw each shared boundary once; covered coordinates have no internal grid.
+            for (r in 0 until rows) for (c in 0..cols) {
+                if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
+                    val x = originX + xEdges[c] * tableW
+                    surface.canvas.drawLine(x, originY + yEdges[r] * tableH,
+                        x, originY + yEdges[r + 1] * tableH, grid)
+                }
+            }
+            for (r in 0..rows) for (c in 0 until cols) {
+                if (r == 0 || r == rows || owners[(r - 1) * cols + c] != owners[r * cols + c]) {
+                    val y = originY + yEdges[r] * tableH
+                    surface.canvas.drawLine(originX + xEdges[c] * tableW, y,
+                        originX + xEdges[c + 1] * tableW, y, grid)
+                }
+            }
         }
         surface.canvas.restore()
         return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)) {
@@ -124,7 +150,7 @@ internal object IosTableOverlayRenderer {
     /**
      * Map the capture pipeline's resolved text by cell coordinates rather than
      * assuming the resolver preserves a particular list order.
-     * Span and positioning parity are intentionally withheld until implemented.
+     * Merged roots follow the existing editor rule; covered values remain in the document.
      */
     fun renderResolvedPreviewPng(
         imageWidth: Int,
@@ -138,24 +164,22 @@ internal object IosTableOverlayRenderer {
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
     ): ByteArray {
-        require(template.rows > 0 && template.cols > 0)
+        val rects = iosCaptureCellRects(template)
+        val expected = template.cells.associateBy { it.cellId }
         val byPosition = preview.resolvedCells.associate { cell ->
             val raw = requireNotNull(cell.raw) { "셀 좌표를 확인할 수 없습니다." }
-            require(raw.rowSpan == 1 && raw.colSpan == 1) {
-                "병합된 셀은 iOS 표 합성에서 아직 지원하지 않습니다."
-            }
-            require(raw.rowIndex in 0 until template.rows && raw.colIndex in 0 until template.cols)
+            require(raw == expected[raw.cellId]) { "촬영 미리보기와 표 문서가 일치하지 않습니다." }
             (raw.rowIndex to raw.colIndex) to cell.resolvedText
         }
         require(byPosition.size == preview.resolvedCells.size) { "중복된 표 셀 좌표가 있습니다." }
+        require(byPosition.size == template.cells.size) { "촬영 미리보기 셀이 누락됐습니다." }
         val texts = List(template.rows * template.cols) { index ->
-            val coordinate = index / template.cols to index % template.cols
-            requireNotNull(byPosition[coordinate]) { "표 셀 좌표가 누락됐습니다." }
+            byPosition[index / template.cols to index % template.cols].orEmpty()
         }
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
-            offsetXRatio, offsetYRatio, rotationDegrees,
+            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects,
         )
     }
 
@@ -235,3 +259,4 @@ internal object IosTableOverlayRenderer {
         }
     }
 }
+

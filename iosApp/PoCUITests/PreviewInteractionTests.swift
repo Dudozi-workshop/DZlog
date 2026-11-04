@@ -29,11 +29,15 @@ final class PreviewInteractionTests: XCTestCase {
 
     // Only the sensor JPEG is synthetic. Exercise the user settings form and
     // production configured save entry, then relaunch and read the real gallery.
-    func testConfiguredSaveModesAndGalleryAfterRelaunch() {
+    func testConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: false) }
+
+    func testMergedConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: true) }
+
+    private func verifyConfiguredModes(merged: Bool) {
         for (label, mode, placement) in [("원본만", "ORIGINAL_ONLY", "없음"),
                                          ("결과만", "WATERMARK_ONLY", "BOTTOM_RIGHT"),
                                          ("원본과 결과", "BOTH", "BOTTOM_RIGHT")] {
-            configureCaptureFixture(label)
+            configureCaptureFixture(label, merged: merged)
             XCTAssertTrue(text("모드: \(mode)").exists)
             XCTAssertTrue(text("배치: \(placement)").exists)
             tapButton("촬영 저장")
@@ -41,7 +45,7 @@ final class PreviewInteractionTests: XCTestCase {
             XCTAssertTrue(text("상태: 설정대로 저장 완료").waitForExistence(timeout: 45), app.debugDescription)
             XCTAssertTrue(text("다음 번호: 13").exists)
             app.terminate()
-            app.launchArguments = ["--configured-capture-flow"]
+            app.launchArguments = configuredArguments(merged: merged)
             app.launch()
             XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
             XCTAssertTrue(text("모드: \(mode)").exists)
@@ -51,16 +55,20 @@ final class PreviewInteractionTests: XCTestCase {
         }
     }
 
-    func testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure() {
+    func testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure() { verifyConfiguredRecovery(merged: false) }
+
+    func testMergedConfiguredRecoveryAfterWorkspaceFailure() { verifyConfiguredRecovery(merged: true) }
+
+    private func verifyConfiguredRecovery(merged: Bool) {
         for label in ["원본만", "결과만", "원본과 결과"] {
-            configureCaptureFixture(label)
+            configureCaptureFixture(label, merged: merged)
             tapButton("저장 후 복구 대기")
             allowPhotosIfPrompted()
             XCTAssertTrue(text("상태: PhotoKit 저장·워크스페이스 복구 대기").waitForExistence(timeout: 45), app.debugDescription)
             XCTAssertTrue(text("다음 번호: 12").exists)
             XCTAssertFalse(button("촬영 저장").isEnabled)
             app.terminate()
-            app.launchArguments = ["--configured-capture-flow"]
+            app.launchArguments = configuredArguments(merged: merged)
             app.launch()
             XCTAssertTrue(text("상태: 재실행 복구 완료").waitForExistence(timeout: 30), app.debugDescription)
             XCTAssertTrue(text("다음 번호: 13").exists)
@@ -74,10 +82,22 @@ final class PreviewInteractionTests: XCTestCase {
         }
     }
 
-    private func configureCaptureFixture(_ modeLabel: String) {
-        if app.state != .notRunning { app.terminate() }
-        app.launchArguments = ["--configured-capture-flow", "--reset-configured-fixture"]
+    private func configuredArguments(merged: Bool) -> [String] {
+        ["--configured-capture-flow"] + (merged ? ["--merged-capture-fixture"] : [])
+    }
+
+    func testMergedRasterPixelsAndMalformedSpans() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture"]
         app.launch()
+        tapButton("병합 렌더 검증")
+        XCTAssertTrue(text("상태: 병합 픽셀·오류 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    private func configureCaptureFixture(_ modeLabel: String, merged: Bool) {
+        if app.state != .notRunning { app.terminate() }
+        app.launchArguments = configuredArguments(merged: merged) + ["--reset-configured-fixture"]
+        app.launch()
+        if merged { XCTAssertTrue(text("병합 표 사용 중").waitForExistence(timeout: 20)) }
         tapButton("촬영 설정 열기")
         tapButton(modeLabel)
         tapButton("설정 저장")

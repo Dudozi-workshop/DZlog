@@ -5,6 +5,9 @@ test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredRecoveryAfterWorkspaceFailure
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedRasterPixelsAndMalformedSpans
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredSaveModesAndGalleryAfterRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch

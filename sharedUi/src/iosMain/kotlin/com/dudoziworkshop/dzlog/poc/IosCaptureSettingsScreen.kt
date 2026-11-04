@@ -26,7 +26,7 @@ internal fun IosCaptureSettingsScreen(
         EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)) }
     var number by remember(document) { mutableStateOf((document.nextCounter ?: 1).toString()) }
     val next = number.toIntOrNull()?.takeIf { it > 0 && it < Int.MAX_VALUE }
-    val merged = document.template.templateState.cells.any { it.rowSpan != 1 || it.colSpan != 1 }
+    val layoutError = runCatching { iosCaptureCellRects(document.template.templateState) }.exceptionOrNull()?.message
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding()
         .verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -34,7 +34,7 @@ internal fun IosCaptureSettingsScreen(
         Text(document.template.name)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onBack) { Text("취소") }
-            Button(enabled = next != null && (mode == SaveMode.ORIGINAL_ONLY || !merged), onClick = {
+            Button(enabled = next != null && (mode == SaveMode.ORIGINAL_ONLY || layoutError == null), onClick = {
                 onApply(document.copy(saveMode = mode, nextCounter = next,
                     usesAutoNext = if (next != document.nextCounter) false else document.usesAutoNext,
                     capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement))
@@ -51,7 +51,7 @@ internal fun IosCaptureSettingsScreen(
         OutlinedTextField(value = number, onValueChange = { if (it.all(Char::isDigit)) number = it },
             label = { Text("다음 촬영 번호") }, singleLine = true, isError = next == null)
         if (mode != SaveMode.ORIGINAL_ONLY) {
-            if (merged) Text("병합된 표는 아직 결과 사진 저장을 지원하지 않습니다. 원본만 저장할 수 있습니다.")
+            layoutError?.let { Text(it) }
             Text("표 위치")
             for ((anchor, label) in listOf(EditorCaptureAnchor.TOP_LEFT to "왼쪽 위",
                 EditorCaptureAnchor.TOP_RIGHT to "오른쪽 위", EditorCaptureAnchor.BOTTOM_LEFT to "왼쪽 아래",

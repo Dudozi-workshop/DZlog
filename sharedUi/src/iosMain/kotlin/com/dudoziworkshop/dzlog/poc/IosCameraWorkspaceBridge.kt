@@ -216,8 +216,8 @@ internal object IosCameraWorkspaceBridge {
                 (placement.rotationCwDeg != 0 && placement.anchor != EditorCaptureAnchor.CUSTOM)) {
                 return "90도 회전은 사용자 지정 위치에서 설정해 주세요."
             }
-            if (document.template.templateState.cells.any { it.rowSpan != 1 || it.colSpan != 1 }) {
-                return "병합된 표는 아직 결과 사진 저장을 지원하지 않습니다. 원본 저장을 선택해 주세요."
+            runCatching { iosCaptureCellRects(document.template.templateState) }.onFailure {
+                return it.message ?: "표 병합 구조를 확인해 주세요."
             }
         }
         if (document.nextCounter == null) return "먼저 촬영 번호를 확정해 주세요."
