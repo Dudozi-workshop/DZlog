@@ -16,7 +16,7 @@ import platform.AVFoundation.AVCapturePhotoSettings
 import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureSessionPresetPhoto
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
-import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
+import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVCaptureFocusModeContinuousAutoFocus
 import platform.AVFoundation.AVCaptureFlashModeOff
@@ -37,7 +37,7 @@ import platform.darwin.NSObject
 internal class IosAvFoundationCamera {
     val session = AVCaptureSession()
     val previewLayer = AVCaptureVideoPreviewLayer(session = session).apply {
-        videoGravity = AVLayerVideoGravityResizeAspectFill
+        videoGravity = AVLayerVideoGravityResizeAspect
     }
     private val photoOutput = AVCapturePhotoOutput()
     private var configured = false

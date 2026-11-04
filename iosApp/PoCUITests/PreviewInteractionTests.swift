@@ -37,6 +37,72 @@ final class PreviewInteractionTests: XCTestCase {
 
     // Only the sensor JPEG is synthetic. Exercise the user settings form and
     // production configured save entry, then relaunch and read the real gallery.
+    private func liveHandle(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", identifier)).firstMatch
+    }
+
+    private func openLiveTable(reset: Bool) {
+        app.launchArguments = ["--live-table-placement-flow"] + (reset ? ["--reset-live-table-fixture"] : [])
+        app.launch()
+        XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("촬영 표 미리보기").exists)
+    }
+
+    private func dragLiveHandle(_ identifier: String, dx: CGFloat, dy: CGFloat) {
+        let handle = liveHandle(identifier)
+        XCTAssertTrue(handle.waitForExistence(timeout: 10), app.debugDescription)
+        let frame = handle.frame
+        XCTAssertTrue(app.frame.contains(frame))
+        let from = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+        let to = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX + dx, dy: frame.midY + dy))
+        from.press(forDuration: 0.15, thenDragTo: to)
+        XCTAssertTrue(text("상태: 표 배치 저장 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    func testNativeLiveTableMoveResizePersistsAndSaves() {
+        openLiveTable(reset: true)
+        let initialMove = String(describing: liveHandle("ios.table.move").value ?? "")
+        dragLiveHandle("ios.table.move", dx: 55, dy: 45)
+        let moved = String(describing: liveHandle("ios.table.move").value ?? "")
+        XCTAssertNotEqual(moved, initialMove)
+        let initialSize = String(describing: liveHandle("ios.table.resize").value ?? "")
+        dragLiveHandle("ios.table.resize", dx: -35, dy: -20)
+        let resized = String(describing: liveHandle("ios.table.resize").value ?? "")
+        XCTAssertNotEqual(resized, initialSize)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        tapButton("이 배치로 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"), app.debugDescription)
+        XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+        app.terminate()
+        openLiveTable(reset: false)
+        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), moved)
+        XCTAssertEqual(String(describing: liveHandle("ios.table.resize").value ?? ""), resized)
+        XCTAssertTrue(text("다음 번호: 13").exists)
+    }
+
+    func testNativeLiveTableRotationLockAndGeometryBounds() {
+        openLiveTable(reset: true)
+        tapButton("배치 계산 검증")
+        XCTAssertTrue(text("상태: 배치 계산·비율 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+        tapButton("90도 전환")
+        XCTAssertTrue(text("회전: 90").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20))
+        let box = liveHandle("ios.table.move").frame
+        XCTAssertGreaterThan(box.height, box.width)
+        let value = String(describing: liveHandle("ios.table.move").value ?? "")
+        tapButton("조작 잠금")
+        XCTAssertFalse(liveHandle("ios.table.move").isHittable)
+        XCTAssertTrue(text("촬영 표 미리보기").exists)
+        tapButton("조작 잠금 해제")
+        XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
+        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), value)
+        dragLiveHandle("ios.table.move", dx: 30, dy: 30)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
     func testConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: false) }
 
     func testMergedConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: true) }

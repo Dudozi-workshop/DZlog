@@ -8,6 +8,7 @@ import org.jetbrains.skia.Font
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
+import org.jetbrains.skia.impl.use
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -83,68 +84,77 @@ internal object IosTableOverlayRenderer {
             centerY + rotatedH / 2 <= imageHeight + edgeTolerance) {
             "회전된 표가 이미지 영역을 벗어납니다."
         }
-        val surface = Surface.makeRasterN32Premul(imageWidth, imageHeight)
-        surface.canvas.clear(0x00000000)
-        surface.canvas.save()
-        surface.canvas.translate(centerX, centerY)
-        surface.canvas.rotate(rotationDegrees)
-        surface.canvas.translate(-centerX, -centerY)
-        val backgroundColor = if (style.bgStyle == 1) 0x00FFFFFF else 0x00000000
-        if (style.bgStyle != 2 && style.bgAlpha > 0) {
-            val alpha = style.bgAlpha.coerceIn(0, 255)
-            val bg = Paint().apply { color = (alpha shl 24) or backgroundColor }
-            surface.canvas.drawRect(Rect.makeXYWH(originX, originY, tableW, tableH), bg)
-        }
-        val textColor = if (style.textColorMode == 1) {
-            if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-        } else if (style.bgStyle == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-        val textPaint = Paint().apply { color = textColor; isAntiAlias = true }
-        val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
-            (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
-        val font = Font(null, fontSize)
-        for (cell in rects) {
-            val left = originX + xEdges[cell.col] * tableW
-            val right = originX + xEdges[cell.col + cell.cols] * tableW
-            val top = originY + yEdges[cell.row] * tableH
-            val bottom = originY + yEdges[cell.row + cell.rows] * tableH
-            val value = resolvedTexts[cell.row * cols + cell.col]
-            val textW = font.measureTextWidth(value)
-            val x = when (style.textAlign) {
-                1 -> (left + right - textW) / 2f
-                2 -> right - textW - 4f
-                else -> left + 4f
-            }
-            val y = (top + bottom) / 2f + fontSize * 0.35f
+        return Surface.makeRasterN32Premul(imageWidth, imageHeight).use { surface ->
+            surface.canvas.clear(0x00000000)
             surface.canvas.save()
-            surface.canvas.clipRect(Rect.makeLTRB(left, top, right, bottom))
-            surface.canvas.drawString(value, x, y, font, textPaint)
+            surface.canvas.translate(centerX, centerY)
+            surface.canvas.rotate(rotationDegrees)
+            surface.canvas.translate(-centerX, -centerY)
+            val backgroundColor = if (style.bgStyle == 1) 0x00FFFFFF else 0x00000000
+            if (style.bgStyle != 2 && style.bgAlpha > 0) {
+                val alpha = style.bgAlpha.coerceIn(0, 255)
+                Paint().use { bg ->
+                    bg.color = (alpha shl 24) or backgroundColor
+                    surface.canvas.drawRect(Rect.makeXYWH(originX, originY, tableW, tableH), bg)
+                }
+            }
+            val textColor = if (style.textColorMode == 1) {
+                if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+            } else if (style.bgStyle == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+            Paint().use { textPaint ->
+                textPaint.color = textColor
+                textPaint.isAntiAlias = true
+                val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
+                    (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
+                Font(null, fontSize).use { font ->
+                    for (cell in rects) {
+                        val left = originX + xEdges[cell.col] * tableW
+                        val right = originX + xEdges[cell.col + cell.cols] * tableW
+                        val top = originY + yEdges[cell.row] * tableH
+                        val bottom = originY + yEdges[cell.row + cell.rows] * tableH
+                        val value = resolvedTexts[cell.row * cols + cell.col]
+                        val textW = font.measureTextWidth(value)
+                        val x = when (style.textAlign) {
+                            1 -> (left + right - textW) / 2f
+                            2 -> right - textW - 4f
+                            else -> left + 4f
+                        }
+                        val y = (top + bottom) / 2f + fontSize * 0.35f
+                        surface.canvas.save()
+                        surface.canvas.clipRect(Rect.makeLTRB(left, top, right, bottom))
+                        surface.canvas.drawString(value, x, y, font, textPaint)
+                        surface.canvas.restore()
+                    }
+                }
+            }
+            if (style.gridEnabled) {
+                Paint().use { grid ->
+                    grid.color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
+                    grid.strokeWidth = 1.2f
+                    // Draw each shared boundary once; covered coordinates have no internal grid.
+                    for (r in 0 until rows) for (c in 0..cols) {
+                        if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
+                            val x = originX + xEdges[c] * tableW
+                            surface.canvas.drawLine(x, originY + yEdges[r] * tableH,
+                                x, originY + yEdges[r + 1] * tableH, grid)
+                        }
+                    }
+                    for (r in 0..rows) for (c in 0 until cols) {
+                        if (r == 0 || r == rows || owners[(r - 1) * cols + c] != owners[r * cols + c]) {
+                            val y = originY + yEdges[r] * tableH
+                            surface.canvas.drawLine(originX + xEdges[c] * tableW, y,
+                                originX + xEdges[c + 1] * tableW, y, grid)
+                        }
+                    }
+                }
+            }
             surface.canvas.restore()
-        }
-        if (style.gridEnabled) {
-            val grid = Paint().apply {
-                color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
-                strokeWidth = 1.2f
-            }
-            // Draw each shared boundary once; covered coordinates have no internal grid.
-            for (r in 0 until rows) for (c in 0..cols) {
-                if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
-                    val x = originX + xEdges[c] * tableW
-                    surface.canvas.drawLine(x, originY + yEdges[r] * tableH,
-                        x, originY + yEdges[r + 1] * tableH, grid)
-                }
-            }
-            for (r in 0..rows) for (c in 0 until cols) {
-                if (r == 0 || r == rows || owners[(r - 1) * cols + c] != owners[r * cols + c]) {
-                    val y = originY + yEdges[r] * tableH
-                    surface.canvas.drawLine(originX + xEdges[c] * tableW, y,
-                        originX + xEdges[c + 1] * tableW, y, grid)
-                }
+            surface.makeImageSnapshot().use { snapshot ->
+                checkNotNull(snapshot.encodeToData(EncodedImageFormat.PNG)) {
+                    "표 오버레이 인코딩 실패"
+                }.use { it.bytes }
             }
         }
-        surface.canvas.restore()
-        return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)) {
-            "표 오버레이 인코딩 실패"
-        }.bytes
     }
 
     /**
@@ -201,42 +211,13 @@ internal object IosTableOverlayRenderer {
         heightRatio: Int,
         rotationCwDeg: Int = 0,
     ): ByteArray {
-        require(offsetXPercent in 0..100 && offsetYPercent in 0..100)
-        require(widthRatio in 10..100 && heightRatio in 10..100)
-        // Android uses the rotated bounding box (not the raw table box)
-        // when positioning CUSTOM tables at 90 degrees.
-        require(rotationCwDeg == 0 || rotationCwDeg == 90) {
-            "지원하지 않는 표 회전 각도입니다."
-        }
-        val width = imageWidth * widthRatio / 100f
-        val height = imageWidth * heightRatio / 100f
-        val customRotated = anchor == IosTableAnchor.CUSTOM && rotationCwDeg == 90
-        val boundsW = if (customRotated) height else width
-        val boundsH = if (customRotated) width else height
-        val availableX = imageWidth - boundsW
-        val availableY = imageHeight - boundsH
-        require(availableX >= 0f && availableY >= 0f) {
-            "회전된 표가 이미지 영역을 초과합니다."
-        }
-        val x = when (anchor) {
-            IosTableAnchor.TOP_LEFT, IosTableAnchor.BOTTOM_LEFT -> 0f
-            IosTableAnchor.TOP_RIGHT, IosTableAnchor.BOTTOM_RIGHT -> availableX
-            IosTableAnchor.CUSTOM -> availableX * offsetXPercent / 100f
-        }
-        val y = when (anchor) {
-            IosTableAnchor.TOP_LEFT, IosTableAnchor.TOP_RIGHT -> 0f
-            IosTableAnchor.BOTTOM_LEFT, IosTableAnchor.BOTTOM_RIGHT -> availableY
-            IosTableAnchor.CUSTOM -> availableY * offsetYPercent / 100f
-        }
-        // Convert Android's bounding-box position back to the raw table's
-        // top-left before Skia rotates around its center.
-        val rawX = if (customRotated) x + (boundsW - width) / 2f else x
-        val rawY = if (customRotated) y + (boundsH - height) / 2f else y
+        val bounds = iosCaptureTableBounds(imageWidth, imageHeight,
+            IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg))
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style,
             widthRatio, heightRatio,
-            offsetXRatio = rawX / imageWidth,
-            offsetYRatio = rawY / imageHeight,
+            offsetXRatio = bounds.rawX / imageWidth,
+            offsetYRatio = bounds.rawY / imageHeight,
             rotationDegrees = rotationCwDeg.toFloat(),
         )
     }

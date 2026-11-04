@@ -51,6 +51,58 @@ internal class IosCameraCaptureSession(
             NamingFormatDefaults.FILE_NAME_DELIMITER, selectedDocument.includePathInScope,
             selectedDocument.includeFilenameInScope, selectedDocument.saveMode, selectedDocument.nextCounter, 0))
 
+    private fun resolveCapturePreview(): FinalCapturePreview {
+        val doc = selectedDocument
+        val counter = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
+        val now = tableEditorNow()
+        val scope = buildScope(CaptureScopeInput(
+            templateState = doc.template.templateState, captureNow = now,
+            counterDigits = doc.counterPadding,
+            dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+            timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            includeFilenameInCounterScope = doc.includeFilenameInScope,
+            saveMode = doc.saveMode, phraseProgressCursor = 0,
+        ))
+        return buildCapturePreview(scope, FinalCapturePreviewInput(
+            templateState = doc.template.templateState, captureNow = now,
+            counterDigits = doc.counterPadding,
+            dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+            timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            includePathInCounterScope = doc.includePathInScope,
+            includeFilenameInCounterScope = doc.includeFilenameInScope,
+            saveMode = doc.saveMode, syncedCounter = counter, phraseProgressCursor = 0,
+        ))
+    }
+
+    fun savePlacement(placement: IosCaptureTablePlacement): Boolean {
+        val value = com.dudoziworkshop.dzlog.data.template.EditorCapturePlacement(
+            EditorCaptureAnchor.valueOf(placement.anchor.name), placement.offsetXPercent,
+            placement.offsetYPercent, placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
+        return saveSettings(selectedDocument.copy(capturePlacement = value))
+    }
+
+    private var liveAspect: Double? = null
+
+    fun renderLiveOverlay(width: Int, height: Int): ByteArray {
+        val placement = checkNotNull(tablePlacement)
+        val png = IosTableOverlayRenderer.renderAndroidAnchoredPng(width, height,
+            selectedDocument.template.templateState, resolveCapturePreview(), selectedDocument.template.styleState,
+            placement.anchor, placement.offsetXPercent, placement.offsetYPercent,
+            placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
+        liveAspect = width.toDouble() / height
+        return png
+    }
+
+    fun checkLiveCaptureAspect(width: Int, height: Int) {
+        liveAspect?.let { expected ->
+            require(kotlin.math.abs(width.toDouble() / height - expected) <= 0.02) {
+                "사진과 미리보기 비율이 달라 결과를 저장할 수 없습니다. 원본만 모드로 전환하거나 카메라를 다시 열어 주세요."
+            }
+        }
+    }
+
     /** One camera entry point for all modes, using only this document's saved placement. */
     suspend fun saveConfiguredJpeg(jpeg: ByteArray): Boolean {
         val doc = checkNotNull(workspace.active)
@@ -97,6 +149,7 @@ internal class IosCameraCaptureSession(
         return saveJpeg(jpeg, renderForPreview = { preview ->
             val upright = uprightIosImage(jpeg)
             val image = Image.makeFromEncoded(upright)
+            checkLiveCaptureAspect(image.width, image.height)
             val overlay = IosTableOverlayRenderer.renderAndroidAnchoredPng(
                 imageWidth = image.width,
                 imageHeight = image.height,
@@ -126,6 +179,7 @@ internal class IosCameraCaptureSession(
         return saveJpeg(jpeg, renderForPreview = { preview ->
             val upright = uprightIosImage(jpeg)
             val image = Image.makeFromEncoded(upright)
+            checkLiveCaptureAspect(image.width, image.height)
             val overlay = IosTableOverlayRenderer.renderResolvedPreviewPng(
                 imageWidth = image.width,
                 imageHeight = image.height,
@@ -149,29 +203,10 @@ internal class IosCameraCaptureSession(
         renderForPreview: ((FinalCapturePreview) -> ByteArray)? = null,
     ): Boolean {
         val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
-        val counter = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
+        checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
         check(!hasPending()) { "이전 촬영 기록 복구가 필요합니다." }
 
-        val now = tableEditorNow()
-        val scope = buildScope(CaptureScopeInput(
-            templateState = doc.template.templateState, captureNow = now,
-            counterDigits = doc.counterPadding,
-            dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-            timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            includeFilenameInCounterScope = doc.includeFilenameInScope,
-            saveMode = doc.saveMode, phraseProgressCursor = 0,
-        ))
-        val preview = buildCapturePreview(scope, FinalCapturePreviewInput(
-            templateState = doc.template.templateState, captureNow = now,
-            counterDigits = doc.counterPadding,
-            dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-            timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            includePathInCounterScope = doc.includePathInScope,
-            includeFilenameInCounterScope = doc.includeFilenameInScope,
-            saveMode = doc.saveMode, syncedCounter = counter, phraseProgressCursor = 0,
-        ))
+        val preview = resolveCapturePreview()
         // Render from the exact preview used for the save plan. Never allow a
         // separately recomputed counter, timestamp, or phrase value.
         require(renderedJpeg == null || renderForPreview == null) {

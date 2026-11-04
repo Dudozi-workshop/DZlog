@@ -49,7 +49,9 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
     DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--configured-capture-flow")) {
+        if (NSProcessInfo.processInfo.arguments.contains("--live-table-placement-flow")) {
+            IosLiveTableFixture()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--configured-capture-flow")) {
             IosConfiguredCaptureFixture()
         } else if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
             IosCameraCapturePoc(permissionGranted = cameraPermissionGranted)

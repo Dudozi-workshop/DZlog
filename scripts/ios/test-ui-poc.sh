@@ -5,6 +5,8 @@ test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableMoveResizePersistsAndSaves
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableRotationLockAndGeometryBounds
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraControlsStayDisabledWithoutCameraPermission
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn

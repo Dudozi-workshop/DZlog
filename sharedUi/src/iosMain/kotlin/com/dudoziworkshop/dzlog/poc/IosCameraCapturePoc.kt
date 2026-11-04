@@ -17,10 +17,12 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterScope
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.buildCaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.naming.buildCounterPath
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.TablePatch
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,6 +78,18 @@ internal fun IosCameraCapturePoc(
     var zoom by remember { mutableFloatStateOf(1f) }
     var flash by remember { mutableIntStateOf(0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
+    var placementRevision by remember { mutableIntStateOf(0) }
+    var liveTick by remember { mutableIntStateOf(0) }
+    var overlayReady by remember { mutableStateOf(false) }
+    var overlayEditing by remember { mutableStateOf(false) }
+    val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
+        it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
+    } == true
+    LaunchedEffect(ready, busy, overlayEditing, showSettings, showGallery, liveHasClock) {
+        if (liveHasClock && ready && !busy && !overlayEditing && !showSettings && !showGallery) {
+            while (true) { delay(1000); liveTick += 1 }
+        }
+    }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(camera, showSettings, showGallery) {
@@ -116,7 +130,7 @@ internal fun IosCameraCapturePoc(
         IosPhotoKitGalleryScreen(repository, onBack = { showGallery = false })
         return
     }
-    val info = remember(successfulSaves, settingsRevision, showInfo) { session?.previewInfo() }
+    val info = remember(successfulSaves, settingsRevision, placementRevision, liveTick, showInfo) { session?.previewInfo() }
     if (showInfo && session != null && info != null) HomeSaveInfoSheet(
         fileName = info.previewNaming.displayName,
         relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
@@ -129,13 +143,13 @@ internal fun IosCameraCapturePoc(
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) TextButton(onClick = onBack, enabled = !busy) { Text("뒤로가기") }
+            if (onBack != null) TextButton(onClick = onBack, enabled = !busy && !overlayEditing) { Text("뒤로가기") }
             Text("카메라")
-            TextButton(onClick = { showSettings = true }, enabled = !busy && session != null && !session.hasPending()) {
+            TextButton(onClick = { showSettings = true }, enabled = !busy && !overlayEditing && session != null && !session.hasPending()) {
                 Text("촬영 설정")
             }
         }
-        if (info != null) TextButton(onClick = { showInfo = true }, enabled = !busy) {
+        if (info != null) TextButton(onClick = { showInfo = true }, enabled = !busy && !overlayEditing) {
             Text(info.previewNaming.displayName.removeSuffix(".jpg"), maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
@@ -145,7 +159,14 @@ internal fun IosCameraCapturePoc(
         if (session?.hasPending() == true) Text("이전 촬영 기록을 복구한 후 촬영해 주세요.")
         Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),
             contentAlignment = Alignment.Center) {
-            if (ready) UIKitView(
+            if (ready && session != null) IosLiveTablePreview(
+                modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
+                enabled = !busy && !session.hasPending(),
+                revision = successfulSaves + settingsRevision + placementRevision + liveTick,
+                onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
+                onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
+                onError = { status = it },
+            ) else if (ready) UIKitView(
                 modifier = Modifier.fillMaxSize(),
                 factory = {
                     object : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
@@ -172,8 +193,9 @@ internal fun IosCameraCapturePoc(
             onValueChange = { if (camera.setZoom(it)) zoom = it })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { showGallery = true }, enabled = !busy) { Text("앨범 보기") }
-        Button(shape = CircleShape, modifier = Modifier.size(76.dp), enabled = ready && !busy && (onBack == null || session != null) &&
+        TextButton(onClick = { showGallery = true }, enabled = !busy && !overlayEditing) { Text("앨범 보기") }
+        Button(shape = CircleShape, modifier = Modifier.size(76.dp), enabled = ready && !busy && !overlayEditing &&
+            (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) && (onBack == null || session != null) &&
             (session?.hasPending() != true), onClick = {
             busy = true
             status = "사진 촬영 중"
