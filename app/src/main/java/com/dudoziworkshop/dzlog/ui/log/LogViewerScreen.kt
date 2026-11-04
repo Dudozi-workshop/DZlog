@@ -86,6 +86,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.project.CaptureMediaPresenceReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
@@ -188,6 +189,26 @@ fun LogViewerScreen(
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
+                    if (isQuickResultsViewer) {
+                    // Quick Results owns an exact shutter-linked pair, not a folder.
+                    // A moved original may remain in MediaStore outside Pictures/DZlog.
+                    val pair = requireNotNull(
+                        quickResultOriginalByResultUri[requested.uri.toString()],
+                    ) { "이 촬영 건에는 연결된 원본사진이 없습니다." }
+                    require(pair.uri != requested.uri && pair.id != requested.id) {
+                        "원본·결과 사진 정보가 올바르지 않습니다."
+                    }
+                    val present = CaptureMediaPresenceReader(resolver).inspect(
+                        referencedUris = setOf(requested.uri.toString(), pair.uri.toString()),
+                        knownDzlogPhotos = emptyList(),
+                    ).found
+                    requireNotNull(present.singleOrNull {
+                        it.id == requested.id && it.uri == requested.uri
+                    }) { "결과사진을 확인할 수 없습니다. 빠른 결과에서 다시 확인해 주세요." }
+                    requireNotNull(present.singleOrNull {
+                        it.id == pair.id && it.uri == pair.uri
+                    }) { "원본사진을 확인할 수 없습니다. 빠른 결과에서 다시 확인해 주세요." }
+                } else {
                     val snapshot = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
                     require(snapshot.singleOrNull { it.id == requested.id } == requested) {
                         "사진 정보가 변경됐습니다. 갤러리에서 다시 확인해 주세요."
@@ -197,13 +218,12 @@ fun LogViewerScreen(
                         requireNotNull(snapshot.singleOrNull { it.id == explicitPair.id && it == explicitPair }) {
                             "촬영 세션의 원본사진이 이동되거나 삭제되었습니다."
                         }
-                    } else if (isQuickResultsViewer) {
-                        error("이 촬영 건에는 연결된 원본사진이 없습니다.")
                     } else {
                         requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
                             "정확히 연결된 원본사진을 찾지 못했습니다."
                         }
                     }
+                }
                 }
             }
             originalLoading = false
