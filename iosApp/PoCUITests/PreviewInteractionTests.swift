@@ -7,6 +7,14 @@ final class PreviewInteractionTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        // PhotoKit may present its asynchronous prompt after the explicit wait.
+        // Always handle it before XCTest's default handler selects Don't Allow.
+        addUIInterruptionMonitor(withDescription: "Photo library access") { alert in
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
+            }
+            return false
+        }
     }
 
     override func tearDown() {
@@ -106,7 +114,7 @@ final class PreviewInteractionTests: XCTestCase {
 
     private func allowPhotosIfPrompted() {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 3) {
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
             let alert = springboard.alerts.firstMatch
             for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
@@ -129,7 +137,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
         tapButton("테스트 사진 저장")
         // Trigger the interruption monitor and allow PhotoKit to finish asynchronously.
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
             let alert = springboard.alerts.firstMatch
             for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
@@ -176,7 +184,7 @@ final class PreviewInteractionTests: XCTestCase {
         }
         XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
         tapButton("테스트 촬영 저장")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
             let alert = springboard.alerts.firstMatch
             for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
@@ -207,7 +215,7 @@ final class PreviewInteractionTests: XCTestCase {
         }
         XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
         tapButton("BOTH 합성 실제 저장 검증")
-        if springboard.alerts.firstMatch.waitForExistence(timeout: 5) {
+        if springboard.alerts.firstMatch.waitForExistence(timeout: 15) {
             let alert = springboard.alerts.firstMatch
             for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
                 if alert.buttons[name].exists { alert.buttons[name].tap(); break }
