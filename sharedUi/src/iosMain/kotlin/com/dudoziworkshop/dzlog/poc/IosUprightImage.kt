@@ -12,7 +12,7 @@ internal fun uprightIosImage(bytes: ByteArray): ByteArray {
     require(bytes.isNotEmpty()) { "사진 데이터가 없습니다." }
     val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
     val image = checkNotNull(UIImage.imageWithData(data)) { "사진을 읽을 수 없습니다." }
-    if (image.imageOrientation == UIImageOrientationUp) return bytes
+    if (image.imageOrientation == UIImageOrientation.UIImageOrientationUp) return bytes
     val size = image.size.useContents { width to height }
     UIGraphicsBeginImageContextWithOptions(image.size, false, 1.0)
     try {

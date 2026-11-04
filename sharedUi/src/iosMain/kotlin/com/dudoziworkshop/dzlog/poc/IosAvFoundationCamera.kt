@@ -4,6 +4,7 @@ package com.dudoziworkshop.dzlog.poc
 import kotlinx.cinterop.readBytes
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import platform.AVFoundation.*
 import platform.AVFoundation.AVAuthorizationStatusAuthorized
 import platform.AVFoundation.AVAuthorizationStatusNotDetermined
 import platform.AVFoundation.AVCaptureDevice
@@ -129,7 +130,7 @@ internal class IosAvFoundationCamera {
 
     private fun configureDevice(block: (AVCaptureDevice) -> Unit): Boolean = runCatching {
         val active = checkNotNull(device)
-        check(active.lockForConfiguration(error = null))
+        check(active.lockForConfiguration(outError = null))
         try { block(active) } finally { active.unlockForConfiguration() }
     }.isSuccess
 
