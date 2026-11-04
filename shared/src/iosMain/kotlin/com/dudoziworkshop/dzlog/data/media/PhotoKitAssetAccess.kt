@@ -25,6 +25,13 @@ import platform.Photos.PHAuthorizationStatusAuthorized
 import platform.Photos.PHAuthorizationStatusLimited
 import platform.Photos.PHAuthorizationStatusNotDetermined
 import platform.Photos.PHPhotoLibrary
+import platform.Photos.PHImageManager
+import platform.Photos.PHImageRequestOptions
+import platform.Photos.PHImageRequestOptionsDeliveryModeFastFormat
+import platform.Photos.PHImageRequestOptionsResizeModeFast
+import platform.Photos.PHImageContentModeAspectFill
+import platform.CoreGraphics.CGSizeMake
+import platform.UIKit.UIImageJPEGRepresentation
 
 internal data class PhotoKitCreatedBatch(
     val entries: List<IndexedCaptureMedia>,
@@ -160,6 +167,29 @@ internal class PhotoKitAssetAccess {
                     }
                 },
             )
+        }
+    }
+
+    /** Local PhotoKit thumbnail; scrolling must not download every full-resolution iCloud asset. */
+    suspend fun thumbnail(assetId: String): ByteArray? {
+        val asset = find(assetId) ?: return null
+        val options = PHImageRequestOptions().apply {
+            deliveryMode = PHImageRequestOptionsDeliveryModeFastFormat
+            resizeMode = PHImageRequestOptionsResizeModeFast
+            networkAccessAllowed = false
+        }
+        return suspendCoroutine { continuation ->
+            var delivered = false
+            PHImageManager.defaultManager().requestImageForAsset(asset, CGSizeMake(240.0, 240.0),
+                PHImageContentModeAspectFill, options) { image, _ ->
+                if (!delivered) {
+                    delivered = true
+                    val data = image?.let { UIImageJPEGRepresentation(it, 0.75) }
+                    continuation.resume(data?.let { bytes ->
+                        bytes.bytes?.readBytes(bytes.length.toInt())
+                    })
+                }
+            }
         }
     }
 }

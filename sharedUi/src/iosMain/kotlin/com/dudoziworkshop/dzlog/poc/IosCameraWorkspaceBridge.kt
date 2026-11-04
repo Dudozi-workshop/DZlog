@@ -33,6 +33,24 @@ internal class IosCameraCaptureSession(
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
+    val selectedDocument get() = checkNotNull(workspace.active)
+
+    fun saveSettings(document: com.dudoziworkshop.dzlog.data.template.EditorDocument): Boolean {
+        if (hasPending() || document.template.id != workspace.activeTemplateId) return false
+        if (store.load(document.template) != workspace) return false
+        val updated = workspace.save(document)
+        if (!store.save(updated)) return false
+        workspace = store.load(document.template)
+        return true
+    }
+
+    fun previewInfo() = com.dudoziworkshop.dzlog.domain.preview.buildPreview(
+        com.dudoziworkshop.dzlog.domain.preview.PreviewInput(
+            selectedDocument.template.templateState, tableEditorNow(), selectedDocument.counterPadding,
+            NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+            NamingFormatDefaults.FILE_NAME_DELIMITER, selectedDocument.includePathInScope,
+            selectedDocument.includeFilenameInScope, selectedDocument.saveMode, selectedDocument.nextCounter, 0))
+
     /** One camera entry point for all modes, using only this document's saved placement. */
     suspend fun saveConfiguredJpeg(jpeg: ByteArray): Boolean {
         val doc = checkNotNull(workspace.active)
@@ -77,7 +95,8 @@ internal class IosCameraCaptureSession(
     ): Boolean {
         val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
         return saveJpeg(jpeg, renderForPreview = { preview ->
-            val image = Image.makeFromEncoded(jpeg)
+            val upright = uprightIosImage(jpeg)
+            val image = Image.makeFromEncoded(upright)
             val overlay = IosTableOverlayRenderer.renderAndroidAnchoredPng(
                 imageWidth = image.width,
                 imageHeight = image.height,
@@ -91,7 +110,7 @@ internal class IosCameraCaptureSession(
                 heightRatio = heightRatio,
                 rotationCwDeg = rotationCwDeg,
             )
-            IosCaptureResultRenderer.compositeJpeg(jpeg, overlay)
+            IosCaptureResultRenderer.compositeJpeg(upright, overlay)
         })
     }
 
@@ -105,7 +124,8 @@ internal class IosCameraCaptureSession(
     ): Boolean {
         val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
         return saveJpeg(jpeg, renderForPreview = { preview ->
-            val image = Image.makeFromEncoded(jpeg)
+            val upright = uprightIosImage(jpeg)
+            val image = Image.makeFromEncoded(upright)
             val overlay = IosTableOverlayRenderer.renderResolvedPreviewPng(
                 imageWidth = image.width,
                 imageHeight = image.height,
@@ -118,7 +138,7 @@ internal class IosCameraCaptureSession(
                 offsetYRatio = offsetYRatio,
                 rotationDegrees = rotationDegrees,
             )
-            IosCaptureResultRenderer.compositeJpeg(jpeg, overlay)
+            IosCaptureResultRenderer.compositeJpeg(upright, overlay)
         })
     }
 

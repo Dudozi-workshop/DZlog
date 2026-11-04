@@ -94,11 +94,78 @@ final class PreviewInteractionTests: XCTestCase {
         ["--configured-capture-flow"] + (merged ? ["--merged-capture-fixture"] : [])
     }
 
+    func testCameraControlsStayDisabledWithoutCameraPermission() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+        XCTAssertFalse(button("자동초점").isEnabled)
+        XCTAssertFalse(button("플래시 꺼짐").isEnabled)
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+    }
+
+    func testCameraSettingsPersistThroughNativeModalReturn() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("촬영 설정 열기")
+        tapButton("원본만")
+        tapButton("설정 저장")
+        tapButton("카메라 열기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("촬영 설정")
+        tapButton("원본과 결과")
+        tapButton("설정 저장")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
+    }
+
+    func testGalleryFolderGridViewerAndOriginalResultSwitch() {
+        configureCaptureFixture("원본과 결과", merged: true)
+        tapButton("촬영 저장")
+        allowPhotosIfPrompted()
+        XCTAssertTrue(text("상태: 설정대로 저장 완료").waitForExistence(timeout: 45))
+        tapButton("갤러리 열기")
+        XCTAssertTrue(text("사진 썸네일").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapPanelText("갤러리 사진 미리보기")
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        tapButton("원본 보기")
+        XCTAssertTrue(button("결과 보기").waitForExistence(timeout: 20))
+        tapButton("결과 보기")
+        tapButton("사진 목록")
+        tapButton("폴더 보기")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
+        tapButton("목록 보기")
+        XCTAssertTrue(button("그리드 보기").exists)
+        tapButton("전체 사진")
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+    }
+
     func testMergedRasterPixelsAndMalformedSpans() {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture"]
         app.launch()
         tapButton("병합 렌더 검증")
         XCTAssertTrue(text("상태: 병합 픽셀·오류 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    func testExifRasterIsUprightAndOriginalRemainsUnchanged() {
+        app.launchArguments = configuredArguments(merged: false) + ["--reset-configured-fixture"]
+        app.launch()
+        tapButton("사진 방향 검증")
+        XCTAssertTrue(text("상태: 사진 방향 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
     }
 
     private func configureCaptureFixture(_ modeLabel: String, merged: Bool) {
@@ -262,10 +329,10 @@ final class PreviewInteractionTests: XCTestCase {
     func testCameraPermissionDeniedBlocksCapture() {
         app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
         app.launch()
-        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
-        XCTAssertTrue(text("저장 완료 수: 0").exists)
-        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+        XCTAssertTrue(text("이번 촬영: 0장").exists)
+        XCTAssertFalse(button("촬영").isEnabled)
     }
 
     // Real home entry uses the Swift permission gate and preserves the home VC on return.
@@ -274,9 +341,9 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         XCTAssertTrue(button("촬영 시작").isEnabled)
         tapButton("촬영 시작")
-        XCTAssertTrue(text("iOS M3-A 실제 촬영 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
-        XCTAssertFalse(button("테스트 사진 촬영").isEnabled)
+        XCTAssertFalse(button("촬영").isEnabled)
         tapButton("뒤로가기")
         XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
         XCTAssertTrue(text("최근 촬영").exists) // Home content is restored; counter text is not an exposed AX node.

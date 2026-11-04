@@ -2,16 +2,12 @@
 package com.dudoziworkshop.dzlog.poc
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
+import com.dudoziworkshop.dzlog.ui.home.HomeSaveInfoSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
@@ -74,10 +70,20 @@ internal fun IosCameraCapturePoc(
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("카메라 확인 중") }
     var successfulSaves by remember { mutableIntStateOf(0) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showGallery by remember { mutableStateOf(false) }
+    var showInfo by remember { mutableStateOf(false) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var flash by remember { mutableIntStateOf(0) }
+    var settingsRevision by remember { mutableIntStateOf(0) }
+    var settingsFailure by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(camera) {
+    LaunchedEffect(camera, showSettings, showGallery) {
         try {
-            if (!permissionGranted) {
+            ready = false
+            if (showSettings || showGallery) {
+                withContext(Dispatchers.Default) { camera.stop() }
+            } else if (!permissionGranted) {
                 status = "카메라 권한이 없습니다."
             } else if (!camera.configure()) {
                 status = "카메라를 사용할 수 없는 기기입니다."
@@ -94,41 +100,80 @@ internal fun IosCameraCapturePoc(
         onDispose { camera.stop() }
     }
 
+    if (showSettings && session != null) {
+        IosCaptureSettingsScreen(session.selectedDocument, onBack = { showSettings = false }) { document ->
+            if (session.saveSettings(document)) { settingsRevision += 1; showSettings = false }
+            else settingsFailure = "촬영 설정을 저장하지 못했습니다. 다시 시도해 주세요."
+        }
+        settingsFailure?.let { message ->
+            com.dudoziworkshop.dzlog.ui.common.DDZConfirmDialog(title = "안내", message = message,
+                confirmText = "확인", dismissText = "닫기", onConfirm = { settingsFailure = null },
+                onDismiss = { settingsFailure = null })
+        }
+        return
+    }
+    if (showGallery) {
+        IosPhotoKitGalleryScreen(repository, onBack = { showGallery = false })
+        return
+    }
+    val info = remember(successfulSaves, settingsRevision, showInfo) { session?.previewInfo() }
+    if (showInfo && session != null && info != null) HomeSaveInfoSheet(
+        fileName = info.previewNaming.displayName,
+        relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
+        onOpenSaveSettings = { showInfo = false; showSettings = true },
+        onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
+    )
     Column(
-        Modifier.fillMaxSize().background(DDZColor.Background)
-            .safeDrawingPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (onBack != null) {
-            Button(onClick = onBack, enabled = !busy) { Text("뒤로가기") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            if (onBack != null) TextButton(onClick = onBack, enabled = !busy) { Text("뒤로가기") }
+            Text("카메라")
+            TextButton(onClick = { showSettings = true }, enabled = !busy && session != null && !session.hasPending()) {
+                Text("촬영 설정")
+            }
         }
-        Text("iOS M3-A 실제 촬영 검증")
+        if (info != null) TextButton(onClick = { showInfo = true }, enabled = !busy) {
+            Text(info.previewNaming.displayName.removeSuffix(".jpg"), maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
         Text(status)
-        Text("저장 완료 수: $successfulSaves")
-        if (permissionGranted && onBack != null && session == null) {
-            Text("촬영할 템플릿과 저장 설정이 준비되지 않았습니다.")
-        }
-        if (session?.hasPending() == true) {
-            Text("미완료 저장 기록이 있어 추가 촬영을 차단합니다.")
-        }
-        if (ready) {
-            UIKitView(
-                modifier = Modifier.fillMaxWidth().height(360.dp),
+        Text("이번 촬영: ${successfulSaves}장")
+        if (permissionGranted && onBack != null && session == null) Text("촬영할 템플릿과 저장 설정이 준비되지 않았습니다.")
+        if (session?.hasPending() == true) Text("이전 촬영 기록을 복구한 후 촬영해 주세요.")
+        Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),
+            contentAlignment = Alignment.Center) {
+            if (ready) UIKitView(
+                modifier = Modifier.fillMaxSize(),
                 factory = {
                     object : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
                         override fun layoutSubviews() {
                             super.layoutSubviews()
                             camera.previewLayer.frame = bounds
                         }
-                    }.apply {
-                        layer.addSublayer(camera.previewLayer)
-                    }
+                    }.apply { layer.addSublayer(camera.previewLayer) }
                 },
             )
-        } else {
-            Spacer(Modifier.height(200.dp))
         }
-        Button(enabled = ready && !busy && (onBack == null || session != null) &&
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(onClick = { if (!camera.autoFocus()) status = "자동초점을 설정할 수 없습니다." }, enabled = ready && !busy) {
+                Text("자동초점")
+            }
+            TextButton(enabled = ready && !busy && camera.flashAvailable, onClick = {
+                val next = (flash + 1) % 3
+                if (camera.setFlash(next)) flash = next
+            }) { Text("플래시 " + listOf("꺼짐", "자동", "켜짐")[flash]) }
+        }
+        Text("줌 ${((zoom * 10).toInt() / 10f)}배")
+        Slider(value = zoom, valueRange = 1f..maxOf(1.01f, camera.maximumZoom),
+            enabled = ready && !busy && camera.maximumZoom > 1f,
+            onValueChange = { if (camera.setZoom(it)) zoom = it })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { showGallery = true }, enabled = !busy) { Text("앨범 보기") }
+        Button(shape = CircleShape, modifier = Modifier.size(76.dp), enabled = ready && !busy && (onBack == null || session != null) &&
             (session?.hasPending() != true), onClick = {
             busy = true
             status = "사진 촬영 중"
@@ -161,7 +206,9 @@ internal fun IosCameraCapturePoc(
                 status = "촬영 실패: ${error.message}"
                 busy = false
             }
-        }) { Text(if (busy) "촬영 중" else "테스트 사진 촬영") }
+        }) { Text(if (busy) "저장 중" else "촬영") }
+        Text("${successfulSaves}장")
+        }
     }
 }
 

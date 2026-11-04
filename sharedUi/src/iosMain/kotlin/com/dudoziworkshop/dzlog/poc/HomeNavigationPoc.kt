@@ -83,7 +83,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             recentPhotoName = recent?.asset?.target?.displayName.orEmpty()
             if (recent != null) {
                 val bytes = runCatching { photoRepository.readAsset(recent.asset.assetId) }.getOrNull()
-                recentPhoto = bytes?.let { runCatching { Image.makeFromEncoded(it).toComposeImageBitmap() }.getOrNull() }
+                recentPhoto = bytes?.let { runCatching { Image.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }.getOrNull() }
             }
         }
     }

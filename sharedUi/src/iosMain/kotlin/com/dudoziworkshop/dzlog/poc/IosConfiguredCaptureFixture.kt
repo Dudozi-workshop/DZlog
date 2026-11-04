@@ -14,6 +14,7 @@ import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.*
 import platform.Foundation.NSProcessInfo
+import platform.Foundation.NSNotificationCenter
 
 private const val CONFIGURED_TEST_KEY = "dzlog.ios.configured-capture.uitest.v1"
 
@@ -49,6 +50,10 @@ internal fun IosConfiguredCaptureFixture() {
     var status by remember { mutableStateOf("대기") }
     val scope = rememberCoroutineScope()
     val media = remember { PhotoKitCaptureMediaRepository() }
+    val cameraReturn = IosCameraReturnSignal.revision
+    LaunchedEffect(cameraReturn) {
+        if (cameraReturn > 0) workspace = store.load(seed)
+    }
     LaunchedEffect(Unit) {
         if (IosCameraCaptureSession.hasPending()) {
             val recovered = IosCameraCaptureSession.recover(store, seed)
@@ -74,8 +79,8 @@ internal fun IosConfiguredCaptureFixture() {
         return
     }
     val doc = checkNotNull(workspace.active)
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("설정 연결 촬영 검증")
         Text("상태: $status")
         Text("모드: ${doc.saveMode.name}")
@@ -133,6 +138,15 @@ internal fun IosConfiguredCaptureFixture() {
             }) { Text(if (interrupt) "저장 후 복구 대기" else "촬영 저장") }
         }
         Button(onClick = { gallery = true }, enabled = !busy) { Text("갤러리 열기") }
+        Button(enabled = !busy && !IosCameraCaptureSession.hasPending(), onClick = {
+            val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
+            if (issue == null) NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+            else status = issue
+        }) { Text("카메라 열기") }
+        Button(enabled = !busy, onClick = {
+            status = runCatching { checkIosExifRaster(); "사진 방향 검증 완료" }
+                .getOrElse { "실패: ${it.message}" }
+        }) { Text("사진 방향 검증") }
         Button(enabled = !busy, onClick = {
             status = runCatching { checkIosMergedCaptureRaster(); "병합 픽셀·오류 차단 검증 완료" }
                 .getOrElse { "실패: ${it.message}" }

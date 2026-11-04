@@ -17,6 +17,11 @@ import platform.AVFoundation.AVCaptureSessionPresetPhoto
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
+import platform.AVFoundation.AVCaptureFocusModeContinuousAutoFocus
+import platform.AVFoundation.AVCaptureFlashModeOff
+import platform.AVFoundation.AVCaptureFlashModeAuto
+import platform.AVFoundation.AVCaptureFlashModeOn
+import platform.AVFoundation.AVCaptureVideoOrientationPortrait
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSSelectorFromString
@@ -35,6 +40,12 @@ internal class IosAvFoundationCamera {
     }
     private val photoOutput = AVCapturePhotoOutput()
     private var configured = false
+    private var device: AVCaptureDevice? = null
+    private var flashMode = AVCaptureFlashModeOff
+    var maximumZoom: Float = 1f
+        private set
+    var flashAvailable: Boolean = false
+        private set
     private var onPhoto: ((Result<ByteArray>) -> Unit)? = null
 
     private val photoDelegate = object : NSObject(), AVCapturePhotoCaptureDelegateProtocol {
@@ -78,10 +89,16 @@ internal class IosAvFoundationCamera {
             }
             session.addInput(input)
             session.addOutput(photoOutput)
+            this.device = device
+            maximumZoom = minOf(6.0, device.activeFormat.videoMaxZoomFactor).toFloat().coerceAtLeast(1f)
+            flashAvailable = device.hasFlash
             configured = true
         } finally {
             session.commitConfiguration()
         }
+        // The host is portrait-only; keep the sensor/preview connection in the same orientation.
+        photoOutput.connectionWithMediaType(AVMediaTypeVideo)?.videoOrientation = AVCaptureVideoOrientationPortrait
+        previewLayer.connection?.videoOrientation = AVCaptureVideoOrientationPortrait
         return configured
     }
 
@@ -95,6 +112,27 @@ internal class IosAvFoundationCamera {
         onPhoto = null
     }
 
+    fun setZoom(factor: Float): Boolean = configureDevice { device ->
+        device.videoZoomFactor = factor.coerceIn(1f, maximumZoom).toDouble()
+    }
+
+    fun autoFocus(): Boolean = configureDevice { device ->
+        check(device.isFocusModeSupported(AVCaptureFocusModeContinuousAutoFocus))
+        device.focusMode = AVCaptureFocusModeContinuousAutoFocus
+    }
+
+    fun setFlash(mode: Int): Boolean {
+        if (!configured || !flashAvailable || mode !in 0..2) return false
+        flashMode = when (mode) { 1 -> AVCaptureFlashModeAuto; 2 -> AVCaptureFlashModeOn; else -> AVCaptureFlashModeOff }
+        return true
+    }
+
+    private fun configureDevice(block: (AVCaptureDevice) -> Unit): Boolean = runCatching {
+        val active = checkNotNull(device)
+        check(active.lockForConfiguration(error = null))
+        try { block(active) } finally { active.unlockForConfiguration() }
+    }.isSuccess
+
     fun captureJpeg(callback: (Result<ByteArray>) -> Unit) {
         check(configured && session.running) { "카메라가 실행 중이지 않습니다." }
         check(onPhoto == null) { "이미 촬영 중입니다." }
@@ -104,6 +142,8 @@ internal class IosAvFoundationCamera {
                 platform.AVFoundation.AVVideoCodecKey to platform.AVFoundation.AVVideoCodecTypeJPEG,
             ),
         )
+        if (flashAvailable) settings.flashMode = flashMode
         photoOutput.capturePhotoWithSettings(settings, delegate = photoDelegate)
     }
 }
+

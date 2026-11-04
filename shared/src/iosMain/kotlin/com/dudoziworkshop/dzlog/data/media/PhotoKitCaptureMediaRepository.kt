@@ -79,6 +79,11 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
         return photos.read(assetId)
     }
 
+    suspend fun readThumbnail(assetId: String): ByteArray? {
+        if (!photos.hasReadAccess() || index.load().none { it.asset.assetId == assetId }) return null
+        return photos.thumbnail(assetId)
+    }
+
     private suspend fun reconcilePending() {
         val pending = index.pending()
         if (pending.isEmpty()) return
