@@ -568,7 +568,9 @@ fun LogViewerScreen(
             onVerified = { movedIds ->
                 onSessionMediaChanged(movedIds, false)
                 if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
-                if (items.any { it.id in movedIds }) {
+                // A moved project/session photo still belongs to its shutter.
+                // Only the physical gallery viewer removes moved-out entries.
+                if (!isQuickResultsViewer && items.any { it.id in movedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
                     pendingViewerIndex = update.currentIndex
                     emptyAfterOperation = update.ids.isEmpty()

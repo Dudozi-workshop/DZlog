@@ -1444,31 +1444,45 @@ fun AppRoot(startOnCamera: Boolean = false) {
                                             affectedUris.toSet(),
                                         )
                                     }
-                                    if (viewedId != null) {
+                                    val refreshed = if (viewedId != null) {
                                         val registry = captureProjectRegistry
                                             ?: error("프로젝트 목록을 확인할 수 없습니다.")
                                         val snapshot = projectCaptureRead.readProject(registry, viewedId)
-                                        quickResultsPhotos = snapshot.photos
-                                        quickResultsCaptures = snapshot.captures
+                                        snapshot.photos to snapshot.captures
                                     } else {
-                                        val refreshed = withContext(Dispatchers.IO) {
+                                        val photos = withContext(Dispatchers.IO) {
                                             DzlogMediaStoreReader(context.contentResolver)
                                                 .loadImagesUnderPrefix("Pictures/DZlog/")
                                         }
-                                        quickResultsPhotos = refreshed
                                         val groups = cameraSessionCaptureStack.map { group ->
                                             group.map(Uri::toString)
                                         }
-                                        quickResultsCaptures = QuickResultsSessionPolicy.captures(
+                                        val captures = QuickResultsSessionPolicy.captures(
                                             groups,
-                                            refreshed.map { photo ->
+                                            photos.map { photo ->
                                                 QuickResultPhoto(
                                                     photo.uri.toString(), photo.displayName,
                                                     photo.relativePath,
                                                 )
                                             },
                                         )
+                                        photos to captures
                                     }
+                                    val (refreshedPhotos, refreshedCaptures) = refreshed
+                                    if (screen == AppScreen.ALBUM_VIEWER &&
+                                        viewerEntrySource == ViewerEntrySource.QUICK_RESULTS &&
+                                        viewedProjectResultsId == viewedId
+                                    ) {
+                                        val byUri = refreshedPhotos.associateBy { it.uri.toString() }
+                                        val selectedUris = QuickResultsSessionPolicy.refreshedViewerUris(
+                                            openedDisplayUris = gridItems.map { it.uri.toString() },
+                                            before = quickResultsCaptures,
+                                            after = refreshedCaptures,
+                                        )
+                                        gridItems = selectedUris.mapNotNull(byUri::get)
+                                    }
+                                    quickResultsPhotos = refreshedPhotos
+                                    quickResultsCaptures = refreshedCaptures
                                 } catch (cancelled: CancellationException) {
                                     throw cancelled
                                 } catch (error: Exception) {

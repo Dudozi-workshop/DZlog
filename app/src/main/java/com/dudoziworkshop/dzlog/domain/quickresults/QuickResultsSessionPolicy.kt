@@ -120,6 +120,33 @@ object QuickResultsSessionPolicy {
         return "${count}건 · $detail"
     }
 
+    /**
+     * Refresh only shutters already open in the viewer. Identify each shutter by
+     * its immutable media URIs, not by folder or a shifting capture index.
+     * A moved photo stays visible, and a missing result can fall back to its
+     * surviving original. Ambiguous ownership fails closed.
+     */
+    fun refreshedViewerUris(
+        openedDisplayUris: List<String>,
+        before: List<QuickResultCapture>,
+        after: List<QuickResultCapture>,
+    ): List<String> {
+        val beforeByDisplay = before.groupBy { it.displayedPhoto.uri }
+        val afterByMediaUri = after.flatMap { capture ->
+            listOfNotNull(capture.result?.uri, capture.original?.uri).distinct()
+                .map { it to capture }
+        }.groupBy({ it.first }, { it.second })
+
+        return openedDisplayUris.mapNotNull { displayedUri ->
+            val previous = beforeByDisplay[displayedUri]?.singleOrNull()
+                ?: return@mapNotNull null
+            val successors = listOfNotNull(previous.result?.uri, previous.original?.uri)
+                .flatMap { afterByMediaUri[it].orEmpty() }
+                .distinct()
+            successors.singleOrNull()?.displayedPhoto?.uri
+        }.distinct()
+    }
+
     fun folderChoices(newestFirst: List<QuickResultCapture>): List<String> =
         newestFirst.map { it.folderPath }.distinct()
 }
