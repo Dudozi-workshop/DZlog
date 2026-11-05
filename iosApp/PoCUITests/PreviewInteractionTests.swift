@@ -38,7 +38,10 @@ final class PreviewInteractionTests: XCTestCase {
     // Only the sensor JPEG is synthetic. Exercise the user settings form and
     // production configured save entry, then relaunch and read the real gallery.
     private func liveHandle(_ identifier: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", identifier)).firstMatch
+        // Kotlin's bundled UIKit interface exposes these native accessibility labels.
+        // Each handle has a unique label; frame/value/drag assertions remain unchanged.
+        let label = identifier == "ios.table.move" ? "표 이동" : "표 크기 조절"
+        return app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 
     private func openLiveTable(reset: Bool) {

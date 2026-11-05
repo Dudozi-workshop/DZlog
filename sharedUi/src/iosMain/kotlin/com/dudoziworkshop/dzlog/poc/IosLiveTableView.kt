@@ -87,12 +87,10 @@ internal class IosLiveTableView(
         image.accessibilityLabel = "촬영 표 미리보기"
         moveHandle.isAccessibilityElement = true
         moveHandle.accessibilityLabel = "표 이동"
-        moveHandle.accessibilityIdentifier = "ios.table.move"
         resizeHandle.isAccessibilityElement = true
         resizeHandle.accessibilityLabel = "표 크기 조절"
-        resizeHandle.accessibilityIdentifier = "ios.table.resize"
         resizeHandle.text = "+"
-        resizeHandle.textAlignment = NSTextAlignment.NSTextAlignmentCenter
+        resizeHandle.textAlignment = NSTextAlignmentCenter
         resizeHandle.backgroundColor = UIColor.whiteColor
         resizeHandle.textColor = UIColor.blackColor
         resizeHandle.userInteractionEnabled = true
@@ -126,7 +124,7 @@ internal class IosLiveTableView(
     override fun layoutSubviews() {
         super.layoutSubviews()
         preview?.frame = bounds
-        val rect = preview?.layerRectConvertedFromMetadataOutputRect(CGRectMake(0.0, 0.0, 1.0, 1.0)) ?: fixtureRect()
+        val rect = preview?.rectForMetadataOutputRectOfInterest(CGRectMake(0.0, 0.0, 1.0, 1.0)) ?: fixtureRect()
         val frame = rect.useContents { IosTableBounds(origin.x.toFloat(), origin.y.toFloat(),
             size.width.toFloat(), size.height.toFloat(), 0f, 0f) }
         if (frame.width < 1 || frame.height < 1) return
@@ -138,7 +136,7 @@ internal class IosLiveTableView(
         if (!dirty || start != null) return
         dirty = false
         image.transform = CGAffineTransformMakeTranslation(0.0, 0.0)
-        image.frame = rect
+        image.setFrame(rect)
         val p = placement
         moveHandle.hidden = p == null || !enabled
         resizeHandle.hidden = p == null || !enabled
@@ -177,12 +175,12 @@ internal class IosLiveTableView(
 
     private fun updateHandles(p: IosCaptureTablePlacement) {
         val b = box(p)
-        moveHandle.frame = CGRectMake((viewport.x + b.x).toDouble(), (viewport.y + b.y).toDouble(),
-            b.width.toDouble(), b.height.toDouble())
+        moveHandle.setFrame(CGRectMake((viewport.x + b.x).toDouble(), (viewport.y + b.y).toDouble(),
+            b.width.toDouble(), b.height.toDouble()))
         // Keep the 32pt handle inside the image at flush right/bottom anchors.
         val handleX = (viewport.x + b.x + b.width - 32).coerceIn(viewport.x, maxOf(viewport.x, viewport.x + viewport.width - 32))
         val handleY = (viewport.y + b.y + b.height - 32).coerceIn(viewport.y, maxOf(viewport.y, viewport.y + viewport.height - 32))
-        resizeHandle.frame = CGRectMake(handleX.toDouble(), handleY.toDouble(), 32.0, 32.0)
+        resizeHandle.setFrame(CGRectMake(handleX.toDouble(), handleY.toDouble(), 32.0, 32.0))
         moveHandle.accessibilityValue = "가로 ${p.offsetXPercent}, 세로 ${p.offsetYPercent}"
         resizeHandle.accessibilityValue = "너비 ${p.widthRatio}, 높이 ${p.heightRatio}"
     }
@@ -190,12 +188,12 @@ internal class IosLiveTableView(
     fun pan(sender: UIPanGestureRecognizer, resizing: Boolean) {
         if (!enabled || !previewReady) return
         when (sender.state) {
-            UIGestureRecognizerState.UIGestureRecognizerStateBegan -> {
+            UIGestureRecognizerStateBegan -> {
                 start = placement
                 editing?.invoke(true)
             }
-            UIGestureRecognizerState.UIGestureRecognizerStateChanged,
-            UIGestureRecognizerState.UIGestureRecognizerStateEnded -> {
+            UIGestureRecognizerStateChanged,
+            UIGestureRecognizerStateEnded -> {
                 val initial = start ?: return
                 val delta = sender.translationInView(this).useContents { x.toFloat() to y.toFloat() }
                 val p = if (resizing) resizeIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second)
@@ -210,7 +208,7 @@ internal class IosLiveTableView(
                 val ty = next.y - (cy + sy * (old.y - cy))
                 image.transform = CGAffineTransformMake(sx.toDouble(), 0.0, 0.0, sy.toDouble(), tx.toDouble(), ty.toDouble())
                 updateHandles(p)
-                if (sender.state == UIGestureRecognizerState.UIGestureRecognizerStateEnded) {
+                if (sender.state == UIGestureRecognizerStateEnded) {
                     start = null
                     if (runCatching { commit?.invoke(p) == true }.getOrDefault(false)) { placement = p; saved?.invoke() }
                     else error?.invoke("표 배치를 저장하지 못했습니다. 다시 시도해 주세요.")
@@ -218,8 +216,8 @@ internal class IosLiveTableView(
                     editing?.invoke(false)
                 }
             }
-            UIGestureRecognizerState.UIGestureRecognizerStateCancelled,
-            UIGestureRecognizerState.UIGestureRecognizerStateFailed -> {
+            UIGestureRecognizerStateCancelled,
+            UIGestureRecognizerStateFailed -> {
                 start = null; dirty = true; setNeedsLayout(); editing?.invoke(false)
             }
             else -> Unit
