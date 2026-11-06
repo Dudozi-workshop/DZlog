@@ -35,6 +35,14 @@ internal class IosCameraCaptureSession(
 
     val selectedDocument get() = checkNotNull(workspace.active)
 
+    /** Reject a draft opened before another save/settings change. */
+    fun saveQuickValues(expected: com.dudoziworkshop.dzlog.data.template.EditorDocument,
+        values: Map<String, String>): Boolean {
+        if (selectedDocument != expected || hasPending()) return false
+        val updated = runCatching { updateIosQuickValues(expected, values) }.getOrNull() ?: return false
+        return saveSettings(updated)
+    }
+
     fun saveSettings(document: com.dudoziworkshop.dzlog.data.template.EditorDocument): Boolean {
         if (hasPending() || document.template.id != workspace.activeTemplateId) return false
         if (store.load(document.template) != workspace) return false

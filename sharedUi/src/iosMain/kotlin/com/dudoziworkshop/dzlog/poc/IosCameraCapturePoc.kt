@@ -75,6 +75,7 @@ internal fun IosCameraCapturePoc(
     var showSettings by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var showQuickValues by remember { mutableStateOf(false) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var flash by remember { mutableIntStateOf(0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
@@ -85,17 +86,17 @@ internal fun IosCameraCapturePoc(
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
-    LaunchedEffect(ready, busy, overlayEditing, showSettings, showGallery, liveHasClock) {
-        if (liveHasClock && ready && !busy && !overlayEditing && !showSettings && !showGallery) {
+    LaunchedEffect(ready, busy, overlayEditing, showSettings, showGallery, showQuickValues, liveHasClock) {
+        if (liveHasClock && ready && !busy && !overlayEditing && !showSettings && !showGallery && !showQuickValues) {
             while (true) { delay(1000); liveTick += 1 }
         }
     }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(camera, showSettings, showGallery) {
+    LaunchedEffect(camera, showSettings, showGallery, showQuickValues) {
         try {
             ready = false
-            if (showSettings || showGallery) {
+            if (showSettings || showGallery || showQuickValues) {
                 withContext(Dispatchers.Default) { camera.stop() }
             } else if (!permissionGranted) {
                 status = "카메라 권한이 없습니다."
@@ -112,6 +113,16 @@ internal fun IosCameraCapturePoc(
     }
     DisposableEffect(camera) {
         onDispose { camera.stop() }
+    }
+
+    if (showQuickValues && session != null) {
+        val expected = remember { session.selectedDocument }
+        IosQuickValuesScreen(expected, onBack = { showQuickValues = false }) { values ->
+            session.saveQuickValues(expected, values).also { saved ->
+                if (saved) { settingsRevision += 1; showQuickValues = false }
+            }
+        }
+        return
     }
 
     if (showSettings && session != null) {
@@ -155,6 +166,8 @@ internal fun IosCameraCapturePoc(
         }
         Text(status)
         Text("이번 촬영: ${successfulSaves}장")
+        if (session != null) TextButton(onClick = { showQuickValues = true },
+            enabled = !busy && !overlayEditing && !session.hasPending()) { Text("빠른 입력") }
         if (permissionGranted && onBack != null && session == null) Text("촬영할 템플릿과 저장 설정이 준비되지 않았습니다.")
         if (session?.hasPending() == true) Text("이전 촬영 기록을 복구한 후 촬영해 주세요.")
         Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),

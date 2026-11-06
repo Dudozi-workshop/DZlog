@@ -17,7 +17,7 @@ on:
       scope:
         description: 'settings = settings/catalog relaunch only; navigation = settings+editor; editor = editor only; full = all UI'
         type: choice
-        options: [full, settings, editor, navigation, media]
+        options: [full, settings, editor, navigation, media, quick-values]
         default: full
 permissions:
   contents: read
@@ -42,15 +42,17 @@ jobs:
             const pr = context.payload.pull_request;
             const sameRepoDraft = pr?.draft === true && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             // A milestone commit can request integration UI without promoting a Draft PR.
-            const milestone = sameRepoDraft && (await github.rest.repos.getCommit({
+            const message = sameRepoDraft ? (await github.rest.repos.getCommit({
               ...context.repo, ref: pr.head.sha,
-            })).data.commit.message.includes('[ios-full-ui]');
+            })).data.commit.message : '';
+            const milestone = sameRepoDraft && message.includes('[ios-full-ui]');
             const scope = context.eventName === 'workflow_dispatch'
               ? context.payload.inputs.scope
               : milestone ? 'full'
+              : sameRepoDraft && context.payload.action !== 'ready_for_review' && message.includes('[ios-quick-values]') ? 'quick-values'
               : sameRepoDraft && context.payload.action !== 'ready_for_review'
                 ? (pr.title?.includes('M3-A') ? 'media' : 'settings') : 'full';
-            if (!['settings', 'editor', 'navigation', 'media', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
+            if (!['settings', 'editor', 'navigation', 'media', 'quick-values', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
             core.setOutput('value', scope);
             await core.summary.addHeading(`iOS UI scope: ${scope}`)
               .addRaw(scope !== 'full'
@@ -104,6 +106,11 @@ jobs:
         with:
           path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
           key: ${{ steps.framework-cache.outputs.cache-primary-key }}
+      - name: Focused iOS quick values and persistence (partial development check)
+        if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'quick-values'
+        env:
+          DZLOG_UI_TEST_SCOPE: quick-values
+        run: bash scripts/ios/test-ui-poc.sh
       - name: Focused iOS PhotoKit media save and relaunch
         if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'media'
         env:

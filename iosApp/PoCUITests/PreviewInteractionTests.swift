@@ -37,6 +37,44 @@ final class PreviewInteractionTests: XCTestCase {
 
     // Only the sensor JPEG is synthetic. Exercise the user settings form and
     // production configured save entry, then relaunch and read the real gallery.
+    func testQuickValuesCancelApplySaveAndRelaunch() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("입력 취소")
+        XCTAssertTrue(text("상태: 대기").waitForExistence(timeout: 20))
+        XCTAssertFalse(text("입력값: blue").exists)
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명: ", "blue")).firstMatch.exists)
+        tapButton("입력값으로 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 입력 반영 사진 저장 완료"))
+        XCTAssertTrue(text("다음 번호: 13").exists)
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 13").exists)
+    }
+
+    func testQuickValuesEligibilityNumbersAndStaleWorkspace() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("입력 정책 검증")
+        XCTAssertTrue(text("상태: 편집 대상·숫자·충돌 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
     private func liveHandle(_ identifier: String) -> XCUIElement {
         // Kotlin's bundled UIKit interface exposes these native accessibility labels.
         // Each handle has a unique label; frame/value/drag assertions remain unchanged.
@@ -193,6 +231,11 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("설정 저장")
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("빠른 입력")
+        XCTAssertTrue(panelText("2행 2열 · 텍스트").waitForExistence(timeout: 20))
+        tapButton("입력 취소")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 설정")
         tapButton("원본과 결과")
         tapButton("설정 저장")
