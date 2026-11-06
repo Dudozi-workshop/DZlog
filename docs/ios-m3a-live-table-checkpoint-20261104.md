@@ -59,3 +59,14 @@ PR #87의 기존 검증 완료 코드 `a3be0db` 이후 남은 카메라 표 조�
 - 새 커밋에도 `[ios-full-ui]`를 유지해 전체 27개 통합 검증을 요청한다. 새 runner에서의 결과는 아직 미확정이며 대기하지 않는다.
 - 공식 공지: https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/
 - 설치 도구 목록: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+
+## 2026-11-07 새 runner 통합 결과와 썸네일 수정
+
+- `1ca2d0c`에서 Android(`42224430056`), iPhone ARM64·unsigned 빌드(`42224430036`), 공유 iOS 코어(`42224430035`)가 모두 성공했다.
+- 전체 UI 실행 `42224430032`/job `127914228536`: 27개 중 26개 통과, 1개 실패. 새 표 이동·축소·영속화·실제 PhotoKit 저장 테스트와 90도·잠금·경계 테스트는 모두 통과했다.
+- 실패는 갤러리 썸네일 대기(`PreviewInteractionTests.swift:216`)였다. 실패 시 접근성 트리에 실제 복원된 미리보기는 존재했지만 모든 그리드 셀은 `사진/원본 또는 결과/파일명` 자리표시자였다. 단순 label 병합 문제로 단정하거나 테스트를 생략하지 않는다.
+- 썸네일의 FastFormat 요청을 HighQualityFormat으로 바꿔 로컬 데이터로 요청 크기 240px의 최종 이미지를 생성하도록 했다. 네트워크 비허용·작은 대상 크기는 유지하며 원본 다운로드 fallback을 추가하지 않는다. 이 변경의 실제 효과는 새 네이티브 CI에서 확인해야 한다.
+- UI 검증은 실제 이미지가 있을 때만 노출되는 `사진 썸네일`을 요구한다. 클릭 가능한 셀에서 역할·파일명과 줄바꿈으로 병합되는 접근성 label도 허용하고, 해당 썸네일을 직접 눌러 실제 확대 이미지를 확인한 뒤 기존 폴더·그리드/목록·원본/결과 전환 검증을 계속한다.
+- Apple 문서: https://developer.apple.com/documentation/photos/phimagerequestoptionsdeliverymode/highqualityformat?language=objc
+- 수정 범위는 iOS PhotoKit adapter·iOS UI 테스트·이 보고서다. Android 프로덕션 코드와 데이터는 변경하지 않는다. 로컬 공백/shell 문법 검사를 수행하고 `[ios-full-ui]`로 전체 27개 재검증을 요청한다. CI를 실시간 대기하지 않으며 PR은 Draft·미병합으로 유지한다.
+- 실기기 미리보기/촬영 결과 배치·센서 방향·권한 변경·강제 종료 복구·메모리/연속 촬영 QA와 설치 서명은 여전히 미완료다. 현재 unsigned 빌드는 설치 가능한 IPA가 아니다.

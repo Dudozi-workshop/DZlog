@@ -213,7 +213,21 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
-        XCTAssertTrue(text("사진 썸네일").waitForExistence(timeout: 30))
+        // Compose can merge the image description with the role and filename
+        // on the clickable grid cell. The placeholder label is only "사진".
+        let thumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 30), app.debugDescription)
+        thumbnail.tap()
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        // The first cell may be the original; restore the result selection
+        // before exercising the explicit original/result companion controls.
+        if app.buttons.matching(NSPredicate(format: "label == %@", "결과 보기")).firstMatch.exists {
+            tapButton("결과 보기")
+            XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        }
+        tapButton("사진 목록")
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapPanelText("갤러리 사진 미리보기")
         XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))

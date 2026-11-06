@@ -27,7 +27,7 @@ import platform.Photos.PHAuthorizationStatusNotDetermined
 import platform.Photos.PHPhotoLibrary
 import platform.Photos.PHImageManager
 import platform.Photos.PHImageRequestOptions
-import platform.Photos.PHImageRequestOptionsDeliveryModeFastFormat
+import platform.Photos.PHImageRequestOptionsDeliveryModeHighQualityFormat
 import platform.Photos.PHImageRequestOptionsResizeModeFast
 import platform.Photos.PHImageContentModeAspectFill
 import platform.CoreGraphics.CGSizeMake
@@ -174,7 +174,11 @@ internal class PhotoKitAssetAccess {
     suspend fun thumbnail(assetId: String): ByteArray? {
         val asset = find(assetId) ?: return null
         val options = PHImageRequestOptions().apply {
-            deliveryMode = PHImageRequestOptionsDeliveryModeFastFormat
+            // FastFormat can finish with no usable cached rendition just after a save.
+            // Ask Photos to generate the requested 240px rendition from local data.
+            // HighQualityFormat has one final callback; this is still a thumbnail,
+            // and network access remains disabled for scrolling/iCloud-only assets.
+            deliveryMode = PHImageRequestOptionsDeliveryModeHighQualityFormat
             resizeMode = PHImageRequestOptionsResizeModeFast
             networkAccessAllowed = false
         }
