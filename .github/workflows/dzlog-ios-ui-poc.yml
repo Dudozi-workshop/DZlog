@@ -27,7 +27,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   simulator-ui:
-    runs-on: macos-14
+    # macOS 14 retired on 2026-11-02. Use a supported arm64 image and fixed Xcode.
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4

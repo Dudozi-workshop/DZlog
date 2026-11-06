@@ -49,3 +49,13 @@ PR #87의 기존 검증 완료 코드 `a3be0db` 이후 남은 카메라 표 조�
 - 테스트는 축소 후 최종 비율·크기를 기록해 저장/재실행 값과 정확히 비교하도록 수정했다. 축소 시 너비·높이가 실제로 줄고 좌상단 위치가 정수 퍼센트 반올림 범위 안에서 유지되는지도 추가 확인한다. 제품 배치 계산은 변경하지 않는다.
 - Android 실행 `42041150247`/job `127291979660`은 Robolectric artifact 다운로드의 Maven HTTP 429로 테스트 전에 중단됐다. Android 제품 코드 변경 없이 새 CI에서 재시도한다.
 - 수정은 테스트·보고서에 한정하며 전체 UI 27개 통합 검증을 요청한다. 새 결과는 미확정이며 대기/실시간 모니터링하지 않는다. PR #87은 Draft·미병합으로 유지한다.
+
+## 2026-11-06 iOS CI 실행 환경 교체
+
+- `fe61def`에서 전체 UI·iPhone·코어 작업이 runner 배정 전 취소됐다. 단계/실행 로그가 없어 제품 코드 실패로 계산하지 않는다. 취소된 실행: UI `42223326595`, 기기 `42223326599`, 코어 `42223326601`.
+- 세 작업 모두 `macos-14`를 사용하고 있었다. GitHub 공식 공지상 이 이미지의 지원은 2026-11-02 종료됐다. 지원 중인 arm64 `macos-15`로 변경하고 제공되는 Xcode 16.4를 명시적으로 선택한다.
+- UI/코어의 해당 workflow 파일도 검증 입력 fingerprint에 포함되므로 이전 실행 결과를 그대로 재사용하지 않는다. UI 프레임워크 캐시는 실제 Xcode/Java 버전을 포함한 키로 구분된다. Android 워크플로우·앱·데이터는 변경하지 않는다.
+- 로컬 YAML 3개 파싱·runner/Xcode 선택 검사와 캐시 fingerprint 확인을 통과했다. 코어/UI/프레임워크 입력은 변경되고 Android 입력은 유지된다.
+- 새 커밋에도 `[ios-full-ui]`를 유지해 전체 27개 통합 검증을 요청한다. 새 runner에서의 결과는 아직 미확정이며 대기하지 않는다.
+- 공식 공지: https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/
+- 설치 도구 목록: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
