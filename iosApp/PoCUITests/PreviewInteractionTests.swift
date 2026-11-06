@@ -71,17 +71,27 @@ final class PreviewInteractionTests: XCTestCase {
         dragLiveHandle("ios.table.move", dx: 55, dy: 45)
         let moved = String(describing: liveHandle("ios.table.move").value ?? "")
         XCTAssertNotEqual(moved, initialMove)
+        let beforeResize = liveHandle("ios.table.move").frame
         let initialSize = String(describing: liveHandle("ios.table.resize").value ?? "")
         dragLiveHandle("ios.table.resize", dx: -35, dy: -20)
         let resized = String(describing: liveHandle("ios.table.resize").value ?? "")
+        let resizedPosition = String(describing: liveHandle("ios.table.move").value ?? "")
+        let afterResize = liveHandle("ios.table.move").frame
         XCTAssertNotEqual(resized, initialSize)
+        XCTAssertLessThan(afterResize.width, beforeResize.width)
+        XCTAssertLessThan(afterResize.height, beforeResize.height)
+        // Offsets are percentages of the remaining free space. Resizing preserves
+        // the displayed top-left and recomputes those percentages, rounded to 1%.
+        let roundingTolerance = max(app.frame.width, app.frame.height) / 200 + 1
+        XCTAssertEqual(afterResize.minX, beforeResize.minX, accuracy: roundingTolerance)
+        XCTAssertEqual(afterResize.minY, beforeResize.minY, accuracy: roundingTolerance)
         XCTAssertTrue(text("다음 번호: 12").exists)
         tapButton("이 배치로 촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"), app.debugDescription)
         XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
         app.terminate()
         openLiveTable(reset: false)
-        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), moved)
+        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), resizedPosition)
         XCTAssertEqual(String(describing: liveHandle("ios.table.resize").value ?? ""), resized)
         XCTAssertTrue(text("다음 번호: 13").exists)
     }
