@@ -2,6 +2,8 @@
 
 PR: https://github.com/Dudozi-workshop/DZlog/pull/87 — Draft·미병합 유지
 
+이 문서는 이전 체크포인트다. 실시간 표 조작과 썸네일 수정을 포함한 최신 전체 UI 27개 통과 결과·실기기 QA는 [최신 통합 검증 보고서](ios-m3a-live-table-checkpoint-20261104.md)를 기준으로 한다.
+
 검증 대상 코드: `a3be0dbc1472e7808b741a6cc5241476e0faf01e`.
 
 요청한 저장 모드·표 배치 연결 및 PhotoKit 저장·복구·읽기 갤러리 확장의 자동 검증을 완료했다. 다음 확인 단계는 실제 iPhone 설치·검수다.
@@ -40,7 +42,7 @@ PR: https://github.com/Dudozi-workshop/DZlog/pull/87 — Draft·미병합 유지
 
 ## 남은 작업
 
-- 실시간 표 오버레이 이동·크기 조절, 빠른 필드 편집 등 Android 카메라 전체 기능 동등성.
+- 실시간 표 오버레이 이동·크기 조절은 후속 `7f46c78`에서 구현·전체 UI 검증 완료. 빠른 필드 편집 등 Android 카메라 전체 기능 동등성은 미완료.
 - 갤러리 삭제·이동·공유·즐겨찾기. 현재 갤러리는 읽기 전용이며 폴더는 DZlog 인덱스의 논리 경로다.
 - Android/iOS 동일 사진·표 fixture의 시각 비교와 실제 iPhone QA.
 - 설치용 서명·프로비저닝 및 실기기 설치. ARM64 unsigned 호스트는 설치 가능한 서명 IPA가 아니다. 확인된 개발 Team ID가 없어 설치 경로와 서명 팀 확인이 필요하다.
