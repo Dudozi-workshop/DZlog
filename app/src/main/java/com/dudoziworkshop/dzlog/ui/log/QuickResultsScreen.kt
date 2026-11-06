@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Folder
 import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -65,6 +66,7 @@ internal fun QuickResultsScreen(
     onReturnToCamera: () -> Unit,
     isProjectResults: Boolean = false,
     returnToProjectDetail: Boolean = false,
+    returnToGallery: Boolean = false,
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
@@ -258,8 +260,12 @@ internal fun QuickResultsScreen(
         }
 
         DDZButton(
-            text = if (returnToProjectDetail) "프로젝트로 돌아가기" else "촬영 계속하기",
-            leadingIcon = Icons.Default.CameraAlt,
+            text = when {
+                returnToGallery -> "갤러리로 돌아가기"
+                returnToProjectDetail -> "프로젝트로 돌아가기"
+                else -> "촬영 계속하기"
+            },
+            leadingIcon = if (returnToGallery) Icons.Default.Folder else Icons.Default.CameraAlt,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             onClick = onReturnToCamera,
             style = DDZButtonStyle.Primary,

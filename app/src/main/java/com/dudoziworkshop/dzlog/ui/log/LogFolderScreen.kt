@@ -86,6 +86,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.project.CaptureProject
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
@@ -112,6 +113,8 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String, Boolean) -> Unit,
+    projectAlbums: List<CaptureProject> = emptyList(),
+    onOpenProjectAlbum: (String) -> Unit = {},
     showDefaultPhotos: Boolean = false,
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
@@ -773,6 +776,10 @@ fun LogFolderScreen(
                 }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
+                    projectAlbums = if (demoGallery) emptyList() else projectAlbums,
+                    onOpenProjectAlbum = { id ->
+                        if (!selectionActive && !navigationLocked) onOpenProjectAlbum(id)
+                    },
                     gridColumns = displayedGridColumns,
                     showCounterBadges = showCounterBadges,
                     onGridColumnsChange = { nextColumns ->

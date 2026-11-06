@@ -725,6 +725,16 @@ fun AppRoot(startOnCamera: Boolean = false) {
         navigateTo(AppScreen.QUICK_RESULTS)
     }
 
+    fun exitQuickResults() {
+        returnToQuickResultsFromAlbum = false
+        screen = when (albumEntryScreen) {
+            AppScreen.PROJECT_DETAIL -> AppScreen.PROJECT_DETAIL
+            AppScreen.ALBUM_FOLDER -> AppScreen.ALBUM_FOLDER
+            else -> AppScreen.CAMERA
+        }
+        viewedProjectResultsId = null
+    }
+
     fun openProjectList(create: Boolean = false) {
         showProjectPicker = false
         openProjectListWithCreate = create
@@ -902,12 +912,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
-            AppScreen.QUICK_RESULTS -> {
-                returnToQuickResultsFromAlbum = false
-                screen = if (albumEntryScreen == AppScreen.PROJECT_DETAIL)
-                    AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
-                viewedProjectResultsId = null
-            }
+            AppScreen.QUICK_RESULTS -> exitQuickResults()
 
             AppScreen.ALBUM_GRID -> {
                 handleAlbumGridBack()
@@ -1226,6 +1231,17 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    projectAlbums = captureProjectRegistry?.projects.orEmpty(),
+                    onOpenProjectAlbum = { projectId ->
+                        if (albumFolderPath == GalleryFolderIndexPolicy.ROOT &&
+                            captureProjectRegistry?.find(projectId) != null
+                        ) {
+                            viewedProjectResultsId = projectId
+                            albumEntryScreen = AppScreen.ALBUM_FOLDER
+                            returnToQuickResultsFromAlbum = false
+                            navigateTo(AppScreen.QUICK_RESULTS)
+                        }
+                    },
                     gridColumns = appSettings.galleryGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { columns ->
@@ -1288,6 +1304,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     viewScopeKey = viewedProjectResultsId?.let { "project:$it" } ?: "camera-session",
                     isProjectResults = viewedProjectResultsId != null,
                     returnToProjectDetail = albumEntryScreen == AppScreen.PROJECT_DETAIL,
+                    returnToGallery = albumEntryScreen == AppScreen.ALBUM_FOLDER,
                     gridColumns = appSettings.quickResultsGridColumns,
                     showCounterBadges = appSettings.showGalleryCounterBadges,
                     onGridColumnsChange = { count ->
@@ -1307,12 +1324,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                         }
                     },
                     onOpenAlbum = ::openAlbumRoot,
-                    onReturnToCamera = {
-                        returnToQuickResultsFromAlbum = false
-                        screen = if (albumEntryScreen == AppScreen.PROJECT_DETAIL)
-                            AppScreen.PROJECT_DETAIL else AppScreen.CAMERA
-                        viewedProjectResultsId = null
-                    },
+                    onReturnToCamera = ::exitQuickResults,
                 )
                 }
             }
