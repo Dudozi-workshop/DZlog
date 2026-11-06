@@ -518,9 +518,14 @@ fun LogViewerScreen(
         // In Quick Results a capture is one shutter, not one MediaStore file.
         // The caller must provide the verified result/original pair, never a
         // filename/folder-derived companion. Gallery mode stays per-file.
-        val frozenSelection = if (isQuickResultsViewer) {
-            quickResultDeleteItemsByDisplayedUri[requested.uri.toString()]
-        } else null
+        // Freeze the exact shutter's media targets for the entire Android
+        // permission/retry flow. A partial verified deletion may refresh the
+        // parent map while this dialog is still retrying its remaining files.
+        val frozenSelection = remember(requested, isQuickResultsViewer) {
+            if (isQuickResultsViewer) {
+                quickResultDeleteItemsByDisplayedUri[requested.uri.toString()]
+            } else null
+        }
         if (isQuickResultsViewer && frozenSelection == null) {
             AlertDialog(
                 onDismissRequest = { deleteItem = null },
