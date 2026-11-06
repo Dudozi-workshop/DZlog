@@ -53,7 +53,7 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
     onSave: (Map<String, String>) -> Boolean) {
     val fields = remember(document) { runCatching { iosQuickValueCells(document) } }
     val cells = fields.getOrDefault(emptyList())
-    val values = remember(document) { cells.associate { it.cellId to it.rawText }.toMutableStateMap() }
+    val values = remember(document) { cells.map { it.cellId to it.rawText }.toMutableStateMap() }
     var failure by remember { mutableStateOf<String?>(null) }
     val draft = runCatching { updateIosQuickValues(document, values.toMap()) }.getOrNull()
     val preview = draft?.let {
