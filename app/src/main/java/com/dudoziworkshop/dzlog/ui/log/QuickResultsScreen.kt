@@ -56,6 +56,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun QuickResultsScreen(
     captures: List<QuickResultCapture>,
+    viewScopeKey: String,
     gridColumns: Int,
     showCounterBadges: Boolean,
     onGridColumnsChange: (Int) -> Unit,
@@ -67,9 +68,16 @@ internal fun QuickResultsScreen(
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
-    var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
+    // A different project is a separate virtual album, even if both projects
+    // use the same physical storage folder.
+    var selectedFolder by rememberSaveable(viewScopeKey) { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
-    var collapsedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var collapsedKeys by rememberSaveable(viewScopeKey) { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(folders, selectedFolder) {
+        selectedFolder?.let { selected ->
+            if (selected !in folders) selectedFolder = null
+        }
+    }
     val listState = rememberLazyListState()
     var pendingPinchAnchor by remember {
         mutableStateOf<Pair<Int, QuickResultsGridAnchorPolicy.Position>?>(null)

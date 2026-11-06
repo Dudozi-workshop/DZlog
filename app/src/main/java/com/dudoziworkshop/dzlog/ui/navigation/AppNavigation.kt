@@ -698,8 +698,9 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun openAlbumRoot() {
-        // Only the quick-results album shortcut returns to quick results.
-        // Direct camera album entry retains the original camera-back behavior.
+        // Keep the original Quick Results parent (project detail or camera).
+        // Opening the physical album must not turn a project visit into a
+        // camera visit when the user returns from the gallery.
         returnToQuickResultsFromAlbum = screen == AppScreen.QUICK_RESULTS
         albumLocation = null
         clearOriginalContext()
@@ -707,7 +708,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
         showRootDefaultPhotos = false
         albumGridEntryScreen = AppScreen.ALBUM_FOLDER
         resetGridUiState()
-        albumEntryScreen = if (returnToQuickResultsFromAlbum) AppScreen.CAMERA else screen
+        if (!returnToQuickResultsFromAlbum) albumEntryScreen = screen
         gridEntrySource = GridEntrySource.NORMAL
         viewerEntrySource = ViewerEntrySource.GRID
         navigateTo(AppScreen.ALBUM_FOLDER)
@@ -1284,6 +1285,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 quickResultsSaveableHolder.SaveableStateProvider("quick-results") {
                 QuickResultsScreen(
                     captures = quickResultsCaptures,
+                    viewScopeKey = viewedProjectResultsId?.let { "project:$it" } ?: "camera-session",
                     isProjectResults = viewedProjectResultsId != null,
                     returnToProjectDetail = albumEntryScreen == AppScreen.PROJECT_DETAIL,
                     gridColumns = appSettings.quickResultsGridColumns,
