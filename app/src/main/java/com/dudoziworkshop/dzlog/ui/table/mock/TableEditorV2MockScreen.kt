@@ -257,6 +257,7 @@ fun TableEditorV2Screen(
     val cells = remember(draftTemplateState, preview.plan.resolvedCells) {
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
+    val cameraTablePrefs = rememberEditorCameraTablePrefs()
 
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
@@ -420,6 +421,10 @@ fun TableEditorV2Screen(
                             preserveInputScale = keyboardPreviewLocked || imeVisible || imeBottom > 0 || inputExpanded,
                             rowWeights = draftTemplateState.rowWeights,
                             colWeights = draftTemplateState.colWeights,
+                            templateCells = draftTemplateState.cells,
+                            tableWidthRatio = cameraTablePrefs.widthRatio,
+                            tableHeightRatio = cameraTablePrefs.heightRatio,
+                            captureAspect = cameraTablePrefs.captureAspect,
                             onBoundaryDragStart = {
                                 if (!layoutBoundaryDragActive) {
                                     session.beginContinuousTemplateChange()

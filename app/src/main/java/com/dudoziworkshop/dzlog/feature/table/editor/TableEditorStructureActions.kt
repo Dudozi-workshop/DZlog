@@ -11,7 +11,6 @@ import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStru
 import com.dudoziworkshop.dzlog.feature.table.editor.coordinator.TableEditorStructureRestoreCoordinatorInput
 import com.dudoziworkshop.dzlog.ui.table.section.FileNameSlotUiItem
 import com.dudoziworkshop.dzlog.ui.table.section.PathSlotUiItem
-import com.dudoziworkshop.dzlog.feature.table.editor.handlers.TableEditorSlotListHandlers
 
 data class StructureActionResult(
     val nextTemplate: TableTemplateState,
@@ -323,11 +322,10 @@ object TableEditorStructureActions {
         deletedCellIds: Set<String>,
         size: Int,
     ): List<TableEditorSlotDraft?> =
-        TableEditorSlotListHandlers.removeCellRefs(
+        TableEditorSlotReferencePolicy.removeDeletedCellRefs(
             slots = slots,
             deletedCellIds = deletedCellIds,
-            slotCellId = { it.cellId },
-            normalize = { filtered -> List(size) { index -> filtered.getOrNull(index) } },
+            size = size,
         )
 
     private fun buildStructureActionResult(

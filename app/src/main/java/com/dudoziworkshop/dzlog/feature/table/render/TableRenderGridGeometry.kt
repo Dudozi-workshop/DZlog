@@ -46,6 +46,7 @@ data class RenderedTableScene(
     val baseCellRects: List<RenderCellRect>,
     val baseCellRectsByKey: Map<Pair<Int, Int>, RenderCellRect>,
     val rootRects: List<RenderRootRect>,
+    val rootCells: List<RenderRootCell> = emptyList(),
 )
 
 fun computeRenderedTableGeometry(
@@ -154,6 +155,7 @@ fun buildRenderedTableScene(
         baseCellRects = baseCellRects,
         baseCellRectsByKey = baseCellRectsByKey,
         rootRects = rootRects,
+        rootCells = rootCells,
     )
 }
 
