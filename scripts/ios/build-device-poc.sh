@@ -32,7 +32,25 @@ xcrun vtool -show-build "$app_dir/Frameworks/DZlogUi.framework/DZlogUi" | tee "$
 grep -Eq '^[[:space:]]*platform IOS[[:space:]]*$' "$evidence_dir/app-platform.txt"
 grep -Eq '^[[:space:]]*platform IOS[[:space:]]*$' "$evidence_dir/framework-platform.txt"
 
-# Diagnostics only: unsigned .app is NOT installable on a physical iPhone.
-printf '%s\n' 'Unsigned iPhone device build (arm64-apple-ios); requires Apple provisioning and signing before installation.' > "$evidence_dir/README-UNSIGNED.txt"
+# Preserve the original unsigned device build for compile diagnostics.
+printf '%s\n' 'Unsigned iPhone device build (arm64-apple-ios); requires Apple provisioning and signing before direct installation.' > "$evidence_dir/README-UNSIGNED.txt"
 ditto -c -k --keepParent "$app_dir" "$evidence_dir/dzlog-ios-device-UNSIGNED.zip"
 shasum -a 256 "$evidence_dir/dzlog-ios-device-UNSIGNED.zip" > "$evidence_dir/sha256.txt"
+
+# Public cloud device farms replace the signature and provisioning profile.
+# Package a structurally valid device-target IPA without Apple credentials.
+# This artifact is for a re-signing service only and is not directly installable.
+cloud_root="$out_dir/cloud-resign"
+cloud_app="$cloud_root/Payload/DZlogUiPoc.app"
+rm -rf "$cloud_root"
+mkdir -p "$cloud_root/Payload"
+ditto "$app_dir" "$cloud_app"
+codesign --force --sign - --timestamp=none "$cloud_app/Frameworks/DZlogUi.framework"
+codesign --force --sign - --timestamp=none "$cloud_app"
+codesign --verify --deep --strict "$cloud_app"
+(
+  cd "$cloud_root"
+  zip -qry "$evidence_dir/dzlog-ios-device-CLOUD-RESIGN.ipa" Payload
+)
+printf '%s\n' 'Device-target IPA for AWS Device Farm or BrowserStack automatic re-signing. Not directly installable and contains no Apple credentials.' > "$evidence_dir/README-CLOUD-RESIGN.txt"
+shasum -a 256 "$evidence_dir/dzlog-ios-device-CLOUD-RESIGN.ipa" >> "$evidence_dir/sha256.txt"
