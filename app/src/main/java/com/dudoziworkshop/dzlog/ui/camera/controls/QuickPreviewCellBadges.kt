@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.ui.camera.controls
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,25 +47,40 @@ internal fun QuickPreviewCellBadges(
     }
     Box(modifier) {
         if (plan.compact) {
-            // Keep every marker visible in one strip even if it extends past a
-            // narrow cell. Never suppress file/path information to save space.
-            Row(
-                modifier = Modifier.align(Alignment.TopStart).padding(DDZSpacing.xs)
+            // Two lines reduce overlap with neighboring cells. Keep all metadata
+            // even when the cell is smaller than the combined badge footprint.
+            Column(
+                modifier = Modifier.align(Alignment.TopStart)
+                    .padding(DDZSpacing.xs)
                     .wrapContentSize(unbounded = true)
                     .background(badgeBackground, RoundedCornerShape(2.dp)),
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+                horizontalAlignment = Alignment.Start,
             ) {
-                Icon(cellTypeIcon, contentDescription = null, modifier = Modifier.size(size), tint = tint)
-                if (plan.fileName) Icon(
-                    Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                )
-                if (plan.path) Icon(
-                    Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                )
-                if (plan.locked) Icon(
-                    Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(cellTypeIcon, contentDescription = null, modifier = Modifier.size(size), tint = tint)
+                    if (plan.locked) Icon(
+                        Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(size), tint = tint,
+                    )
+                }
+                if (plan.fileName || plan.path) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (plan.fileName) Icon(
+                            Icons.Filled.Description, contentDescription = null,
+                            modifier = Modifier.size(size), tint = tint,
+                        )
+                        if (plan.path) Icon(
+                            Icons.Filled.Folder, contentDescription = null,
+                            modifier = Modifier.size(size), tint = tint,
+                        )
+                    }
+                }
             }
         } else {
         Row(
