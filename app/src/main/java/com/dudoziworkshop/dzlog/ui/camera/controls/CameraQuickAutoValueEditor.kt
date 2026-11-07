@@ -216,20 +216,22 @@ internal fun CameraQuickAutoValueEditor(
                         }
                     }
                     QuickValuePicker.PHRASE_ITEM -> {
-                        selectedSet?.items?.forEachIndexed { index, item ->
+                        if (selectedSet != null) {
                             val selectedIndex = CellPhraseProgressPolicy.current(cell, selectedSet).index
-                            val isSelected = index == selectedIndex
-                            DDZButton(
-                                text = item,
-                                modifier = Modifier.fillMaxWidth().semantics { selected = isSelected },
-                                style = DDZButtonStyle.Secondary,
-                                containerColorOverride = if (isSelected) DDZColor.SelectedSoft else null,
-                                enabled = enabled,
-                                onClick = {
-                                    onPhraseItem(index)
-                                    picker = null
-                                },
-                            )
+                            selectedSet.items.forEachIndexed { index, item ->
+                                val isSelected = index == selectedIndex
+                                DDZButton(
+                                    text = item,
+                                    modifier = Modifier.fillMaxWidth().semantics { selected = isSelected },
+                                    style = DDZButtonStyle.Secondary,
+                                    containerColorOverride = if (isSelected) DDZColor.SelectedSoft else null,
+                                    enabled = enabled,
+                                    onClick = {
+                                        onPhraseItem(index)
+                                        picker = null
+                                    },
+                                )
+                            }
                         }
                     }
                 }
