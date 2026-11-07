@@ -944,25 +944,21 @@ fun LogFolderScreen(
         }
         val deleteRetry = retryDeletePlan
         if (showDeleteRetry && deleteRetry != null) {
-            AlertDialog(
-                onDismissRequest = { if (!deleteBusy) showDeleteRetry = false },
-                title = { Text("미완료 파일 삭제 확인") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("결과사진 ${deleteRetry.resultCount}장 · 원본사진 ${deleteRetry.originalCount}장")
-                        Text("총 재시도 파일 ${deleteRetry.items.size}개")
-                        Text("삭제한 사진은 되돌릴 수 없습니다.", color = DDZColor.Destructive)
-                    }
-                },
-                confirmButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Destructive, enabled = !deleteBusy && !photoMoveBusy && pendingPhotoPlan == null, onClick = {
+            // Reuse the modern photo-delete surface for retry as well.
+            // The old AlertDialog used only on this failure path is retired.
+            GalleryPhotoDeleteConfirmation(
+                selected = emptyList(),
+                allPhotos = emptyList(),
+                busy = deleteBusy,
+                retryPlan = deleteRetry,
+                onCancel = { if (!deleteBusy) showDeleteRetry = false },
+                onConfirm = { /* Retry uses onRetry; no new plan is prepared. */ },
+                onRetry = {
+                    if (!deleteBusy && !photoMoveBusy && pendingPhotoPlan == null) {
                         showDeleteRetry = false
                         folderOperationError = null
                         deleteAction.request(deleteRetry)
-                    }) { Text("삭제 재시도") }
-                },
-                dismissButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
+                    }
                 },
             )
         }
