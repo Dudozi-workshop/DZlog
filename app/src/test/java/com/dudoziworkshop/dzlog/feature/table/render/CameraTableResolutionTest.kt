@@ -89,6 +89,39 @@ class CameraTableResolutionTest {
         }
     }
     @Test
+    fun merged_roots_survive_both_preview_and_photo_scene_geometry() {
+        val template = List(4) { index ->
+            TableCellState(
+                rowIndex = index / 2,
+                colIndex = index % 2,
+                rowSpan = if (index == 0) 1 else 1,
+                colSpan = if (index == 0) 2 else 1,
+            )
+        }
+        fun mergedScene(width: Float, height: Float) = buildCameraTableSceneFromPlacement(
+            bounds = RectF(0f, 0f, width, height),
+            placement = TableRenderPlacement(
+                anchor = WatermarkTableAnchor.TOP_LEFT,
+                tableWidthRatio = 40,
+                tableHeightRatio = 20,
+            ),
+            cells = listOf(WatermarkCell("Merged"), WatermarkCell(""), WatermarkCell("B"), WatermarkCell("C")),
+            templateCells = template,
+            rows = 2,
+            cols = 2,
+            valueScale = 100,
+            baseScaleRatio = 40,
+        )
+        for (rendered in listOf(mergedScene(360f, 480f), mergedScene(1440f, 1920f))) {
+            val roots = rendered.scene.rootCells
+            val merged = roots.single { it.rowIndex == 0 && it.colIndex == 0 }
+            assertEquals(2, merged.colSpan)
+            assertEquals(1, merged.rowSpan)
+            assertTrue(roots.none { it.rowIndex == 0 && it.colIndex == 1 })
+        }
+    }
+
+    @Test
     fun deleting_multiline_content_restores_cell_proportions_without_changing_structure() {
         fun layout(text: String) = computeResolvedRenderLayout(
             cells = listOf(WatermarkCell(text), WatermarkCell("B3"), WatermarkCell(""), WatermarkCell("")),
