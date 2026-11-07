@@ -84,6 +84,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.saveTableTemplate
 import com.dudoziworkshop.dzlog.feature.capture.policy.CapturePhraseUndoHistory
 import com.dudoziworkshop.dzlog.ui.camera.CameraScreen
 import com.dudoziworkshop.dzlog.ui.home.HomeScreen
+import com.dudoziworkshop.dzlog.ui.log.GalleryTab
 import com.dudoziworkshop.dzlog.ui.log.LogFolderScreen
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.ui.log.LogGridScreen
@@ -150,6 +151,7 @@ data class OriginalNavContext(
 @Composable
 fun AppRoot(startOnCamera: Boolean = false) {
     var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var galleryRootTab by rememberSaveable { mutableStateOf(GalleryTab.ALL) }
     val quickResultsSaveableHolder = rememberSaveableStateHolder()
     var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
@@ -1231,6 +1233,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
             AppScreen.ALBUM_FOLDER -> {
                 LogFolderScreen(
                     relativePath = albumFolderPath,
+                    selectedRootTab = if (albumFolderPath == GalleryFolderIndexPolicy.ROOT) galleryRootTab else null,
+                    onRootTabChange = { galleryRootTab = it },
                     projectAlbums = captureProjectRegistry?.projects.orEmpty(),
                     onOpenProjectAlbum = { projectId ->
                         if (albumFolderPath == GalleryFolderIndexPolicy.ROOT &&

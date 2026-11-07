@@ -115,6 +115,8 @@ fun LogFolderScreen(
     onOpenOriginal: (String, Boolean) -> Unit,
     projectAlbums: List<CaptureProject> = emptyList(),
     onOpenProjectAlbum: (String) -> Unit = {},
+    selectedRootTab: GalleryTab? = null,
+    onRootTabChange: (GalleryTab) -> Unit = {},
     showDefaultPhotos: Boolean = false,
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
@@ -153,7 +155,9 @@ fun LogFolderScreen(
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val folderCatalog = remember(context) { GalleryFolderCatalog(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
-    var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
+    // The parent retains the root tab when virtual project albums open Quick Results.
+    var localSelectedTab by rememberSaveable(relativePath) { mutableStateOf(GalleryTab.ALL) }
+    val selectedTab = selectedRootTab ?: localSelectedTab
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
     val cached = remember(relativePath, demoGallery) { if (demoGallery) null else GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos else cached?.allPhotos ?: emptyList()) }
@@ -564,7 +568,8 @@ fun LogFolderScreen(
         showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
-        else -> allPhotos.filter { it.id in favoriteIds }
+        selectedTab == GalleryTab.FAVORITES -> allPhotos.filter { it.id in favoriteIds }
+        else -> emptyList() // Project albums are virtual, never photo selections.
     }
     val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
     val allSelected = selectableIds.isNotEmpty() && selectedPhotoIds.containsAll(selectableIds)
@@ -787,7 +792,12 @@ fun LogFolderScreen(
                         onGridColumnsChange(nextColumns)
                     },
                     selectedTab = selectedTab,
-                    onTabChange = { if (!selectionActive && !navigationLocked) selectedTab = it },
+                    onTabChange = { tab ->
+                        if (!selectionActive && !navigationLocked) {
+                            localSelectedTab = tab
+                            onRootTabChange(tab)
+                        }
+                    },
                     folderIndex = requireNotNull(index),
                     summariesByPath = summariesByPath,
                     allImages = allPhotos,

@@ -63,6 +63,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 enum class GalleryTab(val label: String) {
     ALL("전체"),
+    PROJECTS("프로젝트"),
     FAVORITES("즐겨찾기"),
 }
 
@@ -109,12 +110,13 @@ internal fun LogGalleryHomeContent(
                         MaterialTheme.shapes.small,
                     )
                     .clickable(enabled = !selectionActive) { onTabChange(tab) }
-                    .padding(vertical = 11.dp),
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     tab.label,
                     color = if (active) DDZColor.TextPrimary else DDZColor.TextSecondary,
+                    fontSize = 14.sp,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
@@ -205,16 +207,6 @@ internal fun LogGalleryHomeContent(
                         }
                     }
                 }
-                if (orderedProjectAlbums.isNotEmpty()) {
-                    item(key = "virtual-projects-title") {
-                        GallerySectionTitle("프로젝트별 앨범", "${orderedProjectAlbums.size}개")
-                    }
-                    items(orderedProjectAlbums, key = { "virtual-project-${it.id}" }) { project ->
-                        GalleryProjectAlbumRow(project, enabled = canManageFolders) {
-                            onOpenProjectAlbum(project.id)
-                        }
-                    }
-                }
                 item { Box(Modifier.fillMaxWidth().tutorialTarget("gallery.folders")) { GallerySectionTitle(
                     title = "저장 폴더",
                     count = "${shownFolders.size + if (directPhotos.isNotEmpty() || folderIndex.directOriginalCount > 0) 1 else 0}개",
@@ -246,6 +238,20 @@ internal fun LogGalleryHomeContent(
                             onManage = { action -> onManageFolder(folder.relativePath, action) },
                         ) {
                             onOpenFolder(folder.relativePath)
+                        }
+                    }
+                }
+            }
+            GalleryTab.PROJECTS -> {
+                item(key = "virtual-projects-title") {
+                    GallerySectionTitle("프로젝트별 앨범", "${orderedProjectAlbums.size}개")
+                }
+                if (orderedProjectAlbums.isEmpty()) {
+                    item { GalleryEmptyText("등록된 프로젝트가 없습니다.") }
+                } else {
+                    items(orderedProjectAlbums, key = { "virtual-project-${it.id}" }) { project ->
+                        GalleryProjectAlbumRow(project, enabled = canManageFolders) {
+                            onOpenProjectAlbum(project.id)
                         }
                     }
                 }
