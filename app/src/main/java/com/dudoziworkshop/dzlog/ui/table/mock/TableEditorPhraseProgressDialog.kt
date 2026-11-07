@@ -29,10 +29,10 @@ internal fun TableEditorPhraseProgressDialog(
     onApply: (Int, Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
     var index by remember(cell.id, set.items) {
         mutableStateOf(cell.phraseIndex.coerceIn(0, set.items.lastIndex))
     }
+    val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
     var completedText by remember(cell.id, every) {
         mutableStateOf(cell.phraseCompletedShots.coerceIn(0, every - 1).toString())
     }
