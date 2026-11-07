@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 internal fun RotatingPhraseCsvActions(
     phraseSet: RotatingPhraseSet,
     onReplaceItems: (List<String>, List<Int?>) -> Unit,
+    showHeading: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -114,7 +115,7 @@ internal fun RotatingPhraseCsvActions(
 
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("CSV 일괄 관리", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+        if (showHeading) Text("CSV 일괄 관리", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DDZButton(
                 text = "CSV 내보내기",
