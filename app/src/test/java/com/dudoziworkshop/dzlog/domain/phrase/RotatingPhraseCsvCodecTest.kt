@@ -13,7 +13,7 @@ class RotatingPhraseCsvCodecTest {
     @Test fun utf8BomAndKoreanPhrasesRoundtripInOrder() {
         val original = listOf("초기 조사", "중간, 조사", "말기 \"최종\" 조사")
         val csv = RotatingPhraseCsvCodec.encode(original)
-        assertTrue(csv.startsWith("\uFEFForder,phrase\r\n"))
+        assertTrue(csv.startsWith("\uFEFForder,phrase,every\r\n"))
         assertEquals(original, items(csv))
         assertTrue(csv.contains("\"중간, 조사\""))
         assertTrue(csv.contains("\"말기 \"\"최종\"\" 조사\""))
@@ -52,6 +52,40 @@ class RotatingPhraseCsvCodecTest {
             repeat(1001) { append(it + 1).append(",A\n") }
         }
         invalid(tooMany)
+    }
+
+    @Test fun newCsvExportsIndividualPeriodsAndInheritsBlankValues() {
+        val values = listOf("초기", "중간", "처리 A", "처리 B")
+        val intervals = listOf(null, null, 3, 4)
+        val csv = RotatingPhraseCsvCodec.encode(values, intervals)
+        assertTrue(csv.contains("3,\"처리 A\",3"))
+        assertTrue(csv.contains("1,\"초기\","))
+        val imported = RotatingPhraseCsvCodec.decode(csv)
+            as RotatingPhraseCsvCodec.ImportResult.Success
+        assertEquals(values, imported.items)
+        assertEquals(intervals, imported.itemEveryOverrides)
+    }
+
+    @Test fun bothCsvVariantsSortPeriodsWithTheirPhraseRows() {
+        val imported = RotatingPhraseCsvCodec.decode(
+            "order,phrase,every\n3,C,3\n1,A,\n2,B,5\n"
+        ) as RotatingPhraseCsvCodec.ImportResult.Success
+        assertEquals(listOf("A", "B", "C"), imported.items)
+        assertEquals(listOf(null, 5, 3), imported.itemEveryOverrides)
+        val legacy = RotatingPhraseCsvCodec.decode("order,phrase\n2,B\n1,A\n")
+            as RotatingPhraseCsvCodec.ImportResult.Success
+        assertEquals(listOf("A", "B"), legacy.items)
+        assertEquals(listOf(null, null), legacy.itemEveryOverrides)
+    }
+
+    @Test fun invalidPeriodsNeverSilentlyOverwriteSavedSet() {
+        invalid("order,phrase,every\n1,A,0")
+        invalid("order,phrase,every\n1,A,-1")
+        invalid("order,phrase,every\n1,A,abc")
+        invalid("order,phrase,every\n1,A,1.5")
+        invalid("order,phrase,every\n1,A,2147483648")
+        invalid("order,phrase,every\n1,A")
+        invalid("order,phrase\n1,A,3")
     }
 
     @Test fun blankLinesDoNotMutateImportOrder() {

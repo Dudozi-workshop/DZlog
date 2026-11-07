@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -53,6 +57,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -76,6 +81,9 @@ fun RotatingPhraseSetEditDialog(
     var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
     var searchQuery by remember(phraseSet.id) { mutableStateOf("") }
+    var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
+    var counterExpanded by remember(phraseSet.id) { mutableStateOf(false) }
+    var csvExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, searchQuery)
     val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(searchQuery))
     val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
@@ -138,10 +146,7 @@ fun RotatingPhraseSetEditDialog(
                     return@onUpdateSet set
                 }
 
-                val newList = items.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
-                }
-                set.copy(items = newList)
+                RotatingPhraseSetItemPolicy.moveItem(set, fromIndex, toIndex)
             }
 
             val fromIndex = from.index - 1
@@ -160,7 +165,7 @@ fun RotatingPhraseSetEditDialog(
             modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = DDZColor.Background,
             topBar = {
-                DDZTopBar(title = "순환문구", onBack = onClose, actions = {
+                DDZTopBar(title = phraseSet.name, onBack = onClose, actions = {
                     Box {
                         DDZTopBarIconButton(Icons.Default.MoreVert, "세트 메뉴", { showMenu = true })
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -185,40 +190,57 @@ fun RotatingPhraseSetEditDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
+                            Text("순환문구 세트", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                             Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                            Text("${phraseSet.items.size}개 문구", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                            Text("문구 수정·추가·삭제·순서 변경 시 첫 문구부터 시작합니다.",
-                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                         }
                         IconButton(onClick = ::openRenameDialog) {
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
                         }
                     }
-                    // Keep CSV tools inside the existing first lazy item, so phrase
-                    // row indices in the drag/reorder policy remain unchanged.
-                    RotatingPhraseCsvActions(
-                        phraseSet = phraseSet,
-                        onReplaceItems = { imported ->
-                            if (phraseSet.items != imported) {
-                                onUpdateSet { it.copy(items = imported) }
-                            }
-                        },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("기본 변경 주기", modifier = Modifier.weight(1f),
+                            style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                        DDZButton(text = "−", minHeight = 40.dp, horizontalPadding = 8.dp,
+                            modifier = Modifier.width(40.dp), style = DDZButtonStyle.Secondary,
+                            enabled = phraseSet.defaultEvery > 1,
+                            onClick = { onUpdateSet { it.copy(defaultEvery = (it.defaultEvery - 1).coerceAtLeast(1)) } })
+                        Text("${phraseSet.defaultEvery}장", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                        DDZButton(text = "+", minHeight = 40.dp, horizontalPadding = 8.dp,
+                            modifier = Modifier.width(40.dp), style = DDZButtonStyle.Secondary,
+                            enabled = phraseSet.defaultEvery < Int.MAX_VALUE,
+                            onClick = { onUpdateSet { it.copy(defaultEvery = it.defaultEvery + 1) } })
+                    }
                     // Within the existing header item: preserve the 1-based drag
                     // offsets used by the reorderable list for unfiltered rows.
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text("문구 목록 (${phraseSet.items.size}개)",
-                            style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text("문구 검색") },
-                        )
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("문구 목록 (${phraseSet.items.size}개)",
+                                modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            IconButton(onClick = {
+                                searchExpanded = !searchExpanded
+                                if (!searchExpanded) searchQuery = ""
+                            }) { Icon(Icons.Default.Search, "문구 검색") }
+                            IconButton(onClick = { openItemInputDialog(null, "") }) {
+                                Icon(Icons.Default.Add, "문구 추가", tint = DDZColor.PrimaryDark)
+                            }
+                        }
+                        if (searchExpanded) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                label = { Text("문구 검색") },
+                            )
+                        }
                         if (!canReorder) {
                             Text("검색 결과 ${visibleIndices.size}개 · 검색 중 순서 변경 불가",
                                 style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -257,6 +279,11 @@ fun RotatingPhraseSetEditDialog(
                                     if (canReorder) "문구 순서 변경" else "검색 중 순서 변경 불가",
                                     tint = if (canReorder) DDZColor.IconMuted else DDZColor.TextDisabled)
                             }
+                            Text((index + 1).toString(),
+                                modifier = Modifier.width(28.dp),
+                                textAlign = TextAlign.Center,
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextSecondary)
                             Text(
                                 item,
                                 modifier = Modifier.weight(1f).clickable {
@@ -267,10 +294,18 @@ fun RotatingPhraseSetEditDialog(
                                 style = DDZTypography.Body,
                                 color = DDZColor.TextPrimary,
                             )
+                            Text(
+                                "${phraseSet.everyForItem(index)}장",
+                                modifier = Modifier.clickable { openItemInputDialog(index, item) }
+                                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                                style = DDZTypography.Caption,
+                                color = if (phraseSet.itemEveryOverrides.getOrNull(index) != null)
+                                    DDZColor.PrimaryDark else DDZColor.TextSecondary,
+                            )
                             IconButton(onClick = {
                                 if (index in itemIds.indices) itemIds.removeAt(index)
                                 onUpdateSet { set ->
-                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                    RotatingPhraseSetItemPolicy.removeItem(set, index)
                                 }
                             }) {
                                 Icon(Icons.Default.DeleteOutline, "문구 삭제", tint = DDZColor.IconMuted)
@@ -288,18 +323,25 @@ fun RotatingPhraseSetEditDialog(
                                 color = DDZColor.TextSecondary,
                             )
                         }
-                        DDZButton(
-                            text = "문구 추가",
-                            onClick = { openItemInputDialog(null, "") },
-                            leadingIcon = Icons.Default.Add,
-                            style = DDZButtonStyle.Secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).selectableGroup(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        Row(
+                            Modifier.fillMaxWidth().clickable { counterExpanded = !counterExpanded }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("번호 진행 방식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Text("번호 진행 방식", modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Text(
+                                if (phraseSet.counterProgressMode == RotatingCounterProgressMode.PER_PHRASE)
+                                    "문구별로 따로" else "문구가 바뀌어도 계속",
+                                style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                            )
+                            Icon(Icons.Default.KeyboardArrowDown, "번호 진행 방식 설정")
+                        }
+                        if (counterExpanded) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
                             RotatingCounterProgressMode.entries.forEach { mode ->
                                 val selected = phraseSet.counterProgressMode == mode
                                 Row(
@@ -311,7 +353,7 @@ fun RotatingPhraseSetEditDialog(
                                         .selectable(
                                             selected = selected,
                                             role = Role.RadioButton,
-                                            onClick = { onUpdateSet { it.copy(counterProgressMode = mode) } },
+                                            onClick = { onUpdateSet { it.copy(counterProgressMode = mode) }; counterExpanded = false },
                                         )
                                         .heightIn(min = 56.dp)
                                         .padding(end = 12.dp),
@@ -341,12 +383,37 @@ fun RotatingPhraseSetEditDialog(
                                     }
                                 }
                             }
-                            Text(
-                                "변경한 내용은 표 편집에서 저장하면 적용돼요.",
-                                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextSecondary,
-                            )
+                            }
+                        }
+                        Text(
+                            "변경한 내용은 표 편집에서 저장하면 적용돼요.",
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextSecondary,
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().clickable { csvExpanded = !csvExpanded }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("CSV 일괄 관리", modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Icon(Icons.Default.KeyboardArrowDown, "CSV 일괄 관리 펼치기")
+                        }
+                        if (csvExpanded) {
+                        // Keep low-frequency file operations below phrase and number settings.
+                        RotatingPhraseCsvActions(
+                            phraseSet = phraseSet,
+                            showHeading = false,
+                            onReplaceItems = { imported, periods ->
+                                if (phraseSet.items != imported ||
+                                    RotatingPhraseSetItemPolicy.overrides(phraseSet) != periods) {
+                                    onUpdateSet {
+                                        RotatingPhraseSetItemPolicy.replaceItems(it, imported, periods)
+                                    }
+                                }
+                            },
+                        )
                         }
                     }
                 }
@@ -390,56 +457,32 @@ fun RotatingPhraseSetEditDialog(
     }
 
     if (showItemInputDialog) {
-        var itemDraft by remember(showItemInputDialog, editingItemIndex, phraseSet.id) { mutableStateOf(itemInput) }
-        val isEdit = editingItemIndex != null
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            titleContentColor = DDZColor.TextPrimary,
-            textContentColor = DDZColor.TextPrimary,
-            onDismissRequest = ::closeItemInputDialog,
-            title = { Text(if (isEdit) "문구 수정" else "문구 추가") },
-            text = {
-                OutlinedTextField(
-                    value = itemDraft,
-                    onValueChange = { itemDraft = it },
-                    singleLine = true,
-                    label = { Text("문구") }
-                )
-            },
-            confirmButton = {
-                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = itemDraft.isNotBlank(), onClick = {
-                    val trimmed = itemDraft.trim()
-                    if (trimmed.isNotBlank()) {
-                        if (editingItemIndex == null) {
-                            itemIds.add(UUID.randomUUID().toString())
-                            onUpdateSet { it.copy(items = it.items + trimmed) }
-                            // Show the newly added phrase even if the previous query hid it.
-                            searchQuery = ""
-                        } else {
-                            val idx = editingItemIndex!!
-                            onUpdateSet { set ->
-                                if (idx !in set.items.indices) {
-                                    set
-                                } else {
-                                    set.copy(
-                                        items = set.items.mapIndexed { i, value ->
-                                            if (i == idx) trimmed else value
-                                        }
-                                    )
-                                }
-                            }
-                        }
+        val itemIndex = editingItemIndex
+        RotatingPhraseItemEditDialog(
+            initialText = itemInput,
+            initialEvery = itemIndex?.let { phraseSet.itemEveryOverrides.getOrNull(it) },
+            defaultEvery = phraseSet.defaultEvery,
+            isEdit = itemIndex != null,
+            onDismiss = ::closeItemInputDialog,
+            onSave = { text, every ->
+                if (itemIndex == null) {
+                    itemIds.add(UUID.randomUUID().toString())
+                    onUpdateSet { set ->
+                        val appended = RotatingPhraseSetItemPolicy.addItem(set, text)
+                        RotatingPhraseSetItemPolicy.setEvery(appended, appended.items.lastIndex, every)
                     }
-                    closeItemInputDialog()
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
+                    searchQuery = ""
+                } else {
+                    onUpdateSet { set ->
+                        RotatingPhraseSetItemPolicy.setEvery(
+                            RotatingPhraseSetItemPolicy.renameItem(set, itemIndex, text),
+                            itemIndex,
+                            every,
+                        )
+                    }
                 }
+                closeItemInputDialog()
             },
-            dismissButton = {
-                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeItemInputDialog) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
         )
     }
 
