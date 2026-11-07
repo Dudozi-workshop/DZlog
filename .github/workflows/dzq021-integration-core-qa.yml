@@ -47,7 +47,14 @@ jobs:
             --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicyTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicyTest' \
-            --tests 'com.dudoziworkshop.dzlog.ui.log.RecentCaptureNavigationTest'
+            --tests 'com.dudoziworkshop.dzlog.ui.log.RecentCaptureNavigationTest' \
+            --tests 'com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseCsvCodecTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickAutoCellEditPolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickRotatingPhrasePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.OnboardingQuickValuePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalogTest' \
+            --tests 'com.dudoziworkshop.dzlog.ui.table.mock.TableEditorPhraseSettingsTest'
       - name: Assemble isolated Android QA APK
         run: |
           bash ./gradlew --no-daemon :app:assembleDebug --stacktrace \

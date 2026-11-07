@@ -186,6 +186,16 @@ fun RotatingPhraseSetEditDialog(
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
                         }
                     }
+                    // Keep CSV tools inside the existing first lazy item, so phrase
+                    // row indices in the drag/reorder policy remain unchanged.
+                    RotatingPhraseCsvActions(
+                        phraseSet = phraseSet,
+                        onReplaceItems = { imported ->
+                            if (phraseSet.items != imported) {
+                                onUpdateSet { it.copy(items = imported) }
+                            }
+                        },
+                    )
                 }
                 items(
                     phraseSet.items.size,
