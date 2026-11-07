@@ -49,6 +49,7 @@ jobs:
             --tests 'com.dudoziworkshop.dzlog.ui.table.mock.MockLayoutDomainAdapterTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActionsTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.table.render.CameraTableResolutionTest' \
+            --tests 'com.dudoziworkshop.dzlog.watermark.MergedTableCellDrawPlanTest' \
             --stacktrace
       - name: Upload targeted test reports
         if: always()
