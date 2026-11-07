@@ -26,7 +26,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -49,10 +48,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
+import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
+import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableScene
+import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import android.graphics.RectF
+import kotlin.math.roundToInt
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 @Composable
@@ -93,23 +99,9 @@ internal fun ColumnScope.MockTableCanvas(
     var activeRow by remember { mutableStateOf<Int?>(null) }
     val previewScroll = rememberScrollState()
     val background = Color.Transparent
-    val resolvedAlpha = (bgAlpha.coerceIn(0, 255) / 255f)
-    val cellBackground = when {
-        transparentTable -> Color.Transparent
-        darkTable -> Color(0xFF202522).copy(alpha = resolvedAlpha)
-        else -> Color.White.copy(alpha = resolvedAlpha)
-    }
-    val textColor = when {
-        textColorMode == 1 && manualTextColor == 0 -> Color.White
-        textColorMode == 1 && manualTextColor == 1 -> Color.Black
-        darkTable -> Color.White
-        else -> Color(0xFF202124)
-    }
-    val cellAlignment = when (textAlignIndex.coerceIn(0, 2)) {
-        0 -> Alignment.CenterStart
-        2 -> Alignment.CenterEnd
-        else -> Alignment.Center
-    }
+    // A selection highlight is UI-only; it must not change the camera's bold text.
+    val renderedValues = remember(cells, rows, cols) { editorRenderCells(cells, rows, cols) }
+    val renderedRoots = remember(cells) { editorRenderRootCells(cells) }
     val resolvedRowWeights = TableLayoutCalculator.resolveWeights(rowWeights, rows)
     val resolvedColWeights = TableLayoutCalculator.resolveWeights(colWeights, cols)
     val baseTableHeight = (74.dp * rows.toFloat()).coerceIn(120.dp, 420.dp)
@@ -208,6 +200,32 @@ internal fun ColumnScope.MockTableCanvas(
                     val totalHeightPx = with(density) { totalHeight.toPx().coerceAtLeast(1f) }
                     val latestWidthPx by rememberUpdatedState(totalWidthPx)
                     val latestHeightPx by rememberUpdatedState(totalHeightPx)
+                    val renderScene = remember(
+                        totalWidthPx, totalHeightPx, rows, cols,
+                        resolvedRowWeights, resolvedColWeights, renderedRoots,
+                    ) {
+                        buildRenderedTableScene(
+                            tableRect = RectF(0f, 0f, totalWidthPx, totalHeightPx),
+                            rows = rows,
+                            cols = cols,
+                            rowWeights = resolvedRowWeights,
+                            colWeights = resolvedColWeights,
+                            rootCells = renderedRoots,
+                        )
+                    }
+                    val renderStyle = TableRenderStyle(
+                        bgStyle = when {
+                            transparentTable -> 2
+                            darkTable -> 0
+                            else -> 1
+                        },
+                        bgAlpha = bgAlpha,
+                        valueScale = (fontScale * 100f).roundToInt(),
+                        textColorMode = textColorMode,
+                        manualTextColor = manualTextColor,
+                        textAlign = textAlignIndex,
+                        drawGrid = gridEnabled,
+                    )
                     val rootHitRects = cells.filterNot { it.isCovered }.map { cell ->
                         val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
                         val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
@@ -229,6 +247,23 @@ internal fun ColumnScope.MockTableCanvas(
                         Modifier.offset(gutter, gutter).size(totalWidth, totalHeight)
                             .border(2.dp, DDZColor.Primary, RoundedCornerShape(4.dp))
                     ) {
+                        // Draw the same bold font and proportional text sizing as the camera/photo.
+                        Canvas(Modifier.matchParentSize()) {
+                            drawIntoCanvas { canvas ->
+                                TableRenderAdapter.drawScene(
+                                    canvas = canvas.nativeCanvas,
+                                    scene = renderScene,
+                                    payload = TableRenderPayload(
+                                        rows = rows,
+                                        cols = cols,
+                                        rowWeights = resolvedRowWeights,
+                                        colWeights = resolvedColWeights,
+                                        cells = renderedValues,
+                                    ),
+                                    style = renderStyle,
+                                )
+                            }
+                        }
                         cells.filterNot { it.isCovered }.forEach { cell ->
                             val startRow = cell.rowIndex.coerceIn(0, (rows - 1).coerceAtLeast(0))
                             val startCol = cell.colIndex.coerceIn(0, (cols - 1).coerceAtLeast(0))
@@ -249,27 +284,15 @@ internal fun ColumnScope.MockTableCanvas(
                                     .offset(x = x, y = y)
                                     .size(width = width, height = height)
                                     .background(
-                                        if (isSelected) DDZColor.Primary.copy(alpha = 0.16f) else cellBackground
+                                        if (isSelected) DDZColor.Primary.copy(alpha = 0.16f) else Color.Transparent
                                     )
-                                    .then(
-                                        if (gridEnabled) Modifier.border(
-                                            0.5.dp,
-                                            if (darkTable) Color.White.copy(alpha = 0.28f) else Color(0xFFB8B8BE)
-                                        ) else Modifier
-                                    )
+                                    .semantics {
+                                        contentDescription = cell.previewValue ?: cell.value
+                                    }
                                     .clickable(enabled = !layoutMode && cell.domainCellId != null) {
                                         cell.domainCellId?.let(onCellClick)
                                     },
-                                contentAlignment = cellAlignment,
-                            ) {
-                                Text(
-                                    cell.previewValue ?: cell.value,
-                                    color = if (isSelected) DDZColor.PrimaryDark else textColor,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = (14f * fontScale.coerceIn(0.6f, 1.6f)).sp,
-                                    modifier = Modifier.padding(8.dp),
-                                )
-                            }
+                            ) { /* hit target and selection highlight; camera renderer owns text */ }
                         }
 
                         if (layoutMode) {
