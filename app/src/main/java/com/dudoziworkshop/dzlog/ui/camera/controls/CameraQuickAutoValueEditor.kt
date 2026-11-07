@@ -60,6 +60,7 @@ internal fun CameraQuickAutoValueEditor(
     onPhraseSet: (String) -> Unit,
     onPhraseItem: (Int) -> Unit,
     onPhraseEvery: (Int) -> Unit,
+    onPhraseFollowSet: () -> Unit,
     onPhraseCompleted: (Int) -> Unit,
 ) {
     var picker by remember(cell.cellId) { mutableStateOf<QuickValuePicker?>(null) }
@@ -103,7 +104,8 @@ internal fun CameraQuickAutoValueEditor(
                     )
                 } else {
                     val progress = CellPhraseProgressPolicy.current(cell, selectedSet)
-                    val every = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
+                    val every = (cell.everyOverride ?: selectedSet.everyForItem(progress.index)).coerceAtLeast(1)
+                    val isIndividual = cell.everyOverride != null
                     val phrase = selectedSet.items[progress.index]
                     val next = selectedSet.items[(progress.index + 1) % selectedSet.items.size]
                     QuickPhraseChoice(
@@ -112,13 +114,34 @@ internal fun CameraQuickAutoValueEditor(
                         enabled = enabled,
                         onClick = { picker = QuickValuePicker.PHRASE_ITEM },
                     )
+                    Text("변경 주기", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DDZButton(
+                            text = "전체 설정",
+                            style = DDZButtonStyle.Secondary,
+                            modifier = Modifier.weight(1f).semantics { selected = !isIndividual },
+                            containerColorOverride = if (!isIndividual) DDZColor.SelectedSoft else null,
+                            enabled = enabled,
+                            onClick = onPhraseFollowSet,
+                            horizontalPadding = 4.dp,
+                        )
+                        DDZButton(
+                            text = "개별 설정",
+                            style = DDZButtonStyle.Secondary,
+                            modifier = Modifier.weight(1f).semantics { selected = isIndividual },
+                            containerColorOverride = if (isIndividual) DDZColor.SelectedSoft else null,
+                            enabled = enabled,
+                            onClick = { if (!isIndividual) onPhraseEvery(every) },
+                            horizontalPadding = 4.dp,
+                        )
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         QuickPhraseStepper(
                             label = "변경 주기",
                             value = every,
                             modifier = Modifier.weight(1f),
-                            canDecrease = enabled && every > 1,
-                            canIncrease = enabled && every < Int.MAX_VALUE,
+                            canDecrease = enabled && isIndividual && every > 1,
+                            canIncrease = enabled && isIndividual && every < Int.MAX_VALUE,
                             onDecrease = { onPhraseEvery(every - 1) },
                             onIncrease = { onPhraseEvery(every + 1) },
                         )
@@ -132,6 +155,13 @@ internal fun CameraQuickAutoValueEditor(
                             onIncrease = { onPhraseCompleted(progress.completedShots + 1) },
                         )
                     }
+                    Text(
+                        if (isIndividual) "이 셀의 모든 문구에 $every장 고정 적용" else "전체 설정 · 현재 문구 $every장",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         "현재: $phrase · ${progress.completedShots}/${every}장",
                         style = DDZTypography.Caption,
