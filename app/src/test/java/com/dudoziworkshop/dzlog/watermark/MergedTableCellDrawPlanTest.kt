@@ -1,5 +1,10 @@
 package com.dudoziworkshop.dzlog.watermark
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.dudoziworkshop.dzlog.feature.table.render.RenderRootCell
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -81,6 +86,34 @@ class MergedTableCellDrawPlanTest {
         assertTrue(strokes.contains(TableGridStroke(120f, 60f, 120f, 120f)))
         assertTrue(strokes.contains(TableGridStroke(0f, 60f, 120f, 60f)))
         assertTrue(strokes.contains(TableGridStroke(120f, 60f, 240f, 60f)))
+    }
+
+    @Test
+    fun resolved_painter_emits_only_visible_merged_grid_strokes() {
+        val emitted = mutableListOf<TableGridStroke>()
+        val canvas = object : Canvas(Bitmap.createBitmap(240, 120, Bitmap.Config.ARGB_8888)) {
+            override fun drawLine(
+                startX: Float, startY: Float, stopX: Float, stopY: Float, paint: Paint,
+            ) {
+                emitted += TableGridStroke(startX, startY, stopX, stopY)
+            }
+        }
+        drawWatermarkTableOnCanvasWithResolvedGeometry(
+            canvas = canvas,
+            tableRect = RectF(0f, 0f, 240f, 120f),
+            rowEdges = listOf(0f, 60f, 120f),
+            colEdges = listOf(0f, 120f, 240f),
+            cells = List(4) { WatermarkCell("") },
+            rows = 2,
+            cols = 2,
+            bgAlpha = 0,
+            valueScale = 100,
+            bgStyle = 2,
+            drawGrid = true,
+            mergedRootCells = listOf(RenderRootCell("top", 0, 0, 1, 2)),
+        )
+        assertFalse(emitted.contains(TableGridStroke(120f, 0f, 120f, 60f)))
+        assertTrue(emitted.contains(TableGridStroke(120f, 60f, 120f, 120f)))
     }
 
     @Test
