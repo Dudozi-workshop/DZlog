@@ -33,7 +33,9 @@ internal fun TableEditorPhraseProgressDialog(
         mutableStateOf(cell.phraseIndex.coerceIn(0, set.items.lastIndex))
     }
     val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
-    var completedText by remember(cell.id, every) {
+    // Selecting a different phrase resets the count to zero. Do not re-create
+    // this state just because that phrase has a different inherited period.
+    var completedText by remember(cell.id, set.items) {
         mutableStateOf(cell.phraseCompletedShots.coerceIn(0, every - 1).toString())
     }
     val completed = completedText.toIntOrNull()?.takeIf { it in 0 until every }
