@@ -1,0 +1,71 @@
+name: DZlog PR102 Rotating Quick Edit Focused QA
+
+on:
+  push:
+    branches:
+      - feat/camera-quick-rotating-controls-20261107
+    paths:
+      - 'app/**'
+      - '.github/workflows/dzlog-pr102-rotating-quick-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-pr102-rotating-quick
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK 36
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Run targeted rotating quick editor tests and Kotlin compile
+        run: |
+          bash ./gradlew :app:testDebugUnitTest \
+            --tests '*QuickRotatingPhrasePolicyTest' \
+            --tests '*QuickAutoCellEditPolicyTest' \
+            --tests '*CellPhraseProgressTest' \
+            --tests '*PhraseResolverTest' \
+            --tests '*RotatingCaptureCommitPersistenceTest' \
+            --tests '*QuickCellValuePolicyTest' \
+            --tests '*QuickCellPresentationPolicyTest' \
+            --tests '*TutorialQuickWindowTest' \
+            --tests '*TableEditorPhraseSettingsTest' \
+            :app:compileDebugKotlin --stacktrace
+      - name: Build isolated QA APK
+        run: |
+          set -euo pipefail
+          bash ./gradlew :app:assembleDebug \
+            -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=rotquick \
+            -PdzlogDebugVersionCode=1000102 --stacktrace
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.rotquick' versionCode='1000102'"
+          cp "$APK" DZlog-PR102-rotating-quick.apk
+      - name: Upload QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-pr102-rotating-quick-qa-apk
+          path: DZlog-PR102-rotating-quick.apk
+          if-no-files-found: error
+          retention-days: 14

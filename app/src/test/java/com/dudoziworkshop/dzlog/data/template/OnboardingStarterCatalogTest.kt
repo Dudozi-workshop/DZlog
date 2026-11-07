@@ -39,7 +39,7 @@ class OnboardingStarterCatalogTest {
             assertTrue(state.pathSlotDrafts.count { it != null } <= 3)
             val headers = state.cells.filter { it.rowIndex == 0 }
             assertEquals(def.labels, headers.sortedBy { it.colIndex }.map { it.rawText })
-            assertTrue(headers.none { it.quickEditable })
+            assertTrue(headers.all { it.quickEditable })
             val values = state.cells.filter { it.rowIndex == 1 }
             assertTrue(values.filter { it.dataType == TableCellDataType.TEXT }.all { it.rawText.isEmpty() && it.quickEditable })
             assertEquals(def.dateColumn != null, values.any { it.dataType == TableCellDataType.DATE })
@@ -71,9 +71,10 @@ class OnboardingStarterCatalogTest {
     }
 
     @Test
-    fun `basic starter has one editable label and automatic date and counter`() {
+    fun `basic starter has editable headers one text input and automatic date and counter`() {
         val s = requireNotNull(OnboardingStarterCatalog.buildState(OnboardingStarterCatalog.DEFAULT_ID))
         assertEquals(listOf("기록명", "날짜", "번호"), s.cells.filter { it.rowIndex == 0 }.map { it.rawText })
+        assertEquals(3, s.cells.count { it.rowIndex == 0 && it.quickEditable && it.dataType == TableCellDataType.TEXT })
         assertEquals(1, s.cells.count { it.rowIndex == 1 && it.quickEditable && it.dataType == TableCellDataType.TEXT })
         assertEquals(3, s.fileNameSlotDrafts.size)
         assertEquals("DZlog", s.fileNameSlotDrafts[0]?.manualText)
@@ -186,8 +187,11 @@ class OnboardingStarterCatalogTest {
     }
 
     @Test
-    fun `readonly headers survive template serialization and default old json remains editable`() {
-        val input = requireNotNull(OnboardingStarterCatalog.buildState("research"))
+    fun `legacy quick edit flags survive serialization and missing flags default editable`() {
+        val starter = requireNotNull(OnboardingStarterCatalog.buildState("research"))
+        val input = starter.copy(cells = starter.cells.map { cell ->
+            if (cell.rowIndex == 0) cell.copy(quickEditable = false) else cell
+        })
         val decoded = requireNotNull(tableTemplateStateFromJson(input.toJsonString()))
         assertEquals(input.cells.map { it.quickEditable }, decoded.cells.map { it.quickEditable })
         assertEquals(input.fileNameSlotDrafts.map { it?.cellId }, decoded.fileNameSlotDrafts.take(3).map { it?.cellId })

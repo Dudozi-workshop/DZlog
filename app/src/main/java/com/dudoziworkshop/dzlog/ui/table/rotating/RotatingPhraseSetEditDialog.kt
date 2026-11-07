@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,9 @@ fun RotatingPhraseSetEditDialog(
     var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
     var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
+    var searchQuery by remember(phraseSet.id) { mutableStateOf("") }
+    val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, searchQuery)
+    val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(searchQuery))
     val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
 
     fun openRenameDialog() {
@@ -120,27 +124,31 @@ fun RotatingPhraseSetEditDialog(
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        onUpdateSet { set ->
-            val items = set.items
-            if (items.isEmpty()) return@onUpdateSet set
+        // Filtered rows do not have contiguous original indices. Disable dragging
+        // during search to avoid accidentally changing the full saved list order.
+        if (canReorder) {
+            onUpdateSet { set ->
+                val items = set.items
+                if (items.isEmpty()) return@onUpdateSet set
 
-            // The first lazy item is the set name; only phrase rows can be reordered.
+                // The first lazy item is the header; only phrase rows can be reordered.
+                val fromIndex = from.index - 1
+                val toIndex = to.index - 1
+                if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
+                    return@onUpdateSet set
+                }
+
+                val newList = items.toMutableList().apply {
+                    add(toIndex, removeAt(fromIndex))
+                }
+                set.copy(items = newList)
+            }
+
             val fromIndex = from.index - 1
             val toIndex = to.index - 1
-            if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
-                return@onUpdateSet set
+            if (fromIndex in itemIds.indices && toIndex in itemIds.indices && fromIndex != toIndex) {
+                itemIds.add(toIndex, itemIds.removeAt(fromIndex))
             }
-
-            val newList = items.toMutableList().apply {
-                add(toIndex, removeAt(fromIndex))
-            }
-            set.copy(items = newList)
-        }
-
-        val fromIndex = from.index - 1
-        val toIndex = to.index - 1
-        if (fromIndex in itemIds.indices && toIndex in itemIds.indices && fromIndex != toIndex) {
-            itemIds.add(toIndex, itemIds.removeAt(fromIndex))
         }
     }
 
@@ -186,11 +194,45 @@ fun RotatingPhraseSetEditDialog(
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
                         }
                     }
+                    // Keep CSV tools inside the existing first lazy item, so phrase
+                    // row indices in the drag/reorder policy remain unchanged.
+                    RotatingPhraseCsvActions(
+                        phraseSet = phraseSet,
+                        onReplaceItems = { imported ->
+                            if (phraseSet.items != imported) {
+                                onUpdateSet { it.copy(items = imported) }
+                            }
+                        },
+                    )
+                    // Within the existing header item: preserve the 1-based drag
+                    // offsets used by the reorderable list for unfiltered rows.
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text("문구 목록 (${phraseSet.items.size}개)",
+                            style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text("문구 검색") },
+                        )
+                        if (!canReorder) {
+                            Text("검색 결과 ${visibleIndices.size}개 · 검색 중 순서 변경 불가",
+                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                        }
+                    }
                 }
                 items(
-                    phraseSet.items.size,
-                    key = { idx -> itemIds.getOrNull(idx) ?: "${phraseSet.id}-$idx" },
-                ) { index ->
+                    visibleIndices.size,
+                    key = { visibleIndex ->
+                        val originalIndex = visibleIndices[visibleIndex]
+                        itemIds.getOrNull(originalIndex) ?: "${phraseSet.id}-$originalIndex"
+                    },
+                ) { visibleIndex ->
+                    val index = visibleIndices[visibleIndex]
                     val item = phraseSet.items.getOrNull(index) ?: return@items
                     val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
                     ReorderableItem(reorderableState, key = stableId) { isDragging ->
@@ -205,10 +247,15 @@ fun RotatingPhraseSetEditDialog(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             IconButton(
+                                enabled = canReorder,
                                 onClick = {},
-                                modifier = with(this@ReorderableItem) { Modifier.draggableHandle() },
+                                modifier = if (canReorder) with(this@ReorderableItem) {
+                                    Modifier.draggableHandle()
+                                } else Modifier,
                             ) {
-                                Icon(Icons.Default.DragHandle, "문구 순서 변경", tint = DDZColor.IconMuted)
+                                Icon(Icons.Default.DragHandle,
+                                    if (canReorder) "문구 순서 변경" else "검색 중 순서 변경 불가",
+                                    tint = if (canReorder) DDZColor.IconMuted else DDZColor.TextDisabled)
                             }
                             Text(
                                 item,
@@ -233,9 +280,9 @@ fun RotatingPhraseSetEditDialog(
                 }
                 item(key = "phrase-actions") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (phraseSet.items.isEmpty()) {
+                        if (phraseSet.items.isEmpty() || visibleIndices.isEmpty()) {
                             Text(
-                                "문구를 추가해주세요.",
+                                if (phraseSet.items.isEmpty()) "문구를 추가해주세요." else "검색 결과가 없습니다.",
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                                 style = DDZTypography.Body,
                                 color = DDZColor.TextSecondary,
@@ -366,6 +413,8 @@ fun RotatingPhraseSetEditDialog(
                         if (editingItemIndex == null) {
                             itemIds.add(UUID.randomUUID().toString())
                             onUpdateSet { it.copy(items = it.items + trimmed) }
+                            // Show the newly added phrase even if the previous query hid it.
+                            searchQuery = ""
                         } else {
                             val idx = editingItemIndex!!
                             onUpdateSet { set ->
