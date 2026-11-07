@@ -23,7 +23,7 @@ internal fun quickCellTypeLabel(type: TableCellDataType): String = when (type) {
 
 /**
  * Never omit cell metadata because a cell is narrow or short.
- * When all badges do not fit, the UI uses one compact, unbounded strip.
+ * When all badges do not fit, the UI uses a compact two-line overlay.
  * The user can zoom the table for detailed reading without losing indicators.
  */
 internal fun quickPreviewCellBadgePlan(
