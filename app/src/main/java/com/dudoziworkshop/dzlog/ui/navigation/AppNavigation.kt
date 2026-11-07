@@ -41,7 +41,7 @@ import com.dudoziworkshop.dzlog.domain.project.ProjectTemplateSelectionPolicy
 import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureReadViewModel
 import com.dudoziworkshop.dzlog.ui.project.ProjectCaptureSummary
 import com.dudoziworkshop.dzlog.ui.project.ProjectManagementViewModel
-import com.dudoziworkshop.dzlog.ui.project.ProjectPickerDialog
+import com.dudoziworkshop.dzlog.ui.project.ProjectPickerSheet
 import com.dudoziworkshop.dzlog.ui.project.ProjectListScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectDetailScreen
 import com.dudoziworkshop.dzlog.ui.project.ProjectMediaDeleteDialog
@@ -1545,7 +1545,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 onDismiss = { projectPendingMediaDeletionId = null },
             )
         }
-        if (showProjectPicker) ProjectPickerDialog(
+        if (showProjectPicker) ProjectPickerSheet(
             projects = captureProjectRegistry?.projects.orEmpty(),
             activeId = captureProjectRegistry?.activeId,
             onSelect = { target ->
