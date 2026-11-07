@@ -219,7 +219,6 @@ internal fun CameraQuickTablePreview(
                         }
                         val badges = quickPreviewCellBadgePlan(
                             widthPx = rect.right - rect.left,
-                            heightPx = rect.bottom - rect.top,
                             idealSizePx = markerPx,
                             minimumSizePx = with(density) { DDZLayout.QuickInput.MinCellMarker.toPx() },
                             insetPx = gapPx,
@@ -228,7 +227,8 @@ internal fun CameraQuickTablePreview(
                         )
                         Box(Modifier.offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
                             .size(with(density) { (rect.right - rect.left).toDp() }, with(density) { (rect.bottom - rect.top).toDp() })
-                            .bringIntoViewRequester(requester).clipToBounds()
+                            // Badges are non-interactive and may extend beyond a tiny cell.
+                            .bringIntoViewRequester(requester)
                             .then(if (!editable) Modifier.background(DDZColor.Primary.copy(alpha = 0.12f)) else Modifier)
                             .then(if (active) Modifier.background(DDZColor.SelectionOverlay).border(DDZLayout.QuickInput.SelectionBorder, DDZColor.SelectionEmphasis) else Modifier)
                             .clickable(enabled = !switching) { if (editable) onSelect(rect.cellId) else onLocked(rect.cellId) }
