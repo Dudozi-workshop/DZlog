@@ -6,6 +6,10 @@ on:
       - fix/quick-preview-cell-indicators-20261107
     paths:
       - '.github/workflows/dzlog-quick-preview-badges-qa.yml'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickPreviewCellBadgePolicy.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/QuickPreviewCellBadges.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickTablePreview.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickPreviewCellBadgePolicyTest.kt'
   workflow_dispatch:
 
 permissions:
