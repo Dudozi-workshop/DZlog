@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -81,6 +82,8 @@ fun RotatingPhraseSetEditDialog(
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
     var searchQuery by remember(phraseSet.id) { mutableStateOf("") }
     var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
+    var counterExpanded by remember(phraseSet.id) { mutableStateOf(false) }
+    var csvExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, searchQuery)
     val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(searchQuery))
     val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
@@ -320,18 +323,25 @@ fun RotatingPhraseSetEditDialog(
                                 color = DDZColor.TextSecondary,
                             )
                         }
-                        DDZButton(
-                            text = "문구 추가",
-                            onClick = { openItemInputDialog(null, "") },
-                            leadingIcon = Icons.Default.Add,
-                            style = DDZButtonStyle.Secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).selectableGroup(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        Row(
+                            Modifier.fillMaxWidth().clickable { counterExpanded = !counterExpanded }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("번호 진행 방식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Text("번호 진행 방식", modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Text(
+                                if (phraseSet.counterProgressMode == RotatingCounterProgressMode.PER_PHRASE)
+                                    "문구별로 따로" else "문구가 바뀌어도 계속",
+                                style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                            )
+                            Icon(Icons.Default.KeyboardArrowDown, "번호 진행 방식 설정")
+                        }
+                        if (counterExpanded) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
                             RotatingCounterProgressMode.entries.forEach { mode ->
                                 val selected = phraseSet.counterProgressMode == mode
                                 Row(
@@ -343,7 +353,7 @@ fun RotatingPhraseSetEditDialog(
                                         .selectable(
                                             selected = selected,
                                             role = Role.RadioButton,
-                                            onClick = { onUpdateSet { it.copy(counterProgressMode = mode) } },
+                                            onClick = { onUpdateSet { it.copy(counterProgressMode = mode) }; counterExpanded = false },
                                         )
                                         .heightIn(min = 56.dp)
                                         .padding(end = 12.dp),
@@ -373,16 +383,28 @@ fun RotatingPhraseSetEditDialog(
                                     }
                                 }
                             }
-                            Text(
-                                "변경한 내용은 표 편집에서 저장하면 적용돼요.",
-                                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextSecondary,
-                            )
+                            }
                         }
+                        Text(
+                            "변경한 내용은 표 편집에서 저장하면 적용돼요.",
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextSecondary,
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().clickable { csvExpanded = !csvExpanded }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("CSV 일괄 관리", modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            Icon(Icons.Default.KeyboardArrowDown, "CSV 일괄 관리 펼치기")
+                        }
+                        if (csvExpanded) {
                         // Keep low-frequency file operations below phrase and number settings.
                         RotatingPhraseCsvActions(
                             phraseSet = phraseSet,
+                            showHeading = false,
                             onReplaceItems = { imported, periods ->
                                 if (phraseSet.items != imported ||
                                     RotatingPhraseSetItemPolicy.overrides(phraseSet) != periods) {
@@ -392,6 +414,7 @@ fun RotatingPhraseSetEditDialog(
                                 }
                             },
                         )
+                        }
                     }
                 }
             }
