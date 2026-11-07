@@ -1,5 +1,8 @@
 # Table Editor Refactor Summary (Step 1–3)
 
+> **ARCHIVED — 2026-11-07.** This document describes the retired V1 `TableEditorScreen` / `LayoutTab` implementation. The active table editor is `ui/table/mock/TableEditorV2MockScreen.kt` (`TableEditorV2Screen`), reached through `AppNavigation`. The V1 screen, rendering UI, and unused inline-edit handlers were removed in Draft PR #100. Keep this document for historical reference only; do not use its 'Current SSOT' section for new development.
+
+
 ## 1) Current SSOT / Layering
 
 - `ui/table/TableEditorScreen`
