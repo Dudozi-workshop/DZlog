@@ -24,6 +24,8 @@ internal data class CaptureJobSnapshot(
     val counterStream: CaptureStreamKey? = null,
     /** Immutable catalog identity, distinct from the template's table contents. */
     val templateId: String? = null,
+    /** Immutable project association captured when the shutter is reserved. */
+    val projectId: String? = null,
 )
 
 /** Private on-disk format; reject unknown schemas rather than silently losing a setting. */
@@ -76,6 +78,7 @@ internal object CaptureJobSnapshotCodec {
             .put("usableBottomRatio", r.usableBottomRatio.toDouble())
             .put("template", r.tableTemplate.toJsonString())
             .put("templateId", job.templateId ?: JSONObject.NULL)
+            .put("projectId", job.projectId ?: JSONObject.NULL)
             .put("resolvedCells", cells)
             .put("watermarkCells", watermarks)
             .put("watermark", watermark)
@@ -157,6 +160,9 @@ internal object CaptureJobSnapshotCodec {
             ),
             tablePatch = TablePatch(updates, phrases),
             templateId = data.optString("templateId").takeIf {
+                it.isNotBlank() && it != "null"
+            },
+            projectId = data.optString("projectId").takeIf {
                 it.isNotBlank() && it != "null"
             },
             counterStream = data.optJSONObject("counterStream")?.let { stream ->

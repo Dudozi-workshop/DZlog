@@ -86,6 +86,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.favorites.FavoritesProvider
 import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
+import com.dudoziworkshop.dzlog.data.project.CaptureMediaPresenceReader
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicy
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
@@ -114,8 +115,10 @@ fun LogViewerScreen(
     onItemsReloaded: (List<MediaImageItem>) -> Unit,
     onRequestCloseViewer: () -> Unit,
     quickResultOriginalByResultUri: Map<String, MediaImageItem> = emptyMap(),
+    quickResultOriginalOnlyUris: Set<String> = emptySet(),
     isQuickResultsViewer: Boolean = false,
-    onSessionMediaChanged: (Set<Long>) -> Unit = {},
+    quickResultDeleteItemsByDisplayedUri: Map<String, List<MediaImageItem>> = emptyMap(),
+    onSessionMediaChanged: (Set<Long>, Boolean) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val tourLocation = LocalTutorialLocation.current
@@ -187,6 +190,26 @@ fun LogViewerScreen(
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
+                    if (isQuickResultsViewer) {
+                    // Quick Results owns an exact shutter-linked pair, not a folder.
+                    // A moved original may remain in MediaStore outside Pictures/DZlog.
+                    val pair = requireNotNull(
+                        quickResultOriginalByResultUri[requested.uri.toString()],
+                    ) { "이 촬영 건에는 연결된 원본사진이 없습니다." }
+                    require(pair.uri != requested.uri && pair.id != requested.id) {
+                        "원본·결과 사진 정보가 올바르지 않습니다."
+                    }
+                    val present = CaptureMediaPresenceReader(resolver).inspect(
+                        referencedUris = setOf(requested.uri.toString(), pair.uri.toString()),
+                        knownDzlogPhotos = emptyList(),
+                    ).found
+                    requireNotNull(present.singleOrNull {
+                        it.id == requested.id && it.uri == requested.uri
+                    }) { "결과사진을 확인할 수 없습니다. 빠른 결과에서 다시 확인해 주세요." }
+                    requireNotNull(present.singleOrNull {
+                        it.id == pair.id && it.uri == pair.uri
+                    }) { "원본사진을 확인할 수 없습니다. 빠른 결과에서 다시 확인해 주세요." }
+                } else {
                     val snapshot = reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT)
                     require(snapshot.singleOrNull { it.id == requested.id } == requested) {
                         "사진 정보가 변경됐습니다. 갤러리에서 다시 확인해 주세요."
@@ -196,13 +219,12 @@ fun LogViewerScreen(
                         requireNotNull(snapshot.singleOrNull { it.id == explicitPair.id && it == explicitPair }) {
                             "촬영 세션의 원본사진이 이동되거나 삭제되었습니다."
                         }
-                    } else if (isQuickResultsViewer) {
-                        error("이 촬영 건에는 연결된 원본사진이 없습니다.")
                     } else {
                         requireNotNull(GalleryPhotoMovePolicy.pairedOriginals(listOf(requested), snapshot).singleOrNull()) {
                             "정확히 연결된 원본사진을 찾지 못했습니다."
                         }
                     }
+                }
                 }
             }
             originalLoading = false
@@ -324,11 +346,18 @@ fun LogViewerScreen(
                 enabled = !operationLocked,
                 currentIndex = pagerState.currentPage,
                 total = items.size,
-                showingOriginal = originalPreview != null || currentItem?.let { GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) } == true,
+                // A project original remains an original after a physical folder move.
+                showingOriginal = originalPreview != null || currentItem?.let { photo ->
+                    if (isQuickResultsViewer) photo.uri.toString() in quickResultOriginalOnlyUris
+                    else GalleryPhotoMovePolicy.isOriginalPath(photo.relativePath)
+                } == true,
                 originalActionLabel = if (originalPreview != null) "결과사진으로 돌아가기" else "원본 보기",
-                onOriginal = if (originalPreview != null || resultItem?.let {
-                    !GalleryPhotoMovePolicy.isOriginalPath(it.relativePath) &&
-                        (!isQuickResultsViewer || quickResultOriginalByResultUri.containsKey(it.uri.toString()))
+                onOriginal = if (originalPreview != null || resultItem?.let { photo ->
+                    if (isQuickResultsViewer) {
+                        quickResultOriginalByResultUri.containsKey(photo.uri.toString())
+                    } else {
+                        !GalleryPhotoMovePolicy.isOriginalPath(photo.relativePath)
+                    }
                 } == true) ::showOriginal else null,
                 onMove = {
                     if (guidePage == null && !operationLocked && currentItem != null) {
@@ -417,7 +446,9 @@ fun LogViewerScreen(
                         onDelete = {
                             if (guidePage == null && !operationLocked && currentItem != null) {
                                 emptyAfterOperation = false
-                                deleteItem = currentItem
+                                // Delete the exact shutter, even when the user is
+                                // temporarily previewing its original image.
+                                deleteItem = if (isQuickResultsViewer) resultItem else currentItem
                             }
                         }
                     )
@@ -484,25 +515,63 @@ fun LogViewerScreen(
     }
 
     deleteItem?.let { requested ->
-        GalleryViewerDeleteDialog(
-            item = requested,
-            reader = reader,
-            onVerified = { deletedIds ->
+        // In Quick Results a capture is one shutter, not one MediaStore file.
+        // The caller must provide the verified result/original pair, never a
+        // filename/folder-derived companion. Gallery mode stays per-file.
+        // Freeze the exact shutter's media targets for the entire Android
+        // permission/retry flow. A partial verified deletion may refresh the
+        // parent map while this dialog is still retrying its remaining files.
+        val frozenSelection = remember(requested, isQuickResultsViewer) {
+            if (isQuickResultsViewer) {
+                quickResultDeleteItemsByDisplayedUri[requested.uri.toString()]
+            } else null
+        }
+        if (isQuickResultsViewer && frozenSelection == null) {
+            AlertDialog(
+                onDismissRequest = { deleteItem = null },
+                title = { Text("촬영 기록 확인 필요") },
+                text = { Text("연결된 원본·결과 정보를 찾지 못했습니다. 빠른 결과를 새로 확인해 주세요.") },
+                confirmButton = {
+                    DDZDialogAction(style = DDZButtonStyle.Primary, onClick = { deleteItem = null }) {
+                        Text("확인")
+                    }
+                },
+            )
+        } else {
+            val onVerifiedDeletion: (Set<Long>) -> Unit = { deletedIds ->
                 if (originalPreview?.id in deletedIds) originalPreview = null
                 GallerySnapshotMemory.cache.invalidate()
-                onSessionMediaChanged(deletedIds)
+                onSessionMediaChanged(deletedIds, true)
                 if (items.any { it.id in deletedIds }) {
-                    val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, deletedIds)
+                    val update = GalleryViewerDeletePolicy.reconcile(
+                        items.map { it.id }, pagerState.currentPage, deletedIds,
+                    )
                     pendingViewerIndex = update.currentIndex
                     emptyAfterOperation = update.ids.isEmpty()
                     onItemsReloaded(items.filter { it.id !in deletedIds })
                 }
-            },
-            onClose = {
+            }
+            val onDeleteClose = {
                 deleteItem = null
                 if (emptyAfterOperation) onRequestCloseViewer()
-            },
-        )
+            }
+            if (isQuickResultsViewer) {
+                GallerySelectedPhotoDeleteDialog(
+                    selected = requireNotNull(frozenSelection),
+                    reader = reader,
+                    allowIncludeOriginals = false,
+                    onVerified = onVerifiedDeletion,
+                    onClose = onDeleteClose,
+                )
+            } else {
+                GalleryViewerDeleteDialog(
+                    item = requested,
+                    reader = reader,
+                    onVerified = onVerifiedDeletion,
+                    onClose = onDeleteClose,
+                )
+            }
+        }
     }
 
     moveItem?.let { requested ->
@@ -510,9 +579,11 @@ fun LogViewerScreen(
             item = requested,
             reader = reader,
             onVerified = { movedIds ->
-                onSessionMediaChanged(movedIds)
+                onSessionMediaChanged(movedIds, false)
                 if (originalPreview?.id in movedIds || resultItem?.id in movedIds) originalPreview = null
-                if (items.any { it.id in movedIds }) {
+                // A moved project/session photo still belongs to its shutter.
+                // Only the physical gallery viewer removes moved-out entries.
+                if (!isQuickResultsViewer && items.any { it.id in movedIds }) {
                     val update = GalleryViewerDeletePolicy.reconcile(items.map { it.id }, pagerState.currentPage, movedIds)
                     pendingViewerIndex = update.currentIndex
                     emptyAfterOperation = update.ids.isEmpty()

@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Folder
 import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -56,18 +57,29 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun QuickResultsScreen(
     captures: List<QuickResultCapture>,
+    viewScopeKey: String,
     gridColumns: Int,
     showCounterBadges: Boolean,
     onGridColumnsChange: (Int) -> Unit,
     onOpenCapture: (List<QuickResultCapture>, Int) -> Unit,
     onOpenAlbum: () -> Unit,
     onReturnToCamera: () -> Unit,
+    isProjectResults: Boolean = false,
+    returnToProjectDetail: Boolean = false,
+    returnToGallery: Boolean = false,
 ) {
     val columns = GalleryGridColumnsPolicy.normalize(gridColumns)
     val folders = remember(captures) { QuickResultsSessionPolicy.folderChoices(captures) }
-    var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
+    // A different project is a separate virtual album, even if both projects
+    // use the same physical storage folder.
+    var selectedFolder by rememberSaveable(viewScopeKey) { mutableStateOf<String?>(null) }
     var menuExpanded by remember { mutableStateOf(false) }
-    var collapsedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var collapsedKeys by rememberSaveable(viewScopeKey) { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(folders, selectedFolder) {
+        selectedFolder?.let { selected ->
+            if (selected !in folders) selectedFolder = null
+        }
+    }
     val listState = rememberLazyListState()
     var pendingPinchAnchor by remember {
         mutableStateOf<Pair<Int, QuickResultsGridAnchorPolicy.Position>?>(null)
@@ -88,8 +100,8 @@ internal fun QuickResultsScreen(
     Column(Modifier.fillMaxSize().background(DDZColor.Background).windowInsetsPadding(WindowInsets.safeDrawing)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
-                Text("이번 촬영 ${captures.size}건", color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "프로젝트 결과" else "빠른결과", style = DDZTypography.ScreenTitle, color = DDZColor.TextPrimary)
+                Text(if (isProjectResults) "프로젝트 누적 ${captures.size}건" else "이번 촬영 ${captures.size}건", color = DDZColor.TextSecondary)
             }
             AlbumViewAction(onClick = onOpenAlbum)
         }
@@ -118,11 +130,11 @@ internal fun QuickResultsScreen(
 
         if (captures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("이번 촬영 사진이 없습니다.", modifier = Modifier.tutorialTarget("camera.results"), color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "프로젝트 촬영 사진이 없습니다." else "이번 촬영 사진이 없습니다.", modifier = Modifier.tutorialTarget("camera.results"), color = DDZColor.TextSecondary)
             }
         } else if (visibleCaptures.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
+                Text(if (isProjectResults) "선택한 폴더에 프로젝트 사진이 없습니다." else "선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
             }
         } else {
             LazyColumn(
@@ -248,8 +260,12 @@ internal fun QuickResultsScreen(
         }
 
         DDZButton(
-            text = "촬영 계속하기",
-            leadingIcon = Icons.Default.CameraAlt,
+            text = when {
+                returnToGallery -> "갤러리로 돌아가기"
+                returnToProjectDetail -> "프로젝트로 돌아가기"
+                else -> "촬영 계속하기"
+            },
+            leadingIcon = if (returnToGallery) Icons.Default.Folder else Icons.Default.CameraAlt,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             onClick = onReturnToCamera,
             style = DDZButtonStyle.Primary,

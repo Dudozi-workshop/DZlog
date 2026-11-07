@@ -118,4 +118,79 @@ class QuickResultsSessionPolicyTest {
         assertEquals("2건 · #3 외 1건", QuickResultsSessionPolicy.sectionLabel(section))
     }
 
+
+    @Test fun movedResultStaysInTheSameViewerSubset() {
+        val saved = listOf(listOf("r1", "o1"), listOf("r2"))
+        val before = QuickResultsSessionPolicy.captures(
+            saved,
+            listOf(
+                photo("r1", "Pictures/DZlog/A/"),
+                photo("o1", "Pictures/DZlog/A/original/"),
+                photo("r2", "Pictures/DZlog/B/"),
+            ),
+        )
+        val after = QuickResultsSessionPolicy.captures(
+            saved + listOf(listOf("new")),
+            listOf(
+                photo("r1", "Pictures/DZlog/Moved/"),
+                photo("o1", "Pictures/DZlog/A/original/"),
+                photo("r2", "Pictures/DZlog/B/"),
+                photo("new", "Pictures/DZlog/C/"),
+            ),
+        )
+        assertEquals(
+            listOf("r1"),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r1"), before, after),
+        )
+    }
+
+    @Test fun removedResultFallsBackToTheSameShuttersOriginal() {
+        val saved = listOf(listOf("r1", "o1"))
+        val before = QuickResultsSessionPolicy.captures(
+            saved,
+            listOf(
+                photo("r1", "Pictures/DZlog/A/"),
+                photo("o1", "Pictures/DZlog/A/original/"),
+            ),
+        )
+        val after = QuickResultsSessionPolicy.captures(
+            saved,
+            listOf(photo("o1", "Pictures/DZlog/A/original/")),
+        )
+        assertEquals(
+            listOf("o1"),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r1"), before, after),
+        )
+        assertEquals(
+            emptyList<String>(),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r1"), before, emptyList()),
+        )
+    }
+
+    @Test fun viewerRefreshNeverAddsAnotherShutterOrGuessesOwnership() {
+        val before = QuickResultsSessionPolicy.captures(
+            listOf(listOf("r1"), listOf("r2")),
+            listOf(photo("r1", "A/"), photo("r2", "A/")),
+        )
+        val after = QuickResultsSessionPolicy.captures(
+            listOf(listOf("r2"), listOf("r3")),
+            listOf(photo("r2", "A/"), photo("r3", "A/")),
+        )
+        assertEquals(
+            listOf("r2"),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r1", "r2"), before, after),
+        )
+        // A duplicate of another shutter must not hide the requested r2.
+        val unrelatedDuplicate = after + after.first()
+        assertEquals(
+            listOf("r2"),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r2"), before, unrelatedDuplicate),
+        )
+        // Duplicating r2 itself makes the requested shutter ambiguous.
+        val ambiguous = after + after.last()
+        assertEquals(
+            emptyList<String>(),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r2"), before, ambiguous),
+        )
+    }
 }

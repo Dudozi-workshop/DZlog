@@ -86,6 +86,7 @@ import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryGridColumnsPolicy
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.project.CaptureProject
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
@@ -112,6 +113,10 @@ fun LogFolderScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPhoto: (List<MediaImageItem>, Int) -> Unit,
     onOpenOriginal: (String, Boolean) -> Unit,
+    projectAlbums: List<CaptureProject> = emptyList(),
+    onOpenProjectAlbum: (String) -> Unit = {},
+    selectedRootTab: GalleryTab? = null,
+    onRootTabChange: (GalleryTab) -> Unit = {},
     showDefaultPhotos: Boolean = false,
     onShowDefaultPhotosChange: (Boolean) -> Unit = {},
     capturePathDrafts: List<List<TableEditorSlotDraft?>> = emptyList(),
@@ -150,7 +155,9 @@ fun LogFolderScreen(
     val folderStorage = remember(context) { GalleryFolderStorage(context.applicationContext) }
     val folderCatalog = remember(context) { GalleryFolderCatalog(context.applicationContext) }
     val favoriteIds by remember(context) { FavoritesProvider.repo(context) }.favoriteIdsFlow.collectAsState(initial = emptySet())
-    var selectedTab by remember { mutableStateOf(GalleryTab.ALL) }
+    // The parent retains the root tab when virtual project albums open Quick Results.
+    var localSelectedTab by rememberSaveable(relativePath) { mutableStateOf(GalleryTab.ALL) }
+    val selectedTab = selectedRootTab ?: localSelectedTab
     var showRecentPhotos by rememberSaveable(relativePath) { mutableStateOf(false) }
     val cached = remember(relativePath, demoGallery) { if (demoGallery) null else GallerySnapshotMemory.cache.get(relativePath) }
     var allPhotos by remember(relativePath) { mutableStateOf(if (demoGallery) demoPhotos else cached?.allPhotos ?: emptyList()) }
@@ -561,7 +568,8 @@ fun LogFolderScreen(
         showDefaultPhotos -> defaultPhotos
         showRecentPhotos -> recentPhotos
         selectedTab == GalleryTab.ALL -> recentPhotos.take(9)
-        else -> allPhotos.filter { it.id in favoriteIds }
+        selectedTab == GalleryTab.FAVORITES -> allPhotos.filter { it.id in favoriteIds }
+        else -> emptyList() // Project albums are virtual, never photo selections.
     }
     val selectableIds = selectablePhotos.mapTo(mutableSetOf()) { it.id }
     val allSelected = selectableIds.isNotEmpty() && selectedPhotoIds.containsAll(selectableIds)
@@ -773,6 +781,10 @@ fun LogFolderScreen(
                 }
             } else if (root && index != null) {
                 LogGalleryHomeContent(
+                    projectAlbums = if (demoGallery) emptyList() else projectAlbums,
+                    onOpenProjectAlbum = { id ->
+                        if (!selectionActive && !navigationLocked) onOpenProjectAlbum(id)
+                    },
                     gridColumns = displayedGridColumns,
                     showCounterBadges = showCounterBadges,
                     onGridColumnsChange = { nextColumns ->
@@ -780,7 +792,12 @@ fun LogFolderScreen(
                         onGridColumnsChange(nextColumns)
                     },
                     selectedTab = selectedTab,
-                    onTabChange = { if (!selectionActive && !navigationLocked) selectedTab = it },
+                    onTabChange = { tab ->
+                        if (!selectionActive && !navigationLocked) {
+                            localSelectedTab = tab
+                            onRootTabChange(tab)
+                        }
+                    },
                     folderIndex = requireNotNull(index),
                     summariesByPath = summariesByPath,
                     allImages = allPhotos,
@@ -927,25 +944,21 @@ fun LogFolderScreen(
         }
         val deleteRetry = retryDeletePlan
         if (showDeleteRetry && deleteRetry != null) {
-            AlertDialog(
-                onDismissRequest = { if (!deleteBusy) showDeleteRetry = false },
-                title = { Text("미완료 파일 삭제 확인") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("결과사진 ${deleteRetry.resultCount}장 · 원본사진 ${deleteRetry.originalCount}장")
-                        Text("총 재시도 파일 ${deleteRetry.items.size}개")
-                        Text("삭제한 사진은 되돌릴 수 없습니다.", color = DDZColor.Destructive)
-                    }
-                },
-                confirmButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Destructive, enabled = !deleteBusy && !photoMoveBusy && pendingPhotoPlan == null, onClick = {
+            // Reuse the modern photo-delete surface for retry as well.
+            // The old AlertDialog used only on this failure path is retired.
+            GalleryPhotoDeleteConfirmation(
+                selected = emptyList(),
+                allPhotos = emptyList(),
+                busy = deleteBusy,
+                retryPlan = deleteRetry,
+                onCancel = { if (!deleteBusy) showDeleteRetry = false },
+                onConfirm = { /* Retry uses onRetry; no new plan is prepared. */ },
+                onRetry = {
+                    if (!deleteBusy && !photoMoveBusy && pendingPhotoPlan == null) {
                         showDeleteRetry = false
                         folderOperationError = null
                         deleteAction.request(deleteRetry)
-                    }) { Text("삭제 재시도") }
-                },
-                dismissButton = {
-                    DDZDialogAction(style = DDZButtonStyle.Secondary, enabled = !deleteBusy, onClick = { showDeleteRetry = false }) { Text("취소") }
+                    }
                 },
             )
         }

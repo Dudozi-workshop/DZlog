@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.domain.gallery.GalleryPhotoRowAnchorPolicy
 import com.dudoziworkshop.dzlog.domain.model.MediaImageItem
+import com.dudoziworkshop.dzlog.domain.project.CaptureProject
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryChildFolder
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndex
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
@@ -62,6 +63,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 enum class GalleryTab(val label: String) {
     ALL("전체"),
+    PROJECTS("프로젝트"),
     FAVORITES("즐겨찾기"),
 }
 
@@ -90,6 +92,8 @@ internal fun LogGalleryHomeContent(
     selectionActive: Boolean = selectedIds.isNotEmpty(),
     onLongPressPhoto: (MediaImageItem) -> Unit = {},
     onSelectPhoto: (MediaImageItem) -> Unit = {},
+    projectAlbums: List<CaptureProject> = emptyList(),
+    onOpenProjectAlbum: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.tabs")
@@ -106,12 +110,13 @@ internal fun LogGalleryHomeContent(
                         MaterialTheme.shapes.small,
                     )
                     .clickable(enabled = !selectionActive) { onTabChange(tab) }
-                    .padding(vertical = 11.dp),
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     tab.label,
                     color = if (active) DDZColor.TextPrimary else DDZColor.TextSecondary,
+                    fontSize = 14.sp,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
@@ -120,6 +125,10 @@ internal fun LogGalleryHomeContent(
 
     val root = folderIndex.relativePath
     val recent = remember(allImages) { GalleryPhotoSort.NEWEST.sorted(allImages).take(9) }
+    val orderedProjectAlbums = remember(projectAlbums) {
+        projectAlbums.sortedWith(compareByDescending<CaptureProject> { it.isActive }
+            .thenByDescending { it.createdAt })
+    }
     var folderFilter by rememberSaveable { mutableStateOf(GalleryFolderFilter.ALL) }
     var folderSort by rememberSaveable { mutableStateOf(GalleryFolderSort.NAME) }
     val shownFolders = remember(folderIndex.children, summariesByPath, folderFilter, folderSort) {
@@ -233,6 +242,20 @@ internal fun LogGalleryHomeContent(
                     }
                 }
             }
+            GalleryTab.PROJECTS -> {
+                item(key = "virtual-projects-title") {
+                    GallerySectionTitle("프로젝트별 앨범", "${orderedProjectAlbums.size}개")
+                }
+                if (orderedProjectAlbums.isEmpty()) {
+                    item { GalleryEmptyText("등록된 프로젝트가 없습니다.") }
+                } else {
+                    items(orderedProjectAlbums, key = { "virtual-project-${it.id}" }) { project ->
+                        GalleryProjectAlbumRow(project, enabled = canManageFolders) {
+                            onOpenProjectAlbum(project.id)
+                        }
+                    }
+                }
+            }
             GalleryTab.FAVORITES -> {
                 item { GallerySectionTitle("즐겨찾기", "${favorites.size}장") }
                 if (favorites.isEmpty()) {
@@ -244,6 +267,42 @@ internal fun LogGalleryHomeContent(
                 }
             }
         }
+    }
+}
+
+/** A virtual album is a read-only project view, never a physical MediaStore folder. */
+@Composable
+private fun GalleryProjectAlbumRow(
+    project: CaptureProject,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .background(DDZColor.Surface, MaterialTheme.shapes.medium)
+            .clickable(enabled = enabled, onClick = onClick)
+            .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
+            .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(DDZSpacing.compactCardContentGap),
+    ) {
+        Box(
+            modifier = Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                .clip(MaterialTheme.shapes.small)
+                .background(DDZColor.SurfaceSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Folder, contentDescription = null, tint = DDZColor.Primary)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(project.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                if (project.isActive) "진행 중 · 가상 앨범" else "완료 · 가상 앨범",
+                color = DDZColor.TextSecondary,
+                style = DDZTypography.Secondary,
+            )
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "프로젝트 사진 보기", tint = DDZColor.IconMuted)
     }
 }
 

@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
@@ -63,6 +64,8 @@ private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
 fun HomeScreen(
     tableTemplateState: TableTemplateState,
     activeTemplateName: String = "",
+    activeProjectName: String? = null,
+    onOpenProjectPicker: () -> Unit = {},
     onManageTemplates: () -> Unit = {},
     onOpenSettings: () -> Unit,
     showTutorialInvitation: Boolean = false,
@@ -145,6 +148,53 @@ fun HomeScreen(
                     }
 
                     Spacer(Modifier.height(heroTopGap))
+                    // Project is a capture target, not the active table template.
+                    // Make the two independent choices visually distinct.
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset)
+                            .clickable(onClick = onOpenProjectPicker),
+                        shape = RoundedCornerShape(12.dp),
+                        color = DDZColor.SurfaceSoft,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = DDZColor.SelectedDark,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = "촬영 프로젝트",
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.TextSecondary,
+                                )
+                                Text(
+                                    text = activeProjectName ?: "일반 촬영",
+                                    style = DDZTypography.SettingLabel,
+                                    color = DDZColor.TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Text(
+                                text = "변경",
+                                style = DDZTypography.Secondary,
+                                color = DDZColor.SelectedDark,
+                            )
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "촬영 프로젝트 선택",
+                                tint = DDZColor.SelectedDark,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
 
                     Column(
                         modifier = Modifier
