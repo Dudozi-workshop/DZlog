@@ -3,9 +3,12 @@ package com.dudoziworkshop.dzlog.feature.table.preview
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.dudoziworkshop.dzlog.feature.table.render.computeResolvedRenderLayout
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class TablePreviewPlaceholderPolicyTest {
     @Test
     fun placeholder_labels_do_not_expand_column_geometry() {
@@ -31,6 +34,13 @@ class TablePreviewPlaceholderPolicyTest {
             cols = 2,
             valueScale = 100,
         )
+        val withLabel = computeResolvedRenderLayout(
+            cells = displayCells,
+            rows = 2,
+            cols = 2,
+            valueScale = 100,
+        )
+        assertTrue(withLabel.intrinsicColWidthsPx[0] > fromCamera.intrinsicColWidthsPx[0])
         assertEquals(fromCamera.intrinsicColWidthsPx, fromEditor.intrinsicColWidthsPx)
         assertEquals(fromCamera.intrinsicRowHeightsPx, fromEditor.intrinsicRowHeightsPx)
         assertEquals(fromCamera.finalColWeights, fromEditor.finalColWeights)
