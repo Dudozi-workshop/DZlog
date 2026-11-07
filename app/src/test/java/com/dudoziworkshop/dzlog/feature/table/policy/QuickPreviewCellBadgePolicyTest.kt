@@ -9,12 +9,10 @@ import org.junit.Test
 class QuickPreviewCellBadgePolicyTest {
     private fun plan(
         width: Float,
-        height: Float = 40f,
         links: QuickCellLinks = QuickCellLinks(true, true),
         editable: Boolean = false,
     ) = quickPreviewCellBadgePlan(
         widthPx = width,
-        heightPx = height,
         idealSizePx = 12f,
         minimumSizePx = 8f,
         insetPx = 4f,
@@ -22,36 +20,44 @@ class QuickPreviewCellBadgePolicyTest {
         editable = editable,
     )
 
-    @Test fun roomy_cell_displays_type_both_naming_links_and_lock() {
+    @Test fun roomy_cell_displays_all_type_naming_and_lock_markers() {
         val badges = plan(width = 100f)
         assertTrue(badges.type)
         assertTrue(badges.fileName)
         assertTrue(badges.path)
         assertTrue(badges.locked)
+        assertFalse(badges.compact)
         assertEquals(12f, badges.sizePx, 0f)
     }
 
-    @Test fun narrow_cell_keeps_type_then_naming_before_lock() {
+    @Test fun narrow_cell_keeps_all_markers_and_switches_to_compact_layout() {
         val badges = plan(width = 37f)
         assertTrue(badges.type)
         assertTrue(badges.fileName)
-        assertFalse(badges.path)
-        assertFalse(badges.locked)
+        assertTrue(badges.path)
+        assertTrue(badges.locked)
+        assertTrue(badges.compact)
     }
 
-    @Test fun very_narrow_cell_preserves_type_instead_of_hiding_all_markers() {
-        val badges = plan(width = 24f)
+    @Test fun extremely_narrow_cell_never_hides_information() {
+        val badges = plan(width = 1f)
         assertTrue(badges.type)
-        assertFalse(badges.fileName)
-        assertFalse(badges.path)
+        assertTrue(badges.fileName)
+        assertTrue(badges.path)
+        assertTrue(badges.locked)
+        assertTrue(badges.compact)
     }
 
-    @Test fun too_small_cell_hides_badges_without_generating_invalid_sizes() {
-        assertFalse(plan(width = 100f, height = 14f).type)
-        assertFalse(plan(width = 10f).type)
+    @Test fun zero_width_still_keeps_metadata_for_overflow_strip() {
+        val badges = plan(width = 0f, editable = true)
+        assertTrue(badges.type)
+        assertTrue(badges.fileName)
+        assertTrue(badges.path)
+        assertFalse(badges.locked)
+        assertTrue(badges.compact)
     }
 
-    @Test fun cell_type_markers_cover_all_six_types() {
+    @Test fun cell_type_labels_cover_all_six_types() {
         assertEquals("텍스트", quickCellTypeLabel(TableCellDataType.TEXT))
         assertEquals("숫자", quickCellTypeLabel(TableCellDataType.NUMBER))
         assertEquals("날짜", quickCellTypeLabel(TableCellDataType.DATE))
@@ -66,5 +72,6 @@ class QuickPreviewCellBadgePolicyTest {
         assertFalse(badges.fileName)
         assertFalse(badges.path)
         assertFalse(badges.locked)
+        assertFalse(badges.compact)
     }
 }
