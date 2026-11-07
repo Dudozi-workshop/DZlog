@@ -68,24 +68,24 @@ class RotatingPhraseCsvCodecTest {
 
     @Test fun bothCsvVariantsSortPeriodsWithTheirPhraseRows() {
         val imported = RotatingPhraseCsvCodec.decode(
-            "order,phrase,every\\n3,C,3\\n1,A,\\n2,B,5\\n"
+            "order,phrase,every\n3,C,3\n1,A,\n2,B,5\n"
         ) as RotatingPhraseCsvCodec.ImportResult.Success
         assertEquals(listOf("A", "B", "C"), imported.items)
         assertEquals(listOf(null, 5, 3), imported.itemEveryOverrides)
-        val legacy = RotatingPhraseCsvCodec.decode("order,phrase\\n2,B\\n1,A\\n")
+        val legacy = RotatingPhraseCsvCodec.decode("order,phrase\n2,B\n1,A\n")
             as RotatingPhraseCsvCodec.ImportResult.Success
         assertEquals(listOf("A", "B"), legacy.items)
         assertEquals(listOf(null, null), legacy.itemEveryOverrides)
     }
 
     @Test fun invalidPeriodsNeverSilentlyOverwriteSavedSet() {
-        invalid("order,phrase,every\\n1,A,0")
-        invalid("order,phrase,every\\n1,A,-1")
-        invalid("order,phrase,every\\n1,A,abc")
-        invalid("order,phrase,every\\n1,A,1.5")
-        invalid("order,phrase,every\\n1,A,2147483648")
-        invalid("order,phrase,every\\n1,A")
-        invalid("order,phrase\\n1,A,3")
+        invalid("order,phrase,every\n1,A,0")
+        invalid("order,phrase,every\n1,A,-1")
+        invalid("order,phrase,every\n1,A,abc")
+        invalid("order,phrase,every\n1,A,1.5")
+        invalid("order,phrase,every\n1,A,2147483648")
+        invalid("order,phrase,every\n1,A")
+        invalid("order,phrase\n1,A,3")
     }
 
     @Test fun blankLinesDoNotMutateImportOrder() {
