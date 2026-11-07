@@ -40,7 +40,14 @@ jobs:
             --tests 'com.dudoziworkshop.dzlog.data.repository.CapturePendingStoreTest' \
             --tests 'com.dudoziworkshop.dzlog.data.repository.CaptureRecordReceiptMapperTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.capture.policy.CameraSelectionChangePolicyTest' \
-            --tests 'com.dudoziworkshop.dzlog.domain.quickresults.QuickResultsCaptureDeletePolicyTest'
+            --tests 'com.dudoziworkshop.dzlog.domain.quickresults.*' \
+            --tests 'com.dudoziworkshop.dzlog.domain.gallery.*' \
+            --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryViewerDeletePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryOriginalNavigationPolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.ui.log.RecentCaptureNavigationTest'
       - name: Assemble Android debug QA APK
         run: bash ./gradlew --no-daemon :app:assembleDebug --stacktrace
       - name: Store Android debug APK
