@@ -156,7 +156,7 @@ internal fun CameraQuickAutoValueEditor(
                         )
                     }
                     Text(
-                        if (isIndividual) "이 셀의 모든 문구에 $every장 고정 적용" else "전체 설정 · 현재 문구 $every장",
+                        if (isIndividual) "이 셀의 모든 문구에 ${every}장 고정 적용" else "전체 설정 · 현재 문구 ${every}장",
                         style = DDZTypography.Caption,
                         color = DDZColor.TextSecondary,
                         maxLines = 1,
