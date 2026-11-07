@@ -57,4 +57,25 @@ class TableEditorPhraseSettingsTest {
         assertEquals(counter, updated.cells[3])
     }
 
+    @Test fun perItemPeriodUpdatesOnlyResetAffectedInheritedCells() {
+        val inheritedCurrent = cell.copy(cellId = "inherited-current", colIndex = 0,
+            phraseIndex = 2, phraseCompletedShots = 5, everyOverride = null)
+        val inheritedOther = cell.copy(cellId = "inherited-other", colIndex = 1,
+            phraseIndex = 1, phraseCompletedShots = 3, everyOverride = null)
+        val fixedCurrent = cell.copy(cellId = "fixed-current", colIndex = 2,
+            phraseIndex = 2, phraseCompletedShots = 2, everyOverride = 4)
+        val working = TableTemplateState(1, 3,
+            listOf(inheritedCurrent, inheritedOther, fixedCurrent), phraseSets = listOf(set))
+        val changed = updateMockPhraseSet(working, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.setEvery(it, 2, 3)
+        }
+        assertEquals(0, changed.cells[0].phraseCompletedShots)
+        assertEquals(2, changed.cells[0].phraseIndex)
+        assertEquals(inheritedOther, changed.cells[1])
+        assertEquals(fixedCurrent, changed.cells[2])
+        assertEquals(3, changed.phraseSets.single().everyForItem(2))
+        assertEquals(12, changed.phraseSets.single().everyForItem(1))
+    }
+
+
 }
