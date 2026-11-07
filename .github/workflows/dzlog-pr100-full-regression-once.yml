@@ -36,7 +36,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Run all Android unit tests and build debug APK
-        run: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=tableparity --stacktrace
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -46,3 +46,11 @@ jobs:
             app/build/test-results/testDebugUnitTest/**
             app/build/reports/tests/testDebugUnitTest/**
           if-no-files-found: ignore
+      - name: Upload isolated PR100 QA APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-pr100-tableparity-isolated-qa-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+          if-no-files-found: error
