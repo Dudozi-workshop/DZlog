@@ -37,6 +37,8 @@ final class PreviewInteractionTests: XCTestCase {
 
     // Only the sensor JPEG is synthetic. Exercise the user settings form and
     // production configured save entry, then relaunch and read the real gallery.
+    // These quick-value checks are the focused gate; milestone validation still
+    // runs this class as part of the complete, unfiltered UI suite.
     func testQuickValuesCancelApplySaveAndRelaunch() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
