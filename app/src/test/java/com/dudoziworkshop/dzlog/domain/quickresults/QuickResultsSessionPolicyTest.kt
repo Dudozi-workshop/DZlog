@@ -180,7 +180,14 @@ class QuickResultsSessionPolicyTest {
             listOf("r2"),
             QuickResultsSessionPolicy.refreshedViewerUris(listOf("r1", "r2"), before, after),
         )
-        val ambiguous = after + after.first()
+        // A duplicate of another shutter must not hide the requested r2.
+        val unrelatedDuplicate = after + after.first()
+        assertEquals(
+            listOf("r2"),
+            QuickResultsSessionPolicy.refreshedViewerUris(listOf("r2"), before, unrelatedDuplicate),
+        )
+        // Duplicating r2 itself makes the requested shutter ambiguous.
+        val ambiguous = after + after.last()
         assertEquals(
             emptyList<String>(),
             QuickResultsSessionPolicy.refreshedViewerUris(listOf("r2"), before, ambiguous),
