@@ -49,7 +49,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -79,6 +80,10 @@ internal fun ColumnScope.MockTableCanvas(
     preserveInputScale: Boolean,
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
+    templateCells: List<TableCellState>,
+    tableWidthRatio: Int,
+    tableHeightRatio: Int,
+    captureAspect: CaptureAspect,
     onBoundaryDragStart: () -> Unit,
     onRowBoundaryDrag: (Int, Float) -> Unit,
     onColBoundaryDrag: (Int, Float) -> Unit,
@@ -101,9 +106,26 @@ internal fun ColumnScope.MockTableCanvas(
     // A selection highlight is UI-only; it must not change the camera's bold text.
     val renderedValues = remember(cells, rows, cols) { editorRenderCells(cells, rows, cols) }
     val renderedRoots = remember(cells) { editorRenderRootCells(cells) }
-    val resolvedRowWeights = TableLayoutCalculator.resolveWeights(rowWeights, rows)
-    val resolvedColWeights = TableLayoutCalculator.resolveWeights(colWeights, cols)
-    val baseTableHeight = (74.dp * rows.toFloat()).coerceIn(120.dp, 420.dp)
+    // Match the camera's content-driven cell sizing before uniform editor zoom/fit.
+    val referenceGeometry = remember(
+        renderedValues, templateCells, rows, cols, rowWeights, colWeights,
+        fontScale, tableWidthRatio, tableHeightRatio, captureAspect,
+    ) {
+        computeEditorCameraTableGeometry(
+            cells = renderedValues,
+            templateCells = templateCells,
+            rows = rows,
+            cols = cols,
+            rowWeights = rowWeights,
+            colWeights = colWeights,
+            valueScale = (fontScale * 100f).roundToInt(),
+            tableWidthRatio = tableWidthRatio,
+            tableHeightRatio = tableHeightRatio,
+            captureAspect = captureAspect,
+        )
+    }
+    val resolvedRowWeights = referenceGeometry.rowWeights
+    val resolvedColWeights = referenceGeometry.colWeights
 
     BoxWithConstraints(
         modifier = Modifier
@@ -116,11 +138,9 @@ internal fun ColumnScope.MockTableCanvas(
         // Reserve identical gutters in every tab. Handles are siblings of the grid,
         // inside the frame's hit bounds, rather than negative-offset grid children.
         val gutter = 36.dp
-        val previousWorkingWidth = (maxWidth - 52.dp).coerceAtLeast(1.dp)
         val expandedWorkingWidth = (maxWidth - gutter * 2).coerceAtLeast(1.dp)
-        val editorScale = (expandedWorkingWidth / previousWorkingWidth).coerceAtLeast(0.01f)
-        val naturalTableWidth = expandedWorkingWidth * (resolvedColWeights.sum() / cols.coerceAtLeast(1))
-        val naturalTableHeight = baseTableHeight * editorScale * (resolvedRowWeights.sum() / rows.coerceAtLeast(1))
+        val naturalTableWidth = expandedWorkingWidth
+        val naturalTableHeight = naturalTableWidth / referenceGeometry.widthToHeight
         val viewportFitScale = editorPreviewFitScale(naturalTableWidth.value, naturalTableHeight.value,
             expandedWorkingWidth.value, (maxHeight - gutter * 2).coerceAtLeast(1.dp).value)
         var unobscuredScale by remember(maxWidth, rows, cols) { mutableStateOf<Float?>(null) }
