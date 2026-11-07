@@ -390,52 +390,32 @@ fun RotatingPhraseSetEditDialog(
     }
 
     if (showItemInputDialog) {
-        var itemDraft by remember(showItemInputDialog, editingItemIndex, phraseSet.id) { mutableStateOf(itemInput) }
-        val isEdit = editingItemIndex != null
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            titleContentColor = DDZColor.TextPrimary,
-            textContentColor = DDZColor.TextPrimary,
-            onDismissRequest = ::closeItemInputDialog,
-            title = { Text(if (isEdit) "문구 수정" else "문구 추가") },
-            text = {
-                OutlinedTextField(
-                    value = itemDraft,
-                    onValueChange = { itemDraft = it },
-                    singleLine = true,
-                    label = { Text("문구") }
-                )
-            },
-            confirmButton = {
-                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = itemDraft.isNotBlank(), onClick = {
-                    val trimmed = itemDraft.trim()
-                    if (trimmed.isNotBlank()) {
-                        if (editingItemIndex == null) {
-                            itemIds.add(UUID.randomUUID().toString())
-                            onUpdateSet { RotatingPhraseSetItemPolicy.addItem(it, trimmed) }
-                            // Show the newly added phrase even if the previous query hid it.
-                            searchQuery = ""
-                        } else {
-                            val idx = editingItemIndex!!
-                            onUpdateSet { set ->
-                                if (idx !in set.items.indices) {
-                                    set
-                                } else {
-                                    RotatingPhraseSetItemPolicy.renameItem(set, idx, trimmed)
-                                }
-                            }
-                        }
+        val itemIndex = editingItemIndex
+        RotatingPhraseItemEditDialog(
+            initialText = itemInput,
+            initialEvery = itemIndex?.let { phraseSet.itemEveryOverrides.getOrNull(it) },
+            defaultEvery = phraseSet.defaultEvery,
+            isEdit = itemIndex != null,
+            onDismiss = ::closeItemInputDialog,
+            onSave = { text, every ->
+                if (itemIndex == null) {
+                    itemIds.add(UUID.randomUUID().toString())
+                    onUpdateSet { set ->
+                        val appended = RotatingPhraseSetItemPolicy.addItem(set, text)
+                        RotatingPhraseSetItemPolicy.setEvery(appended, appended.items.lastIndex, every)
                     }
-                    closeItemInputDialog()
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
+                    searchQuery = ""
+                } else {
+                    onUpdateSet { set ->
+                        RotatingPhraseSetItemPolicy.setEvery(
+                            RotatingPhraseSetItemPolicy.renameItem(set, itemIndex, text),
+                            itemIndex,
+                            every,
+                        )
+                    }
                 }
+                closeItemInputDialog()
             },
-            dismissButton = {
-                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeItemInputDialog) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
         )
     }
 
