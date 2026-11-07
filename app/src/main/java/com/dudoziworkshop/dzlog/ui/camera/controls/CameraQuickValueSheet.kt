@@ -390,6 +390,18 @@ internal fun CameraQuickValueSheet(
                                         val updated = selectQuickPhraseSet(draft.template, selected.cellId, id)
                                         if (updated != draft.template) { draft.template = updated; draft.dirty = true }
                                     },
+                                    onPhraseItem = { index ->
+                                        val updated = selectQuickPhraseItem(draft.template, selected.cellId, index)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
+                                    onPhraseEvery = { every ->
+                                        val updated = updateQuickPhraseEvery(draft.template, selected.cellId, every)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
+                                    onPhraseCompleted = { completed ->
+                                        val updated = updateQuickPhraseCompleted(draft.template, selected.cellId, completed)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
                                 )
                             } else {
                             val value = values[selected.cellId] ?: TextFieldValue(selected.rawText)
