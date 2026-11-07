@@ -72,6 +72,9 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         } else {
                             periodsJson.optInt(index, 0).takeIf { it >= 1 }
                         }
+                    }.let { values ->
+                        // Exact legacy data class equality and round-trip semantics.
+                        if (values.all { it == null }) emptyList() else values
                     }
 
                     add(
