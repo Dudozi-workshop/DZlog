@@ -62,8 +62,12 @@ internal object RotatingPhraseCsvCodec {
                 return failure((index + 2).toString() + "행 문구에는 줄바꿈을 넣을 수 없습니다.")
             }
             val rawEvery = if (extended) row[2].trim() else ""
-            val every = if (rawEvery.isEmpty()) null else rawEvery.toIntOrNull()?.takeIf { it >= 1 }
-                ?: return failure((index + 2).toString() + "행의 변경 주기는 1 이상의 숫자이거나 빈칸이어야 합니다.")
+            val every: Int? = if (rawEvery.isEmpty()) {
+                null
+            } else {
+                rawEvery.toIntOrNull()?.takeIf { it >= 1 }
+                    ?: return failure((index + 2).toString() + "행의 변경 주기는 1 이상의 숫자이거나 빈칸이어야 합니다.")
+            }
             numbered += Row(order, phrase, every)
         }
         val sorted = numbered.sortedBy { it.order }
