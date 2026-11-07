@@ -9,17 +9,16 @@ internal fun quickRootCells(template: TableTemplateState): List<TableCellState> 
         cell.colIndex in other.colIndex until other.colIndex + other.colSpan }
 }
 
-internal fun quickEditableCells(template: TableTemplateState): List<TableCellState> {
-    val manual = quickRootCells(template).filter { it.quickEditable && (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER) }
+internal fun quickEditableCells(template: TableTemplateState): List<TableCellState> =
+    quickRootCells(template)
+        .filter { it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
-    return manual
-}
 
 internal fun updateQuickCellValues(template: TableTemplateState, values: Map<String, String>): TableTemplateState =
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
         when {
-            !cell.quickEditable || text == null || text == cell.rawText -> cell
+            text == null || text == cell.rawText -> cell
             cell.dataType == TableCellDataType.TEXT -> cell.copy(rawText = text, typedValue = CellValue.Text(text))
             cell.dataType == TableCellDataType.NUMBER -> cell.copy(rawText = text, typedValue = CellValue.Number(text))
             else -> cell

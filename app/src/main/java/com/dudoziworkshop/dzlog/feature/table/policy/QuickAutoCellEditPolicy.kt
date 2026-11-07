@@ -5,14 +5,13 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
 /**
- * Quick editing is opt-in per cell. Counters are deliberately excluded:
- * changing a counter seed would bypass the existing counter synchronisation rules.
+ * Quick editing is available for every visible root cell except counters.
+ * Counter seeds remain protected by the capture counter synchronisation rules.
+ * The legacy quickEditable flag is ignored for existing templates.
  */
 internal fun quickSelectableCells(template: TableTemplateState): List<TableCellState> =
     quickRootCells(template)
-        .filter { cell ->
-            cell.quickEditable && cell.dataType != TableCellDataType.COUNTER
-        }
+        .filter { it.dataType != TableCellDataType.COUNTER }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
 
 internal val quickDateFormats: List<String> = listOf("yyyyMMdd", "yyMMdd", "MMdd")
@@ -25,7 +24,6 @@ internal fun updateQuickDateFormat(
     if (pattern !in quickDateFormats) return template
     val target = template.cells.firstOrNull {
         it.cellId == cellId &&
-            it.quickEditable &&
             it.dataType == TableCellDataType.DATE
     } ?: return template
     if (target.formatPattern == pattern) return template
@@ -45,7 +43,6 @@ internal fun selectQuickPhraseSet(
     if (template.phraseSets.none { it.id == phraseSetId && it.items.isNotEmpty() }) return template
     val target = template.cells.firstOrNull {
         it.cellId == cellId &&
-            it.quickEditable &&
             it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
     if (target.phraseSetId == phraseSetId) return template

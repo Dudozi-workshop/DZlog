@@ -6,10 +6,10 @@ import org.junit.Test
 
 class QuickAutoCellEditPolicyTest {
     private val text = TableCellState(0, 0, cellId = "text")
-    private val date = TableCellState(0, 1, cellId = "date", dataType = TableCellDataType.DATE)
+    private val date = TableCellState(0, 1, cellId = "date", dataType = TableCellDataType.DATE, quickEditable = false)
     private val time = TableCellState(0, 2, cellId = "time", dataType = TableCellDataType.TIME)
     private val phrase = TableCellState(1, 0, cellId = "phrase", dataType = TableCellDataType.ROTATING_TEXT,
-        phraseSetId = "old", phraseIndex = 2, phraseCompletedShots = 1)
+        phraseSetId = "old", phraseIndex = 2, phraseCompletedShots = 1, quickEditable = false)
     private val counter = TableCellState(1, 1, cellId = "counter", dataType = TableCellDataType.COUNTER)
     private val hidden = TableCellState(1, 2, cellId = "hidden", quickEditable = false)
     private val template = TableTemplateState(2, 3, listOf(phrase, counter, time, text, hidden, date),
@@ -17,8 +17,8 @@ class QuickAutoCellEditPolicyTest {
             RotatingPhraseSet("old", "Existing", listOf("A", "B", "C")),
             RotatingPhraseSet("new", "New", listOf("X", "Y"))
         ))
-    @Test fun `only eligible visible cells are selectable`() {
-        assertEquals(listOf("text", "date", "time", "phrase"), quickSelectableCells(template).map { it.cellId })
+    @Test fun `all visible cells except counters are selectable regardless of legacy flag`() {
+        assertEquals(listOf("text", "date", "time", "phrase", "hidden"), quickSelectableCells(template).map { it.cellId })
     }
     @Test fun `date changes only supported format and leaves all other cells untouched`() {
         val changed = updateQuickDateFormat(template, "date", "yyMMdd")

@@ -31,6 +31,20 @@ class QuickCellValuePolicyTest {
         assertEquals("-", updateQuickCellValues(changed, mapOf("number" to "-")).cells[1].rawText)
     }
 
+    @Test fun legacyLockedTextAndNumberRemainEditable() {
+        val heading = TableCellState(0, 0, cellId = "heading", rawText = "title", quickEditable = false)
+        val number = TableCellState(0, 1, cellId = "number", dataType = TableCellDataType.NUMBER,
+            rawText = "7", quickEditable = false)
+        val counter = TableCellState(0, 2, cellId = "counter", dataType = TableCellDataType.COUNTER,
+            typedValue = CellValue.CounterSeed(8), quickEditable = false)
+        val template = TableTemplateState(1, 3, listOf(heading, number, counter))
+        assertEquals(listOf("heading", "number"), quickEditableCells(template).map { it.cellId })
+        val changed = updateQuickCellValues(template, mapOf("heading" to "new title", "number" to "8.00", "counter" to "999"))
+        assertEquals(CellValue.Text("new title"), changed.cells[0].typedValue)
+        assertEquals(CellValue.Number("8.00"), changed.cells[1].typedValue)
+        assertEquals(counter, changed.cells[2])
+    }
+
     @Test fun navigationSkipsAutomaticAndCoveredCellsAndStopsAtEnds() {
         val text = TableCellState(0, 0, cellId = "text", colSpan = 2)
         val covered = TableCellState(0, 1, cellId = "covered")
