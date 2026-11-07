@@ -12,8 +12,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class MergedTableCellDrawPlanTest {
     @Test
     fun covered_positions_are_hidden_and_anchor_spans_the_entire_merge() {
@@ -66,7 +68,7 @@ class MergedTableCellDrawPlanTest {
             mergedRootCells = listOf(RenderRootCell("merged", 0, 0, 1, 2)),
         )
         assertEquals(0, Color.alpha(bitmap.getPixel(120, 25)))
-        assertTrue(Color.alpha(bitmap.getPixel(120, 90)) > 0)
+        assertTrue("Expected unmerged boundary pixel to be painted using native graphics; alpha=" + Color.alpha(bitmap.getPixel(120, 90)), Color.alpha(bitmap.getPixel(120, 90)) > 0)
     }
 
     @Test
