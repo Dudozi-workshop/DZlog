@@ -1,0 +1,68 @@
+name: Quick Preview Cell Badges QA
+
+on:
+  push:
+    branches:
+      - fix/quick-preview-cell-indicators-20261107
+    paths:
+      - '.github/workflows/dzlog-quick-preview-badges-qa.yml'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickPreviewCellBadgePolicy.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/QuickPreviewCellBadges.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickTablePreview.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickPreviewCellBadgePolicyTest.kt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-test-isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Compile and run quick preview policy regression
+        run: |
+          bash ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellPresentationPolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest' \
+            --tests 'com.dudoziworkshop.dzlog.feature.table.render.CameraTableResolutionTest' \
+            --stacktrace
+      - name: Build isolated preview QA app
+        run: |
+          bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=badges --stacktrace
+      - name: Upload isolated APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-quick-preview-badges-qa-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-quick-preview-badges-test-report
+          path: |
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/tests/testDebugUnitTest/**
+          if-no-files-found: ignore
