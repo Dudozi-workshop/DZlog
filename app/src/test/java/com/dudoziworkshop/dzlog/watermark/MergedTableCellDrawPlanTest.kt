@@ -67,8 +67,19 @@ class MergedTableCellDrawPlanTest {
             drawGrid = true,
             mergedRootCells = listOf(RenderRootCell("merged", 0, 0, 1, 2)),
         )
-        assertEquals(0, Color.alpha(bitmap.getPixel(120, 25)))
-        assertTrue("Expected unmerged boundary pixel to be painted using native graphics; alpha=" + Color.alpha(bitmap.getPixel(120, 90)), Color.alpha(bitmap.getPixel(120, 90)) > 0)
+        // A 1.2px antialiased stroke can land on either side of x=120.
+        // Verify the small stroke neighborhood instead of a single raster pixel.
+        fun maxAlphaNear(x: Int, y: Int): Int =
+            (-2..2).maxOf { dx ->
+                (-2..2).maxOf { dy ->
+                    Color.alpha(bitmap.getPixel(x + dx, y + dy))
+                }
+            }
+        assertEquals("Merged internal boundary must remain transparent", 0, maxAlphaNear(120, 25))
+        assertTrue(
+            "Unmerged boundary must remain visible",
+            maxAlphaNear(120, 90) > 0,
+        )
     }
 
     @Test
