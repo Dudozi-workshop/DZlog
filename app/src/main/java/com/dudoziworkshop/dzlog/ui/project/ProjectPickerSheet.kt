@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
  * Creation and management remain in ProjectListScreen. The active selection
  * changes only through the caller's persisted project-selection callback.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProjectPickerSheet(
     projects: List<CaptureProject>,
