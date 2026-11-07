@@ -80,7 +80,7 @@ internal object OnboardingStarterCatalog {
             TableCellState(
                 rowIndex = 0, colIndex = col, kind = TableCellKind.BASE,
                 rawText = label, typedValue = CellValue.Text(label),
-                dataType = TableCellDataType.TEXT, quickEditable = false,
+                dataType = TableCellDataType.TEXT,
             )
         }
         val inputs = def.labels.indices.map { col ->
