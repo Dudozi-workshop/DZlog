@@ -17,7 +17,7 @@ on:
       scope:
         description: 'settings = settings/catalog relaunch only; navigation = settings+editor; editor = editor only; full = all UI'
         type: choice
-        options: [full, settings, editor, navigation]
+        options: [full, settings, editor, navigation, media, quick-values]
         default: full
 permissions:
   contents: read
@@ -27,7 +27,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   simulator-ui:
-    runs-on: macos-14
+    # macOS 14 retired on 2026-11-02. Use a supported arm64 image and fixed Xcode.
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -38,10 +41,18 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const sameRepoDraft = pr?.draft === true && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
+            // A milestone commit can request integration UI without promoting a Draft PR.
+            const message = sameRepoDraft ? (await github.rest.repos.getCommit({
+              ...context.repo, ref: pr.head.sha,
+            })).data.commit.message : '';
+            const milestone = sameRepoDraft && message.includes('[ios-full-ui]');
             const scope = context.eventName === 'workflow_dispatch'
               ? context.payload.inputs.scope
-              : sameRepoDraft && context.payload.action !== 'ready_for_review' ? 'settings' : 'full';
-            if (!['settings', 'editor', 'navigation', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
+              : milestone ? 'full'
+              : sameRepoDraft && context.payload.action !== 'ready_for_review' && message.includes('[ios-quick-values]') ? 'quick-values'
+              : sameRepoDraft && context.payload.action !== 'ready_for_review'
+                ? (pr.title?.includes('M3-A') ? 'media' : 'settings') : 'full';
+            if (!['settings', 'editor', 'navigation', 'media', 'quick-values', 'full'].includes(scope)) throw new Error('Invalid UI test scope');
             core.setOutput('value', scope);
             await core.summary.addHeading(`iOS UI scope: ${scope}`)
               .addRaw(scope !== 'full'
@@ -76,9 +87,18 @@ jobs:
         with:
           path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
           key: dzlog-ui-framework-v1-${{ github.event.pull_request.number }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ steps.reuse.outputs.framework }}
-      - name: Build existing shared UI for iPhone and simulator
+      - name: Build shared UI for selected validation scope
         if: steps.reuse.outputs.run != 'false' && steps.framework-cache.outputs.cache-hit != 'true'
-        run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:compileKotlinIosArm64 :sharedUi:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+        env:
+          DZLOG_UI_TEST_SCOPE: ${{ steps.scope.outputs.value }}
+        run: |
+          # Focused Draft checks compile only the simulator framework they execute.
+          # Full/integration checks still compile native iPhone code as a release gate.
+          tasks=(:sharedUi:linkDebugFrameworkIosSimulatorArm64)
+          if [ "$DZLOG_UI_TEST_SCOPE" = "full" ]; then
+            tasks=(:sharedUi:compileKotlinIosArm64 "${tasks[@]}")
+          fi
+          bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true "${tasks[@]}" --stacktrace
       - name: Save compiled framework even if later UI tests fail
         if: steps.reuse.outputs.run != 'false' && steps.reuse.outputs.framework != '' && steps.framework-cache.outputs.cache-hit != 'true'
         continue-on-error: true
@@ -86,6 +106,16 @@ jobs:
         with:
           path: sharedUi/build/bin/iosSimulatorArm64/debugFramework
           key: ${{ steps.framework-cache.outputs.cache-primary-key }}
+      - name: Focused iOS quick values and persistence (partial development check)
+        if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'quick-values'
+        env:
+          DZLOG_UI_TEST_SCOPE: quick-values
+        run: bash scripts/ios/test-ui-poc.sh
+      - name: Focused iOS PhotoKit media save and relaunch
+        if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'media'
+        env:
+          DZLOG_UI_TEST_SCOPE: media
+        run: bash scripts/ios/test-ui-poc.sh
       - name: Focused iOS settings and catalog relaunch (partial development check)
         if: steps.reuse.outputs.run != 'false' && steps.scope.outputs.value == 'settings'
         env:
@@ -114,3 +144,4 @@ jobs:
           path: build/ios-poc/evidence/**
           if-no-files-found: warn
           retention-days: 7
+
