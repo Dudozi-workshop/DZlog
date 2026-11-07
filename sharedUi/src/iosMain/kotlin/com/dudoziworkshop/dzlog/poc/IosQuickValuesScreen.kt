@@ -7,6 +7,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.EditorDocument
 import com.dudoziworkshop.dzlog.domain.model.*
@@ -78,12 +80,16 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             for (cell in cells) {
                 val kind = if (cell.dataType == TableCellDataType.NUMBER) "숫자" else "텍스트"
+                val fieldLabel = "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열 · $kind"
                 OutlinedTextField(value = values[cell.cellId].orEmpty(), onValueChange = { value ->
                     values[cell.cellId] = if (cell.dataType == TableCellDataType.NUMBER)
                         decimalInputOrPrevious(value, values[cell.cellId].orEmpty()) else value
                     failure = null
-                }, label = { Text("${cell.rowIndex + 1}행 ${cell.colIndex + 1}열 · $kind") },
-                    modifier = Modifier.fillMaxWidth())
+                }, label = { Text(fieldLabel) },
+                    // iOS Compose exports the editable value but can omit the
+                    // Material floating label. Preserve position/type for VoiceOver
+                    // and touch-based UI selection even when the value is empty.
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = fieldLabel })
                 val links = quickCellLinks(document.template.templateState, cell.cellId)
                 if (links.description.isNotEmpty()) Text(links.description)
             }
