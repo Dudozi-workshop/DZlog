@@ -54,7 +54,6 @@ import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.feature.table.render.buildRenderedTableScene
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import android.graphics.RectF
