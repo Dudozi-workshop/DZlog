@@ -94,7 +94,7 @@ class CameraTableResolutionTest {
             TableCellState(
                 rowIndex = index / 2,
                 colIndex = index % 2,
-                rowSpan = if (index == 0) 1 else 1,
+                rowSpan = 1,
                 colSpan = if (index == 0) 2 else 1,
             )
         }
