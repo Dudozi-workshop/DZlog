@@ -31,8 +31,12 @@ class QuickRotatingPhrasePolicyTest {
             RotatingPhraseSet("first", "생육 조사", listOf("초기", "중간", "최종"), defaultEvery = 2),
             RotatingPhraseSet("second", "처리구", listOf("대조구", "처리구"), defaultEvery = 4),
         ),
-        fileNameSlotDrafts = listOf(TableEditorSlotDraft("CELL", "문구", "phrase-a")),
-        pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "폴더", "phrase-a")),
+        fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
+            if (it == 0) TableEditorSlotDraft("CELL", "문구", "phrase-a") else null
+        },
+        pathSlotDrafts = List(PATH_SLOT_UI_MAX_COUNT) {
+            if (it == 0) TableEditorSlotDraft("CELL", "폴더", "phrase-a") else null
+        },
     )
 
     @Test fun `selecting phrase chooses next capture and resets only its completed count`() {
@@ -65,9 +69,7 @@ class QuickRotatingPhrasePolicyTest {
         assertEquals(4, changed.cells[0].everyOverride)
         assertEquals(other, changed.cells[1])
         assertEquals(template.phraseSets, changed.phraseSets)
-        assertEquals(4, CellPhraseProgressPolicy.current(changed.cells[0], changed.phraseSets[0]).let {
-            (changed.cells[0].everyOverride ?: changed.phraseSets[0].defaultEvery)
-        })
+        assertEquals(0, CellPhraseProgressPolicy.current(changed.cells[0], changed.phraseSets[0]).completedShots)
         val defaulted = updateQuickPhraseEvery(changed, "phrase-a", 2)
         assertNull(defaulted.cells[0].everyOverride)
         assertEquals(0, defaulted.cells[0].phraseCompletedShots)
