@@ -53,6 +53,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -138,10 +139,7 @@ fun RotatingPhraseSetEditDialog(
                     return@onUpdateSet set
                 }
 
-                val newList = items.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
-                }
-                set.copy(items = newList)
+                RotatingPhraseSetItemPolicy.moveItem(set, fromIndex, toIndex)
             }
 
             val fromIndex = from.index - 1
@@ -160,7 +158,7 @@ fun RotatingPhraseSetEditDialog(
             modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = DDZColor.Background,
             topBar = {
-                DDZTopBar(title = "순환문구", onBack = onClose, actions = {
+                DDZTopBar(title = phraseSet.name, onBack = onClose, actions = {
                     Box {
                         DDZTopBarIconButton(Icons.Default.MoreVert, "세트 메뉴", { showMenu = true })
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
@@ -194,16 +192,6 @@ fun RotatingPhraseSetEditDialog(
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
                         }
                     }
-                    // Keep CSV tools inside the existing first lazy item, so phrase
-                    // row indices in the drag/reorder policy remain unchanged.
-                    RotatingPhraseCsvActions(
-                        phraseSet = phraseSet,
-                        onReplaceItems = { imported ->
-                            if (phraseSet.items != imported) {
-                                onUpdateSet { it.copy(items = imported) }
-                            }
-                        },
-                    )
                     // Within the existing header item: preserve the 1-based drag
                     // offsets used by the reorderable list for unfiltered rows.
                     Column(
@@ -270,7 +258,7 @@ fun RotatingPhraseSetEditDialog(
                             IconButton(onClick = {
                                 if (index in itemIds.indices) itemIds.removeAt(index)
                                 onUpdateSet { set ->
-                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                    RotatingPhraseSetItemPolicy.removeItem(set, index)
                                 }
                             }) {
                                 Icon(Icons.Default.DeleteOutline, "문구 삭제", tint = DDZColor.IconMuted)
@@ -343,11 +331,23 @@ fun RotatingPhraseSetEditDialog(
                             }
                             Text(
                                 "변경한 내용은 표 편집에서 저장하면 적용돼요.",
-                                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
+                                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
                                 style = DDZTypography.Caption,
                                 color = DDZColor.TextSecondary,
                             )
                         }
+                        // Keep low-frequency file operations below phrase and number settings.
+                        RotatingPhraseCsvActions(
+                            phraseSet = phraseSet,
+                            onReplaceItems = { imported, periods ->
+                                if (phraseSet.items != imported ||
+                                    RotatingPhraseSetItemPolicy.overrides(phraseSet) != periods) {
+                                    onUpdateSet {
+                                        RotatingPhraseSetItemPolicy.replaceItems(it, imported, periods)
+                                    }
+                                }
+                            },
+                        )
                     }
                 }
             }
@@ -412,7 +412,7 @@ fun RotatingPhraseSetEditDialog(
                     if (trimmed.isNotBlank()) {
                         if (editingItemIndex == null) {
                             itemIds.add(UUID.randomUUID().toString())
-                            onUpdateSet { it.copy(items = it.items + trimmed) }
+                            onUpdateSet { RotatingPhraseSetItemPolicy.addItem(it, trimmed) }
                             // Show the newly added phrase even if the previous query hid it.
                             searchQuery = ""
                         } else {
@@ -421,11 +421,7 @@ fun RotatingPhraseSetEditDialog(
                                 if (idx !in set.items.indices) {
                                     set
                                 } else {
-                                    set.copy(
-                                        items = set.items.mapIndexed { i, value ->
-                                            if (i == idx) trimmed else value
-                                        }
-                                    )
+                                    RotatingPhraseSetItemPolicy.renameItem(set, idx, trimmed)
                                 }
                             }
                         }
