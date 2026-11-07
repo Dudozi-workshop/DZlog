@@ -230,7 +230,8 @@ internal fun updateMockPhraseSet(
             cells = state.cells.map { cell ->
                 if (cell.phraseSetId == phraseSetId && old.items != updated.items)
                     cell.copy(phraseIndex = 0, phraseCompletedShots = 0)
-                else if (cell.phraseSetId == phraseSetId && old.defaultEvery != updated.defaultEvery && cell.everyOverride == null)
+                else if (cell.phraseSetId == phraseSetId && cell.everyOverride == null &&
+                    old.everyForItem(cell.phraseIndex) != updated.everyForItem(cell.phraseIndex))
                     cell.copy(phraseCompletedShots = 0)
                 else cell
             },
