@@ -1,19 +1,10 @@
 package com.dudoziworkshop.dzlog.ui.table.section
 
 /**
- * Shared slot and editor-mode models retained for compatibility with the
+ * Shared filename/path slot models retained for compatibility with the
  * existing table structure and filename/path editor policies.
  * The retired LayoutTab screen state and action contracts are not used by V2.
  */
-enum class BottomEditorPanelMode {
-    NONE,
-    STRUCTURE_EDIT,
-    STYLE_EDIT,
-    CELL_EDIT,
-    FILENAME_EDIT,
-    PATH_EDIT
-}
-
 enum class FileNameSlotKind {
     CELL,
     FORMAT,
