@@ -1,29 +1,32 @@
 package com.dudoziworkshop.dzlog.domain.phrase
 
 /**
- * UTF-8 CSV interchange for ONE rotating phrase set. Only the ordered phrase
- * list is transferred; IDs, counter modes, capture progress and other cells
- * never appear in the file.
- *
- * File format: order,phrase (1-based sequential order, RFC 4180 quotes).
+ * UTF-8 CSV for one phrase set.
+ * New format: order,phrase,every. Empty every = inherit the set default.
+ * Older order,phrase CSVs remain importable as entirely inherited entries.
+ * Other cell progress, IDs, and number-progress modes are never transferred.
  */
 internal object RotatingPhraseCsvCodec {
     const val MAX_ITEMS: Int = 1000
     private const val MAX_TEXT_LENGTH: Int = 500
     private const val MAX_FILE_LENGTH: Int = 1_000_000
-    private const val HEADER: String = "order,phrase"
+    private const val HEADER = "order,phrase,every"
 
     sealed interface ImportResult {
-        data class Success(val items: List<String>) : ImportResult
+        data class Success(
+            val items: List<String>,
+            val itemEveryOverrides: List<Int?> = emptyList(),
+        ) : ImportResult
         data class Failure(val message: String) : ImportResult
     }
 
-    fun encode(items: List<String>): String = buildString {
-        append('\uFEFF') // Excel recognizes UTF-8 Korean reliably.
+    fun encode(items: List<String>, itemEveryOverrides: List<Int?> = emptyList()): String = buildString {
+        append('\uFEFF')
         append(HEADER).append("\r\n")
         items.forEachIndexed { index, phrase ->
             append(index + 1).append(',')
-            append('"').append(phrase.replace("\"", "\"\"")).append('"')
+            append('"').append(phrase.replace("\"", "\"\"")).append('"').append(',')
+            itemEveryOverrides.getOrNull(index)?.takeIf { it >= 1 }?.let { append(it) }
             append("\r\n")
         }
     }
@@ -32,31 +35,42 @@ internal object RotatingPhraseCsvCodec {
         if (csv.length > MAX_FILE_LENGTH) return failure("CSV 파일이 너무 큽니다 (최대 1 MB).")
         val rows = parseRows(csv.removePrefix("\uFEFF"))
             ?: return failure("CSV 형식이 올바르지 않습니다. 따옴표와 열 구성을 확인하세요.")
-        if (rows.isEmpty() || rows[0].size != 2 ||
-            rows[0][0].trim().lowercase() != "order" ||
-            rows[0][1].trim().lowercase() != "phrase"
-        ) return failure("첫 줄은 order,phrase 형식이어야 합니다.")
+        if (rows.isEmpty()) return failure("CSV 파일이 비어 있습니다.")
+        val header = rows[0].map { it.trim().lowercase() }
+        val legacy = header == listOf("order", "phrase")
+        val extended = header == listOf("order", "phrase", "every")
+        if (!legacy && !extended) {
+            return failure("첫 줄은 order,phrase,every 또는 기존 order,phrase 형식이어야 합니다.")
+        }
         val data = rows.drop(1)
         if (data.isEmpty()) return failure("가져올 문구가 없습니다. 기존 목록은 유지됩니다.")
         if (data.size > MAX_ITEMS) return failure("문구는 최대 1000개까지 가져올 수 있습니다.")
 
-        val numbered = ArrayList<Pair<Int, String>>(data.size)
+        data class Row(val order: Int, val phrase: String, val every: Int?)
+        val numbered = ArrayList<Row>(data.size)
         for ((index, row) in data.withIndex()) {
-            if (row.size != 2) return failure((index + 2).toString() + "행의 열 개수가 올바르지 않습니다.")
+            if (row.size != header.size) {
+                return failure((index + 2).toString() + "행의 열 개수가 올바르지 않습니다.")
+            }
             val order = row[0].trim().toIntOrNull()
                 ?: return failure((index + 2).toString() + "행의 순서는 숫자여야 합니다.")
             val phrase = row[1].trim()
             if (order !in 1..MAX_ITEMS) return failure((index + 2).toString() + "행의 순서는 1 이상이어야 합니다.")
             if (phrase.isEmpty()) return failure((index + 2).toString() + "행의 문구가 비어 있습니다.")
             if (phrase.length > MAX_TEXT_LENGTH) return failure((index + 2).toString() + "행의 문구가 너무 깁니다.")
-            if ('\n' in phrase || '\r' in phrase) return failure((index + 2).toString() + "행 문구에는 줄바꿈을 넣을 수 없습니다.")
-            numbered += order to phrase
+            if ('\n' in phrase || '\r' in phrase) {
+                return failure((index + 2).toString() + "행 문구에는 줄바꿈을 넣을 수 없습니다.")
+            }
+            val rawEvery = if (extended) row[2].trim() else ""
+            val every = if (rawEvery.isEmpty()) null else rawEvery.toIntOrNull()?.takeIf { it >= 1 }
+                ?: return failure((index + 2).toString() + "행의 변경 주기는 1 이상의 숫자이거나 빈칸이어야 합니다.")
+            numbered += Row(order, phrase, every)
         }
-        val sorted = numbered.sortedBy { it.first }
-        if (sorted.indices.any { sorted[it].first != it + 1 }) {
+        val sorted = numbered.sortedBy { it.order }
+        if (sorted.indices.any { sorted[it].order != it + 1 }) {
             return failure("순서(order)는 중복 없이 1부터 연속된 숫자여야 합니다.")
         }
-        return ImportResult.Success(sorted.map { it.second })
+        return ImportResult.Success(sorted.map { it.phrase }, sorted.map { it.every })
     }
 
     private fun failure(message: String): ImportResult.Failure = ImportResult.Failure(message)
