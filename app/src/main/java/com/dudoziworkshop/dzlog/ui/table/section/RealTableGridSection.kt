@@ -36,6 +36,7 @@ import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
 import com.dudoziworkshop.dzlog.domain.model.derivePathSlotIndexByCellId
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
+import com.dudoziworkshop.dzlog.feature.table.preview.cellsForPreviewLayout
 import com.dudoziworkshop.dzlog.feature.table.render.RenderRootRect
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
@@ -114,6 +115,10 @@ fun RealTableGridSection(
             )
         }
     }
+    // Layout must measure real cell values; editing-only placeholders are drawn on top.
+    val layoutCells = remember(resolvedCells, placeholderCellIndexes) {
+        cellsForPreviewLayout(resolvedCells, placeholderCellIndexes)
+    }
     // 정책 보강: 표 배경 테마(검정/흰색/투명)에 맞춰 overlay 색을 동적으로 분기한다.
     // - BG_STYLE_BLACK(0): dark table
     // - BG_STYLE_WHITE(1), BG_STYLE_TRANSPARENT(2): light table 취급
@@ -176,7 +181,7 @@ fun RealTableGridSection(
         val rendered = remember(
             renderBounds,
             placement,
-            resolvedCells,
+            layoutCells,
             rows,
             cols,
             wmValueScale,
@@ -188,7 +193,7 @@ fun RealTableGridSection(
             buildContentDrivenRenderedSceneFromPlacement(
                 bounds = renderBounds,
                 placement = placement,
-                cells = resolvedCells,
+                cells = layoutCells,
                 templateCells = templateState.cells,
                 rows = rows,
                 cols = cols,
