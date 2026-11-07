@@ -147,6 +147,7 @@ object TableRenderAdapter {
             rotationCwDeg = rotationCwDeg,
             placeholderCellIndexes = payload.placeholderCellIndexes,
             placeholderTextColorArgb = style.placeholderTextColorArgb,
+            mergedRootCells = scene.rootCells,
         )
     }
 }
