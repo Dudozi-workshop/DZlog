@@ -48,12 +48,23 @@ jobs:
             --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicyTest' \
             --tests 'com.dudoziworkshop.dzlog.ui.log.RecentCaptureNavigationTest'
-      - name: Assemble Android debug QA APK
-        run: bash ./gradlew --no-daemon :app:assembleDebug --stacktrace
-      - name: Store Android debug APK
+      - name: Assemble isolated Android QA APK
+        run: |
+          bash ./gradlew --no-daemon :app:assembleDebug --stacktrace \
+            -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=dzq021
+      - name: Verify isolated QA package and debug signature
+        run: |
+          set -e
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" |
+            grep -F "package: name='com.dudoziworkshop.dzlog.qa.dzq021'"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
+      - name: Store isolated Android QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: dzq021-integration-debug-apk-unverified-signing
+          name: dzq021-isolated-qa-debug-apk-unverified-signing
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
