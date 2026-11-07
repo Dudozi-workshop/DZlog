@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -77,6 +80,7 @@ fun RotatingPhraseSetEditDialog(
     var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var itemInput by remember(phraseSet.id) { mutableStateOf("") }
     var searchQuery by remember(phraseSet.id) { mutableStateOf("") }
+    var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, searchQuery)
     val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(searchQuery))
     val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
@@ -183,14 +187,29 @@ fun RotatingPhraseSetEditDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
+                            Text("순환문구 세트", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                             Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                            Text("${phraseSet.items.size}개 문구", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                            Text("문구 수정·추가·삭제·순서 변경 시 첫 문구부터 시작합니다.",
-                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                         }
                         IconButton(onClick = ::openRenameDialog) {
                             Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
                         }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("기본 변경 주기", modifier = Modifier.weight(1f),
+                            style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                        DDZButton(text = "−", minHeight = 40.dp, horizontalPadding = 8.dp,
+                            modifier = Modifier.width(40.dp), style = DDZButtonStyle.Secondary,
+                            enabled = phraseSet.defaultEvery > 1,
+                            onClick = { onUpdateSet { it.copy(defaultEvery = (it.defaultEvery - 1).coerceAtLeast(1)) } })
+                        Text("${phraseSet.defaultEvery}장", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+                        DDZButton(text = "+", minHeight = 40.dp, horizontalPadding = 8.dp,
+                            modifier = Modifier.width(40.dp), style = DDZButtonStyle.Secondary,
+                            enabled = phraseSet.defaultEvery < Int.MAX_VALUE,
+                            onClick = { onUpdateSet { it.copy(defaultEvery = it.defaultEvery + 1) } })
                     }
                     // Within the existing header item: preserve the 1-based drag
                     // offsets used by the reorderable list for unfiltered rows.
@@ -198,15 +217,27 @@ fun RotatingPhraseSetEditDialog(
                         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text("문구 목록 (${phraseSet.items.size}개)",
-                            style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text("문구 검색") },
-                        )
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("문구 목록 (${phraseSet.items.size}개)",
+                                modifier = Modifier.weight(1f),
+                                style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+                            IconButton(onClick = {
+                                searchExpanded = !searchExpanded
+                                if (!searchExpanded) searchQuery = ""
+                            }) { Icon(Icons.Default.Search, "문구 검색") }
+                            IconButton(onClick = { openItemInputDialog(null, "") }) {
+                                Icon(Icons.Default.Add, "문구 추가", tint = DDZColor.PrimaryDark)
+                            }
+                        }
+                        if (searchExpanded) {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                label = { Text("문구 검색") },
+                            )
+                        }
                         if (!canReorder) {
                             Text("검색 결과 ${visibleIndices.size}개 · 검색 중 순서 변경 불가",
                                 style = DDZTypography.Caption, color = DDZColor.TextSecondary)
@@ -245,6 +276,11 @@ fun RotatingPhraseSetEditDialog(
                                     if (canReorder) "문구 순서 변경" else "검색 중 순서 변경 불가",
                                     tint = if (canReorder) DDZColor.IconMuted else DDZColor.TextDisabled)
                             }
+                            Text((index + 1).toString(),
+                                modifier = Modifier.width(28.dp),
+                                textAlign = TextAlign.Center,
+                                style = DDZTypography.Caption,
+                                color = DDZColor.TextSecondary)
                             Text(
                                 item,
                                 modifier = Modifier.weight(1f).clickable {
@@ -254,6 +290,14 @@ fun RotatingPhraseSetEditDialog(
                                 overflow = TextOverflow.Ellipsis,
                                 style = DDZTypography.Body,
                                 color = DDZColor.TextPrimary,
+                            )
+                            Text(
+                                "${phraseSet.everyForItem(index)}장",
+                                modifier = Modifier.clickable { openItemInputDialog(index, item) }
+                                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                                style = DDZTypography.Caption,
+                                color = if (phraseSet.itemEveryOverrides.getOrNull(index) != null)
+                                    DDZColor.PrimaryDark else DDZColor.TextSecondary,
                             )
                             IconButton(onClick = {
                                 if (index in itemIds.indices) itemIds.removeAt(index)
