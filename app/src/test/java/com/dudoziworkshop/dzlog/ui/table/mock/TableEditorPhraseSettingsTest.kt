@@ -33,4 +33,28 @@ class TableEditorPhraseSettingsTest {
         assertEquals(0, reordered.cells.single().phraseCompletedShots)
         assertEquals(cell, template.cells.single())
     }
+    @Test fun csv_replacement_updates_shared_set_and_resets_related_progress_only() {
+        val companion = cell.copy(cellId = "second", colIndex = 1, phraseIndex = 1, phraseCompletedShots = 2)
+        val unrelatedSet = RotatingPhraseSet("other", "다른 세트", listOf("X", "Y"))
+        val unrelated = cell.copy(cellId = "unrelated", colIndex = 2, phraseSetId = "other")
+        val counter = TableCellState(0, 3, cellId = "counter", dataType = TableCellDataType.COUNTER,
+            typedValue = CellValue.CounterSeed(11))
+        val shared = TableTemplateState(1, 4, listOf(cell, companion, unrelated, counter),
+            phraseSets = listOf(set, unrelatedSet))
+        val csv = com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseCsvCodec.decode(
+            "order,phrase\n2,최종 조사\n1,초기 조사\n"
+        ) as com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseCsvCodec.ImportResult.Success
+        val updated = updateMockPhraseSet(shared, set.id) { it.copy(items = csv.items) }
+        assertEquals(listOf("초기 조사", "최종 조사"), updated.phraseSets[0].items)
+        assertEquals(set.counterProgressMode, updated.phraseSets[0].counterProgressMode)
+        assertEquals(set.defaultEvery, updated.phraseSets[0].defaultEvery)
+        assertEquals(unrelatedSet, updated.phraseSets[1])
+        assertEquals(0, updated.cells[0].phraseIndex)
+        assertEquals(0, updated.cells[0].phraseCompletedShots)
+        assertEquals(0, updated.cells[1].phraseIndex)
+        assertEquals(0, updated.cells[1].phraseCompletedShots)
+        assertEquals(unrelated, updated.cells[2])
+        assertEquals(counter, updated.cells[3])
+    }
+
 }
