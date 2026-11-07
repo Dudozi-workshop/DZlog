@@ -13,6 +13,7 @@ import com.dudoziworkshop.dzlog.domain.model.WatermarkTextAlign
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTextColorMode
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder.WatermarkCell
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.render.RenderRootCell
 import com.dudoziworkshop.dzlog.feature.table.render.computeRenderGridGeometry
 
 private const val BG_STYLE_BLACK = 0
@@ -667,6 +668,7 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
     rotationCwDeg: Int = 0,
     placeholderCellIndexes: Set<Int> = emptySet(),
     placeholderTextColorArgb: Int? = null,
+    mergedRootCells: List<RenderRootCell> = emptyList(),
 ) {
     val safeRows = rows.coerceAtLeast(1)
     val safeCols = cols.coerceAtLeast(1)
@@ -685,12 +687,25 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
 
     drawBackgroundRect(canvas, left, top, tableW, tableH, bgAlpha, bgStyle)
 
+    val mergedPlan = if (mergedRootCells.any { it.rowSpan > 1 || it.colSpan > 1 }) {
+        createMergedTableCellDrawPlan(safeRows, safeCols, mergedRootCells)
+    } else null
     if (drawGrid) {
-        drawGridLines(canvas, left, top, tableW, tableH, rowEdges, colEdges, bgStyle)
+        if (mergedPlan == null) {
+            drawGridLines(canvas, left, top, tableW, tableH, rowEdges, colEdges, bgStyle)
+        } else {
+            val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = resolveGridColor(bgStyle)
+                strokeWidth = 1.2f
+            }
+            mergedTableGridStrokes(mergedPlan, rowEdges, colEdges).forEach { stroke ->
+                canvas.drawLine(
+                    left + stroke.startX, top + stroke.startY,
+                    left + stroke.endX, top + stroke.endY, gridPaint,
+                )
+            }
+        }
     }
-
-    val rowHeights = sizesFromEdges(rowEdges)
-    val colWidths = sizesFromEdges(colEdges)
     val commonScaledTextSize = applyValueScaleFactor(
         baseTextSize = computeBaseTextSizeFromRenderedTable(
             tableWidth = tableW,
@@ -710,10 +725,14 @@ fun drawWatermarkTableOnCanvasWithResolvedGeometry(
     for (r in 0 until safeRows) {
         for (c in 0 until safeCols) {
             val idx = r * safeCols + c
-            if (idx !in cells.indices) continue
-            val x = left + colEdges[c]
-            val y = top + rowEdges[r]
-            val cellRect = RectF(x, y, x + colWidths[c], y + rowHeights[r])
+            if (idx !in cells.indices || mergedPlan?.isCovered(idx) == true) continue
+            val span = mergedPlan?.spanAt(idx)
+            val cellRect = RectF(
+                left + colEdges[c],
+                top + rowEdges[r],
+                left + colEdges[span?.lastColExclusive ?: (c + 1)],
+                top + rowEdges[span?.lastRowExclusive ?: (r + 1)],
+            )
             drawCellValueText(
                 canvas = canvas,
                 paint = valuePaint,

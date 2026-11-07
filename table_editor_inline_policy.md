@@ -1,5 +1,8 @@
 # Table Editor Inline Policy
 
+> **ARCHIVED — 2026-11-07.** This is the former V1 inline editor policy. The V1 `TableEditorInlineEditActions` path has been retired; the app uses `TableEditorV2Screen`, `TableEditorV2SessionState`, and V2-specific editing components. This document remains as history, not an active implementation contract.
+
+
 이 문서는 테이블 에디터의 inline 편집 정책 기준 문서다.
 정책 충돌이 생기면 이 문서를 임의로 덮어쓰지 말고 먼저 확인한다.
 

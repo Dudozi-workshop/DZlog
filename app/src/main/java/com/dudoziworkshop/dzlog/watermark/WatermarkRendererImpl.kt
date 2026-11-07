@@ -105,6 +105,7 @@ class WatermarkRendererImpl : WatermarkRenderer {
             bgStyle = bgStyle,
             drawGrid = drawGrid,
             rotationCwDeg = rotationCwDeg,
+            mergedRootCells = rendered.scene.rootCells,
         )
         return out
     }
