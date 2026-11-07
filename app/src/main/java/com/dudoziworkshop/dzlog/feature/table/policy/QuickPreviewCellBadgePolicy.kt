@@ -9,6 +9,7 @@ internal data class QuickPreviewCellBadgePlan(
     val fileName: Boolean,
     val path: Boolean,
     val locked: Boolean,
+    val compact: Boolean,
 )
 
 internal fun quickCellTypeLabel(type: TableCellDataType): String = when (type) {
@@ -21,31 +22,28 @@ internal fun quickCellTypeLabel(type: TableCellDataType): String = when (type) {
 }
 
 /**
- * Prioritize the type marker and filename/path references over the old lock icon.
- * Do not hide all badges merely because large text leaves little blank space
- * above it. For extremely tiny cells, the zoom button reveals extra markers.
+ * Never omit cell metadata because a cell is narrow or short.
+ * When all badges do not fit, the UI uses one compact, unbounded strip.
+ * The user can zoom the table for detailed reading without losing indicators.
  */
 internal fun quickPreviewCellBadgePlan(
     widthPx: Float,
-    heightPx: Float,
     idealSizePx: Float,
     minimumSizePx: Float,
     insetPx: Float,
     links: QuickCellLinks,
     editable: Boolean,
 ): QuickPreviewCellBadgePlan {
+    val size = idealSizePx.coerceAtLeast(minimumSizePx).coerceAtLeast(1f)
     val inset = insetPx.coerceAtLeast(0f)
-    val size = minOf(idealSizePx.coerceAtLeast(0f), (heightPx - 2f * inset).coerceAtLeast(0f))
-    val capacity = if (size >= minimumSizePx && size > 0f) {
-        ((widthPx - 2f * inset + inset).coerceAtLeast(0f) / (size + inset)).toInt()
-    } else 0
-    if (capacity < 1) return QuickPreviewCellBadgePlan(size, false, false, false, false)
-
-    var remaining = capacity - 1 // Type is always the first visible marker.
-    val fileName = links.fileName && remaining > 0
-    if (fileName) remaining--
-    val path = links.path && remaining > 0
-    if (path) remaining--
-    val locked = !editable && remaining > 0
-    return QuickPreviewCellBadgePlan(size, true, fileName, path, locked)
+    val count = 1 + links.count + if (editable) 0 else 1
+    val required = count * size + (count - 1) * inset + 2f * inset
+    return QuickPreviewCellBadgePlan(
+        sizePx = size,
+        type = true,
+        fileName = links.fileName,
+        path = links.path,
+        locked = !editable,
+        compact = widthPx < required,
+    )
 }
