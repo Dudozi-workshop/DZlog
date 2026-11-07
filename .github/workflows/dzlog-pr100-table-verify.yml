@@ -44,6 +44,7 @@ jobs:
         run: |
           bash ./gradlew :app:testDebugUnitTest \
             --tests 'com.dudoziworkshop.dzlog.ui.table.mock.TableEditorRenderCellsTest' \
+            --tests 'com.dudoziworkshop.dzlog.ui.table.mock.EditorCameraTableGeometryTest' \
             --tests 'com.dudoziworkshop.dzlog.feature.table.editor.TableEditorSlotReferencePolicyTest' \
             --tests 'com.dudoziworkshop.dzlog.ui.table.mock.TableEditorV2SessionStateTest' \
             --tests 'com.dudoziworkshop.dzlog.ui.table.mock.MockLayoutDomainAdapterTest' \
