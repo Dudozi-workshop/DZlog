@@ -1,0 +1,70 @@
+name: DZlog Phrase Period Focused QA
+
+on:
+  push:
+    branches:
+      - feat/phrase-per-item-period-core-20261107
+    paths:
+      - 'app/**'
+      - '.github/workflows/dzlog-phrase-period-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-phrase-period-focused
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK 36
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Test period policies CSV legacy persistence and camera integration
+        run: |
+          bash ./gradlew :app:testDebugUnitTest \
+            --tests '*RotatingPhrasePerItemCoreTest' \
+            --tests '*RotatingPhraseCsvCodecTest' \
+            --tests '*QuickRotatingPhrasePolicyTest' \
+            --tests '*CellPhraseProgressTest' \
+            --tests '*TableEditorPhraseSettingsTest' \
+            --tests '*RotatingCaptureCommitPersistenceTest' \
+            --tests '*RotatingPhraseSearchPolicyTest' \
+            --tests '*PhraseResolverTest' \
+            :app:compileDebugKotlin --stacktrace
+      - name: Build separate-install period QA APK
+        run: |
+          set -euo pipefail
+          bash ./gradlew :app:assembleDebug \
+            -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=phraseperiod \
+            -PdzlogDebugVersionCode=1000105 --stacktrace
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.phraseperiod' versionCode='1000105'"
+          cp "$APK" DZlog-phrase-period-QA.apk
+      - name: Upload QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-phrase-period-qa-apk
+          path: DZlog-phrase-period-QA.apk
+          if-no-files-found: error
+          retention-days: 14
