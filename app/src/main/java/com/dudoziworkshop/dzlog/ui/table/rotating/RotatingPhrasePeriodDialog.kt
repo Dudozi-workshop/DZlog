@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -61,6 +62,7 @@ internal fun RotatingPhrasePeriodDialog(
         mutableStateOf(TextFieldValue((initialEvery ?: defaultEvery).coerceIn(1, 999999).toString()))
     }
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val numeric = text.text.toIntOrNull()?.takeIf { it in 1..999999 }
     val effective = if (inherit) defaultEvery else numeric
 
@@ -96,15 +98,20 @@ internal fun RotatingPhrasePeriodDialog(
                         onValueChange = { next ->
                             if (next.text.length <= 6 && next.text.all(Char::isDigit)) {
                                 text = next
+                                inherit = false
                                 touched = true
                             }
                         },
                         modifier = Modifier.weight(1f).onFocusChanged { focus ->
-                            if (focus.isFocused) text = text.copy(
-                                selection = TextRange(0, text.text.length),
-                            )
+                            if (focus.isFocused) {
+                                if (inherit) {
+                                    text = TextFieldValue(defaultEvery.toString())
+                                    inherit = false
+                                    touched = true
+                                }
+                                text = text.copy(selection = TextRange(0, text.text.length))
+                            }
                         },
-                        enabled = !inherit,
                         textStyle = DDZTypography.CardTitle.copy(textAlign = TextAlign.Center),
                         suffix = { Text("장") },
                         singleLine = true,
@@ -129,7 +136,14 @@ internal fun RotatingPhrasePeriodDialog(
                     modifier = Modifier.fillMaxWidth().toggleable(
                         value = inherit,
                         role = Role.Checkbox,
-                        onValueChange = { inherit = it; touched = true },
+                        onValueChange = {
+                            inherit = it
+                            touched = true
+                            if (it) {
+                                focusManager.clearFocus()
+                                keyboard?.hide()
+                            }
+                        },
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
