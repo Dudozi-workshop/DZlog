@@ -48,6 +48,11 @@ jobs:
             --tests '*RotatingCaptureCommitPersistenceTest' \
             --tests '*RotatingPhraseSearchPolicyTest' \
             --tests '*PhraseResolverTest' \
+            --tests '*LocalTemplateBackupTest' \
+            --tests '*RotatingPhrasePersistenceTest' \
+            --tests '*TemplateEditCaptureSyncTest' \
+            --tests '*RotatingCounterProgressTest' \
+            --tests '*CapturePhraseUndoHistoryTest' \
             :app:compileDebugKotlin --stacktrace
       - name: Build separate-install period QA APK
         run: |
