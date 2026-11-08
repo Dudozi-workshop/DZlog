@@ -20,6 +20,8 @@ data class RotatingPhraseSet(
 ) {
     companion object {
         const val MAX_EVERY: Int = 999_999
+        const val MAX_ITEMS: Int = 1_000
+        const val MAX_PHRASE_LENGTH: Int = 500
     }
 
     fun everyForItem(index: Int): Int =
