@@ -33,6 +33,7 @@ internal fun RotatingPhraseItemEditDialog(
     initialText: String,
     isEdit: Boolean,
     continuousAdd: Boolean,
+    canAdd: Boolean,
     onContinuousAddChange: (Boolean) -> Unit,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -40,7 +41,7 @@ internal fun RotatingPhraseItemEditDialog(
     var phraseText by remember(initialText, isEdit) { mutableStateOf(initialText) }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val valid = phraseText.isNotBlank() && phraseText.trim().length <= 500
+    val valid = phraseText.isNotBlank() && phraseText.trim().length <= 500 && (isEdit || canAdd)
 
     DDZAlertDialog(
         onDismissRequest = onDismiss,
@@ -55,6 +56,7 @@ internal fun RotatingPhraseItemEditDialog(
                     label = { Text("문구") },
                 )
                 if (!isEdit) {
+                    if (!canAdd) Text("문구는 최대 1,000개까지 추가할 수 있습니다.")
                     Row(
                         modifier = Modifier.fillMaxWidth().toggleable(
                             value = continuousAdd,
