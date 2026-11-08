@@ -2,14 +2,13 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 
-/** Informational markers in the quick-edit table only; never part of saved photo pixels. */
+/** Informational markers in the quick-edit table only; never saved as photo pixels. */
 internal data class QuickPreviewCellBadgePlan(
     val sizePx: Float,
     val type: Boolean,
     val fileName: Boolean,
     val path: Boolean,
-    val locked: Boolean,
-    val compact: Boolean,
+    val stackLinks: Boolean,
 )
 
 internal fun quickCellTypeLabel(type: TableCellDataType): String = when (type) {
@@ -22,9 +21,9 @@ internal fun quickCellTypeLabel(type: TableCellDataType): String = when (type) {
 }
 
 /**
- * Never omit cell metadata because a cell is narrow or short.
- * When all badges do not fit, the UI uses a compact two-line overlay.
- * The user can zoom the table for detailed reading without losing indicators.
+ * Always show type at top-left and applicable file/path links at top-right.
+ * Only the two right-hand links may stack when the cell is narrow.
+ * No lock badge: counter eligibility is a separate quick-edit policy.
  */
 internal fun quickPreviewCellBadgePlan(
     widthPx: Float,
@@ -32,18 +31,15 @@ internal fun quickPreviewCellBadgePlan(
     minimumSizePx: Float,
     insetPx: Float,
     links: QuickCellLinks,
-    editable: Boolean,
 ): QuickPreviewCellBadgePlan {
     val size = idealSizePx.coerceAtLeast(minimumSizePx).coerceAtLeast(1f)
     val inset = insetPx.coerceAtLeast(0f)
-    val count = 1 + links.count + if (editable) 0 else 1
-    val required = count * size + (count - 1) * inset + 2f * inset
+    val fullRowWidth = (1 + links.count) * size + (links.count * inset) + 2f * inset
     return QuickPreviewCellBadgePlan(
         sizePx = size,
         type = true,
         fileName = links.fileName,
         path = links.path,
-        locked = !editable,
-        compact = widthPx < required,
+        stackLinks = links.fileName && links.path && widthPx < fullRowWidth,
     )
 }
