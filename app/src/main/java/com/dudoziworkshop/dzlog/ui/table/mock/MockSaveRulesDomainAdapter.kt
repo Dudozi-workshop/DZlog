@@ -225,10 +225,14 @@ internal fun updateMockPhraseSet(
     templateState.let { state ->
         val old = state.phraseSets.firstOrNull { it.id == phraseSetId } ?: return@let state
         val updated = transform(old)
+        // Append-only edits keep existing phrase indices and shot progress valid.
+        // Reorder, removal, renaming and CSV replacement retain the reset policy.
+        val appendOnly = updated.items.size > old.items.size &&
+            updated.items.take(old.items.size) == old.items
         state.copy(
             phraseSets = state.phraseSets.map { if (it.id == phraseSetId) updated else it },
             cells = state.cells.map { cell ->
-                if (cell.phraseSetId == phraseSetId && old.items != updated.items)
+                if (cell.phraseSetId == phraseSetId && old.items != updated.items && !appendOnly)
                     cell.copy(phraseIndex = 0, phraseCompletedShots = 0)
                 else if (cell.phraseSetId == phraseSetId && cell.everyOverride == null &&
                     old.everyForItem(cell.phraseIndex) != updated.everyForItem(cell.phraseIndex))
