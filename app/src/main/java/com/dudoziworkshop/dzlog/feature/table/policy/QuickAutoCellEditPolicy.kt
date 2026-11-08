@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 
 /**
  * Quick editing is available for every visible root cell except counters.
@@ -39,7 +40,7 @@ internal fun updateQuickPhraseEvery(
     cellId: String,
     every: Int,
 ): TableTemplateState {
-    if (every < 1) return template
+    if (every !in 1..RotatingPhraseSet.MAX_EVERY) return template
     val cell = template.cells.firstOrNull {
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
