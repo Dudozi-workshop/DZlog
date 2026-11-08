@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.quickDateFormats
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
@@ -141,7 +142,7 @@ internal fun CameraQuickAutoValueEditor(
                             value = every,
                             modifier = Modifier.weight(1f),
                             canDecrease = enabled && isIndividual && every > 1,
-                            canIncrease = enabled && isIndividual && every < Int.MAX_VALUE,
+                            canIncrease = enabled && isIndividual && every < RotatingPhraseSet.MAX_EVERY,
                             onDecrease = { onPhraseEvery(every - 1) },
                             onIncrease = { onPhraseEvery(every + 1) },
                         )
