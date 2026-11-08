@@ -192,9 +192,7 @@ fun RotatingPhraseSetEditDialog(
                 onDismiss = { periodTargets = emptyList() },
                 onApply = { every ->
                     onUpdateSet { set ->
-                        targets.fold(set) { changed, index ->
-                            RotatingPhraseSetItemPolicy.setEvery(changed, index, every)
-                        }
+                        RotatingPhraseSetItemPolicy.setEveryForItems(set, targets, every)
                     }
                     periodTargets = emptyList()
                 },
