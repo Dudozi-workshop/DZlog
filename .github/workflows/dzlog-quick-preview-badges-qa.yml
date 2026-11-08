@@ -52,7 +52,7 @@ jobs:
             -v "$PWD:/workspace" -v "$SDK_ROOT:$SDK_ROOT" \
             -v "$RUNNER_TEMP/pr107-gradle-home:/tmp/gradle-home" \
             -w /workspace gradle:8.13.0-jdk21 \
-            gradle :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug \
+            gradle :app:compileDebugKotlin :app:assembleDebug :app:testDebugUnitTest \
               -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=badges \
               --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePolicyTest' \
               --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellPresentationPolicyTest' \
