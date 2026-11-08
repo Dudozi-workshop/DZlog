@@ -189,6 +189,7 @@ fun RotatingPhraseSetEditDialog(
                 defaultEvery = phraseSet.defaultEvery,
                 targetLabel = phraseSet.items[targets.first()],
                 selectedCount = targets.size,
+                mixedValues = intervals.distinct().size > 1,
                 onDismiss = { periodTargets = emptyList() },
                 onApply = { every ->
                     onUpdateSet { set ->
