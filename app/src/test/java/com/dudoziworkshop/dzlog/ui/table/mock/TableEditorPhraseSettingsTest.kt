@@ -23,6 +23,22 @@ class TableEditorPhraseSettingsTest {
         assertEquals(cell, renamed.cells.single())
     }
 
+    @Test fun appendOnlyKeepsExistingCameraPhraseAndCapturedCount() {
+        val appended = updateMockPhraseSet(template, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.addItem(it, "T5")
+        }
+        assertEquals(listOf("T1", "T2", "T3", "T4", "T5"), appended.phraseSets.single().items)
+        assertEquals(cell, appended.cells.single())
+        assertEquals(2, appended.cells.single().phraseIndex)
+        assertEquals(5, appended.cells.single().phraseCompletedShots)
+
+        val renamed = updateMockPhraseSet(appended, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.renameItem(it, 0, "T1 수정")
+        }
+        assertEquals(0, renamed.cells.single().phraseIndex)
+        assertEquals(0, renamed.cells.single().phraseCompletedShots)
+    }
+
     @Test fun different_set_and_changed_item_order_start_at_first_item() {
         val other = set.copy(id = "other")
         val changed = applyMockPhraseSet(template.copy(phraseSets = listOf(set, other)), cell.cellId, other.id)
