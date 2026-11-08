@@ -88,6 +88,32 @@ class RotatingPhrasePerItemCoreTest {
         assertEquals(3, restored.phraseSets.single().everyForItem(1))
     }
 
+    @Test fun bulkIntervalChangesOnlySelectedRowsWithoutTouchingNamesOrOrders() {
+        val source = RotatingPhraseSet(
+            "bulk", "조사", (1..250).map { "문구 $it" }, defaultEvery = 5,
+        )
+        val changed = RotatingPhraseSetItemPolicy.setEveryForItems(
+            source, listOf(0, 5, 200, 249, 5), 3,
+        )
+        assertEquals(source.items, changed.items)
+        assertEquals(3, changed.everyForItem(0))
+        assertEquals(3, changed.everyForItem(5))
+        assertEquals(3, changed.everyForItem(200))
+        assertEquals(3, changed.everyForItem(249))
+        assertEquals(5, changed.everyForItem(199))
+        assertEquals(5, source.everyForItem(5))
+        assertSame(changed, RotatingPhraseSetItemPolicy.setEveryForItems(
+            changed, listOf(0, 5, 200, 249), 3,
+        ))
+        val reverted = RotatingPhraseSetItemPolicy.setEveryForItems(
+            changed, listOf(0, 200), null,
+        )
+        assertEquals(5, reverted.everyForItem(0))
+        assertEquals(3, reverted.everyForItem(5))
+        assertEquals(5, reverted.everyForItem(200))
+        assertEquals(3, reverted.everyForItem(249))
+    }
+
     @Test fun addingOnlyInheritedPhrasesSurvivesSaveAndReloadExactly() {
         val original = RotatingPhraseSet("id", "기본", listOf("시작"), defaultEvery = 5)
         val added = RotatingPhraseSetItemPolicy.addItem(original, "새 문구")
