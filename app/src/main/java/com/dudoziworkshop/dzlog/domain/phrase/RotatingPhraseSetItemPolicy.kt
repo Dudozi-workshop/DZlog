@@ -8,7 +8,7 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
  */
 object RotatingPhraseSetItemPolicy {
     fun setEvery(set: RotatingPhraseSet, index: Int, every: Int?): RotatingPhraseSet {
-        if (index !in set.items.indices || (every != null && every < 1)) return set
+        if (index !in set.items.indices || (every != null && every !in 1..RotatingPhraseSet.MAX_EVERY)) return set
         val values = overrides(set)
         if (values[index] == every) return set
         values[index] = every
@@ -44,7 +44,7 @@ object RotatingPhraseSetItemPolicy {
     }
 
     fun replaceItems(set: RotatingPhraseSet, items: List<String>, periods: List<Int?>): RotatingPhraseSet {
-        require(periods.size == items.size && periods.all { it == null || it >= 1 })
+        require(periods.size == items.size && periods.all { it == null || it in 1..RotatingPhraseSet.MAX_EVERY })
         return set.copy(items = items, itemEveryOverrides = periods)
     }
 
