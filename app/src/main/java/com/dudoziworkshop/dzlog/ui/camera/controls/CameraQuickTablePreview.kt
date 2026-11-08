@@ -223,7 +223,6 @@ internal fun CameraQuickTablePreview(
                             minimumSizePx = with(density) { DDZLayout.QuickInput.MinCellMarker.toPx() },
                             insetPx = gapPx,
                             links = links,
-                            editable = editable,
                         )
                         Box(Modifier.offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
                             .size(with(density) { (rect.right - rect.left).toDp() }, with(density) { (rect.bottom - rect.top).toDp() })
