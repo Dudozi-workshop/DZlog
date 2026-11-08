@@ -36,14 +36,17 @@ object RotatingPhraseSetItemPolicy {
     }
 
     fun renameItem(set: RotatingPhraseSet, index: Int, phrase: String): RotatingPhraseSet {
-        if (index !in set.items.indices || phrase.isBlank()) return set
-        return set.copy(items = set.items.toMutableList().apply { this[index] = phrase })
+        val normalized = phrase.trim()
+        if (index !in set.items.indices || !validPhrase(normalized)) return set
+        if (set.items[index] == normalized) return set
+        return set.copy(items = set.items.toMutableList().apply { this[index] = normalized })
     }
 
     fun addItem(set: RotatingPhraseSet, phrase: String): RotatingPhraseSet {
-        if (phrase.isBlank()) return set
+        val normalized = phrase.trim()
+        if (set.items.size >= RotatingPhraseSet.MAX_ITEMS || !validPhrase(normalized)) return set
         return set.copy(
-            items = set.items + phrase,
+            items = set.items + normalized,
             itemEveryOverrides = overrides(set) + listOf(null),
         )
     }
@@ -64,9 +67,14 @@ object RotatingPhraseSetItemPolicy {
     }
 
     fun replaceItems(set: RotatingPhraseSet, items: List<String>, periods: List<Int?>): RotatingPhraseSet {
+        require(items.size <= RotatingPhraseSet.MAX_ITEMS && items.all(::validPhrase))
         require(periods.size == items.size && periods.all { it == null || it in 1..RotatingPhraseSet.MAX_EVERY })
         return set.copy(items = items, itemEveryOverrides = periods)
     }
+
+    private fun validPhrase(text: String): Boolean =
+        text.isNotBlank() && text.length <= RotatingPhraseSet.MAX_PHRASE_LENGTH &&
+            '\n' !in text && '\r' !in text
 
     fun overrides(set: RotatingPhraseSet): MutableList<Int?> =
         MutableList(set.items.size) { index -> set.itemEveryOverrides.getOrNull(index)?.takeIf { it >= 1 } }
