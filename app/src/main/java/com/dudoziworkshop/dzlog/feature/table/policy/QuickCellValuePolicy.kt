@@ -14,6 +14,10 @@ internal fun quickEditableCells(template: TableTemplateState): List<TableCellSta
         .filter { it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
 
+/** All visible root cells are navigable; a counter remains read-only on selection. */
+internal fun quickNavigableCells(template: TableTemplateState): List<TableCellState> =
+    quickRootCells(template).sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
+
 internal fun updateQuickCellValues(template: TableTemplateState, values: Map<String, String>): TableTemplateState =
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
@@ -32,7 +36,7 @@ internal fun quickCellPosition(cell: TableCellState): String {
 
 /** Row-major navigation across selectable root cells, wrapping at both ends. */
 internal fun adjacentQuickCellId(cells: List<TableCellState>, selectedId: String?, direction: Int): String? {
-    if (direction != -1 && direction != 1 || cells.size < 2) return null
+    if ((direction != -1 && direction != 1) || cells.size < 2) return null
     val index = cells.indexOfFirst { it.cellId == selectedId }
     if (index < 0) return null
     val next = (index + direction + cells.size) % cells.size
