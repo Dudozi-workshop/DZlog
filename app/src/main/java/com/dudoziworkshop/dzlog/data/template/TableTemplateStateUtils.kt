@@ -73,8 +73,9 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                             periodsJson.optInt(index, 0).takeIf { it >= 1 }
                         }
                     }.let { values ->
-                        // Exact legacy data class equality and round-trip semantics.
-                        if (values.all { it == null }) emptyList() else values
+                        // A missing key is a legacy set. An explicit array of
+                        // inherited periods must survive round-trip exactly.
+                        if (periodsJson == null) emptyList() else values
                     }
 
                     add(
@@ -258,7 +259,7 @@ fun TableTemplateState.toJsonString(): String {
             set.items.forEach { itemsJson.put(it) }
             setJson.put("items", itemsJson)
             // Do not add unnecessary keys to unchanged legacy templates.
-            if (set.itemEveryOverrides.any { it != null }) {
+            if (set.itemEveryOverrides.isNotEmpty()) {
                 val periodsJson = JSONArray()
                 set.items.indices.forEach { index ->
                     periodsJson.put(set.itemEveryOverrides.getOrNull(index) ?: JSONObject.NULL)
