@@ -113,7 +113,7 @@ internal fun RotatingPhraseSetFooter(
                     style = DDZButtonStyle.Secondary,
                     minHeight = 40.dp,
                     horizontalPadding = 8.dp,
-                    enabled = phraseSet.defaultEvery < Int.MAX_VALUE,
+                    enabled = phraseSet.defaultEvery < RotatingPhraseSet.MAX_EVERY,
                     onClick = { onUpdateSet { it.copy(defaultEvery = it.defaultEvery + 1) } },
                 )
             }
