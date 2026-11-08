@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.rotating
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +54,8 @@ internal fun RotatingPhraseSetFooter(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Surface(
-            color = DDZColor.SelectedSoft,
+            color = DDZColor.Surface,
+            border = BorderStroke(1.dp, DDZColor.Border),
             shape = RoundedCornerShape(14.dp),
         ) {
             Row(
