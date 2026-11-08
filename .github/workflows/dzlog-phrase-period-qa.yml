@@ -30,6 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "PR head: $(git rev-parse HEAD)"
+          git config user.name "DZlog CI"
+          git config user.email "ci@users.noreply.github.com"
           git fetch --no-tags origin integration/dzlog-20261010
           echo "Integration head: $(git rev-parse FETCH_HEAD)"
           if ! git merge --no-commit --no-ff FETCH_HEAD; then
