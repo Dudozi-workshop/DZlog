@@ -167,6 +167,7 @@ fun RotatingPhraseSetEditDialog(
             initialText = editingText,
             isEdit = index != null,
             continuousAdd = continuousAdd,
+            canAdd = phraseSet.items.size < RotatingPhraseSet.MAX_ITEMS,
             onContinuousAddChange = { continuousAdd = it },
             onDismiss = { showItem = false },
             onSave = { text ->
