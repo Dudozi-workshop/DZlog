@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -49,10 +52,10 @@ internal fun RotatingPhrasePeriodDialog(
         mutableStateOf(initialEvery == null)
     }
     var text by remember(targetLabel, selectedCount, initialEvery) {
-        mutableStateOf((initialEvery ?: defaultEvery).coerceIn(1, 999999).toString())
+        mutableStateOf(TextFieldValue((initialEvery ?: defaultEvery).coerceIn(1, 999999).toString()))
     }
     val keyboard = LocalSoftwareKeyboardController.current
-    val numeric = text.toIntOrNull()?.takeIf { it in 1..999999 }
+    val numeric = text.text.toIntOrNull()?.takeIf { it in 1..999999 }
     val effective = if (inherit) defaultEvery else numeric
 
     DDZAlertDialog(
@@ -77,14 +80,18 @@ internal fun RotatingPhrasePeriodDialog(
                         horizontalPadding = 6.dp,
                         style = DDZButtonStyle.Secondary,
                         enabled = !inherit && numeric != null && numeric > 1,
-                        onClick = { numeric?.let { text = (it - 1).toString() } },
+                        onClick = { numeric?.let { text = TextFieldValue((it - 1).toString()) } },
                     )
                     OutlinedTextField(
-                        value = if (inherit) defaultEvery.toString() else text,
+                        value = if (inherit) TextFieldValue(defaultEvery.toString()) else text,
                         onValueChange = { next ->
-                            if (next.length <= 6 && next.all(Char::isDigit)) text = next
+                            if (next.text.length <= 6 && next.text.all(Char::isDigit)) text = next
                         },
-                        modifier = Modifier.width(128.dp),
+                        modifier = Modifier.weight(1f).onFocusChanged { focus ->
+                            if (focus.isFocused) text = text.copy(
+                                selection = TextRange(0, text.text.length),
+                            )
+                        },
                         enabled = !inherit,
                         textStyle = DDZTypography.CardTitle.copy(textAlign = TextAlign.Center),
                         suffix = { Text("장") },
@@ -103,7 +110,7 @@ internal fun RotatingPhrasePeriodDialog(
                         horizontalPadding = 6.dp,
                         style = DDZButtonStyle.Secondary,
                         enabled = !inherit && numeric != null && numeric < 999999,
-                        onClick = { numeric?.let { text = (it + 1).toString() } },
+                        onClick = { numeric?.let { text = TextFieldValue((it + 1).toString()) } },
                     )
                 }
                 Row(
