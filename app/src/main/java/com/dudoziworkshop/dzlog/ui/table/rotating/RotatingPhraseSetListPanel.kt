@@ -66,7 +66,11 @@ internal fun RotatingPhraseSetListPanel(
     var selecting by remember(phraseSet.id) { mutableStateOf(false) }
     val selected = remember(phraseSet.id) { mutableStateListOf<Int>() }
     val canReorder by rememberUpdatedState(!selecting && RotatingPhraseSearchPolicy.reorderEnabled(query))
-    val rowIds = remember(phraseSet.id) { mutableStateListOf<String>() }
+    val rowIds = remember(phraseSet.id) {
+        mutableStateListOf<String>().apply {
+            repeat(phraseSet.items.size) { add(UUID.randomUUID().toString()) }
+        }
+    }
     LaunchedEffect(phraseSet.id, phraseSet.items.size) {
         while (rowIds.size < phraseSet.items.size) rowIds.add(UUID.randomUUID().toString())
         while (rowIds.size > phraseSet.items.size) rowIds.removeAt(rowIds.lastIndex)
