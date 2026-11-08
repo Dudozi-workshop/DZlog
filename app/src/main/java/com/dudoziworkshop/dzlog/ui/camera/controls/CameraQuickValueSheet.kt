@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloseFullscreen
@@ -340,6 +341,7 @@ internal fun CameraQuickValueSheet(
                             val manual = selected.dataType == TableCellDataType.TEXT || number
                             val previous = adjacentQuickCellId(cells, selected.cellId, -1)
                             val next = adjacentQuickCellId(cells, selected.cellId, 1)
+                            var showCounterInfo by remember(selected.cellId) { mutableStateOf(false) }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(when (selected.dataType) {
                                     TableCellDataType.NUMBER -> DDZCellTypeIcons.Number
@@ -359,6 +361,13 @@ internal fun CameraQuickValueSheet(
                                     else -> "텍스트"
                                 }, style = DDZTypography.Secondary,
                                     modifier = Modifier.padding(horizontal = DDZSpacing.xs))
+                                if (selected.dataType == TableCellDataType.COUNTER) {
+                                    IconButton(enabled = !switching, onClick = { showCounterInfo = true },
+                                        modifier = Modifier.size(DDZLayout.Control.Compact)) {
+                                        Icon(Icons.Filled.Info, "자동번호 안내",
+                                            Modifier.size(DDZLayout.QuickInput.Icon), tint = DDZColor.TextMuted)
+                                    }
+                                }
                                 Text(quickCellPosition(selected), style = DDZTypography.Caption, color = DDZColor.TextMuted,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                 if (links.count > 0) IconButton(enabled = !switching, onClick = {
@@ -378,20 +387,34 @@ internal fun CameraQuickValueSheet(
                                     Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
                             }
+                            if (showCounterInfo && selected.dataType == TableCellDataType.COUNTER) {
+                                AlertDialog(
+                                    onDismissRequest = { showCounterInfo = false },
+                                    title = { Text("자동번호 안내") },
+                                    text = { Text("촬영 사진이 정상 저장되면 번호가 자동으로 증가합니다.\n번호 변경은 별도 설정에서 진행할 수 있습니다.") },
+                                    confirmButton = {
+                                        TextButton(onClick = { showCounterInfo = false }) { Text("확인") }
+                                    },
+                                )
+                            }
                             if (selected.dataType == TableCellDataType.COUNTER) {
                                 val current = resolvedCells.firstOrNull { it.id == selected.cellId }?.resolvedText
                                     .orEmpty().ifBlank { "확인 중" }
-                                Column(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .background(DDZColor.Background, RoundedCornerShape(DDZLayout.Radius.Small))
-                                        .padding(DDZSpacing.itemGap),
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().height(DDZLayout.QuickInput.Touch),
+                                    color = DDZColor.Background,
+                                    shape = RoundedCornerShape(DDZLayout.Radius.Small),
+                                    border = BorderStroke(1.dp, DDZColor.Border),
                                 ) {
-                                    Text("다음 촬영 번호 · $current",
-                                        style = DDZTypography.SettingLabel,
-                                        color = DDZColor.TextPrimary)
-                                    Text("자동번호는 촬영·저장 성공 시 자동으로 증가합니다. 빠른 수정에서는 번호를 직접 변경할 수 없습니다.",
-                                        style = DDZTypography.Caption,
-                                        color = DDZColor.TextSecondary)
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = DDZSpacing.itemGap),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text("다음 촬영 번호", style = DDZTypography.Secondary,
+                                            color = DDZColor.TextSecondary, modifier = Modifier.weight(1f))
+                                        Text(current, style = DDZTypography.SettingLabel,
+                                            color = DDZColor.TextPrimary)
+                                    }
                                 }
                             } else if (!manual) {
                                 CameraQuickAutoValueEditor(
