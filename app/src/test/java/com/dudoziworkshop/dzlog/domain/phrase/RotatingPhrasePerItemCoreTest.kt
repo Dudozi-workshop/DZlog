@@ -98,7 +98,7 @@ class RotatingPhrasePerItemCoreTest {
         assertSame(thousand, RotatingPhraseSetItemPolicy.addItem(thousand, "초과"))
         assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, ""))
         assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, "x".repeat(501)))
-        assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, "a\\nb"))
+        assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, "a\nb"))
         assertSame(initial, RotatingPhraseSetItemPolicy.renameItem(initial, 0, "x".repeat(501)))
         val changed = RotatingPhraseSetItemPolicy.renameItem(initial, 0, " 수정 ")
         assertEquals("수정", changed.items.first())
