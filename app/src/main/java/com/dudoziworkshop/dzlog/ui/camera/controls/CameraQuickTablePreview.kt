@@ -233,7 +233,7 @@ internal fun CameraQuickTablePreview(
                             .clickable(enabled = !switching) { if (editable) onSelect(rect.cellId) else onLocked(rect.cellId) }
                             .semantics {
                                 selected = active
-                                contentDescription = "${quickCellPosition(cell)} ${quickCellTypeLabel(cell.dataType)}${if (editable) " 값 수정" else " 자동 값"} ${links.description}"
+                                contentDescription = "${quickCellPosition(cell)} ${quickCellTypeLabel(cell.dataType)} ${if (cell.dataType == com.dudoziworkshop.dzlog.domain.model.TableCellDataType.COUNTER) "자동번호 읽기 전용" else if (editable) "값 또는 형식 수정" else "자동 값"} ${links.description}"
                             }) {
                             QuickPreviewCellBadges(
                                 type = cell.dataType,
