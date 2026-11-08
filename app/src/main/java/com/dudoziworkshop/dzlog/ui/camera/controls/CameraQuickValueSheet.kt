@@ -113,7 +113,7 @@ internal fun CameraQuickValueSheet(
     }
     val draft = remember { QuickValueDraft(template) }
     val previewTemplate = draft.template
-    val cells = remember(previewTemplate.cells) { quickSelectableCells(previewTemplate) }
+    val cells = remember(previewTemplate.cells) { quickNavigableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
     var selectedId by remember(activeTemplateId) {
         mutableStateOf(if (readOnlyGuide) cells.firstOrNull { it.dataType == guideType }?.cellId else selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
@@ -346,6 +346,7 @@ internal fun CameraQuickValueSheet(
                                     TableCellDataType.DATE -> DDZCellTypeIcons.Date
                                     TableCellDataType.TIME -> DDZCellTypeIcons.Time
                                     TableCellDataType.ROTATING_TEXT -> DDZCellTypeIcons.RotatingText
+                                    TableCellDataType.COUNTER -> DDZCellTypeIcons.AutoNumber
                                     else -> DDZCellTypeIcons.Text
                                 }, null,
                                     tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
@@ -354,6 +355,7 @@ internal fun CameraQuickValueSheet(
                                     TableCellDataType.DATE -> "날짜"
                                     TableCellDataType.TIME -> "시간"
                                     TableCellDataType.ROTATING_TEXT -> "순환문구"
+                                    TableCellDataType.COUNTER -> "자동번호"
                                     else -> "텍스트"
                                 }, style = DDZTypography.Secondary,
                                     modifier = Modifier.padding(horizontal = DDZSpacing.xs))
@@ -376,7 +378,22 @@ internal fun CameraQuickValueSheet(
                                     Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
                                 }
                             }
-                            if (!manual) {
+                            if (selected.dataType == TableCellDataType.COUNTER) {
+                                val current = resolvedCells.firstOrNull { it.id == selected.cellId }?.resolvedText
+                                    .orEmpty().ifBlank { "확인 중" }
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .background(DDZColor.Background, RoundedCornerShape(DDZLayout.Radius.Small))
+                                        .padding(DDZSpacing.itemGap),
+                                ) {
+                                    Text("다음 촬영 번호 · $current",
+                                        style = DDZTypography.SettingLabel,
+                                        color = DDZColor.TextPrimary)
+                                    Text("자동번호는 촬영·저장 성공 시 자동으로 증가합니다. 빠른 수정에서는 번호를 직접 변경할 수 없습니다.",
+                                        style = DDZTypography.Caption,
+                                        color = DDZColor.TextSecondary)
+                                }
+                            } else if (!manual) {
                                 CameraQuickAutoValueEditor(
                                     cell = selected,
                                     template = previewTemplate,
