@@ -9,8 +9,8 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
  * Other cell progress, IDs, and number-progress modes are never transferred.
  */
 internal object RotatingPhraseCsvCodec {
-    const val MAX_ITEMS: Int = 1000
-    private const val MAX_TEXT_LENGTH: Int = 500
+    const val MAX_ITEMS: Int = RotatingPhraseSet.MAX_ITEMS
+    private const val MAX_TEXT_LENGTH: Int = RotatingPhraseSet.MAX_PHRASE_LENGTH
     private const val MAX_FILE_LENGTH: Int = 1_000_000
     private const val HEADER = "order,phrase,every"
 
