@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,10 +120,13 @@ internal fun RotatingPhraseSetListPanel(
                 }) {
                     Icon(Icons.Default.Search, contentDescription = "문구 검색")
                 }
-                IconButton(onClick = {
-                    query = ""
-                    onAddItem()
-                }) {
+                IconButton(
+                    enabled = !selecting && phraseSet.items.size < RotatingPhraseSet.MAX_ITEMS,
+                    onClick = {
+                        query = ""
+                        onAddItem()
+                    },
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "문구 추가", tint = DDZColor.PrimaryDark)
                 }
             }
@@ -175,6 +179,10 @@ internal fun RotatingPhraseSetListPanel(
                     style = DDZTypography.Caption,
                     color = DDZColor.TextSecondary,
                 )
+            }
+            if (phraseSet.items.size >= RotatingPhraseSet.MAX_ITEMS) {
+                Text("문구 최대 ${RotatingPhraseSet.MAX_ITEMS}개",
+                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
             }
             HorizontalDivider(color = DDZColor.Border)
             LazyColumn(
@@ -266,7 +274,9 @@ internal fun RotatingPhraseSetListPanel(
                                                 if (index in selected) selected.remove(index) else selected.add(index)
                                             } else onEditPeriod(index)
                                         }
+                                        .widthIn(min = 48.dp)
                                         .padding(horizontal = 6.dp, vertical = 12.dp),
+                                    textAlign = TextAlign.Center,
                                     style = DDZTypography.Caption,
                                     color = if (phraseSet.itemEveryOverrides.getOrNull(index) != null)
                                         DDZColor.PrimaryDark else DDZColor.TextSecondary,
