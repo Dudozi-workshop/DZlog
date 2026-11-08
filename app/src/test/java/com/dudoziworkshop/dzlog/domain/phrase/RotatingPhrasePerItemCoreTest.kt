@@ -88,6 +88,19 @@ class RotatingPhrasePerItemCoreTest {
         assertEquals(3, restored.phraseSets.single().everyForItem(1))
     }
 
+    @Test fun addingOnlyInheritedPhrasesSurvivesSaveAndReloadExactly() {
+        val original = RotatingPhraseSet("id", "기본", listOf("시작"), defaultEvery = 5)
+        val added = RotatingPhraseSetItemPolicy.addItem(original, "새 문구")
+        assertEquals(listOf(null, null), added.itemEveryOverrides)
+        val template = TableTemplateState(
+            1, 1, listOf(TableCellState(0, 0, cellId = "cell")),
+            phraseSets = listOf(added),
+        )
+        val restored = requireNotNull(tableTemplateStateFromJson(template.toJsonString()))
+        assertEquals(template.phraseSets, restored.phraseSets)
+        assertEquals(5, restored.phraseSets.single().everyForItem(1))
+    }
+
     @Test fun mixedPeriodsPersistAndRestoreWithNulls() {
         val cell = TableCellState(0, 0, cellId = "cell",
             dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = base.id,
