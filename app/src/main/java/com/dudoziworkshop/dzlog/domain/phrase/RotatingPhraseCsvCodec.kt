@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.phrase
 
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+
 /**
  * UTF-8 CSV for one phrase set.
  * New format: order,phrase,every. Empty every = inherit the set default.
@@ -65,7 +67,7 @@ internal object RotatingPhraseCsvCodec {
             val every: Int? = if (rawEvery.isEmpty()) {
                 null
             } else {
-                rawEvery.toIntOrNull()?.takeIf { it >= 1 }
+                rawEvery.toIntOrNull()?.takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
                     ?: return failure((index + 2).toString() + "행의 변경 주기는 1 이상의 숫자이거나 빈칸이어야 합니다.")
             }
             numbered += Row(order, phrase, every)
