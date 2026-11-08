@@ -45,11 +45,17 @@ internal fun RotatingPhrasePeriodDialog(
     defaultEvery: Int,
     targetLabel: String,
     selectedCount: Int,
+    mixedValues: Boolean = false,
     onApply: (Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var inherit by remember(targetLabel, selectedCount, initialEvery) {
-        mutableStateOf(initialEvery == null)
+    var inherit by remember(targetLabel, selectedCount, initialEvery, mixedValues) {
+        mutableStateOf(initialEvery == null && !mixedValues)
+    }
+    // An assortment of different intervals must not be reset accidentally
+    // by opening the bulk sheet and tapping Apply without an explicit choice.
+    var touched by remember(targetLabel, selectedCount, initialEvery, mixedValues) {
+        mutableStateOf(!mixedValues)
     }
     var text by remember(targetLabel, selectedCount, initialEvery) {
         mutableStateOf(TextFieldValue((initialEvery ?: defaultEvery).coerceIn(1, 999999).toString()))
@@ -64,7 +70,10 @@ internal fun RotatingPhrasePeriodDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    if (selectedCount > 1) "선택한 ${selectedCount}개 문구" else targetLabel,
+                    if (selectedCount > 1) {
+                        if (mixedValues && !touched) "선택한 ${selectedCount}개 문구 · 서로 다른 주기"
+                        else "선택한 ${selectedCount}개 문구"
+                    } else targetLabel,
                     style = DDZTypography.Secondary,
                     color = DDZColor.TextSecondary,
                 )
@@ -80,12 +89,15 @@ internal fun RotatingPhrasePeriodDialog(
                         horizontalPadding = 6.dp,
                         style = DDZButtonStyle.Secondary,
                         enabled = !inherit && numeric != null && numeric > 1,
-                        onClick = { numeric?.let { text = TextFieldValue((it - 1).toString()) } },
+                        onClick = { numeric?.let { text = TextFieldValue((it - 1).toString()); touched = true } },
                     )
                     OutlinedTextField(
                         value = if (inherit) TextFieldValue(defaultEvery.toString()) else text,
                         onValueChange = { next ->
-                            if (next.text.length <= 6 && next.text.all(Char::isDigit)) text = next
+                            if (next.text.length <= 6 && next.text.all(Char::isDigit)) {
+                                text = next
+                                touched = true
+                            }
                         },
                         modifier = Modifier.weight(1f).onFocusChanged { focus ->
                             if (focus.isFocused) text = text.copy(
@@ -110,14 +122,14 @@ internal fun RotatingPhrasePeriodDialog(
                         horizontalPadding = 6.dp,
                         style = DDZButtonStyle.Secondary,
                         enabled = !inherit && numeric != null && numeric < 999999,
-                        onClick = { numeric?.let { text = TextFieldValue((it + 1).toString()) } },
+                        onClick = { numeric?.let { text = TextFieldValue((it + 1).toString()); touched = true } },
                     )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().toggleable(
                         value = inherit,
                         role = Role.Checkbox,
-                        onValueChange = { inherit = it },
+                        onValueChange = { inherit = it; touched = true },
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -136,7 +148,7 @@ internal fun RotatingPhrasePeriodDialog(
         },
         confirmButton = {
             DDZDialogAction(
-                enabled = inherit || numeric != null,
+                enabled = touched && (inherit || numeric != null),
                 onClick = {
                     if (inherit || effective != null) {
                         onApply(if (inherit) null else numeric)
