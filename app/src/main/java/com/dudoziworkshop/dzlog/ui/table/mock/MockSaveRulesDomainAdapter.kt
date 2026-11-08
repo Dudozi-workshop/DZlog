@@ -193,7 +193,7 @@ internal fun applyMockPhraseEvery(
                 cell.dataType == TableCellDataType.ROTATING_TEXT &&
                 cell.phraseSetId != null
             ) {
-                cell.copy(everyOverride = every.coerceAtLeast(1), phraseCompletedShots = 0)
+                cell.copy(everyOverride = every.coerceIn(1, RotatingPhraseSet.MAX_EVERY), phraseCompletedShots = 0)
             } else {
                 cell
             }
