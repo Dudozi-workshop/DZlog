@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -52,6 +53,8 @@ fun RotatingPhraseSetEditDialog(
     var showItem by remember(phraseSet.id) { mutableStateOf(false) }
     var editingIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
     var editingText by remember(phraseSet.id) { mutableStateOf("") }
+    var continuousAdd by remember(phraseSet.id) { mutableStateOf(true) }
+    var periodTargets by remember(phraseSet.id) { mutableStateOf<List<Int>>(emptyList()) }
 
     fun editItem(index: Int?, text: String) {
         editingIndex = index
@@ -103,6 +106,7 @@ fun RotatingPhraseSetEditDialog(
         ) { insets ->
             Column(
                 modifier = Modifier.fillMaxSize().padding(insets)
+                    .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -111,6 +115,8 @@ fun RotatingPhraseSetEditDialog(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     onUpdateSet = onUpdateSet,
                     onEditItem = { index, text -> editItem(index, text) },
+                    onEditPeriod = { index -> periodTargets = listOf(index) },
+                    onBulkPeriod = { indices -> periodTargets = indices },
                     onAddItem = { editItem(null, "") },
                 )
                 RotatingPhraseSetFooter(
@@ -159,28 +165,41 @@ fun RotatingPhraseSetEditDialog(
         val index = editingIndex
         RotatingPhraseItemEditDialog(
             initialText = editingText,
-            initialEvery = index?.let { phraseSet.itemEveryOverrides.getOrNull(it) },
-            defaultEvery = phraseSet.defaultEvery,
             isEdit = index != null,
+            continuousAdd = continuousAdd,
+            onContinuousAddChange = { continuousAdd = it },
             onDismiss = { showItem = false },
-            onSave = { text, every ->
+            onSave = { text ->
                 if (index == null) {
-                    onUpdateSet { set ->
-                        val added = RotatingPhraseSetItemPolicy.addItem(set, text)
-                        RotatingPhraseSetItemPolicy.setEvery(added, added.items.lastIndex, every)
-                    }
+                    onUpdateSet { RotatingPhraseSetItemPolicy.addItem(it, text) }
                 } else {
-                    onUpdateSet { set ->
-                        RotatingPhraseSetItemPolicy.setEvery(
-                            RotatingPhraseSetItemPolicy.renameItem(set, index, text),
-                            index,
-                            every,
-                        )
-                    }
+                    onUpdateSet { RotatingPhraseSetItemPolicy.renameItem(it, index, text) }
                 }
-                showItem = false
             },
         )
+    }
+
+    if (periodTargets.isNotEmpty()) {
+        val targets = periodTargets.filter { it in phraseSet.items.indices }
+        if (targets.isNotEmpty()) {
+            val intervals = targets.map { phraseSet.itemEveryOverrides.getOrNull(it) }
+            val existing = if (intervals.distinct().size == 1) intervals.first() else null
+            RotatingPhrasePeriodDialog(
+                initialEvery = existing,
+                defaultEvery = phraseSet.defaultEvery,
+                targetLabel = phraseSet.items[targets.first()],
+                selectedCount = targets.size,
+                onDismiss = { periodTargets = emptyList() },
+                onApply = { every ->
+                    onUpdateSet { set ->
+                        targets.fold(set) { changed, index ->
+                            RotatingPhraseSetItemPolicy.setEvery(changed, index, every)
+                        }
+                    }
+                    periodTargets = emptyList()
+                },
+            )
+        }
     }
 
     if (showDelete) {
