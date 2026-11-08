@@ -39,22 +39,26 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-      - name: Use Gradle CDN directly (avoid upstream 504 redirect)
-        run: sed -i 's#services.gradle.org#downloads.gradle.org#' gradle/wrapper/gradle-wrapper.properties
-      - name: Compile and run quick preview policy regression
+      - name: Compile, test and assemble with pinned official Gradle image
+        shell: bash
         run: |
-          bash ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest \
-            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePolicyTest' \
-            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellPresentationPolicyTest' \
-            --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest' \
-            --tests 'com.dudoziworkshop.dzlog.feature.table.render.CameraTableResolutionTest' \
-            --stacktrace
-      - name: Build isolated preview QA app
-        run: |
-          bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true \
-            -PdzlogQaInstanceTag=badges --stacktrace
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          mkdir -p "$RUNNER_TEMP/pr107-gradle-home"
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp -e GRADLE_USER_HOME=/tmp/gradle-home \
+            -e ANDROID_HOME="$SDK_ROOT" -e ANDROID_SDK_ROOT="$SDK_ROOT" \
+            -v "$PWD:/workspace" -v "$SDK_ROOT:$SDK_ROOT" \
+            -v "$RUNNER_TEMP/pr107-gradle-home:/tmp/gradle-home" \
+            -w /workspace gradle:8.13.0-jdk21 \
+            gradle :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug \
+              -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=badges \
+              --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePolicyTest' \
+              --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellPresentationPolicyTest' \
+              --tests 'com.dudoziworkshop.dzlog.feature.table.policy.QuickCellValuePolicyTest' \
+              --tests 'com.dudoziworkshop.dzlog.feature.table.render.CameraTableResolutionTest' \
+              --stacktrace
       - name: Upload isolated APK
         uses: actions/upload-artifact@v4
         with:
