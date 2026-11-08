@@ -37,26 +37,28 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
-      - name: Bootstrap Gradle wrapper with download retries
+      - name: Bootstrap Gradle wrapper with checksum and mirror fallback
         shell: bash
         run: |
           set -euo pipefail
-          # Download of Gradle 8.13 intermittently returns HTTP 504 / 10s timeout.
-          # Change only this workflow checkout, not the repository-wide wrapper.
+          # Only the QA runner's local copy is changed; the project's wrapper stays pinned.
           sed -i 's/^networkTimeout=.*/networkTimeout=120000/' gradle/wrapper/gradle-wrapper.properties
-          # Gradle's services endpoint is currently redirecting GitHub Actions to
-          # a GitHub release that responds 504. Use Gradle's direct CDN in CI only.
-          sed -i 's#services.gradle.org/distributions#downloads.gradle.org/distributions#' gradle/wrapper/gradle-wrapper.properties
-          # Verify immutable Gradle 8.13 binary before execution.
           grep -q '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties || \
             echo 'distributionSha256Sum=20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78' \
             >> gradle/wrapper/gradle-wrapper.properties
-          for attempt in 1 2 3; do
+          # Official Gradle CDN is currently redirecting to a GitHub release returning 504.
+          # Checksummed mirrors are used only to bootstrap the identical 8.13 distribution.
+          for url in \
+            'https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip' \
+            'https://mirrors.aliyun.com/gradle/distributions/v8.13.0/gradle-8.13-bin.zip' \
+            'https://services.gradle.org/distributions/gradle-8.13-bin.zip'; do
+            sed -i '/^distributionUrl=/d' gradle/wrapper/gradle-wrapper.properties
+            printf 'distributionUrl=%s\n' "$url" >> gradle/wrapper/gradle-wrapper.properties
             if bash ./gradlew --version; then
               exit 0
             fi
-            echo "Gradle distribution bootstrap attempt $attempt failed" >&2
-            sleep 8
+            echo "Gradle bootstrap mirror failed: $url" >&2
+            sleep 4
           done
           exit 1
       - name: Test period policies CSV legacy persistence and camera integration
