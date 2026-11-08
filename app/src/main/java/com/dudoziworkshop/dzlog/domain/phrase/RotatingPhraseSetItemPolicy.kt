@@ -15,6 +15,26 @@ object RotatingPhraseSetItemPolicy {
         return set.copy(itemEveryOverrides = values)
     }
 
+    /** Apply one shared period to many selected rows without copying the full list per row. */
+    fun setEveryForItems(
+        set: RotatingPhraseSet,
+        indices: Collection<Int>,
+        every: Int?,
+    ): RotatingPhraseSet {
+        if (every != null && every !in 1..RotatingPhraseSet.MAX_EVERY) return set
+        val indicesToChange = indices.filter { it in set.items.indices }.toSet()
+        if (indicesToChange.isEmpty()) return set
+        val values = overrides(set)
+        var changed = false
+        indicesToChange.forEach { index ->
+            if (values[index] != every) {
+                values[index] = every
+                changed = true
+            }
+        }
+        return if (changed) set.copy(itemEveryOverrides = values) else set
+    }
+
     fun renameItem(set: RotatingPhraseSet, index: Int, phrase: String): RotatingPhraseSet {
         if (index !in set.items.indices || phrase.isBlank()) return set
         return set.copy(items = set.items.toMutableList().apply { this[index] = phrase })
