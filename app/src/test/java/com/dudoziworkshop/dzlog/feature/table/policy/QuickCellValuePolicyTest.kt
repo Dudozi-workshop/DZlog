@@ -45,7 +45,7 @@ class QuickCellValuePolicyTest {
         assertEquals(counter, changed.cells[2])
     }
 
-    @Test fun navigationSkipsAutomaticAndCoveredCellsAndStopsAtEnds() {
+    @Test fun navigationUsesRootCellsAndWrapsInBothDirections() {
         val text = TableCellState(0, 0, cellId = "text", colSpan = 2)
         val covered = TableCellState(0, 1, cellId = "covered")
         val date = TableCellState(0, 2, cellId = "date", dataType = TableCellDataType.DATE)
@@ -53,15 +53,19 @@ class QuickCellValuePolicyTest {
         val counter = TableCellState(1, 1, cellId = "counter", dataType = TableCellDataType.COUNTER)
         val time = TableCellState(1, 2, cellId = "time", dataType = TableCellDataType.TIME)
         val template = TableTemplateState(2, 3, listOf(number, covered, time, counter, date, text))
-        val cells = quickEditableCells(template)
-        assertEquals(listOf("text", "number"), cells.map { it.cellId })
-        assertEquals("number", adjacentQuickCellId(cells, "text", 1))
-        assertEquals("text", adjacentQuickCellId(cells, "number", -1))
-        assertNull(adjacentQuickCellId(cells, "text", -1))
-        assertNull(adjacentQuickCellId(cells, "number", 1))
+        val cells = quickNavigableCells(template)
+        assertEquals(listOf("text", "date", "number", "counter", "time"), cells.map { it.cellId })
+        assertEquals("date", adjacentQuickCellId(cells, "text", 1))
+        assertEquals("text", adjacentQuickCellId(cells, "date", -1))
+        assertEquals("text", adjacentQuickCellId(cells, "time", 1))
+        assertEquals("time", adjacentQuickCellId(cells, "text", -1))
+        assertEquals("counter", adjacentQuickCellId(cells, "number", 1))
+        assertEquals("time", adjacentQuickCellId(cells, "counter", 1))
+        assertEquals("number", adjacentQuickCellId(cells, "counter", -1))
         assertNull(adjacentQuickCellId(cells, "covered", 1))
         assertNull(adjacentQuickCellId(emptyList(), null, 1))
         assertNull(adjacentQuickCellId(cells, "text", 0))
+        assertNull(adjacentQuickCellId(listOf(text), "text", 1))
     }
 
     @Test fun mergedCoveredCellsAreNotListedAndPositionShowsRange() {
