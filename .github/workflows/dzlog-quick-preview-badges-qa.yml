@@ -10,6 +10,9 @@ on:
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/QuickPreviewCellBadges.kt'
       - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickTablePreview.kt'
       - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickPreviewCellBadgePolicyTest.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickCellValuePolicy.kt'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
+      - 'app/src/test/java/com/dudoziworkshop/dzlog/feature/table/policy/QuickCellValuePolicyTest.kt'
   workflow_dispatch:
 
 permissions:
