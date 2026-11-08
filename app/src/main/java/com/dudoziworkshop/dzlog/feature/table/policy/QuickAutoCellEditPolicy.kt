@@ -5,9 +5,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
 /**
- * Every visible root cell, including the automatic counter, can be selected.
- * Counter cells are read-only in the quick editor: selecting a cell never
- * changes its seed or the capture counter synchronisation rules.
+ * Quick editing is available for every visible root cell except counters.
+ * Counter seeds remain protected by the capture counter synchronisation rules.
  * The legacy quickEditable flag is ignored for existing templates.
  */
 /**
@@ -71,6 +70,7 @@ internal fun updateQuickPhraseCompleted(
 
 internal fun quickSelectableCells(template: TableTemplateState): List<TableCellState> =
     quickRootCells(template)
+        .filter { it.dataType != TableCellDataType.COUNTER }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
 
 internal val quickDateFormats: List<String> = listOf("yyyyMMdd", "yyMMdd", "MMdd")
