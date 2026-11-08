@@ -37,6 +37,21 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Bootstrap Gradle wrapper with download retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Download of Gradle 8.13 intermittently returns HTTP 504 / 10s timeout.
+          # Change only this workflow checkout, not the repository-wide wrapper.
+          sed -i 's/^networkTimeout=.*/networkTimeout=120000/' gradle/wrapper/gradle-wrapper.properties
+          for attempt in 1 2 3; do
+            if bash ./gradlew --version; then
+              exit 0
+            fi
+            echo "Gradle distribution bootstrap attempt $attempt failed" >&2
+            sleep 8
+          done
+          exit 1
       - name: Test period policies CSV legacy persistence and camera integration
         run: |
           bash ./gradlew :app:testDebugUnitTest \
