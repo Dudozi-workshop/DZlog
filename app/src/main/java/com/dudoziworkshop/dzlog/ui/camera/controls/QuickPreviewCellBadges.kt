@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,7 +24,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 
-/** Cell-local status overlays; never written into the camera preview/photo scene. */
+/** Status information belongs to quick editing only; never to saved photo pixels. */
 @Composable
 internal fun QuickPreviewCellBadges(
     type: TableCellDataType,
@@ -33,7 +32,6 @@ internal fun QuickPreviewCellBadges(
     active: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    if (!plan.type) return
     val size = with(LocalDensity.current) { plan.sizePx.toDp() }
     val tint = if (active) DDZColor.SelectionEmphasis else DDZColor.TextSecondary
     val badgeBackground = DDZColor.Surface.copy(alpha = 0.90f)
@@ -45,72 +43,59 @@ internal fun QuickPreviewCellBadges(
         TableCellDataType.COUNTER -> DDZCellTypeIcons.AutoNumber
         TableCellDataType.ROTATING_TEXT -> DDZCellTypeIcons.RotatingText
     }
+
     Box(modifier) {
-        if (plan.compact) {
-            // Two lines reduce overlap with neighboring cells. Keep all metadata
-            // even when the cell is smaller than the combined badge footprint.
-            Column(
-                modifier = Modifier.align(Alignment.TopStart)
-                    .padding(DDZSpacing.xs)
-                    .wrapContentSize(unbounded = true)
-                    .background(badgeBackground, RoundedCornerShape(2.dp)),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
-                horizontalAlignment = Alignment.Start,
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(cellTypeIcon, contentDescription = null, modifier = Modifier.size(size), tint = tint)
-                    if (plan.locked) Icon(
-                        Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                    )
-                }
-                if (plan.fileName || plan.path) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(0.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (plan.fileName) Icon(
-                            Icons.Filled.Description, contentDescription = null,
-                            modifier = Modifier.size(size), tint = tint,
-                        )
-                        if (plan.path) Icon(
-                            Icons.Filled.Folder, contentDescription = null,
-                            modifier = Modifier.size(size), tint = tint,
-                        )
-                    }
-                }
-            }
-        } else {
-        Row(
+        // The type marker always belongs to the LEFT, including narrow cells.
+        Icon(
+            cellTypeIcon,
+            contentDescription = null,
             modifier = Modifier.align(Alignment.TopStart)
                 .padding(DDZSpacing.xs)
+                .size(size)
                 .background(badgeBackground, RoundedCornerShape(2.dp)),
-            horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(cellTypeIcon, contentDescription = null, modifier = Modifier.size(size), tint = tint)
-            if (plan.locked) Icon(
-                Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-            )
-        }
+            tint = tint,
+        )
+
         if (plan.fileName || plan.path) {
-            Row(
-                modifier = Modifier.align(Alignment.TopEnd)
-                    .padding(DDZSpacing.xs)
-                    .background(badgeBackground, RoundedCornerShape(2.dp)),
-                horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (plan.fileName) Icon(
-                    Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                )
-                if (plan.path) Icon(
-                    Icons.Filled.Folder, contentDescription = null, modifier = Modifier.size(size), tint = tint,
-                )
+            // Filename/path links always belong to the RIGHT. Never suppress
+            // them for a small cell; stack only these two when necessary.
+            if (plan.stackLinks) {
+                Column(
+                    modifier = Modifier.align(Alignment.TopEnd)
+                        .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
+                        .padding(DDZSpacing.xs)
+                        .background(badgeBackground, RoundedCornerShape(2.dp)),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    if (plan.fileName) Icon(
+                        Icons.Filled.Description, contentDescription = null,
+                        modifier = Modifier.size(size), tint = tint,
+                    )
+                    if (plan.path) Icon(
+                        Icons.Filled.Folder, contentDescription = null,
+                        modifier = Modifier.size(size), tint = tint,
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd)
+                        .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
+                        .padding(DDZSpacing.xs)
+                        .background(badgeBackground, RoundedCornerShape(2.dp)),
+                    horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (plan.fileName) Icon(
+                        Icons.Filled.Description, contentDescription = null,
+                        modifier = Modifier.size(size), tint = tint,
+                    )
+                    if (plan.path) Icon(
+                        Icons.Filled.Folder, contentDescription = null,
+                        modifier = Modifier.size(size), tint = tint,
+                    )
+                }
             }
-        }
         }
     }
 }
