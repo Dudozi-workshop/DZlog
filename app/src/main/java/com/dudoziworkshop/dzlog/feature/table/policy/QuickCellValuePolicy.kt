@@ -30,10 +30,11 @@ internal fun quickCellPosition(cell: TableCellState): String {
     return "${range(cell.rowIndex, cell.rowSpan)}행 ${range(cell.colIndex, cell.colSpan)}열"
 }
 
-/** Row-major manual-cell navigation, without wrapping or selecting covered/automatic cells. */
+/** Row-major navigation across selectable root cells, wrapping at both ends. */
 internal fun adjacentQuickCellId(cells: List<TableCellState>, selectedId: String?, direction: Int): String? {
-    if (direction != -1 && direction != 1) return null
+    if (direction != -1 && direction != 1 || cells.size < 2) return null
     val index = cells.indexOfFirst { it.cellId == selectedId }
     if (index < 0) return null
-    return cells.getOrNull(index + direction)?.cellId
+    val next = (index + direction + cells.size) % cells.size
+    return cells[next].cellId
 }
