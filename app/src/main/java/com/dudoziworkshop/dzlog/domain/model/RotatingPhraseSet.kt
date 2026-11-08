@@ -18,6 +18,10 @@ data class RotatingPhraseSet(
      */
     val itemEveryOverrides: List<Int?> = emptyList(),
 ) {
+    companion object {
+        const val MAX_EVERY: Int = 999_999
+    }
+
     fun everyForItem(index: Int): Int =
         (itemEveryOverrides.getOrNull(index) ?: defaultEvery).coerceAtLeast(1)
 }
