@@ -18,6 +18,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Checkbox
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,16 +55,21 @@ internal fun RotatingPhraseSetListPanel(
     modifier: Modifier = Modifier,
     onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
     onEditItem: (Int, String) -> Unit,
+    onEditPeriod: (Int) -> Unit,
+    onBulkPeriod: (List<Int>) -> Unit,
     onAddItem: () -> Unit,
 ) {
     var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     var query by remember(phraseSet.id) { mutableStateOf("") }
     val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, query)
-    val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(query))
+    var selecting by remember(phraseSet.id) { mutableStateOf(false) }
+    val selected = remember(phraseSet.id) { mutableStateListOf<Int>() }
+    val canReorder by rememberUpdatedState(!selecting && RotatingPhraseSearchPolicy.reorderEnabled(query))
     val rowIds = remember(phraseSet.id) { mutableStateListOf<String>() }
     LaunchedEffect(phraseSet.id, phraseSet.items.size) {
         while (rowIds.size < phraseSet.items.size) rowIds.add(UUID.randomUUID().toString())
         while (rowIds.size > phraseSet.items.size) rowIds.removeAt(rowIds.lastIndex)
+        selected.removeAll { it !in phraseSet.items.indices }
     }
 
     val scroll = rememberLazyListState()
@@ -95,6 +103,16 @@ internal fun RotatingPhraseSetListPanel(
                     style = DDZTypography.CardTitle,
                     color = DDZColor.TextPrimary,
                 )
+                DDZButton(
+                    text = if (selecting) "취소" else "선택",
+                    style = DDZButtonStyle.Secondary,
+                    horizontalPadding = 6.dp,
+                    minHeight = 40.dp,
+                    onClick = {
+                        selecting = !selecting
+                        selected.clear()
+                    },
+                )
                 IconButton(onClick = {
                     searchExpanded = !searchExpanded
                     if (!searchExpanded) query = ""
@@ -117,7 +135,41 @@ internal fun RotatingPhraseSetListPanel(
                     singleLine = true,
                 )
             }
-            if (!canReorder) {
+            if (selecting) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("${selected.size}개 선택됨",
+                        style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                    DDZButton(
+                        text = if (visibleIndices.isNotEmpty() && visibleIndices.all { it in selected })
+                            "검색 결과 선택 해제" else "검색 결과 전체 선택",
+                        style = DDZButtonStyle.Secondary,
+                        horizontalPadding = 6.dp,
+                        minHeight = 40.dp,
+                        onClick = {
+                            if (visibleIndices.all { it in selected }) {
+                                selected.removeAll { it in visibleIndices }
+                            } else {
+                                visibleIndices.forEach { if (it !in selected) selected.add(it) }
+                            }
+                        },
+                    )
+                }
+                DDZButton(
+                    text = "선택한 ${selected.size}개 변경 주기 설정",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = selected.isNotEmpty(),
+                    onClick = {
+                        val indices = selected.toList().sorted()
+                        selecting = false
+                        selected.clear()
+                        onBulkPeriod(indices)
+                    },
+                )
+            } else if (!RotatingPhraseSearchPolicy.reorderEnabled(query)) {
                 Text(
                     "검색 결과 ${visibleIndices.size}개 · 검색 중 순서 변경 불가",
                     style = DDZTypography.Caption,
@@ -161,7 +213,18 @@ internal fun RotatingPhraseSetListPanel(
                                     .heightIn(min = 54.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                IconButton(
+                                if (selecting) {
+                                    Checkbox(
+                                        checked = index in selected,
+                                        onCheckedChange = { checked ->
+                                            if (checked) {
+                                                if (index !in selected) selected.add(index)
+                                            } else {
+                                                selected.remove(index)
+                                            }
+                                        },
+                                    )
+                                } else IconButton(
                                     enabled = canReorder,
                                     onClick = {},
                                     modifier = if (canReorder) with(this@ReorderableItem) {
@@ -184,7 +247,11 @@ internal fun RotatingPhraseSetListPanel(
                                 Text(
                                     item,
                                     modifier = Modifier.weight(1f)
-                                        .clickable { onEditItem(index, item) }
+                                        .clickable {
+                                            if (selecting) {
+                                                if (index in selected) selected.remove(index) else selected.add(index)
+                                            } else onEditItem(index, item)
+                                        }
                                         .padding(vertical = 14.dp),
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
@@ -194,13 +261,17 @@ internal fun RotatingPhraseSetListPanel(
                                 Text(
                                     "${phraseSet.everyForItem(index)}장",
                                     modifier = Modifier
-                                        .clickable { onEditItem(index, item) }
+                                        .clickable {
+                                            if (selecting) {
+                                                if (index in selected) selected.remove(index) else selected.add(index)
+                                            } else onEditPeriod(index)
+                                        }
                                         .padding(horizontal = 6.dp, vertical = 12.dp),
                                     style = DDZTypography.Caption,
                                     color = if (phraseSet.itemEveryOverrides.getOrNull(index) != null)
                                         DDZColor.PrimaryDark else DDZColor.TextSecondary,
                                 )
-                                IconButton(onClick = {
+                                if (!selecting) IconButton(onClick = {
                                     if (index in rowIds.indices) rowIds.removeAt(index)
                                     onUpdateSet { RotatingPhraseSetItemPolicy.removeItem(it, index) }
                                 }) {
