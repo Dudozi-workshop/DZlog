@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -69,6 +70,10 @@ fun RotatingPhraseSetEditDialog(
         Scaffold(
             modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = DDZColor.Background,
+            // Insets are owned explicitly: DDZTopBar handles the status bar,
+            // navigationBarsPadding below handles the gesture/3-button area.
+            // Avoid applying Scaffold.safeDrawing's bottom inset a second time.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 DDZTopBar(
                     title = phraseSet.name,
