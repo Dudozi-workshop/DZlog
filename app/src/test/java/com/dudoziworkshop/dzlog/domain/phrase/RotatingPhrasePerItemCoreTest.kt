@@ -88,6 +88,24 @@ class RotatingPhrasePerItemCoreTest {
         assertEquals(3, restored.phraseSets.single().everyForItem(1))
     }
 
+    @Test fun continuousAddStopsAtSharedCsvAndBackupLimit() {
+        val initial = RotatingPhraseSet(
+            "capacity", "대량", (1..999).map { "문구 $it" }, defaultEvery = 2,
+        )
+        val thousand = RotatingPhraseSetItemPolicy.addItem(initial, "마지막")
+        assertEquals(RotatingPhraseSet.MAX_ITEMS, thousand.items.size)
+        assertEquals(2, thousand.everyForItem(999))
+        assertSame(thousand, RotatingPhraseSetItemPolicy.addItem(thousand, "초과"))
+        assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, ""))
+        assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, "x".repeat(501)))
+        assertSame(initial, RotatingPhraseSetItemPolicy.addItem(initial, "a\\nb"))
+        assertSame(initial, RotatingPhraseSetItemPolicy.renameItem(initial, 0, "x".repeat(501)))
+        val changed = RotatingPhraseSetItemPolicy.renameItem(initial, 0, " 수정 ")
+        assertEquals("수정", changed.items.first())
+        assertSame(changed, RotatingPhraseSetItemPolicy.renameItem(changed, 0, "수정"))
+        assertEquals(thousand.items.size, thousand.itemEveryOverrides.size)
+    }
+
     @Test fun bulkIntervalChangesOnlySelectedRowsWithoutTouchingNamesOrOrders() {
         val source = RotatingPhraseSet(
             "bulk", "조사", (1..250).map { "문구 $it" }, defaultEvery = 5,
