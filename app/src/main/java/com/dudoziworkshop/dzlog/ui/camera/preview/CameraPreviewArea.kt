@@ -180,7 +180,7 @@ internal fun CameraPreviewArea(
                     if (id == focusRequestId && boundCamera === activeCamera) {
                         onTapFocusUiChange(
                             TapFocusUiState(xPx, yPx,
-                                if (success) FocusRingPhase.SUCCESS else FocusRingPhase.FOCUSING)
+                                if (success) FocusRingPhase.SUCCESS else FocusRingPhase.FAILED)
                         )
                     }
                 },
