@@ -56,7 +56,6 @@ import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.camera.interop.requestTapAeLock
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -358,8 +357,6 @@ internal fun CameraPreviewArea(
         val gestureModifier = Modifier
             .fillMaxSize()
             .cameraPreviewGestureModifier(
-                context = context,
-                scope = scope,
                 previewView = previewView,
                 boundCamera = boundCamera,
                 captureRect = captureRect,
