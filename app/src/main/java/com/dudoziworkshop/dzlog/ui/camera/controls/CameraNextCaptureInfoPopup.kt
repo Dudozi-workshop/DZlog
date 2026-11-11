@@ -54,8 +54,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 private enum class CaptureInfoList { PROJECT, TEMPLATE }
 
 /**
- * Reuses the existing camera-centre popup. Selectors expand INSIDE the fixed
- * popup, never open a second modal over the live camera.
+ * Camera preparation uses dedicated project/template choice pages within
+ * the existing centre popup, without expanding lists beneath the cards.
  * During pending saves, callers must pass canChangeSelection=false. This view
  * still permits reading the project, template, filename and save paths.
  */
@@ -214,20 +214,45 @@ internal fun CameraNextCaptureInfoPopup(
 private fun CaptureInfoSelectionHeader(
     title: String,
     value: String,
+    icon: ImageVector,
     onClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(title + " · 선택", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-        Text(value + "  ▾", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(icon, contentDescription = null, tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
+        Text(title, style = DDZTypography.Caption, color = DDZColor.TextMuted)
+    }
+    Surface(
+        color = DDZColor.Surface,
+        border = BorderStroke(1.dp, DDZColor.Border),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clickable(onClickLabel = title + " 선택", onClick = onClick)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                value,
+                modifier = Modifier.weight(1f),
+                style = DDZTypography.Body,
+                color = DDZColor.TextStrong,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = DDZColor.TextMuted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
-
 @Composable
 private fun CaptureInfoChoiceRow(
     name: String,
