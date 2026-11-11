@@ -23,6 +23,8 @@ internal fun CameraPreviewOverlays(
     aspectRatio: Float,
     onDismissCaptured: () -> Unit,
     tapFocusUi: TapFocusUiState?,
+    tapFocusLocked: Boolean = false,
+    tapFocusCompact: Boolean = false,
     isWatermarkArmed: Boolean,
     isTableLocked: Boolean,
     watermarkOffsetOverridePx: Offset?,
@@ -34,7 +36,7 @@ internal fun CameraPreviewOverlays(
     CaptureAreaMaskOverlay(captureRect = previewContentRect)
 
     if (tapFocusUi != null) {
-        FocusRingOverlay(tapFocusUi)
+        FocusRingOverlay(tapFocusUi, locked = tapFocusLocked, compact = tapFocusCompact)
     }
 
     if (showGrid) {
