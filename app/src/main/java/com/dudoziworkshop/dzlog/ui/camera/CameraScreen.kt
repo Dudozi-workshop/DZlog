@@ -674,6 +674,11 @@ fun CameraPreview(
         buildWatermarkConfig = ::buildWatermarkConfig,
     )
 
+    fun captureWithFocusControlsCollapsed() {
+        ui.capture.focusControlsCollapseToken += 1
+        triggerCapture()
+    }
+
     LaunchedEffect(ui.capture.capturedUri, ui.prefs.continuousPreviewMode) {
         if (ui.capture.capturedUri != null && ui.prefs.continuousPreviewMode == ContinuousPreviewMode.SHORT) {
             delay(1500)
@@ -697,7 +702,7 @@ fun CameraPreview(
         volumeKeyAction = if (readOnlyTour || showQuickValueSheet) VolumeKeyAction.NONE else appSettings.volumeKeyAction,
         onCapture = {
             ui.dismissCameraInteractions()
-            triggerCapture()
+            captureWithFocusControlsCollapsed()
         },
         onZoomDelta = { deltaTenths ->
             commitZoomTenths(ui.prefs.zoomRatioTenths + deltaTenths)
@@ -831,7 +836,8 @@ fun CameraPreview(
                     capturedUri = ui.capture.capturedUri,
                     onDismissCaptured = { ui.capture.capturedUri = null },
                     tapFocusUi = ui.capture.tapFocusUi,
-                    onTapFocusUiChange = { ui.capture.tapFocusUi = it }
+                    onTapFocusUiChange = { ui.capture.tapFocusUi = it },
+                    focusControlsCollapseToken = ui.capture.focusControlsCollapseToken
                 )
 
                 if (readOnlyTour && tourLocation?.pageId == "preview") {
@@ -893,7 +899,7 @@ fun CameraPreview(
                             }
                         },
                         onTriggerCapture = {
-                            if (!readOnlyTour) { ui.dismissCameraInteractions(); triggerCapture() }
+                            if (!readOnlyTour) { ui.dismissCameraInteractions(); captureWithFocusControlsCollapsed() }
                         },
                         onShutterButtonTopYChange = { layout.onShutterButtonTopYChange(it) },
                         tutorialFocus = tutorialFocus,
@@ -935,7 +941,7 @@ fun CameraPreview(
                     },
                     onTapCapture = {
                         ui.dismissCameraInteractions()
-                        triggerCapture()
+                        captureWithFocusControlsCollapsed()
                     },
                     modifier = Modifier
                         .matchParentSize()
