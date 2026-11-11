@@ -155,6 +155,8 @@ fun AppRoot(startOnCamera: Boolean = false) {
     val quickResultsSaveableHolder = rememberSaveableStateHolder()
     var previousScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var templateListEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
+    var projectSelectionFromCamera by rememberSaveable { mutableStateOf(false) }
+    var templateSelectionFromCamera by rememberSaveable { mutableStateOf(false) }
     var albumEntryScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var returnToQuickResultsFromAlbum by rememberSaveable { mutableStateOf(false) }
     var gridEntrySource by rememberSaveable { mutableStateOf(GridEntrySource.NORMAL) }
@@ -738,6 +740,7 @@ fun AppRoot(startOnCamera: Boolean = false) {
     }
 
     fun openProjectList(create: Boolean = false) {
+        projectSelectionFromCamera = false
         showProjectPicker = false
         openProjectListWithCreate = create
         navigateTo(AppScreen.PROJECT_LIST)
@@ -958,10 +961,20 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry?.activeId,
                     projects = captureProjectRegistry?.projects.orEmpty(),
-                    onSelectProject = ::selectCaptureProject,
-                    onManageProjects = { openProjectList() },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
+                    onOpenProjectSelection = {
+                        projectSelectionFromCamera = true
+                        openProjectListWithCreate = false
+                        // Keep camera session state until the target actually changes.
+                        screen = AppScreen.PROJECT_LIST
+                    },
+                    onOpenTemplateSelection = {
+                        templateSelectionFromCamera = true
+                        templateListEntryScreen = AppScreen.CAMERA
+                        // Do not use navigateTo(): just inspecting templates must not clear Undo.
+                        screen = AppScreen.TABLE_TEMPLATES
+                    },
                     onOpenTableEditor = ::openActiveHomeTableEditor,
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
@@ -987,16 +1000,47 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 summaries = projectSummaries,
                 activeId = captureProjectRegistry?.activeId,
                 createInitially = openProjectListWithCreate,
-                onBack = { navigateTo(AppScreen.HOME) },
+                selectionMode = projectSelectionFromCamera,
+                onSelectProject = { target ->
+                    appScope.launch {
+                        try {
+                            if (selectCaptureProject(target)) {
+                                projectSelectionFromCamera = false
+                                screen = AppScreen.CAMERA
+                            } else {
+                                Toast.makeText(context, "사진 저장 완료 후 프로젝트를 선택해 주세요.", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            Toast.makeText(context, error.message ?: "프로젝트 선택 실패", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onBack = {
+                    if (projectSelectionFromCamera) {
+                        projectSelectionFromCamera = false
+                        screen = AppScreen.CAMERA
+                    } else navigateTo(AppScreen.HOME)
+                },
                 onCreate = { name ->
                     appScope.launch {
                         try {
                             val projectId = projectManagement.create(
                                 name, tableTemplateViewModel.activeTemplateId,
                             )
-                            projectDetailsId = projectId
                             openProjectListWithCreate = false
-                            navigateTo(AppScreen.PROJECT_DETAIL)
+                            if (projectSelectionFromCamera && selectCaptureProject(projectId)) {
+                                projectSelectionFromCamera = false
+                                screen = AppScreen.CAMERA
+                            } else {
+                                // Keep the normal create/manage workflow as a fallback.
+                                projectSelectionFromCamera = false
+                                projectDetailsId = projectId
+                                navigateTo(AppScreen.PROJECT_DETAIL)
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
                         } catch (error: Exception) {
                             Toast.makeText(context,
                                 error.message ?: "프로젝트 생성 실패", Toast.LENGTH_LONG).show()
@@ -1125,10 +1169,20 @@ fun AppRoot(startOnCamera: Boolean = false) {
                     quickTemplateId = tableTemplateViewModel.activeTemplateId,
                     projectId = captureProjectRegistry?.activeId,
                     projects = captureProjectRegistry?.projects.orEmpty(),
-                    onSelectProject = ::selectCaptureProject,
-                    onManageProjects = { openProjectList() },
                     quickEditSelectionMemory = quickEditSelectionMemory,
                     onQuickTemplateSelect = ::switchQuickTemplate,
+                    onOpenProjectSelection = {
+                        projectSelectionFromCamera = true
+                        openProjectListWithCreate = false
+                        // Keep camera session state until the target actually changes.
+                        screen = AppScreen.PROJECT_LIST
+                    },
+                    onOpenTemplateSelection = {
+                        templateSelectionFromCamera = true
+                        templateListEntryScreen = AppScreen.CAMERA
+                        // Do not use navigateTo(): just inspecting templates must not clear Undo.
+                        screen = AppScreen.TABLE_TEMPLATES
+                    },
                     onOpenTableEditor = ::openActiveHomeTableEditor,
                     onOpenSaveSettings = ::openActiveSaveSettings,
                     onOpenAlbum = ::openAlbumRoot,
@@ -1165,9 +1219,32 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 TableTemplateListScreen(
                     templates = tableTemplateViewModel.templates,
                     activeTemplateId = tableTemplateViewModel.activeTemplateId,
-                    onBack = { screen = templateListEntryScreen },
+                    onBack = {
+                        if (templateSelectionFromCamera) templateSelectionFromCamera = false
+                        screen = templateListEntryScreen
+                    },
                     onOpenTemplate = ::openSavedTemplate,
-                    onSelectTemplate = ::selectSavedTemplate,
+                    onSelectTemplate = { target ->
+                        if (templateSelectionFromCamera) {
+                            appScope.launch {
+                                try {
+                                    if (projectManagement.canChangeCaptureTarget() &&
+                                        switchQuickTemplate(target, tableTemplateState)) {
+                                        templateSelectionFromCamera = false
+                                        screen = AppScreen.CAMERA
+                                    } else {
+                                        Toast.makeText(context,
+                                            "사진 저장 완료 후 템플릿을 변경해 주세요.", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    Toast.makeText(context,
+                                        error.message ?: "템플릿 변경 실패", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else selectSavedTemplate(target)
+                    },
                     onCreateTemplate = ::createNewTemplate,
                     onRenameTemplate = ::renameTemplate,
                     onDuplicateTemplate = ::duplicateTemplate,
