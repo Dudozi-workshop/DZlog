@@ -1,8 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,7 +49,7 @@ internal fun FocusRingControlsOverlay(
     onExposureIndexChange: (Int) -> Unit,
 ) {
     if (focus == null) return
-    BoxWithConstraints(Modifier.matchParentSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
