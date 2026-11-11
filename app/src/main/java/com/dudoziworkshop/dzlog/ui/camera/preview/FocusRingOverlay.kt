@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 
 /**
  * [FocusRingOverlay]
@@ -25,7 +26,7 @@ import androidx.compose.ui.zIndex
  * - 제외: 터치 처리/CameraControl 호출/상태 생성 로직 금지(표시 전용)
  */
 @Composable
-internal fun FocusRingOverlay(ui: TapFocusUiState) {
+internal fun FocusRingOverlay(ui: TapFocusUiState, locked: Boolean = false, compact: Boolean = false) {
     val density = LocalDensity.current
     val isFocusing = (ui.phase == FocusRingPhase.FOCUSING)
 
@@ -65,12 +66,12 @@ internal fun FocusRingOverlay(ui: TapFocusUiState) {
             .zIndex(5f)
     ) {
         val center = Offset(ui.xPx, ui.yPx)
-        val radiusBase = with(density) { 28.dp.toPx() }
+        val radiusBase = with(density) { (if (compact) 21.dp else 28.dp).toPx() }
         val stroke = with(density) { 1.25.dp.toPx() }
         val radius = radiusBase * scale
 
         drawCircle(
-            color = Color.White.copy(alpha = alpha),
+            color = (if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha),
             radius = radius,
             center = center,
             style = Stroke(width = stroke)
