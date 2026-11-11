@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,36 +44,33 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private enum class SetFooterSheet { NUMBERING, CSV }
 
-/** Stays visible while the phrase list alone scrolls. */
 @Composable
-internal fun RotatingPhraseSetFooter(
+internal fun RotatingPhraseDefaultPeriodBar(
     phraseSet: RotatingPhraseSet,
     onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
 ) {
     var showCycleInfo by remember(phraseSet.id) { mutableStateOf(false) }
-    var sheet by remember(phraseSet.id) { mutableStateOf<SetFooterSheet?>(null) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Surface(
             color = DDZColor.Surface,
             border = BorderStroke(1.dp, DDZColor.Border),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 14.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                Modifier.fillMaxWidth().padding(start = 10.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     "기본 변경 주기",
-                    style = DDZTypography.Body,
+                    style = DDZTypography.Secondary,
                     color = DDZColor.TextPrimary,
                 )
                 Box {
-                    IconButton(onClick = { showCycleInfo = true }) {
+                    IconButton(modifier = Modifier.size(40.dp), onClick = { showCycleInfo = true }) {
                         Icon(
                             Icons.Default.Info,
                             contentDescription = "기본 변경 주기 설명",
+                            modifier = Modifier.size(18.dp),
                             tint = DDZColor.TextSecondary,
                         )
                     }
@@ -92,10 +90,10 @@ internal fun RotatingPhraseSetFooter(
                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 DDZButton(
                     text = "−",
-                    modifier = Modifier.width(40.dp),
+                    modifier = Modifier.width(36.dp),
                     style = DDZButtonStyle.Secondary,
-                    minHeight = 40.dp,
-                    horizontalPadding = 8.dp,
+                    minHeight = 36.dp,
+                    horizontalPadding = 6.dp,
                     enabled = phraseSet.defaultEvery > 1,
                     onClick = {
                         onUpdateSet { it.copy(defaultEvery = (it.defaultEvery - 1).coerceAtLeast(1)) }
@@ -103,27 +101,38 @@ internal fun RotatingPhraseSetFooter(
                 )
                 Text(
                     "${phraseSet.defaultEvery}장",
-                    modifier = Modifier.padding(horizontal = 5.dp),
-                    style = DDZTypography.Body,
+                    modifier = Modifier.padding(horizontal = 2.dp),
+                    style = DDZTypography.Secondary,
                     color = DDZColor.TextPrimary,
                 )
                 DDZButton(
                     text = "+",
-                    modifier = Modifier.width(40.dp),
+                    modifier = Modifier.width(36.dp),
                     style = DDZButtonStyle.Secondary,
-                    minHeight = 40.dp,
-                    horizontalPadding = 8.dp,
+                    minHeight = 36.dp,
+                    horizontalPadding = 6.dp,
                     enabled = phraseSet.defaultEvery < RotatingPhraseSet.MAX_EVERY,
                     onClick = { onUpdateSet { it.copy(defaultEvery = it.defaultEvery + 1) } },
                 )
             }
         }
+ }
+
+/** Secondary settings stay below the independently scrollable phrase list. */
+@Composable
+internal fun RotatingPhraseSetFooter(
+    phraseSet: RotatingPhraseSet,
+    onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
+) {
+    var sheet by remember(phraseSet.id) { mutableStateOf<SetFooterSheet?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Surface(color = DDZColor.Surface, shape = RoundedCornerShape(14.dp)) {
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth()
                         .clickable { sheet = SetFooterSheet.NUMBERING }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -144,7 +153,7 @@ internal fun RotatingPhraseSetFooter(
                 Row(
                     modifier = Modifier.fillMaxWidth()
                         .clickable { sheet = SetFooterSheet.CSV }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
