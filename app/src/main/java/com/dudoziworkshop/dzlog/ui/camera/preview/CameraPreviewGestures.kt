@@ -40,7 +40,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     dragTableWidthPx: Float,
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
-    onFocusTapRequested: (Float, Float) -> Unit,
+    focusTapCallbackState: State<(Float, Float) -> Unit>,
     onCommitWatermarkOffsetIfNeeded: () -> Unit,
     onWatermarkArmedChange: (Boolean) -> Unit,
     onWatermarkDragActiveChange: (Boolean) -> Unit,
@@ -65,7 +65,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     activeHandleCornerState: State<ResizeHandleCorner?>,
     onActiveHandleCornerChange: (ResizeHandleCorner?) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, focusMode, isWatermarkArmed, onFocusTapRequested) {
+    .pointerInput(boundCamera, captureRect, focusMode, isWatermarkArmed) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
             if (watermarkBoundsRectState.value?.contains(offset.x, offset.y) == true) {
@@ -80,7 +80,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
             val activeCamera = boundCamera ?: return@detectTapGestures
             if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 
-            onFocusTapRequested(offset.x, offset.y)
+            focusTapCallbackState.value(offset.x, offset.y)
         }
     }
     .pointerInput(boundCamera, captureRect, isWatermarkArmed, isTableLocked) {
