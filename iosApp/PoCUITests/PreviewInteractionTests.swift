@@ -57,6 +57,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 12").exists)
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
             format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명: ", "blue")).firstMatch.exists)
+        tapButton("빠른 입력 열기")
+        tapScrollableButton("날짜 형식 · yyyyMMdd")
+        tapScrollableButton("yyMMdd · 짧은 연월일")
+        tapScrollableButton("문구 세트 · 과수원")
+        tapScrollableButton("온실")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("날짜형식: yyMMdd").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("문구세트: set-b").exists)
         tapButton("입력값으로 촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 입력 반영 사진 저장 완료"))
         XCTAssertTrue(text("다음 번호: 13").exists)
@@ -65,6 +73,8 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
         XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("날짜형식: yyMMdd").exists)
+        XCTAssertTrue(text("문구세트: set-b").exists)
         XCTAssertTrue(text("다음 번호: 13").exists)
     }
 
@@ -74,6 +84,31 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("입력 정책 검증")
         XCTAssertTrue(text("상태: 편집 대상·숫자·충돌 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
         XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    func testQuickValueTemplateSwitchPersistsDraftAndSelection() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("템플릿 · 빠른 입력 검증")
+        tapButton("빠른 입력 보조")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("입력값: SECOND").exists)
+        XCTAssertTrue(text("다음 번호: 40").exists)
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
+        tapButton("빠른 입력 열기")
+        tapButton("템플릿 · 빠른 입력 보조")
+        tapButton("빠른 입력 검증")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("입력값: blue").exists)
         XCTAssertTrue(text("다음 번호: 12").exists)
     }
 
@@ -473,6 +508,20 @@ final class PreviewInteractionTests: XCTestCase {
         // each caller verifies the resulting dismissal/selection, not just event synthesis.
         app.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+    }
+
+    private func tapScrollableButton(_ label: String) {
+        for _ in 0..<5 {
+            let element = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            if element.exists && !element.frame.isEmpty && app.frame.contains(element.frame) {
+                let frame = element.frame
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                return
+            }
+            app.swipeUp()
+        }
+        XCTFail("Missing scrollable button: \(label)")
     }
 
     private func screenContains(_ marker: String) throws -> Bool {

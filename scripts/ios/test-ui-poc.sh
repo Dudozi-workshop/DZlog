@@ -7,11 +7,13 @@ case "$test_scope" in
   quick-values) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
   ) ;;
   media) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableMoveResizePersistsAndSaves
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableRotationLockAndGeometryBounds
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged

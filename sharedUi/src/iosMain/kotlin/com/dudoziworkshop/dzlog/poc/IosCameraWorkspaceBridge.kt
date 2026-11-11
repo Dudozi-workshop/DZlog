@@ -34,13 +34,30 @@ internal class IosCameraCaptureSession(
     fun hasPending(): Boolean = coordinator.hasPendingCapture()
 
     val selectedDocument get() = checkNotNull(workspace.active)
+    val documents get() = workspace.documents
 
     /** Reject a draft opened before another save/settings change. */
     fun saveQuickValues(expected: com.dudoziworkshop.dzlog.data.template.EditorDocument,
-        values: Map<String, String>): Boolean {
+        changes: IosQuickValueChanges): Boolean {
         if (selectedDocument != expected || hasPending()) return false
-        val updated = runCatching { updateIosQuickValues(expected, values) }.getOrNull() ?: return false
+        val updated = runCatching { applyIosQuickValueChanges(expected, changes) }.getOrNull() ?: return false
         return saveSettings(updated)
+    }
+
+    /** Persist the current quick draft before atomically selecting another iOS document. */
+    fun switchQuickTemplate(
+        expected: com.dudoziworkshop.dzlog.data.template.EditorDocument,
+        targetTemplateId: String,
+        changes: IosQuickValueChanges,
+    ): Boolean {
+        if (selectedDocument != expected || hasPending()) return false
+        if (workspace.documents.none { it.template.id == targetTemplateId }) return false
+        val updatedCurrent = runCatching { applyIosQuickValueChanges(expected, changes) }.getOrNull() ?: return false
+        if (store.load(expected.template) != workspace) return false
+        val updated = workspace.save(updatedCurrent).copy(activeTemplateId = targetTemplateId)
+        if (!store.save(updated)) return false
+        workspace = store.load(updated.active!!.template)
+        return workspace.activeTemplateId == targetTemplateId
     }
 
     fun saveSettings(document: com.dudoziworkshop.dzlog.data.template.EditorDocument): Boolean {

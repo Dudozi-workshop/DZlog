@@ -1,21 +1,25 @@
 package com.dudoziworkshop.dzlog.feature.table.policy
 
-import com.dudoziworkshop.dzlog.domain.model.*
+import com.dudoziworkshop.dzlog.domain.model.CellValue
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
-internal fun quickRootCells(template: TableTemplateState): List<TableCellState> = template.cells.filter { cell ->
+fun quickRootCells(template: TableTemplateState): List<TableCellState> = template.cells.filter { cell ->
     template.cells.none { other -> other.cellId != cell.cellId &&
         (other.rowSpan > 1 || other.colSpan > 1) &&
         cell.rowIndex in other.rowIndex until other.rowIndex + other.rowSpan &&
         cell.colIndex in other.colIndex until other.colIndex + other.colSpan }
 }
 
-internal fun quickEditableCells(template: TableTemplateState): List<TableCellState> {
-    val manual = quickRootCells(template).filter { it.quickEditable && (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER) }
-        .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
+fun quickEditableCells(template: TableTemplateState): List<TableCellState> {
+    val manual = quickRootCells(template).filter {
+        it.quickEditable && (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER)
+    }.sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
     return manual
 }
 
-internal fun updateQuickCellValues(template: TableTemplateState, values: Map<String, String>): TableTemplateState =
+fun updateQuickCellValues(template: TableTemplateState, values: Map<String, String>): TableTemplateState =
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
         when {
@@ -26,13 +30,13 @@ internal fun updateQuickCellValues(template: TableTemplateState, values: Map<Str
         }
     })
 
-internal fun quickCellPosition(cell: TableCellState): String {
+fun quickCellPosition(cell: TableCellState): String {
     fun range(start: Int, span: Int) = if (span <= 1) "${start + 1}" else "${start + 1}~${start + span}"
     return "${range(cell.rowIndex, cell.rowSpan)}행 ${range(cell.colIndex, cell.colSpan)}열"
 }
 
 /** Row-major manual-cell navigation, without wrapping or selecting covered/automatic cells. */
-internal fun adjacentQuickCellId(cells: List<TableCellState>, selectedId: String?, direction: Int): String? {
+fun adjacentQuickCellId(cells: List<TableCellState>, selectedId: String?, direction: Int): String? {
     if (direction != -1 && direction != 1) return null
     val index = cells.indexOfFirst { it.cellId == selectedId }
     if (index < 0) return null

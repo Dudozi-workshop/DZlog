@@ -116,9 +116,15 @@ internal fun IosCameraCapturePoc(
     }
 
     if (showQuickValues && session != null) {
-        val expected = remember { session.selectedDocument }
-        IosQuickValuesScreen(expected, onBack = { showQuickValues = false }) { values ->
-            session.saveQuickValues(expected, values).also { saved ->
+        var expected by remember { mutableStateOf(session.selectedDocument) }
+        IosQuickValuesScreen(expected, onBack = { showQuickValues = false },
+            availableDocuments = session.documents,
+            onSwitchTemplate = { targetId, changes ->
+                session.switchQuickTemplate(expected, targetId, changes).also { switched ->
+                    if (switched) { expected = session.selectedDocument; settingsRevision += 1 }
+                }
+            }) { changes ->
+            session.saveQuickValues(expected, changes).also { saved ->
                 if (saved) { settingsRevision += 1; showQuickValues = false }
             }
         }
