@@ -29,6 +29,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 internal fun FocusRingOverlay(ui: TapFocusUiState, locked: Boolean = false, compact: Boolean = false) {
     val density = LocalDensity.current
     val isFocusing = (ui.phase == FocusRingPhase.FOCUSING)
+    val failed = (ui.phase == FocusRingPhase.FAILED)
 
     val infinite = rememberInfiniteTransition(label = "focusRing")
     val pulseAlpha = infinite.animateFloat(
@@ -71,7 +72,7 @@ internal fun FocusRingOverlay(ui: TapFocusUiState, locked: Boolean = false, comp
         val radius = radiusBase * scale
 
         drawCircle(
-            color = (if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha),
+            color = (if (failed) DDZColor.Destructive else if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha),
             radius = radius,
             center = center,
             style = Stroke(width = stroke)
