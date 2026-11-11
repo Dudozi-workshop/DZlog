@@ -6,7 +6,7 @@ package com.dudoziworkshop.dzlog.ui.camera.preview
  * - 포함: FocusRingPhase, TapFocusUiState
  * - 제외: 렌더링/카메라 제어 로직
  */
-internal enum class FocusRingPhase { FOCUSING, SUCCESS }
+internal enum class FocusRingPhase { FOCUSING, SUCCESS, FAILED }
 
 internal data class TapFocusUiState(
     val xPx: Float,
