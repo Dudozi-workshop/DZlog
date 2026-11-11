@@ -1,4 +1,4 @@
-name: DZlog Camera Prep QA
+name: DZlog Integrated Phrase and Camera QA
 
 on:
   push:
@@ -6,14 +6,14 @@ on:
       - feat/camera-capture-prep-ui-20261111
     paths:
       - 'app/**'
-      - '.github/workflows/dzlog-phrase-period-qa.yml'
+      - '.github/workflows/dzlog-camera-prep-qa.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: dzlog-camera-prep-qa
+  group: dzlog-integrated-qa
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +35,7 @@ jobs:
           git fetch --no-tags origin integration/dzlog-20261010
           echo "Integration head: $(git rev-parse FETCH_HEAD)"
           if ! git merge --no-commit --no-ff FETCH_HEAD; then
-            echo "::error::PR #108 overlaps new integration changes. Resolve before merging."
+            echo "::error::Integrated branch overlaps new integration changes. Resolve before merging."
             git status --short
             exit 1
           fi
@@ -78,27 +78,42 @@ jobs:
             sleep 4
           done
           exit 1
-      - name: Compile camera UI
-        run: bash ./gradlew :app:compileDebugKotlin --stacktrace
+      - name: Focused phrase and camera integration tests
+        run: |
+          bash ./gradlew :app:testDebugUnitTest \
+            --tests '*RotatingPhrasePerItemCoreTest' \
+            --tests '*RotatingPhraseCsvCodecTest' \
+            --tests '*QuickRotatingPhrasePolicyTest' \
+            --tests '*CellPhraseProgressTest' \
+            --tests '*TableEditorPhraseSettingsTest' \
+            --tests '*RotatingCaptureCommitPersistenceTest' \
+            --tests '*RotatingPhraseSearchPolicyTest' \
+            --tests '*PhraseResolverTest' \
+            --tests '*LocalTemplateBackupTest' \
+            --tests '*RotatingPhrasePersistenceTest' \
+            --tests '*TemplateEditCaptureSyncTest' \
+            --tests '*RotatingCounterProgressTest' \
+            --tests '*CapturePhraseUndoHistoryTest' \
+            :app:compileDebugKotlin --stacktrace
       - name: Full Android unit regression (all test classes)
         run: |
           bash ./gradlew :app:testDebugUnitTest --rerun-tasks --stacktrace
-      - name: Build separate-install camera prep QA APK
+      - name: Build separate-install integrated QA APK
         run: |
           set -euo pipefail
           bash ./gradlew :app:assembleDebug \
             -PdzlogStandaloneQa=true \
-            -PdzlogQaInstanceTag=cameraprep \
-            -PdzlogDebugVersionCode=1000107 --stacktrace
+            -PdzlogQaInstanceTag=integrated \
+            -PdzlogDebugVersionCode=1000108 --stacktrace
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           APK="app/build/outputs/apk/debug/app-debug.apk"
           "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
-          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.cameraprep' versionCode='1000107'"
-          cp "$APK" DZlog-camera-prep-QA.apk
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.integrated' versionCode='1000108'"
+          cp "$APK" DZlog-integrated-QA.apk
       - name: Upload QA APK
         uses: actions/upload-artifact@v4
         with:
-          name: dzlog-camera-prep-qa-apk
-          path: DZlog-camera-prep-QA.apk
+          name: dzlog-integrated-qa-apk
+          path: DZlog-integrated-QA.apk
           if-no-files-found: error
           retention-days: 14
