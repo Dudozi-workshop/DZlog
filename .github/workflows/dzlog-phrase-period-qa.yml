@@ -1,0 +1,119 @@
+name: DZlog Phrase Period Focused QA
+
+on:
+  push:
+    branches:
+      - feat/phrase-per-item-period-core-20261107
+    paths:
+      - 'app/**'
+      - '.github/workflows/dzlog-phrase-period-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-phrase-period-focused
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate combined changes with latest integration branch (CI only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "PR head: $(git rev-parse HEAD)"
+          git config user.name "DZlog CI"
+          git config user.email "ci@users.noreply.github.com"
+          git fetch --no-tags origin integration/dzlog-20261010
+          echo "Integration head: $(git rev-parse FETCH_HEAD)"
+          if ! git merge --no-commit --no-ff FETCH_HEAD; then
+            echo "::error::PR #108 overlaps new integration changes. Resolve before merging."
+            git status --short
+            exit 1
+          fi
+          echo "Combined working tree validated. Nothing is pushed or merged remotely."
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK 36
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+      - name: Bootstrap Gradle wrapper with checksum and mirror fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only the QA runner's local copy is changed; the project's wrapper stays pinned.
+          sed -i 's/^networkTimeout=.*/networkTimeout=120000/' gradle/wrapper/gradle-wrapper.properties
+          grep -q '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties || \
+            echo 'distributionSha256Sum=20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78' \
+            >> gradle/wrapper/gradle-wrapper.properties
+          # Official Gradle CDN is currently redirecting to a GitHub release returning 504.
+          # Checksummed mirrors are used only to bootstrap the identical 8.13 distribution.
+          for url in \
+            'https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip' \
+            'https://mirrors.aliyun.com/gradle/distributions/v8.13.0/gradle-8.13-bin.zip' \
+            'https://services.gradle.org/distributions/gradle-8.13-bin.zip'; do
+            sed -i '/^distributionUrl=/d' gradle/wrapper/gradle-wrapper.properties
+            printf 'distributionUrl=%s\n' "$url" >> gradle/wrapper/gradle-wrapper.properties
+            if bash ./gradlew --version; then
+              exit 0
+            fi
+            echo "Gradle bootstrap mirror failed: $url" >&2
+            sleep 4
+          done
+          exit 1
+      - name: Test period policies CSV legacy persistence and camera integration
+        run: |
+          bash ./gradlew :app:testDebugUnitTest \
+            --tests '*RotatingPhrasePerItemCoreTest' \
+            --tests '*RotatingPhraseCsvCodecTest' \
+            --tests '*QuickRotatingPhrasePolicyTest' \
+            --tests '*CellPhraseProgressTest' \
+            --tests '*TableEditorPhraseSettingsTest' \
+            --tests '*RotatingCaptureCommitPersistenceTest' \
+            --tests '*RotatingPhraseSearchPolicyTest' \
+            --tests '*PhraseResolverTest' \
+            --tests '*LocalTemplateBackupTest' \
+            --tests '*RotatingPhrasePersistenceTest' \
+            --tests '*TemplateEditCaptureSyncTest' \
+            --tests '*RotatingCounterProgressTest' \
+            --tests '*CapturePhraseUndoHistoryTest' \
+            :app:compileDebugKotlin --stacktrace
+      - name: Full Android unit regression (all test classes)
+        run: |
+          bash ./gradlew :app:testDebugUnitTest --rerun-tasks --stacktrace
+      - name: Build separate-install period QA APK
+        run: |
+          set -euo pipefail
+          bash ./gradlew :app:assembleDebug \
+            -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=phraseperiod \
+            -PdzlogDebugVersionCode=1000105 --stacktrace
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$SDK_ROOT/build-tools/35.0.0/apksigner" verify "$APK"
+          "$SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -m1 "package: name='com.dudoziworkshop.dzlog.qa.phraseperiod' versionCode='1000105'"
+          cp "$APK" DZlog-phrase-period-QA.apk
+      - name: Upload QA APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-phrase-period-qa-apk
+          path: DZlog-phrase-period-QA.apk
+          if-no-files-found: error
+          retention-days: 14

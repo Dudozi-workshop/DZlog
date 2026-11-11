@@ -438,6 +438,10 @@ internal fun CameraQuickValueSheet(
                                         val updated = updateQuickPhraseEvery(draft.template, selected.cellId, every)
                                         if (updated != draft.template) { draft.template = updated; draft.dirty = true }
                                     },
+                                    onPhraseFollowSet = {
+                                        val updated = followQuickPhraseSetPeriods(draft.template, selected.cellId)
+                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    },
                                     onPhraseCompleted = { completed ->
                                         val updated = updateQuickPhraseCompleted(draft.template, selected.cellId, completed)
                                         if (updated != draft.template) { draft.template = updated; draft.dirty = true }

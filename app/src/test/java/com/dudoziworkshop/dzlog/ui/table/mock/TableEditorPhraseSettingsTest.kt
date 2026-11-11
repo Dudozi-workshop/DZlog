@@ -23,6 +23,22 @@ class TableEditorPhraseSettingsTest {
         assertEquals(cell, renamed.cells.single())
     }
 
+    @Test fun appendOnlyKeepsExistingCameraPhraseAndCapturedCount() {
+        val appended = updateMockPhraseSet(template, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.addItem(it, "T5")
+        }
+        assertEquals(listOf("T1", "T2", "T3", "T4", "T5"), appended.phraseSets.single().items)
+        assertEquals(cell, appended.cells.single())
+        assertEquals(2, appended.cells.single().phraseIndex)
+        assertEquals(5, appended.cells.single().phraseCompletedShots)
+
+        val renamed = updateMockPhraseSet(appended, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.renameItem(it, 0, "T1 수정")
+        }
+        assertEquals(0, renamed.cells.single().phraseIndex)
+        assertEquals(0, renamed.cells.single().phraseCompletedShots)
+    }
+
     @Test fun different_set_and_changed_item_order_start_at_first_item() {
         val other = set.copy(id = "other")
         val changed = applyMockPhraseSet(template.copy(phraseSets = listOf(set, other)), cell.cellId, other.id)
@@ -56,5 +72,26 @@ class TableEditorPhraseSettingsTest {
         assertEquals(unrelated, updated.cells[2])
         assertEquals(counter, updated.cells[3])
     }
+
+    @Test fun perItemPeriodUpdatesOnlyResetAffectedInheritedCells() {
+        val inheritedCurrent = cell.copy(cellId = "inherited-current", colIndex = 0,
+            phraseIndex = 2, phraseCompletedShots = 5, everyOverride = null)
+        val inheritedOther = cell.copy(cellId = "inherited-other", colIndex = 1,
+            phraseIndex = 1, phraseCompletedShots = 3, everyOverride = null)
+        val fixedCurrent = cell.copy(cellId = "fixed-current", colIndex = 2,
+            phraseIndex = 2, phraseCompletedShots = 2, everyOverride = 4)
+        val working = TableTemplateState(1, 3,
+            listOf(inheritedCurrent, inheritedOther, fixedCurrent), phraseSets = listOf(set))
+        val changed = updateMockPhraseSet(working, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.setEvery(it, 2, 3)
+        }
+        assertEquals(0, changed.cells[0].phraseCompletedShots)
+        assertEquals(2, changed.cells[0].phraseIndex)
+        assertEquals(inheritedOther, changed.cells[1])
+        assertEquals(fixedCurrent, changed.cells[2])
+        assertEquals(3, changed.phraseSets.single().everyForItem(2))
+        assertEquals(12, changed.phraseSets.single().everyForItem(1))
+    }
+
 
 }

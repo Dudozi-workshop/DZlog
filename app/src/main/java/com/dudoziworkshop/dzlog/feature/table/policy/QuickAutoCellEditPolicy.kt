@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 
 /**
  * Quick editing is available for every visible root cell except counters.
@@ -30,23 +31,40 @@ internal fun selectQuickPhraseItem(
     })
 }
 
-/** A per-cell cycle change starts this same phrase with zero completed captures. */
+/**
+ * A fixed value is always stored explicitly, even when it equals the set's
+ * current default. "전체 설정" is the ONLY way back to inherited per-item rules.
+ */
 internal fun updateQuickPhraseEvery(
     template: TableTemplateState,
     cellId: String,
     every: Int,
 ): TableTemplateState {
-    if (every < 1) return template
+    if (every !in 1..RotatingPhraseSet.MAX_EVERY) return template
     val cell = template.cells.firstOrNull {
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
         ?.takeIf { it.items.isNotEmpty() } ?: return template
-    val oldEvery = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
-    if (oldEvery == every) return template
-    val override = every.takeUnless { it == set.defaultEvery.coerceAtLeast(1) }
+    if (cell.everyOverride == every) return template
     return template.copy(cells = template.cells.map {
-        if (it.cellId == cellId) it.copy(everyOverride = override, phraseCompletedShots = 0) else it
+        if (it.cellId == cellId) it.copy(everyOverride = every, phraseCompletedShots = 0) else it
+    })
+}
+
+/** Switch just this cell to the saved set's default and per-phrase intervals. */
+internal fun followQuickPhraseSetPeriods(
+    template: TableTemplateState,
+    cellId: String,
+): TableTemplateState {
+    val cell = template.cells.firstOrNull {
+        it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
+    } ?: return template
+    if (cell.everyOverride == null || template.phraseSets.none {
+            it.id == cell.phraseSetId && it.items.isNotEmpty()
+        }) return template
+    return template.copy(cells = template.cells.map {
+        if (it.cellId == cellId) it.copy(everyOverride = null, phraseCompletedShots = 0) else it
     })
 }
 
@@ -61,7 +79,7 @@ internal fun updateQuickPhraseCompleted(
     } ?: return template
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
         ?.takeIf { it.items.isNotEmpty() } ?: return template
-    val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
+    val every = (cell.everyOverride ?: set.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
     if (completed !in 0 until every || cell.phraseCompletedShots == completed) return template
     return template.copy(cells = template.cells.map {
         if (it.cellId == cellId) it.copy(phraseCompletedShots = completed) else it

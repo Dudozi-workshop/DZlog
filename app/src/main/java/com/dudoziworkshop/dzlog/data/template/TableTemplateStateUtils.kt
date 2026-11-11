@@ -60,9 +60,23 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     if (id.isBlank()) continue
 
                     val itemsJson = set.optJSONArray("items") ?: JSONArray()
-                    val items = List(itemsJson.length()) { idx -> itemsJson.optString(idx, "") }
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
+                    val validItemIndices = (0 until itemsJson.length())
+                        .filter { itemsJson.optString(it, "").trim().isNotBlank() }
+                    val items = validItemIndices.map { itemsJson.optString(it, "").trim() }
+                    // Missing in existing templates: all items inherit the set default.
+                    // Read by original index so legacy blank entries cannot shift periods.
+                    val periodsJson = set.optJSONArray("itemEveryOverrides")
+                    val itemPeriods = validItemIndices.map { index ->
+                        if (periodsJson == null || index >= periodsJson.length() || periodsJson.isNull(index)) {
+                            null
+                        } else {
+                            periodsJson.optInt(index, 0).takeIf { it >= 1 }
+                        }
+                    }.let { values ->
+                        // A missing key is a legacy set. An explicit array of
+                        // inherited periods must survive round-trip exactly.
+                        if (periodsJson == null) emptyList() else values
+                    }
 
                     add(
                         RotatingPhraseSet(
@@ -73,6 +87,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                             counterProgressMode = runCatching {
                                 RotatingCounterProgressMode.valueOf(set.optString("counterProgressMode"))
                             }.getOrDefault(RotatingCounterProgressMode.PER_PHRASE),
+                            itemEveryOverrides = itemPeriods,
                         )
                     )
                 }
@@ -243,6 +258,14 @@ fun TableTemplateState.toJsonString(): String {
             val itemsJson = JSONArray()
             set.items.forEach { itemsJson.put(it) }
             setJson.put("items", itemsJson)
+            // Do not add unnecessary keys to unchanged legacy templates.
+            if (set.itemEveryOverrides.isNotEmpty()) {
+                val periodsJson = JSONArray()
+                set.items.indices.forEach { index ->
+                    periodsJson.put(set.itemEveryOverrides.getOrNull(index) ?: JSONObject.NULL)
+                }
+                setJson.put("itemEveryOverrides", periodsJson)
+            }
 
             phraseSetsJson.put(setJson)
         }

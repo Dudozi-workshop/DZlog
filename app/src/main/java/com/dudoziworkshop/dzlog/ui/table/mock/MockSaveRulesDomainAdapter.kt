@@ -193,7 +193,7 @@ internal fun applyMockPhraseEvery(
                 cell.dataType == TableCellDataType.ROTATING_TEXT &&
                 cell.phraseSetId != null
             ) {
-                cell.copy(everyOverride = every.coerceAtLeast(1), phraseCompletedShots = 0)
+                cell.copy(everyOverride = every.coerceIn(1, RotatingPhraseSet.MAX_EVERY), phraseCompletedShots = 0)
             } else {
                 cell
             }
@@ -225,12 +225,17 @@ internal fun updateMockPhraseSet(
     templateState.let { state ->
         val old = state.phraseSets.firstOrNull { it.id == phraseSetId } ?: return@let state
         val updated = transform(old)
+        // Append-only edits keep existing phrase indices and shot progress valid.
+        // Reorder, removal, renaming and CSV replacement retain the reset policy.
+        val appendOnly = updated.items.size > old.items.size &&
+            updated.items.take(old.items.size) == old.items
         state.copy(
             phraseSets = state.phraseSets.map { if (it.id == phraseSetId) updated else it },
             cells = state.cells.map { cell ->
-                if (cell.phraseSetId == phraseSetId && old.items != updated.items)
+                if (cell.phraseSetId == phraseSetId && old.items != updated.items && !appendOnly)
                     cell.copy(phraseIndex = 0, phraseCompletedShots = 0)
-                else if (cell.phraseSetId == phraseSetId && old.defaultEvery != updated.defaultEvery && cell.everyOverride == null)
+                else if (cell.phraseSetId == phraseSetId && cell.everyOverride == null &&
+                    old.everyForItem(cell.phraseIndex) != updated.everyForItem(cell.phraseIndex))
                     cell.copy(phraseCompletedShots = 0)
                 else cell
             },

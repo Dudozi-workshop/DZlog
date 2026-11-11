@@ -210,7 +210,7 @@ internal fun TableEditorCellUiModelEditor(
                             onClick = { showPhrasePicker = true },
                         )
                         if (selectedSet != null) {
-                            val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
+                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),

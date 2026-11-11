@@ -142,6 +142,36 @@ class TemplateEditCaptureSyncTest {
             "Pictures/DZlog/5/After/")
     }
 
+    @Test fun perPhrasePeriodChangeSynchronizesEditorCameraAndNextCapture() {
+        val before = template(firstPhrase = "Before")
+        val after = before.copy(phraseSets = listOf(
+            before.phraseSets.single().copy(defaultEvery = 5,
+                itemEveryOverrides = listOf(2, null)),
+        ))
+        val phrase = after.phraseSets.single()
+        var cell = after.cells.first { it.cellId == "phrase" }
+        assertEquals(2, phrase.everyForItem(0))
+        assertPreviewMatchesCapture(after, "Draper_Before_007.jpg",
+            "Pictures/DZlog/5/Before/")
+
+        // First successful capture keeps the phrase, the second advances it.
+        val first = com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+            .afterSuccessfulCapture(cell, phrase)
+        assertEquals(0, first.index)
+        assertEquals(1, first.completedShots)
+        cell = cell.copy(phraseIndex = first.index, phraseCompletedShots = first.completedShots)
+        val second = com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+            .afterSuccessfulCapture(cell, phrase)
+        assertEquals(1, second.index)
+        assertEquals(0, second.completedShots)
+        val following = after.copy(cells = after.cells.map {
+            if (it.cellId == "phrase") it.copy(phraseIndex = second.index,
+                phraseCompletedShots = second.completedShots) else it
+        })
+        assertPreviewMatchesCapture(following, "Draper_Next_007.jpg",
+            "Pictures/DZlog/5/Next/")
+    }
+
     @Test fun editingFolderRuleWithoutChangingCellsRefreshesPathOnly() {
         val savedBefore = template()
         val savedAfter = savedBefore.copy(pathSlotDrafts = listOf(cellSlot("text")))

@@ -70,9 +70,12 @@ class QuickRotatingPhrasePolicyTest {
         assertEquals(other, changed.cells[1])
         assertEquals(template.phraseSets, changed.phraseSets)
         assertEquals(0, CellPhraseProgressPolicy.current(changed.cells[0], changed.phraseSets[0]).completedShots)
-        val defaulted = updateQuickPhraseEvery(changed, "phrase-a", 2)
+        val fixedAtDefaultValue = updateQuickPhraseEvery(changed, "phrase-a", 2)
+        assertEquals(2, fixedAtDefaultValue.cells[0].everyOverride)
+        val defaulted = followQuickPhraseSetPeriods(fixedAtDefaultValue, "phrase-a")
         assertNull(defaulted.cells[0].everyOverride)
         assertEquals(0, defaulted.cells[0].phraseCompletedShots)
+        assertEquals(other, defaulted.cells[1])
         assertSame(template, updateQuickPhraseEvery(template, "phrase-a", 3))
         assertSame(template, updateQuickPhraseEvery(template, "phrase-a", 0))
         assertSame(template, updateQuickPhraseEvery(template, "counter", 3))
@@ -114,6 +117,28 @@ class QuickRotatingPhrasePolicyTest {
         assertEquals(changed.phraseSets, restored.phraseSets)
         assertEquals(changed.fileNameSlotDrafts, restored.fileNameSlotDrafts)
         assertEquals(changed.pathSlotDrafts, restored.pathSlotDrafts)
+    }
+
+    @Test fun `switching between modes preserves cell boundary and inherited phrase rules`() {
+        val inheritedSet = template.phraseSets[0].copy(
+            itemEveryOverrides = listOf(null, 5, 3),
+        )
+        val inheritedTemplate = template.copy(phraseSets = listOf(inheritedSet, template.phraseSets[1]),
+            cells = listOf(first.copy(everyOverride = null, phraseCompletedShots = 1), other, counter))
+        val inherited = inheritedTemplate.cells[0]
+        assertEquals(5, inheritedSet.everyForItem(inherited.phraseIndex))
+        val fixed = updateQuickPhraseEvery(inheritedTemplate, inherited.cellId, 5)
+        assertEquals(5, fixed.cells[0].everyOverride)
+        assertEquals(0, fixed.cells[0].phraseCompletedShots)
+        assertEquals(5, CellPhraseProgressPolicy.current(fixed.cells[0], inheritedSet).completedShots + 5)
+        val anotherPhrase = selectQuickPhraseItem(fixed, inherited.cellId, 2)
+        assertEquals(5, anotherPhrase.cells[0].everyOverride)
+        val back = followQuickPhraseSetPeriods(anotherPhrase, inherited.cellId)
+        assertNull(back.cells[0].everyOverride)
+        assertEquals(3, inheritedSet.everyForItem(back.cells[0].phraseIndex))
+        assertEquals(other, back.cells[1])
+        assertEquals(counter, back.cells[2])
+        assertSame(back, followQuickPhraseSetPeriods(back, inherited.cellId))
     }
 
     @Test fun `empty and missing phrase sets cannot be edited by quick controls`() {
