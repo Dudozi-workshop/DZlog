@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
-import android.content.Context
 import android.graphics.RectF
 import android.os.SystemClock
 import androidx.camera.core.Camera
@@ -17,14 +16,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
-import kotlinx.coroutines.CoroutineScope
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 internal fun Modifier.cameraPreviewGestureModifier(
-    context: Context,
-    scope: CoroutineScope,
     previewView: PreviewView,
     boundCamera: Camera?,
     captureRect: RectF,
