@@ -81,7 +81,6 @@ internal fun CameraPreviewArea(
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
-    val scope = args.scope
     val captureAspect = args.captureAspect
 
     var previewLogged by remember { mutableStateOf(false) }
