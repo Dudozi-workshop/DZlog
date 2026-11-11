@@ -2,6 +2,10 @@ package com.dudoziworkshop.dzlog.ui.table.rotating
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -109,25 +113,47 @@ fun RotatingPhraseSetEditDialog(
                 )
             },
         ) { insets ->
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier.fillMaxSize().padding(insets)
+                    // Reserve the OS navigation area once, outside all scrolling content.
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
-                RotatingPhraseSetListPanel(
-                    phraseSet = phraseSet,
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    onUpdateSet = onUpdateSet,
-                    onEditItem = { index, text -> editItem(index, text) },
-                    onEditPeriod = { index -> periodTargets = listOf(index) },
-                    onBulkPeriod = { indices -> periodTargets = indices },
-                    onAddItem = { editItem(null, "") },
-                )
-                RotatingPhraseSetFooter(
-                    phraseSet = phraseSet,
-                    onUpdateSet = onUpdateSet,
-                )
+                // On short/landscape or keyboard-reduced screens, allow the footer
+                // to be reached by scrolling rather than letting it clip behind the nav bar.
+                val shortScreen = maxHeight < 420.dp
+                Column(
+                    modifier = if (shortScreen) {
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    } else {
+                        Modifier.fillMaxSize()
+                    },
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    RotatingPhraseSetListPanel(
+                        phraseSet = phraseSet,
+                        modifier = if (shortScreen) {
+                            Modifier.fillMaxWidth().height(260.dp)
+                        } else {
+                            Modifier.weight(1f).fillMaxWidth()
+                        },
+                        onUpdateSet = onUpdateSet,
+                        onEditItem = { index, text -> editItem(index, text) },
+                        onEditPeriod = { index -> periodTargets = listOf(index) },
+                        onBulkPeriod = { indices -> periodTargets = indices },
+                        onAddItem = { editItem(null, "") },
+                        defaultPeriodBar = {
+                            RotatingPhraseDefaultPeriodBar(
+                                phraseSet = phraseSet,
+                                onUpdateSet = onUpdateSet,
+                            )
+                        },
+                    )
+                    RotatingPhraseSetFooter(
+                        phraseSet = phraseSet,
+                        onUpdateSet = onUpdateSet,
+                    )
+                }
             }
         }
     }
