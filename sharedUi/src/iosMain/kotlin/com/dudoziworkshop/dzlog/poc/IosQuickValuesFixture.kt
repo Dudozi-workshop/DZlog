@@ -104,7 +104,7 @@ internal fun IosQuickValuesFixture() {
                     check(runCatching { updateIosQuickValues(doc, mapOf(id to "overwrite")) }.isFailure)
                 }
                 check(runCatching { updateIosQuickValues(doc, mapOf("number" to "1x")) }.isFailure)
-                val changedCell = doc.template.templateState.cells.map { if (it.cellId == "heading") it.copy(colSpan = 4) else it }
+                val changedCell = doc.template.templateState.cells.map { if (it.cellId == "heading") it.copy(colSpan = 5) else it }
                 check(runCatching { iosQuickValueCells(doc.copy(template = doc.template.copy(
                     templateState = doc.template.templateState.copy(cells = changedCell)))) }.isFailure)
                 check(iosQuickAutoValueCells(doc).map { it.cellId } == listOf("date", "phrase", "time")) {
