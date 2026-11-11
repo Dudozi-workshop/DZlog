@@ -910,11 +910,19 @@ fun AppRoot(startOnCamera: Boolean = false) {
                 }
             }
 
-            AppScreen.PROJECT_LIST -> screen = AppScreen.HOME
+            AppScreen.PROJECT_LIST -> {
+                if (projectSelectionFromCamera) {
+                    projectSelectionFromCamera = false
+                    screen = AppScreen.CAMERA
+                } else screen = AppScreen.HOME
+            }
             AppScreen.PROJECT_DETAIL -> screen = AppScreen.PROJECT_LIST
             AppScreen.SETTINGS -> screen = AppScreen.HOME
             AppScreen.CREDITS -> screen = AppScreen.SETTINGS
-            AppScreen.TABLE_TEMPLATES -> screen = templateListEntryScreen
+            AppScreen.TABLE_TEMPLATES -> {
+                if (templateSelectionFromCamera) templateSelectionFromCamera = false
+                screen = templateListEntryScreen
+            }
             AppScreen.TABLE_EDITOR -> screen = previousScreen
             AppScreen.CAMERA -> navigateTo(AppScreen.HOME)
             AppScreen.QUICK_RESULTS -> exitQuickResults()
