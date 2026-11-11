@@ -1,6 +1,7 @@
 import XCTest
 import Vision
 
+// Full-suite checkpoint after extending quick edit parity and template switching.
 final class PreviewInteractionTests: XCTestCase {
     private var app: XCUIApplication!
 
