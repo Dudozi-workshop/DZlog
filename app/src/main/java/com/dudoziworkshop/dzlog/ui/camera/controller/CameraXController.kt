@@ -73,14 +73,20 @@ internal fun startTapToFocus(
     previewView: PreviewView,
     xPx: Float,
     yPx: Float,
+    locked: Boolean = false,
     onResult: (Boolean) -> Unit
 ) {
     val factory = previewView.meteringPointFactory
     val point: MeteringPoint = factory.createPoint(xPx, yPx)
 
-    val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
-        .setAutoCancelDuration(3, TimeUnit.SECONDS)
-        .build()
+    // While AE is locked, move only the AF point. Keep the exposure metering
+    // region and held exposure unchanged when the user taps a new subject.
+    val flags = if (locked) FocusMeteringAction.FLAG_AF
+        else FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+    val builder = FocusMeteringAction.Builder(point, flags)
+    if (locked) builder.disableAutoCancel()
+    else builder.setAutoCancelDuration(3, TimeUnit.SECONDS)
+    val action = builder.build()
 
     val future = camera.cameraControl.startFocusAndMetering(action)
     future.addListener(
