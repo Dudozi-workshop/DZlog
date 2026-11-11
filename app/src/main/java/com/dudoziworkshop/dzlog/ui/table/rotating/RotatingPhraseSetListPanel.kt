@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,6 +60,7 @@ internal fun RotatingPhraseSetListPanel(
     onEditPeriod: (Int) -> Unit,
     onBulkPeriod: (List<Int>) -> Unit,
     onAddItem: () -> Unit,
+    defaultPeriodBar: @Composable () -> Unit,
 ) {
     var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     var query by remember(phraseSet.id) { mutableStateOf("") }
@@ -94,9 +96,9 @@ internal fun RotatingPhraseSetListPanel(
         modifier = modifier,
         color = DDZColor.Surface,
         border = BorderStroke(1.dp, DDZColor.Border),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
     ) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -105,35 +107,38 @@ internal fun RotatingPhraseSetListPanel(
                 Text(
                     "문구 목록 (${phraseSet.items.size}개)",
                     modifier = Modifier.weight(1f),
-                    style = DDZTypography.CardTitle,
+                    style = DDZTypography.Body,
                     color = DDZColor.TextPrimary,
                 )
                 DDZButton(
                     text = if (selecting) "취소" else "선택",
                     style = DDZButtonStyle.Secondary,
                     horizontalPadding = 6.dp,
-                    minHeight = 40.dp,
+                    minHeight = 36.dp,
+                    textStyleOverride = DDZTypography.Caption,
                     onClick = {
                         selecting = !selecting
                         selected.clear()
                     },
                 )
-                IconButton(onClick = {
+                IconButton(modifier = Modifier.size(40.dp), onClick = {
                     searchExpanded = !searchExpanded
                     if (!searchExpanded) query = ""
                 }) {
-                    Icon(Icons.Default.Search, contentDescription = "문구 검색")
+                    Icon(Icons.Default.Search, contentDescription = "문구 검색", modifier = Modifier.size(18.dp))
                 }
                 IconButton(
+                    modifier = Modifier.size(40.dp),
                     enabled = !selecting && phraseSet.items.size < RotatingPhraseSet.MAX_ITEMS,
                     onClick = {
                         query = ""
                         onAddItem()
                     },
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "문구 추가", tint = DDZColor.PrimaryDark)
+                    Icon(Icons.Default.Add, contentDescription = "문구 추가", tint = DDZColor.PrimaryDark, modifier = Modifier.size(18.dp))
                 }
             }
+            defaultPeriodBar()
             if (searchExpanded) {
                 OutlinedTextField(
                     value = query,
@@ -222,7 +227,7 @@ internal fun RotatingPhraseSetListPanel(
                                         if (dragging) DDZColor.SelectedSoft else DDZColor.Surface,
                                         RoundedCornerShape(8.dp),
                                     )
-                                    .heightIn(min = 54.dp),
+                                    .heightIn(min = 50.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 if (selecting) {
@@ -264,7 +269,7 @@ internal fun RotatingPhraseSetListPanel(
                                                 if (index in selected) selected.remove(index) else selected.add(index)
                                             } else onEditItem(index, item)
                                         }
-                                        .padding(vertical = 14.dp),
+                                        .padding(vertical = 10.dp),
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                     style = DDZTypography.Body,
@@ -278,8 +283,8 @@ internal fun RotatingPhraseSetListPanel(
                                                 if (index in selected) selected.remove(index) else selected.add(index)
                                             } else onEditPeriod(index)
                                         }
-                                        .widthIn(min = 48.dp)
-                                        .padding(horizontal = 6.dp, vertical = 12.dp),
+                                        .widthIn(min = 44.dp)
+                                        .padding(horizontal = 4.dp, vertical = 10.dp),
                                     textAlign = TextAlign.Center,
                                     style = DDZTypography.Caption,
                                     color = if (phraseSet.itemEveryOverrides.getOrNull(index) != null)
