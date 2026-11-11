@@ -128,6 +128,7 @@ internal fun CameraPreviewArea(
         var aeLocked by remember { mutableStateOf(false) }
         var lockRequestInFlight by remember { mutableStateOf(false) }
         var focusControlsExpanded by remember { mutableStateOf(false) }
+        var exposureInteracting by remember { mutableStateOf(false) }
         var focusInteractionId by remember { mutableIntStateOf(0) }
         var focusRequestId by remember { mutableIntStateOf(0) }
         var exposureRequestId by remember { mutableIntStateOf(0) }
@@ -144,6 +145,7 @@ internal fun CameraPreviewArea(
             aeLocked = false
             lockRequestInFlight = false
             focusControlsExpanded = false
+            exposureInteracting = false
             focusInteractionId += 1
             focusRequestId += 1
             exposureRequestId += 1
@@ -156,8 +158,8 @@ internal fun CameraPreviewArea(
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
-        LaunchedEffect(focusControlsExpanded, focusInteractionId, aeLocked, tapFocusUi) {
-            if (!focusControlsExpanded || tapFocusUi == null) return@LaunchedEffect
+        LaunchedEffect(focusControlsExpanded, focusInteractionId, aeLocked, tapFocusUi, exposureInteracting) {
+            if (!focusControlsExpanded || tapFocusUi == null || exposureInteracting) return@LaunchedEffect
             delay(2_500L)
             focusControlsExpanded = false
             if (!aeLocked) onTapFocusUiChange(null)
@@ -591,6 +593,7 @@ internal fun CameraPreviewArea(
                         exposureSupported = exposureSupported,
                         onToggleLock = ::toggleFocusExposureLock,
                         onExposureIndexChange = ::requestExposureIndex,
+                        onExposureInteractionChange = { exposureInteracting = it },
                     )
                 }
             }
