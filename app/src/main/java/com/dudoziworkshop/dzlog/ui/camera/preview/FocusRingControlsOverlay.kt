@@ -1,6 +1,9 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -19,6 +22,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,8 +54,18 @@ internal fun FocusRingControlsOverlay(
     exposureSupported: Boolean,
     onToggleLock: () -> Unit,
     onExposureIndexChange: (Int) -> Unit,
+    onExposureInteractionChange: (Boolean) -> Unit,
 ) {
     if (focus == null) return
+    val sliderInteractions = remember { MutableInteractionSource() }
+    val isDragged by sliderInteractions.collectIsDraggedAsState()
+    val isPressed by sliderInteractions.collectIsPressedAsState()
+    LaunchedEffect(isDragged, isPressed) {
+        onExposureInteractionChange(isDragged || isPressed)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onExposureInteractionChange(false) }
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
@@ -75,9 +92,15 @@ internal fun FocusRingControlsOverlay(
         if (!expanded) return@BoxWithConstraints
 
         val lockX = (focus.xPx - lockPx / 2f).coerceIn(0f, (widthPx - lockPx).coerceAtLeast(0f))
-        val aboveLockY = focus.yPx - ringPx - lockPx - spacePx
-        val lockY = if (aboveLockY >= 0f) aboveLockY
-            else (focus.yPx - lockPx / 2f).coerceIn(0f, (heightPx - lockPx).coerceAtLeast(0f))
+        val placement = placeFocusControlsVertically(
+            focusY = focus.yPx,
+            viewHeight = heightPx,
+            ringRadius = ringPx,
+            lockHeight = lockPx,
+            exposureHeight = if (exposureSupported) evHeightPx else 0f,
+            gap = spacePx,
+        )
+        val lockY = placement.lockTop
         IconButton(
             modifier = Modifier
                 .offsetPx(lockX, lockY)
@@ -94,9 +117,7 @@ internal fun FocusRingControlsOverlay(
 
         if (exposureSupported && maxExposureIndex > minExposureIndex) {
             val evX = (focus.xPx - evWidthPx / 2f).coerceIn(0f, (widthPx - evWidthPx).coerceAtLeast(0f))
-            val belowEvY = focus.yPx + ringPx + spacePx
-            val evY = if (belowEvY + evHeightPx <= heightPx) belowEvY
-                else (focus.yPx - ringPx - evHeightPx - spacePx).coerceAtLeast(0f)
+            val evY = placement.exposureTop
             Row(
                 modifier = Modifier
                     .offsetPx(evX, evY)
@@ -111,6 +132,7 @@ internal fun FocusRingControlsOverlay(
                     modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
                     value = exposureIndex.toFloat().coerceIn(minExposureIndex.toFloat(), maxExposureIndex.toFloat()),
                     onValueChange = { onExposureIndexChange(it.roundToInt()) },
+                    interactionSource = sliderInteractions,
                     valueRange = minExposureIndex.toFloat()..maxExposureIndex.toFloat(),
                     colors = SliderDefaults.colors(
                         thumbColor = DDZColor.SelectedSoft,
