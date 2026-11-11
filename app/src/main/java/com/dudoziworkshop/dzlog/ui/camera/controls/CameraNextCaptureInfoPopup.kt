@@ -136,74 +136,74 @@ internal fun CameraNextCaptureInfoPopup(
                         icon = Icons.Default.GridView,
                         onClick = { expanded = CaptureInfoList.TEMPLATE },
                     )
-                if (!canChangeSelection && !LocalTutorialReadOnly.current) {
-                    Text(
-                        "저장·복원 또는 Undo 처리가 끝나면 프로젝트와 템플릿을 변경할 수 있어요.",
-                        style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary,
-                    )
-                }
-                NextCaptureInfoFields(
-                    fileName = nextFileName,
-                    relativePaths = relativePaths,
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TextButton(
-                        onClick = onOpenTableEditor,
-                        enabled = canChangeSelection,
-                        modifier = Modifier.weight(1f),
-                    ) { Text("표 상세설정") }
-                    Button(
-                        onClick = onOpenSaveSettings,
-                        enabled = canChangeSelection,
-                        modifier = Modifier.weight(1f),
-                    ) { Text("저장 설정") }
-                }
-                } else {
-                if (expanded == CaptureInfoList.PROJECT) {
-                    Column {
-                        CaptureInfoChoiceRow(
-                            name = "일반 촬영",
-                            selected = selectedProjectId == null,
-                            enabled = canChangeSelection,
-                            onClick = { expanded = null; onSelectProject(null) },
+                    if (!canChangeSelection && !LocalTutorialReadOnly.current) {
+                        Text(
+                            "저장·복원 또는 Undo 처리가 끝나면 프로젝트와 템플릿을 변경할 수 있어요.",
+                            style = DDZTypography.Caption,
+                            color = DDZColor.TextSecondary,
                         )
-                        projects.filter(CaptureProject::isActive)
-                            .sortedByDescending(CaptureProject::createdAt)
-                            .forEach { project ->
+                    }
+                    NextCaptureInfoFields(
+                        fileName = nextFileName,
+                        relativePaths = relativePaths,
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(
+                            onClick = onOpenTableEditor,
+                            enabled = canChangeSelection,
+                            modifier = Modifier.weight(1f),
+                        ) { Text("표 상세설정") }
+                        Button(
+                            onClick = onOpenSaveSettings,
+                            enabled = canChangeSelection,
+                            modifier = Modifier.weight(1f),
+                        ) { Text("저장 설정") }
+                    }
+                } else {
+                    if (expanded == CaptureInfoList.PROJECT) {
+                        Column {
+                            CaptureInfoChoiceRow(
+                                name = "일반 촬영",
+                                selected = selectedProjectId == null,
+                                enabled = canChangeSelection,
+                                onClick = { expanded = null; onSelectProject(null) },
+                            )
+                            projects.filter(CaptureProject::isActive)
+                                .sortedByDescending(CaptureProject::createdAt)
+                                .forEach { project ->
+                                    CaptureInfoChoiceRow(
+                                        name = project.title,
+                                        selected = selectedProjectId == project.id,
+                                        enabled = canChangeSelection,
+                                        onClick = { expanded = null; onSelectProject(project.id) },
+                                    )
+                                }
+                            TextButton(
+                                onClick = onManageProjects,
+                                enabled = canChangeSelection,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text("프로젝트 만들기 · 관리") }
+                        }
+                    }
+                    if (expanded == CaptureInfoList.TEMPLATE) {
+                        Column {
+                            if (templates.isEmpty()) {
+                                Text("사용 가능한 템플릿이 없습니다.", style = DDZTypography.Secondary,
+                                    color = DDZColor.TextSecondary)
+                            }
+                            templates.forEach { template ->
                                 CaptureInfoChoiceRow(
-                                    name = project.title,
-                                    selected = selectedProjectId == project.id,
+                                    name = template.name,
+                                    selected = template.id == selectedTemplateId,
                                     enabled = canChangeSelection,
-                                    onClick = { expanded = null; onSelectProject(project.id) },
+                                    onClick = { expanded = null; onSelectTemplate(template.id) },
                                 )
                             }
-                        TextButton(
-                            onClick = onManageProjects,
-                            enabled = canChangeSelection,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("프로젝트 만들기 · 관리") }
-                    }
-                }
-                if (expanded == CaptureInfoList.TEMPLATE) {
-                    Column {
-                        if (templates.isEmpty()) {
-                            Text("사용 가능한 템플릿이 없습니다.", style = DDZTypography.Secondary,
-                                color = DDZColor.TextSecondary)
-                        }
-                        templates.forEach { template ->
-                            CaptureInfoChoiceRow(
-                                name = template.name,
-                                selected = template.id == selectedTemplateId,
-                                enabled = canChangeSelection,
-                                onClick = { expanded = null; onSelectTemplate(template.id) },
-                            )
                         }
                     }
-                }
                 }
             }
         }
@@ -253,6 +253,7 @@ private fun CaptureInfoSelectionHeader(
         }
     }
 }
+
 @Composable
 private fun CaptureInfoChoiceRow(
     name: String,
