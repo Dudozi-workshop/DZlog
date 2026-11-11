@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,13 +13,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -33,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -71,7 +78,7 @@ internal fun CameraNextCaptureInfoPopup(
     var expanded by remember { mutableStateOf<CaptureInfoList?>(null) }
     val projectName = projects.firstOrNull { it.id == selectedProjectId }?.title ?: "일반 촬영"
     val templateName = templates.firstOrNull { it.id == selectedTemplateId }?.name ?: "선택된 템플릿 없음"
-    BackHandler(onBack = onDismiss)
+    BackHandler { if (expanded != null) expanded = null else onDismiss() }
     Box(
         Modifier.fillMaxSize().padding(bottom = LocalTutorialCardBottomSpace.current),
     ) {
@@ -102,7 +109,16 @@ internal fun CameraNextCaptureInfoPopup(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("다음 촬영 정보", style = DDZTypography.OverlayTitleCompact, color = DDZColor.Primary)
+                    Text(when (expanded) {
+                        CaptureInfoList.PROJECT -> "프로젝트 선택"
+                        CaptureInfoList.TEMPLATE -> "템플릿 선택"
+                        null -> "촬영 준비"
+                    }, style = DDZTypography.OverlayTitleCompact, color = DDZColor.Primary)
+                    if (expanded != null) {
+                        IconButton(onClick = { expanded = null }, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "촬영 준비로 돌아가기")
+                        }
+                    }
                     IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
                         Icon(Icons.Default.Close, contentDescription = "닫기")
                     }
@@ -181,7 +197,7 @@ internal fun CameraNextCaptureInfoPopup(
                         onClick = onOpenTableEditor,
                         enabled = canChangeSelection,
                         modifier = Modifier.weight(1f),
-                    ) { Text("표 편집") }
+                    ) { Text("표 상세설정") }
                     Button(
                         onClick = onOpenSaveSettings,
                         enabled = canChangeSelection,
