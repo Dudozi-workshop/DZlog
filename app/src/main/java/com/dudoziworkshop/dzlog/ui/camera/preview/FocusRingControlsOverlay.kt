@@ -1,46 +1,33 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * The lock is above the focus ring and exposure adjustment below it.
- * Only the interactive controls consume pointer events; the preview remains tappable.
- * A compact lock badge remains visible while the controls are folded away.
+ * No global AE badge, no black capsule. A tiny lock is drawn ON the
+ * interrupted ring outline; while locked it remains there after collapse.
+ * Tapping the center of the collapsed ring reopens the EV control.
  */
 @Composable
 internal fun FocusRingControlsOverlay(
@@ -55,97 +42,90 @@ internal fun FocusRingControlsOverlay(
     onToggleLock: () -> Unit,
     onExposureIndexChange: (Int) -> Unit,
     onExposureInteractionChange: (Boolean) -> Unit,
+    onRequestExpand: () -> Unit,
 ) {
     if (focus == null) return
-    val sliderInteractions = remember { MutableInteractionSource() }
-    val isDragged by sliderInteractions.collectIsDraggedAsState()
-    val isPressed by sliderInteractions.collectIsPressedAsState()
-    LaunchedEffect(isDragged, isPressed) {
-        onExposureInteractionChange(isDragged || isPressed)
-    }
-    DisposableEffect(Unit) {
-        onDispose { onExposureInteractionChange(false) }
-    }
+    val lockInteraction = remember { MutableInteractionSource() }
+    val expandInteraction = remember { MutableInteractionSource() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
-        val ringPx = with(density) { 28.dp.toPx() }
-        val lockPx = with(density) { 44.dp.toPx() }
-        val evWidthPx = with(density) { 226.dp.toPx() }
-        val evHeightPx = with(density) { 52.dp.toPx() }
-        val spacePx = with(density) { 8.dp.toPx() }
-        if (locked) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 8.dp, end = 10.dp)
-                    .background(DDZColor.SelectionEmphasis.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Lock, contentDescription = null,
-                    modifier = Modifier.size(12.dp), tint = Color.White)
-                Text(" AF·AE", color = Color.White, fontSize = 11.sp)
-            }
+        val radius = with(density) {
+            (if (expanded) FOCUS_RING_RADIUS_DP.dp else FOCUS_RING_COMPACT_RADIUS_DP.dp).toPx()
         }
-        if (!expanded) return@BoxWithConstraints
-
-        val lockX = (focus.xPx - lockPx / 2f).coerceIn(0f, (widthPx - lockPx).coerceAtLeast(0f))
+        val centerX = visibleFocusCenter(focus.xPx, widthPx, radius)
+        val centerY = visibleFocusCenter(focus.yPx, heightPx, radius)
+        val lockHitPx = with(density) { FOCUS_LOCK_TOUCH_DP.dp.toPx() }
+        val evWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() }
+        val evHeightPx = with(density) { FOCUS_EV_TOUCH_HEIGHT_DP.dp.toPx() }
+        val gapPx = with(density) { 6.dp.toPx() }
         val placement = placeFocusControlsVertically(
             focusY = focus.yPx,
             viewHeight = heightPx,
-            ringRadius = ringPx,
-            lockHeight = lockPx,
-            exposureHeight = if (exposureSupported) evHeightPx else 0f,
-            gap = spacePx,
+            ringRadius = radius,
+            lockHeight = lockHitPx,
+            exposureHeight = evHeightPx,
+            gap = gapPx,
         )
-        val lockY = placement.lockTop
-        IconButton(
-            modifier = Modifier
-                .offsetPx(lockX, lockY)
-                .size(44.dp)
-                .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(22.dp)),
-            onClick = onToggleLock,
-        ) {
-            Icon(
-                if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
-                contentDescription = if (locked) "초점·노출 잠금 해제" else "초점·노출 잠금",
-                tint = if (locked) DDZColor.SelectedSoft else Color.White,
+
+        if (locked && !expanded) {
+            // A small central hit area lets the user adjust EV again without
+            // moving the locked focus point. The lock itself only unlocks.
+            Box(
+                modifier = Modifier
+                    .offsetPx(
+                        centerX - with(density) { 12.dp.toPx() },
+                        centerY - with(density) { 12.dp.toPx() },
+                    )
+                    .size(24.dp)
+                    .semantics { contentDescription = "밝기 조절 열기" }
+                    .clickable(
+                        interactionSource = expandInteraction,
+                        indication = null,
+                        onClick = onRequestExpand,
+                    ),
             )
         }
 
-        if (exposureSupported && maxExposureIndex > minExposureIndex) {
-            val evX = (focus.xPx - evWidthPx / 2f).coerceIn(0f, (widthPx - evWidthPx).coerceAtLeast(0f))
-            val evY = placement.exposureTop
-            Row(
+        if (locked || expanded) {
+            val lockX = (centerX - lockHitPx / 2f)
+                .coerceIn(0f, (widthPx - lockHitPx).coerceAtLeast(0f))
+            Box(
                 modifier = Modifier
-                    .offsetPx(evX, evY)
-                    .width(226.dp)
-                    .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(22.dp))
-                    .padding(horizontal = 10.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.WbSunny, contentDescription = "밝기",
-                    tint = DDZColor.SelectedSoft, modifier = Modifier.size(16.dp))
-                Slider(
-                    modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
-                    value = exposureIndex.toFloat().coerceIn(minExposureIndex.toFloat(), maxExposureIndex.toFloat()),
-                    onValueChange = { onExposureIndexChange(it.roundToInt()) },
-                    interactionSource = sliderInteractions,
-                    valueRange = minExposureIndex.toFloat()..maxExposureIndex.toFloat(),
-                    colors = SliderDefaults.colors(
-                        thumbColor = DDZColor.SelectedSoft,
-                        activeTrackColor = DDZColor.SelectedSoft,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.4f),
+                    .offsetPx(lockX, placement.lockTop)
+                    .size(FOCUS_LOCK_TOUCH_DP.dp)
+                    .semantics {
+                        contentDescription = if (locked) "초점·노출 잠금 해제" else "초점·노출 잠금"
+                    }
+                    .clickable(
+                        interactionSource = lockInteraction,
+                        indication = null,
+                        onClick = onToggleLock,
                     ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = null,
+                    tint = if (locked) DDZColor.SelectedSoft else Color.White,
+                    modifier = Modifier.size(14.dp),
                 )
-                val ev = exposureIndex * exposureStep
-                val evLabel = if (exposureIndex == 0) "0.0"
-                    else String.format(Locale.US, "%+.1f", ev)
-                Text(evLabel, color = Color.White, fontSize = 11.sp,
-                    modifier = Modifier.width(39.dp))
             }
+        }
+
+        if (expanded && exposureSupported && maxExposureIndex > minExposureIndex) {
+            val evX = (centerX - evWidthPx / 2f)
+                .coerceIn(0f, (widthPx - evWidthPx).coerceAtLeast(0f))
+            CompactExposureSlider(
+                index = exposureIndex,
+                minIndex = minExposureIndex,
+                maxIndex = maxExposureIndex,
+                exposureStep = exposureStep,
+                onIndexChange = onExposureIndexChange,
+                onInteractionChange = onExposureInteractionChange,
+                modifier = Modifier.offsetPx(evX, placement.exposureTop),
+            )
         }
     }
 }
