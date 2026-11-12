@@ -123,6 +123,7 @@ fun RotatingPhraseSetEditDialog(
                 // In unusually short windows, allow the whole page to scroll instead
                 // of forcing a minimum list height that could hide the footer.
                 val shortScreen = maxHeight < 360.dp
+                val compactListHeight = maxHeight * 0.45f
                 Column(
                     modifier = if (shortScreen) {
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -138,7 +139,7 @@ fun RotatingPhraseSetEditDialog(
                     RotatingPhraseSetListPanel(
                         phraseSet = phraseSet,
                         modifier = if (shortScreen) {
-                            Modifier.fillMaxWidth().height(maxHeight * 0.45f)
+                            Modifier.fillMaxWidth().height(compactListHeight)
                         } else {
                             Modifier.weight(1f).fillMaxWidth()
                         },
