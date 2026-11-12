@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -26,7 +27,12 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
  * - 제외: 터치 처리/CameraControl 호출/상태 생성 로직 금지(표시 전용)
  */
 @Composable
-internal fun FocusRingOverlay(ui: TapFocusUiState, locked: Boolean = false, compact: Boolean = false) {
+internal fun FocusRingOverlay(
+    ui: TapFocusUiState,
+    locked: Boolean = false,
+    compact: Boolean = false,
+    showLock: Boolean = false,
+) {
     val density = LocalDensity.current
     val isFocusing = (ui.phase == FocusRingPhase.FOCUSING)
     val failed = (ui.phase == FocusRingPhase.FAILED)
@@ -66,16 +72,41 @@ internal fun FocusRingOverlay(ui: TapFocusUiState, locked: Boolean = false, comp
             .fillMaxSize()
             .zIndex(5f)
     ) {
-        val center = Offset(ui.xPx, ui.yPx)
-        val radiusBase = with(density) { (if (compact) 21.dp else 28.dp).toPx() }
+        val radiusBase = with(density) {
+            (if (compact) FOCUS_RING_COMPACT_RADIUS_DP.dp else FOCUS_RING_RADIUS_DP.dp).toPx()
+        }
         val stroke = with(density) { 1.25.dp.toPx() }
         val radius = radiusBase * scale
-
-        drawCircle(
-            color = (if (failed) DDZColor.Destructive else if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha),
-            radius = radius,
-            center = center,
-            style = Stroke(width = stroke)
+        val center = Offset(
+            visibleFocusCenter(ui.xPx, size.width, radiusBase),
+            visibleFocusCenter(ui.yPx, size.height, radiusBase),
         )
+        val ringColor = (if (failed) DDZColor.Destructive
+            else if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha)
+
+        if (showLock) {
+            // Leave a small symmetrical gap either side of the lock on the
+            // circular outline. The lock remains upright at both 12 and 6.
+            val lockAtBottom = center.y - radiusBase -
+                with(density) { FOCUS_LOCK_TOUCH_DP.dp.toPx() } / 2f < 0f
+            val gapCenterAngle = if (lockAtBottom) 90f else 270f
+            val halfGapDegrees = 24f
+            drawArc(
+                color = ringColor,
+                startAngle = gapCenterAngle + halfGapDegrees,
+                sweepAngle = 360f - 2f * halfGapDegrees,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(radius * 2f, radius * 2f),
+                style = Stroke(width = stroke),
+            )
+        } else {
+            drawCircle(
+                color = ringColor,
+                radius = radius,
+                center = center,
+                style = Stroke(width = stroke),
+            )
+        }
     }
 }
