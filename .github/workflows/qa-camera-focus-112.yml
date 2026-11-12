@@ -1,5 +1,8 @@
 name: QA Camera Focus Lock PR112
 on:
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
   push:
     branches:
       - feat/camera-tap-focus-ae-lock-20261111
