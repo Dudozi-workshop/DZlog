@@ -84,6 +84,32 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
         return photos.thumbnail(assetId)
     }
 
+    /** Deletes only the explicitly selected asset, never its original/result companion. */
+    suspend fun deleteGalleryAsset(assetId: String): Boolean {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            photos.ensureReadWriteAccess()
+            reconcilePending()
+            check(index.load().any { it.asset.assetId == assetId }) { "Photo is no longer indexed." }
+            val removed = photos.remove(listOf(assetId))
+            if (removed) index.forgetDeleted(assetId)
+            return removed
+        } finally { saving = false }
+    }
+
+    /** Changes DZlog's logical folder only; Photos resource names stay unchanged. */
+    suspend fun moveGalleryAsset(assetId: String, relativePath: String) {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            check(photos.hasReadAccess()) { "Photos access is required to move photos." }
+            reconcilePending()
+            check(photos.exists(assetId)) { "The selected photo is unavailable." }
+            index.move(assetId, relativePath)
+        } finally { saving = false }
+    }
+
     private suspend fun reconcilePending() {
         val pending = index.pending()
         if (pending.isEmpty()) return

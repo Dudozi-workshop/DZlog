@@ -59,6 +59,34 @@ internal class PhotoKitCaptureMediaIndex(
         check(defaults.synchronize()) { "Could not flush the PhotoKit recovery journal." }
     }
 
+    /** Only completed, indexed assets may be managed by the gallery. */
+    fun move(assetId: String, relativePath: String) {
+        check(pending().isEmpty()) { "Recover the outstanding capture before moving photos." }
+        require(relativePath.startsWith("Pictures/DZlog/") && relativePath.endsWith('/'))
+        require(relativePath.removePrefix("Pictures/DZlog/").removeSuffix("/")
+            .split('/').all { it.isNotBlank() && it != "." && it != ".." && '\\' !in it } ||
+            relativePath == "Pictures/DZlog/")
+        val entries = load()
+        check(entries.count { it.asset.assetId == assetId } == 1) { "Photo is no longer indexed." }
+        val selected = entries.single { it.asset.assetId == assetId }
+        check(entries.none { it.asset.assetId != assetId &&
+            it.asset.target.relativePath == relativePath &&
+            it.asset.target.displayName == selected.asset.target.displayName }) {
+            "A photo with this filename already exists in the selected folder."
+        }
+        persist(INDEX_KEY, entries.map { entry ->
+            if (entry.asset.assetId != assetId) entry else entry.copy(
+                asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = relativePath)),
+            )
+        })
+    }
+
+    /** Call only after PhotoKit confirms deletion; a cancelled prompt keeps the index. */
+    fun forgetDeleted(assetId: String) {
+        check(pending().isEmpty()) { "Recover the outstanding capture before deleting photos." }
+        persist(INDEX_KEY, load().filterNot { it.asset.assetId == assetId })
+    }
+
     private fun persist(key: String, entries: List<IndexedCaptureMedia>) {
         val encoded = JsonArray(entries.map { entry ->
             JsonObject(mapOf(

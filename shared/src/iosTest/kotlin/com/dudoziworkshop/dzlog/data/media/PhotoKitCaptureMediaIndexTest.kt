@@ -12,6 +12,49 @@ import platform.Foundation.NSUserDefaults
 
 class PhotoKitCaptureMediaIndexTest {
     @Test
+    fun galleryMoveAndDeletePersistOnlyTheSelectedRole() {
+        val suite = "dzlog.photokit.gallery.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val result = IndexedCaptureMedia("capture", PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.RESULT, "Pictures/DZlog/A/", "0012.jpg"), "result"))
+            val original = IndexedCaptureMedia("capture", PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, "Pictures/DZlog/A/original/", "0012.jpg"), "original"))
+            index.append(listOf(result, original))
+            assertFailsWith<IllegalArgumentException> { index.move("result", "Pictures/DZlog/../") }
+            assertFailsWith<IllegalArgumentException> { index.move("result", "Pictures/Other/") }
+            assertFailsWith<IllegalStateException> { index.move("result", "Pictures/DZlog/A/original/") }
+            assertEquals(listOf(result, original), index.load())
+            index.move("result", "Pictures/DZlog/B/")
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals("Pictures/DZlog/B/", restored.load().first().asset.target.relativePath)
+            assertEquals(original, restored.load().last())
+            restored.forgetDeleted("result")
+            assertEquals(listOf(original), PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite)).load())
+            assertFailsWith<IllegalStateException> { restored.ensureCaptureIsNew("capture") }
+            assertFailsWith<IllegalStateException> { restored.move("result", "Pictures/DZlog/") }
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun pendingCaptureBlocksGalleryIndexMutations() {
+        val suite = "dzlog.photokit.pending-gallery.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val entry = IndexedCaptureMedia("capture", PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.RESULT, "Pictures/DZlog/A/", "0012.jpg"), "result"))
+            index.append(listOf(entry))
+            index.stagePending(listOf(entry))
+            assertFailsWith<IllegalStateException> { index.move("result", "Pictures/DZlog/B/") }
+            assertFailsWith<IllegalStateException> { index.forgetDeleted("result") }
+            assertEquals(listOf(entry), index.load())
+            assertEquals(listOf(entry), index.pending())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun twoRolesRecoverWithLogicalPathsAfterIndexReinitialization() {
         val suite = "dzlog.photokit.test.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)

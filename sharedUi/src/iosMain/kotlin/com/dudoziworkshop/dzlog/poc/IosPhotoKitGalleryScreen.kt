@@ -38,9 +38,24 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var folder by remember { mutableStateOf<String?>(null) }
     var grid by remember { mutableStateOf(true) }
     var viewer by remember { mutableStateOf(false) }
+    var managing by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
+    var moveTarget by remember { mutableStateOf<String?>(null) }
+    var destination by remember { mutableStateOf<String?>(null) }
+    var operationMessage by remember { mutableStateOf<String?>(null) }
     val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
     val visible = if (folder == null) photos else photos.filter { it.asset.target.relativePath == folder }
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
+    val destinations = buildSet {
+        add(GALLERY_ROOT)
+        photos.forEach { entry ->
+            var path = entry.asset.target.relativePath
+            while (path.startsWith(GALLERY_ROOT) && path != GALLERY_ROOT) {
+                add(path)
+                path = path.trimEnd('/').substringBeforeLast('/') + "/"
+            }
+        }
+    }.sorted()
     val currentFolder = folder
     val childFolders = if (currentFolder == null) emptyList() else photos.mapNotNull { entry ->
         val path = entry.asset.target.relativePath
@@ -49,7 +64,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     }.distinct().sorted()
 
     fun refresh() {
-        if (refreshing) return
+        if (refreshing || managing) return
         refreshing = true
         scope.launch {
             try {
@@ -92,34 +107,102 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         } catch (error: Throwable) { if (selectedId == entry.asset.assetId) message = "사진 조회 실패: ${error.message}" }
     }
 
+    deleteTarget?.let { targetId ->
+        AlertDialog(onDismissRequest = { deleteTarget = null },
+            title = { Text("사진 삭제") },
+            text = { Text("현재 사진 1장을 iOS 사진 보관함에서 삭제합니다. 함께 촬영한 원본 또는 결과사진은 유지됩니다.") },
+            confirmButton = { TextButton(onClick = {
+                deleteTarget = null
+                managing = true
+                scope.launch {
+                    try {
+                        val removed = repository.deleteGalleryAsset(targetId)
+                        operationMessage = if (removed) "사진을 삭제했습니다." else "삭제가 취소되었거나 사진을 삭제할 수 없습니다."
+                        if (removed) {
+                            thumbnails.remove(targetId)
+                            image = null
+                            viewer = false
+                        }
+                        photos = repository.listSavedAssets().asReversed()
+                    } catch (error: Throwable) {
+                        operationMessage = "삭제 결과 확인이 필요합니다: ${error.message}"
+                    } finally { managing = false }
+                }
+            }) { Text("삭제") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("취소") } })
+    }
+    moveTarget?.let { targetId ->
+        val source = photos.firstOrNull { it.asset.assetId == targetId }?.asset?.target?.relativePath
+        AlertDialog(onDismissRequest = { moveTarget = null },
+            title = { Text("사진 이동") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("현재 사진 1장을 이동할 DZlog 폴더를 선택해 주세요. iOS 사진 앱의 앨범은 변경되지 않습니다.")
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
+                        items(destinations) { path ->
+                            Row(Modifier.fillMaxWidth().clickable { destination = path },
+                                verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = destination == path, onClick = { destination = path })
+                                Text(path.removePrefix(GALLERY_ROOT).trimEnd('/').ifEmpty { "DZlog" })
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(enabled = destination != null && destination != source, onClick = {
+                val path = destination ?: return@TextButton
+                moveTarget = null
+                managing = true
+                scope.launch {
+                    try {
+                        repository.moveGalleryAsset(targetId, path)
+                        photos = repository.listSavedAssets().asReversed()
+                        folder = path
+                        selectedId = targetId
+                        operationMessage = "사진을 이동했습니다."
+                    } catch (error: Throwable) { operationMessage = "사진 이동 실패: ${error.message}" }
+                    finally { managing = false }
+                }
+            }) { Text("이동") } },
+            dismissButton = { TextButton(onClick = { moveTarget = null }) { Text("취소") } })
+    }
+
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (viewer) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Button(onClick = { viewer = false }) { Text("사진 목록") }
+                Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
                 Text("사진 보기")
             }
             Text(selected?.asset?.target?.displayName.orEmpty())
             Text(message)
+            operationMessage?.let { Text(it) }
+            if (managing) Text("사진 처리 중")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                    onClick = { moveTarget = selectedId; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
+                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                    onClick = { deleteTarget = selectedId }) { Text("사진 삭제") }
+            }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 image?.let { Image(it, "사진 확대 보기", Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
             }
             val entries = if (visible.any { it.asset.assetId == selectedId }) visible else photos
             val index = entries.indexOfFirst { it.asset.assetId == selectedId }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(enabled = index > 0, onClick = { selectedId = entries[index - 1].asset.assetId }) { Text("이전 사진") }
+                Button(enabled = !managing && index > 0, onClick = { selectedId = entries[index - 1].asset.assetId }) { Text("이전 사진") }
                 val companion = photos.firstOrNull { it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
-                if (companion != null) Button(onClick = { selectedId = companion.asset.assetId }) {
+                if (companion != null) Button(enabled = !managing, onClick = { selectedId = companion.asset.assetId }) {
                     Text(if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기" else "결과 보기")
                 }
-                Button(enabled = index >= 0 && index < entries.lastIndex,
+                Button(enabled = !managing && index >= 0 && index < entries.lastIndex,
                     onClick = { selectedId = entries[index + 1].asset.assetId }) { Text("다음 사진") }
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onBack) { Text("뒤로가기") }
-                Button(onClick = ::refresh, enabled = !refreshing) { Text("새로고침") }
+                Button(onClick = onBack, enabled = !managing) { Text("뒤로가기") }
+                Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
                 Text("갤러리")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -134,6 +217,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             Text("사진 ${visible.size}개")
             currentFolder?.let { Text("폴더: $it") }
             loadError?.let { Text(it) }
+            operationMessage?.let { Text(it) }
             if (childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 160.dp)) {
                 items(childFolders) { path -> TextButton(onClick = { folder = path }) { Text(path.removePrefix(currentFolder.orEmpty()).trimEnd('/')) } }
             }
