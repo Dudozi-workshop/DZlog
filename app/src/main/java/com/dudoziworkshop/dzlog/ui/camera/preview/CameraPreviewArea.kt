@@ -188,7 +188,7 @@ internal fun CameraPreviewArea(
 
         LaunchedEffect(focusControlsExpanded, focusInteractionId, aeLocked, tapFocusUi, exposureInteracting) {
             if (!focusControlsExpanded || tapFocusUi == null || exposureInteracting) return@LaunchedEffect
-            delay(2_500L)
+            delay(800L)
             focusControlsExpanded = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
@@ -588,6 +588,8 @@ internal fun CameraPreviewArea(
                     } else if (capturedUri != null) null else tapFocusUi,
                     tapFocusLocked = aeLocked,
                     tapFocusCompact = !focusControlsExpanded,
+                    tapFocusShowLock = (aeLocked || focusControlsExpanded) &&
+                        !LocalTutorialReadOnly.current,
                     isWatermarkArmed = isWatermarkArmed,
                     isTableLocked = isTableLocked,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
@@ -631,6 +633,10 @@ internal fun CameraPreviewArea(
                         onToggleLock = ::toggleFocusExposureLock,
                         onExposureIndexChange = ::requestExposureIndex,
                         onExposureInteractionChange = { exposureInteracting = it },
+                        onRequestExpand = {
+                            focusControlsExpanded = true
+                            focusInteractionId += 1
+                        },
                     )
                 }
             }
