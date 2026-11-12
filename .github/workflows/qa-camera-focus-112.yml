@@ -22,7 +22,7 @@ jobs:
       - name: Compile Android and run unit tests
         run: bash ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --no-daemon --stacktrace
       - name: Assemble isolated installable QA APK
-        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=focus112 --no-daemon --stacktrace
+        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=focus${{ github.run_number }} --no-daemon --stacktrace
       - name: Upload QA APK (not for Play Store)
         uses: actions/upload-artifact@v4
         with:
