@@ -20,8 +20,14 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.Image as SkiaImage
+import platform.Foundation.NSData
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.create
 
 private const val GALLERY_ROOT = "Pictures/DZlog/"
 
@@ -31,6 +37,8 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     val scope = rememberCoroutineScope()
     var photos by remember { mutableStateOf<List<SavedCaptureMedia>>(emptyList()) }
     var folders by remember { mutableStateOf<List<String>>(listOf(GALLERY_ROOT)) }
+    var favorites by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var favoritesOnly by remember { mutableStateOf(false) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var message by remember { mutableStateOf("사진 확인 중") }
@@ -49,7 +57,10 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var folderName by remember { mutableStateOf("") }
     var folderError by remember { mutableStateOf<String?>(null) }
     val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
-    val visible = if (folder == null) photos else photos.filter { it.asset.target.relativePath == folder }
+    val visible = photos.filter { entry ->
+        (folder == null || entry.asset.target.relativePath == folder) &&
+            (!favoritesOnly || entry.asset.assetId in favorites)
+    }
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
     val destinations = buildSet {
         add(GALLERY_ROOT)
@@ -75,6 +86,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             try {
                 photos = repository.listSavedAssets().asReversed()
                 folders = repository.listGalleryFolders()
+                favorites = repository.favoriteGalleryAssetIds()
                 loadError = null
             } catch (error: Throwable) { loadError = "갤러리 조회 실패: ${error.message}" }
             finally { refreshing = false }
@@ -106,6 +118,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         }
                         photos = repository.listSavedAssets().asReversed()
                         folders = repository.listGalleryFolders()
+                        favorites = repository.favoriteGalleryAssetIds()
                         operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; else -> "빈 폴더를 삭제했습니다." }
                         folderAction = null
                     } catch (error: Throwable) { folderError = "폴더 처리 실패: ${error.message}" }
@@ -165,6 +178,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         }
                         photos = repository.listSavedAssets().asReversed()
                         folders = repository.listGalleryFolders()
+                        favorites = repository.favoriteGalleryAssetIds()
                     } catch (error: Throwable) {
                         operationMessage = "삭제 결과 확인이 필요합니다: ${error.message}"
                     } finally { managing = false }
@@ -221,6 +235,32 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             operationMessage?.let { Text(it) }
             if (managing) Text("사진 처리 중")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(enabled = !managing && selected != null, onClick = {
+                    val id = selectedId ?: return@TextButton
+                    managing = true
+                    scope.launch {
+                        try {
+                            val favorite = id !in favorites
+                            repository.setGalleryFavorite(id, favorite)
+                            favorites = repository.favoriteGalleryAssetIds()
+                            operationMessage = if (favorite) "즐겨찾기에 추가했습니다." else "즐겨찾기에서 해제했습니다."
+                        } catch (error: Throwable) { operationMessage = "즐겨찾기 변경 실패: ${error.message}" }
+                        finally { managing = false }
+                    }
+                }) { Text(if (selectedId in favorites) "★ 즐겨찾기" else "☆ 즐겨찾기") }
+                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                    onClick = {
+                        val id = selectedId ?: return@TextButton
+                        managing = true
+                        scope.launch {
+                            try {
+                                val bytes = repository.readAsset(id) ?: error("사진을 읽을 수 없습니다.")
+                                shareIosPhoto(bytes)
+                                operationMessage = "공유 화면을 열었습니다."
+                            } catch (error: Throwable) { operationMessage = "사진 공유 실패: ${error.message}" }
+                            finally { managing = false }
+                        }
+                    }) { Text("사진 공유") }
                 TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
                     onClick = { moveTarget = selectedId; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
                 TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
@@ -252,6 +292,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     Text(if (folder == null) "폴더 보기" else "전체 사진")
                 }
                 TextButton(onClick = { grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
+                TextButton(onClick = { favoritesOnly = !favoritesOnly }) {
+                    Text(if (favoritesOnly) "전체 보기" else "즐겨찾기")
+                }
                 if (folder != null && folder != GALLERY_ROOT) TextButton(onClick = {
                     folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
                 }) { Text("상위 폴더") }
@@ -307,14 +350,16 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                             if (thumbnail != null) Image(thumbnail!!, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                             else Text(if (entry.availability == CaptureMediaAvailability.PRESENT) "사진" else "접근 불가")
                         }
-                        Text(if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
+                        Text((if (entry.asset.assetId in favorites) "★ " else "") +
+                            if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
                         Text(entry.asset.target.displayName, maxLines = 1)
                     }
                 }
             } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.asset.assetId }) { entry ->
                     Column(Modifier.fillMaxWidth().clickable { selectedId = entry.asset.assetId; viewer = true }.padding(8.dp)) {
-                        Text("${entry.asset.target.displayName} · " + if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
+                        Text((if (entry.asset.assetId in favorites) "★ " else "") +
+                            "${entry.asset.target.displayName} · " + if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
                         Text(entry.asset.target.relativePath)
                         Text(when (entry.availability) {
                             CaptureMediaAvailability.PRESENT -> "사진 보관됨"
@@ -326,4 +371,13 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             }
         }
     }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun shareIosPhoto(bytes: ByteArray) {
+    require(bytes.isNotEmpty())
+    val data = bytes.usePinned { pinned ->
+        NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+    }
+    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.sharePhoto", data)
 }

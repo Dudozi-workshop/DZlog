@@ -38,6 +38,16 @@ internal class PhotoKitCaptureMediaIndex(
     private fun explicitFolders(): Set<String> = state()?.getValue("folders")?.jsonArray
         ?.map { it.jsonPrimitive.content }?.toSet().orEmpty()
 
+    fun favoriteAssetIds(): Set<String> = state()?.get("favorites")?.jsonArray
+        ?.map { it.jsonPrimitive.content }?.toSet().orEmpty()
+
+    fun setFavorite(assetId: String, favorite: Boolean) {
+        check(pending().isEmpty()) { "Recover the outstanding capture first." }
+        check(load().any { it.asset.assetId == assetId }) { "Photo is no longer indexed." }
+        val updated = if (favorite) favoriteAssetIds() + assetId else favoriteAssetIds() - assetId
+        persistState(load(), explicitFolders(), updated)
+    }
+
     fun folders(): List<String> = buildSet {
         add(ROOT)
         (explicitFolders() + load().map { it.asset.target.relativePath }).forEach { initial ->
@@ -141,7 +151,7 @@ internal class PhotoKitCaptureMediaIndex(
     /** Call only after PhotoKit confirms deletion; a cancelled prompt keeps the index. */
     fun forgetDeleted(assetId: String) {
         check(pending().isEmpty()) { "Recover the outstanding capture before deleting photos." }
-        persist(INDEX_KEY, load().filterNot { it.asset.assetId == assetId })
+        persistState(load().filterNot { it.asset.assetId == assetId }, folders().toSet(), favoriteAssetIds() - assetId)
     }
 
     private fun encode(entries: List<IndexedCaptureMedia>): JsonArray = JsonArray(entries.map { entry ->
@@ -154,9 +164,12 @@ internal class PhotoKitCaptureMediaIndex(
             ))
         })
 
-    private fun persistState(entries: List<IndexedCaptureMedia>, folders: Set<String>) {
+    private fun persistState(entries: List<IndexedCaptureMedia>, folders: Set<String>,
+        favorites: Set<String> = favoriteAssetIds()) {
         val value = JsonObject(mapOf("entries" to encode(entries),
-            "folders" to JsonArray(folders.sorted().map { JsonPrimitive(it) })))
+            "folders" to JsonArray(folders.sorted().map { JsonPrimitive(it) }),
+            "favorites" to JsonArray(favorites.filter { id -> entries.any { it.asset.assetId == id } }
+                .sorted().map { JsonPrimitive(it) })))
         defaults.setObject(value.toString(), forKey = STATE_KEY)
         check(defaults.synchronize()) { "Could not persist gallery state." }
     }

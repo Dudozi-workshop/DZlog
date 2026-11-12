@@ -30,4 +30,16 @@ Status: implemented locally; native compile and integration verification pending
 
 ## Next batch
 
-Add sharing/favorites, then request the accumulated gallery integration checks without waiting for CI completion.
+## Batch 3 — sharing and favorites
+
+- The expanded viewer can open the native iOS share sheet for the selected readable image.
+- Favorites persist by PhotoKit asset ID, survive moves and folder renames, and are removed when that asset is deleted.
+- Added favorite toggling, star markers and an all/favorites list filter.
+- The native host validates the shared bytes as an image before presenting `UIActivityViewController`, including an iPad popover anchor.
+- Expanded index tests cover favorite relaunch, move preservation, removal and pending-journal protection.
+
+## Accumulated validation checkpoint
+
+- Gallery batches 1–3 are ready for one combined native compile/test request.
+- The request should include shared iOS index tests, iPhone ARM64 compilation and the existing complete UI regression. Share destinations still require physical-device QA.
+- Start CI after publishing these commits and continue with the next migration work without waiting for completion.

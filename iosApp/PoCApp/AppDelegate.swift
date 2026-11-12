@@ -11,6 +11,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private static let openCamera = Notification.Name("dzlog.openCamera")
     private static let closeCamera = Notification.Name("dzlog.dismissCamera")
+    private static let sharePhoto = Notification.Name("dzlog.sharePhoto")
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -23,6 +24,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         NotificationCenter.default.addObserver(
             self, selector: #selector(dismissCameraFromHome(_:)),
             name: Self.closeCamera, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(sharePhotoFromGallery(_:)),
+            name: Self.sharePhoto, object: nil
         )
         if CommandLine.arguments.contains("--camera-flow") {
             // Keep the camera disconnected while the asynchronous prompt is unresolved.
@@ -68,6 +73,21 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         } else {
             cameraPresentedOrPending = false
         }
+    }
+
+    @objc private func sharePhotoFromGallery(_ notification: Notification) {
+        guard let data = notification.object as? NSData,
+              let image = UIImage(data: data as Data),
+              var presenter = window?.rootViewController else { return }
+        while let presented = presenter.presentedViewController { presenter = presented }
+        guard !(presenter is UIActivityViewController) else { return }
+        let activity = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+        if let popover = activity.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX,
+                                        y: presenter.view.bounds.midY, width: 1, height: 1)
+        }
+        presenter.present(activity, animated: true)
     }
 
     private func resolveCameraPermission(completion: @escaping (Bool) -> Void) {

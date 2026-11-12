@@ -325,6 +325,44 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
     }
 
+    func testGalleryFavoriteAndEmptyFolderManagementPersist() {
+        configureCaptureFixture("원본과 결과", merged: true)
+        tapButton("촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
+        tapButton("갤러리 열기")
+        let thumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 30), app.debugDescription)
+        thumbnail.tap()
+        tapButton("☆ 즐겨찾기")
+        XCTAssertTrue(button("★ 즐겨찾기").waitForExistence(timeout: 10))
+
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        tapButton("갤러리 열기")
+        tapButton("즐겨찾기")
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("폴더 보기")
+        tapButton("폴더 생성")
+        tapPanelText("폴더 이름")
+        typeWithVisibleKeyboard("qa")
+        tapButton("저장")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/qa/").waitForExistence(timeout: 20), app.debugDescription)
+        tapButton("폴더 삭제")
+        tapButton("삭제")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
+        tapButton("전체 사진")
+        let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(favoriteThumbnail.waitForExistence(timeout: 30))
+        favoriteThumbnail.tap()
+        tapButton("★ 즐겨찾기")
+        XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
+    }
+
     func testMergedRasterPixelsAndMalformedSpans() {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture"]
         app.launch()

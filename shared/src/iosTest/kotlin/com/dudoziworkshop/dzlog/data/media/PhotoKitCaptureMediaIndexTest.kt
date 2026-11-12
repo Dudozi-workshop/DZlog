@@ -75,12 +75,19 @@ class PhotoKitCaptureMediaIndexTest {
             assertFailsWith<IllegalArgumentException> { index.move("result", "Pictures/Other/") }
             assertFailsWith<IllegalStateException> { index.move("result", "Pictures/DZlog/A/original/") }
             assertEquals(listOf(result, original), index.load())
+            index.setFavorite("result", true)
+            assertEquals(setOf("result"), index.favoriteAssetIds())
             index.move("result", "Pictures/DZlog/B/")
             val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
             assertEquals("Pictures/DZlog/B/", restored.load().first().asset.target.relativePath)
             assertEquals(original, restored.load().last())
+            assertEquals(setOf("result"), restored.favoriteAssetIds())
+            restored.setFavorite("result", false)
+            assertTrue(restored.favoriteAssetIds().isEmpty())
+            restored.setFavorite("result", true)
             restored.forgetDeleted("result")
             assertEquals(listOf(original), PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite)).load())
+            assertTrue(PhotoKitCaptureMediaIndex(defaults).favoriteAssetIds().isEmpty())
             assertFailsWith<IllegalStateException> { restored.ensureCaptureIsNew("capture") }
             assertFailsWith<IllegalStateException> { restored.move("result", "Pictures/DZlog/") }
         } finally { defaults.removePersistentDomainForName(suite) }
@@ -98,6 +105,7 @@ class PhotoKitCaptureMediaIndexTest {
             index.stagePending(listOf(entry))
             assertFailsWith<IllegalStateException> { index.move("result", "Pictures/DZlog/B/") }
             assertFailsWith<IllegalStateException> { index.forgetDeleted("result") }
+            assertFailsWith<IllegalStateException> { index.setFavorite("result", true) }
             assertEquals(listOf(entry), index.load())
             assertEquals(listOf(entry), index.pending())
         } finally { defaults.removePersistentDomainForName(suite) }

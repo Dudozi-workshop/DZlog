@@ -112,6 +112,12 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
 
     fun listGalleryFolders(): List<String> = index.folders()
 
+    fun favoriteGalleryAssetIds(): Set<String> = index.favoriteAssetIds()
+
+    suspend fun setGalleryFavorite(assetId: String, favorite: Boolean) = manageFolder {
+        index.setFavorite(assetId, favorite)
+    }
+
     suspend fun createGalleryFolder(parent: String, name: String): String = manageFolder {
         index.createFolder(parent, name)
     }
