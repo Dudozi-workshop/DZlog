@@ -58,6 +58,7 @@ import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
 import kotlinx.coroutines.delay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.max
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 
 /**
@@ -125,6 +126,11 @@ internal fun CameraPreviewArea(
         val liveWatermarkBounds = rememberUpdatedState(watermarkBoundsRect)
         val liveWatermarkRawRect = rememberUpdatedState(watermarkRawRect)
         val liveHandleCorner = rememberUpdatedState(activeHandleCorner)
+        // Asynchronous CameraX/Camera2 callbacks must not apply to a rebound camera.
+        val liveBoundCamera = rememberUpdatedState(boundCamera)
+        val liveFocusMode = rememberUpdatedState(args.focusMode)
+        val liveTapFocusUi = rememberUpdatedState(tapFocusUi)
+        val previewAlive = remember { AtomicBoolean(true) }
         var aeLocked by remember { mutableStateOf(false) }
         var lockRequestInFlight by remember { mutableStateOf(false) }
         var focusControlsExpanded by remember { mutableStateOf(false) }
@@ -140,6 +146,22 @@ internal fun CameraPreviewArea(
         val maxExposureIndex = exposureState?.exposureCompensationRange?.upper ?: 0
         val exposureStep = exposureState?.exposureCompensationStep?.toFloat() ?: 1f
 
+        // Release transient Camera2 control when leaving the preview/rebinding.
+        // Keep these changes scoped to the old camera rather than a new binding.
+        DisposableEffect(boundCamera) {
+            val oldCamera = boundCamera
+            onDispose {
+                if (oldCamera != null) {
+                    requestTapAeLock(context, oldCamera, false) { }
+                    runCatching { oldCamera.cameraControl.setExposureCompensationIndex(0) }
+                    runCatching { oldCamera.cameraControl.cancelFocusAndMetering() }
+                }
+            }
+        }
+        DisposableEffect(Unit) {
+            onDispose { previewAlive.set(false) }
+        }
+
         // Hardware and transient UI are scoped to the bound camera.
         LaunchedEffect(boundCamera, args.focusMode) {
             aeLocked = false
@@ -151,6 +173,12 @@ internal fun CameraPreviewArea(
             exposureRequestId += 1
             exposureIndex = boundCamera?.cameraInfo?.exposureState?.exposureCompensationIndex ?: 0
             onTapFocusUiChange(null)
+            if (args.focusMode != CameraFocusMode.AUTO && boundCamera != null) {
+                // Switching to the existing manual-focus tool must clear AE lock/EV.
+                requestTapAeLock(context, boundCamera, false) { }
+                runCatching { boundCamera.cameraControl.setExposureCompensationIndex(0) }
+                exposureIndex = 0
+            }
         }
 
         LaunchedEffect(focusControlsCollapseToken) {
@@ -179,7 +207,7 @@ internal fun CameraPreviewArea(
                 yPx = yPx,
                 locked = locked,
                 onResult = { success ->
-                    if (id == focusRequestId && boundCamera === activeCamera) {
+                    if (previewAlive.get() && id == focusRequestId && liveBoundCamera.value === activeCamera && liveFocusMode.value == CameraFocusMode.AUTO) {
                         onTapFocusUiChange(
                             TapFocusUiState(xPx, yPx,
                                 if (success) FocusRingPhase.SUCCESS else FocusRingPhase.FAILED)
@@ -199,7 +227,13 @@ internal fun CameraPreviewArea(
             val desired = !aeLocked
             lockRequestInFlight = true
             requestTapAeLock(context, activeCamera, desired) { applied ->
-                if (boundCamera !== activeCamera || args.focusMode != CameraFocusMode.AUTO) return@requestTapAeLock
+                if (!previewAlive.get() ||
+                    liveBoundCamera.value !== activeCamera ||
+                    liveFocusMode.value != CameraFocusMode.AUTO) {
+                    // A stale lock completion must not affect the next camera session.
+                    if (applied && desired) requestTapAeLock(context, activeCamera, false) { }
+                    return@requestTapAeLock
+                }
                 lockRequestInFlight = false
                 if (!applied) {
                     Toast.makeText(context, "이 기기에서는 노출 잠금을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
@@ -210,7 +244,7 @@ internal fun CameraPreviewArea(
                 if (desired) {
                     // Reapply an AF-only metering point without a timeout, while
                     // preserving the exposure frozen by Camera2 AE lock.
-                    tapFocusUi?.let { requestFocusAt(it.xPx, it.yPx, locked = true) }
+                    liveTapFocusUi.value?.let { requestFocusAt(it.xPx, it.yPx, locked = true) }
                 } else {
                     focusRequestId += 1
                     runCatching { activeCamera.cameraControl.cancelFocusAndMetering() }
@@ -229,9 +263,12 @@ internal fun CameraPreviewArea(
             focusInteractionId += 1
             val id = ++exposureRequestId
             val future = runCatching { activeCamera.cameraControl.setExposureCompensationIndex(next) }.getOrNull()
-                ?: return
+            if (future == null) {
+                exposureIndex = activeCamera.cameraInfo.exposureState.exposureCompensationIndex
+                return
+            }
             future.addListener({
-                if (id == exposureRequestId && boundCamera === activeCamera) {
+                if (previewAlive.get() && id == exposureRequestId && liveBoundCamera.value === activeCamera) {
                     exposureIndex = runCatching { future.get() }
                         .getOrElse { activeCamera.cameraInfo.exposureState.exposureCompensationIndex }
                 }
