@@ -46,7 +46,7 @@
 | 촬영 표시→파일명·경로·번호 | `domain/table/TableResolver.kt`, `domain/naming/NamePathBuilders.kt`, `domain/counter/CounterManager.kt` | 간접 경로 확인, 실기기 검수 필요 |
 | 데이터 직렬화·복원 | `data/template/TableTemplateStateUtils.kt`, `data/repository/CaptureJobSnapshotCodec.kt` | 검토·회귀 테스트 |
 | 전체 템플릿 백업 | `data/backup/LocalTemplateBackupCodec.kt`, `LocalTemplateBackupValidator.kt` | 신규 누락 발견 후 보완·회귀 테스트 |
-| 2열/3열 CSV 왕복 | `domain/phrase/RotatingPhraseCsvCodec.kt` | 검토·회귀 테스트 |
+| 3열 CSV 왕복·구형 2열 입력 거부 | `domain/phrase/RotatingPhraseCsvCodec.kt` | 검토·회귀 테스트 |
 | 번호 정책·촬영 취소/되돌리기 | `domain/counter/RotatingCounterStreamIdentity.kt`, `feature/capture/policy/CapturePhraseUndoHistory.kt` | 회귀 테스트 범위 추가 |
 | 튜토리얼 문구 및 iOS 대응 | `feature/help/**`, iOS 전용 PR/브랜치 | **추후 별도 호환성 확인 필요** |
 
