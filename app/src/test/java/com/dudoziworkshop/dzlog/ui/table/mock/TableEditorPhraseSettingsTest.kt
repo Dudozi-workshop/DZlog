@@ -58,7 +58,7 @@ class TableEditorPhraseSettingsTest {
         val shared = TableTemplateState(1, 4, listOf(cell, companion, unrelated, counter),
             phraseSets = listOf(set, unrelatedSet))
         val csv = com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseCsvCodec.decode(
-            "order,phrase\n2,최종 조사\n1,초기 조사\n"
+            "order,phrase,every\n2,최종 조사,\n1,초기 조사,\n"
         ) as com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseCsvCodec.ImportResult.Success
         val updated = updateMockPhraseSet(shared, set.id) { it.copy(items = csv.items) }
         assertEquals(listOf("초기 조사", "최종 조사"), updated.phraseSets[0].items)
