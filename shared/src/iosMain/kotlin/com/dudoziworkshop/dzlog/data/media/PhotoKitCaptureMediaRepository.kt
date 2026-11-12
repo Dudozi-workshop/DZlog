@@ -110,6 +110,29 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
         } finally { saving = false }
     }
 
+    fun listGalleryFolders(): List<String> = index.folders()
+
+    suspend fun createGalleryFolder(parent: String, name: String): String = manageFolder {
+        index.createFolder(parent, name)
+    }
+
+    suspend fun renameGalleryFolder(path: String, name: String): String = manageFolder {
+        index.renameFolder(path, name)
+    }
+
+    suspend fun deleteEmptyGalleryFolder(path: String) = manageFolder {
+        index.deleteEmptyFolder(path)
+    }
+
+    private suspend fun <T> manageFolder(operation: () -> T): T {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            reconcilePending()
+            return operation()
+        } finally { saving = false }
+    }
+
     private suspend fun reconcilePending() {
         val pending = index.pending()
         if (pending.isEmpty()) return

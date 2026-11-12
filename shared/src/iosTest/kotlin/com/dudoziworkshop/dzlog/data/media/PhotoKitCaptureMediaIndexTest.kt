@@ -12,6 +12,55 @@ import platform.Foundation.NSUserDefaults
 
 class PhotoKitCaptureMediaIndexTest {
     @Test
+    fun emptyFoldersAndSubtreeRenameSurviveRelaunch() {
+        val suite = "dzlog.photokit.folders.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val parent = index.createFolder("Pictures/DZlog/", "A")
+            val child = index.createFolder(parent, "empty")
+            index.append(listOf(IndexedCaptureMedia("capture", PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.RESULT, parent, "0012.jpg"), "result"))))
+            assertFailsWith<IllegalArgumentException> { index.deleteEmptyFolder(parent) }
+            assertFailsWith<IllegalArgumentException> { index.createFolder(parent, "../bad") }
+            assertFailsWith<IllegalArgumentException> { index.createFolder(parent, "empty") }
+            index.createFolder("Pictures/DZlog/", "occupied")
+            assertFailsWith<IllegalArgumentException> { index.renameFolder(parent, "occupied") }
+            val renamed = index.renameFolder(parent, "B")
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(renamed, restored.load().single().asset.target.relativePath)
+            assertTrue("Pictures/DZlog/B/empty/" in restored.folders())
+            assertTrue(child !in restored.folders())
+            restored.deleteEmptyFolder("Pictures/DZlog/B/empty/")
+            assertTrue("Pictures/DZlog/B/empty/" !in PhotoKitCaptureMediaIndex(defaults).folders())
+            assertFailsWith<IllegalArgumentException> { restored.deleteEmptyFolder("Pictures/DZlog/") }
+            restored.forgetDeleted("result")
+            assertTrue(renamed in restored.folders())
+            restored.deleteEmptyFolder(renamed)
+            assertTrue(renamed !in PhotoKitCaptureMediaIndex(defaults).folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun legacyIndexMigratesOnFolderMutationWithoutDroppingAssets() {
+        val suite = "dzlog.photokit.legacy.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            defaults.setObject("""[{"captureId":"old","role":"RESULT","relativePath":"Pictures/DZlog/A/","displayName":"old.jpg","assetId":"old-asset"}]""",
+                forKey = "dzlog.ios.photokit.capture-index.v1")
+            defaults.synchronize()
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val previous = index.load()
+            assertEquals("old-asset", previous.single().asset.assetId)
+            index.createFolder("Pictures/DZlog/", "empty")
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(previous, restored.load())
+            assertTrue("Pictures/DZlog/empty/" in restored.folders())
+            assertTrue("Pictures/DZlog/A/" in restored.folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun galleryMoveAndDeletePersistOnlyTheSelectedRole() {
         val suite = "dzlog.photokit.gallery.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)

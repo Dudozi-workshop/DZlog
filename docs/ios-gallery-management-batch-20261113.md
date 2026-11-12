@@ -19,6 +19,15 @@ Status: implemented locally; native compile and integration verification pending
 - Native integration must exercise PhotoKit delete approval/cancellation, selected-role deletion and companion survival, move/relaunch restoration, same-name rejection and limited permission failures. Use synthetic test assets only.
 - No native build or CI run requested for this local batch. Do not mark it verified.
 
+## Batch 2 — logical folder management
+
+- Added create and rename dialogs to folder browsing. Rename updates descendant folders and photo paths together.
+- Delete is restricted to empty non-root folders. Photo/subfolder contents block deletion; no PhotoKit assets are deleted by folder operations.
+- Empty folders persist after relaunch and appear in the photo move picker.
+- Gallery index v2 stores photo records and explicit folders in one snapshot; legacy v1 records are read until the first mutation migrates them. The capture pending journal keeps its existing format.
+- Added native tests for folder relaunch, subtree rename, protected root, duplicate/invalid names, nonempty deletion and legacy migration. Not executed yet.
+- Local whitespace validation passed. Native compilation and combined integration remain pending.
+
 ## Next batch
 
-Persist empty logical folders, add folder creation/rename/delete, and reuse this destination picker. Folder deletion must define its effect on contained photo assets explicitly.
+Add sharing/favorites, then request the accumulated gallery integration checks without waiting for CI completion.

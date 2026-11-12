@@ -28,8 +28,65 @@ internal data class IndexedCaptureMedia(
 internal class PhotoKitCaptureMediaIndex(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) {
-    fun load(): List<IndexedCaptureMedia> = decode(defaults.stringForKey(INDEX_KEY))
+    private fun state(): JsonObject? = defaults.stringForKey(STATE_KEY)?.let {
+        Json.parseToJsonElement(it).jsonObject
+    }
+    fun load(): List<IndexedCaptureMedia> = state()?.getValue("entries")?.let { decode(it.toString()) }
+        ?: decode(defaults.stringForKey(INDEX_KEY))
     fun pending(): List<IndexedCaptureMedia> = decode(defaults.stringForKey(PENDING_KEY))
+
+    private fun explicitFolders(): Set<String> = state()?.getValue("folders")?.jsonArray
+        ?.map { it.jsonPrimitive.content }?.toSet().orEmpty()
+
+    fun folders(): List<String> = buildSet {
+        add(ROOT)
+        (explicitFolders() + load().map { it.asset.target.relativePath }).forEach { initial ->
+            var path = initial
+            while (path.startsWith(ROOT) && path != ROOT) {
+                add(path)
+                path = path.trimEnd('/').substringBeforeLast('/') + "/"
+            }
+        }
+    }.sorted()
+
+    fun createFolder(parent: String, name: String): String {
+        check(pending().isEmpty()) { "Recover the outstanding capture first." }
+        require(parent in folders()) { "Parent folder no longer exists." }
+        val path = parent + folderName(name) + "/"
+        require(path !in folders()) { "Folder already exists." }
+        persistState(load(), explicitFolders() + path)
+        return path
+    }
+
+    fun renameFolder(path: String, name: String): String {
+        check(pending().isEmpty()) { "Recover the outstanding capture first." }
+        require(path != ROOT && path in folders()) { "Select an existing child folder." }
+        val parent = path.trimEnd('/').substringBeforeLast('/') + "/"
+        val replacement = parent + folderName(name) + "/"
+        if (replacement == path) return path
+        require(replacement !in folders()) { "Folder already exists." }
+        fun remap(value: String) = if (value.startsWith(path)) replacement + value.removePrefix(path) else value
+        // Folder and descendant photo paths are written together in one durable snapshot.
+        persistState(load().map { entry -> entry.copy(asset = entry.asset.copy(
+            target = entry.asset.target.copy(relativePath = remap(entry.asset.target.relativePath)))) },
+            (explicitFolders() + path).map(::remap).toSet())
+        return replacement
+    }
+
+    fun deleteEmptyFolder(path: String) {
+        check(pending().isEmpty()) { "Recover the outstanding capture first." }
+        require(path != ROOT && path in folders()) { "Select an existing child folder." }
+        require(load().none { it.asset.target.relativePath.startsWith(path) } &&
+            folders().none { it != path && it.startsWith(path) }) { "Only empty folders can be deleted. Move photos and subfolders first." }
+        persistState(load(), explicitFolders() - path)
+    }
+
+    private fun folderName(name: String): String {
+        val value = name.trim()
+        require(value.isNotEmpty() && value != "." && value != ".." &&
+            value.none { it == '/' || it == '\\' || it.isISOControl() }) { "Invalid folder name." }
+        return value
+    }
 
     fun ensureCaptureIsNew(captureId: String) {
         check((load() + pending()).none { it.captureId == captureId }) {
@@ -87,8 +144,7 @@ internal class PhotoKitCaptureMediaIndex(
         persist(INDEX_KEY, load().filterNot { it.asset.assetId == assetId })
     }
 
-    private fun persist(key: String, entries: List<IndexedCaptureMedia>) {
-        val encoded = JsonArray(entries.map { entry ->
+    private fun encode(entries: List<IndexedCaptureMedia>): JsonArray = JsonArray(entries.map { entry ->
             JsonObject(mapOf(
                 "captureId" to JsonPrimitive(entry.captureId),
                 "role" to JsonPrimitive(entry.asset.target.role.name),
@@ -96,8 +152,21 @@ internal class PhotoKitCaptureMediaIndex(
                 "displayName" to JsonPrimitive(entry.asset.target.displayName),
                 "assetId" to JsonPrimitive(entry.asset.assetId),
             ))
-        }).toString()
-        defaults.setObject(encoded, forKey = key)
+        })
+
+    private fun persistState(entries: List<IndexedCaptureMedia>, folders: Set<String>) {
+        val value = JsonObject(mapOf("entries" to encode(entries),
+            "folders" to JsonArray(folders.sorted().map { JsonPrimitive(it) })))
+        defaults.setObject(value.toString(), forKey = STATE_KEY)
+        check(defaults.synchronize()) { "Could not persist gallery state." }
+    }
+
+    private fun persist(key: String, entries: List<IndexedCaptureMedia>) {
+        if (key == INDEX_KEY) {
+            persistState(entries, folders().toSet())
+            return
+        }
+        defaults.setObject(encode(entries).toString(), forKey = key)
         check(defaults.synchronize()) { "Could not persist PhotoKit index/journal ($key)." }
     }
 
@@ -121,6 +190,8 @@ internal class PhotoKitCaptureMediaIndex(
     }
 
     companion object {
+        private const val ROOT = "Pictures/DZlog/"
+        private const val STATE_KEY = "dzlog.ios.photokit.gallery-state.v2"
         private const val INDEX_KEY = "dzlog.ios.photokit.capture-index.v1"
         private const val PENDING_KEY = "dzlog.ios.photokit.pending-capture.v1"
     }

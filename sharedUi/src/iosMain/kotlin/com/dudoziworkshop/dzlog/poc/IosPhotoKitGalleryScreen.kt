@@ -30,6 +30,7 @@ private const val GALLERY_ROOT = "Pictures/DZlog/"
 internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var photos by remember { mutableStateOf<List<SavedCaptureMedia>>(emptyList()) }
+    var folders by remember { mutableStateOf<List<String>>(listOf(GALLERY_ROOT)) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var message by remember { mutableStateOf("사진 확인 중") }
@@ -43,11 +44,16 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var moveTarget by remember { mutableStateOf<String?>(null) }
     var destination by remember { mutableStateOf<String?>(null) }
     var operationMessage by remember { mutableStateOf<String?>(null) }
+    var folderAction by remember { mutableStateOf<String?>(null) }
+    var folderTarget by remember { mutableStateOf(GALLERY_ROOT) }
+    var folderName by remember { mutableStateOf("") }
+    var folderError by remember { mutableStateOf<String?>(null) }
     val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
     val visible = if (folder == null) photos else photos.filter { it.asset.target.relativePath == folder }
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
     val destinations = buildSet {
         add(GALLERY_ROOT)
+        addAll(folders)
         photos.forEach { entry ->
             var path = entry.asset.target.relativePath
             while (path.startsWith(GALLERY_ROOT) && path != GALLERY_ROOT) {
@@ -57,8 +63,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         }
     }.sorted()
     val currentFolder = folder
-    val childFolders = if (currentFolder == null) emptyList() else photos.mapNotNull { entry ->
-        val path = entry.asset.target.relativePath
+    val childFolders = if (currentFolder == null) emptyList() else destinations.mapNotNull { path ->
         if (!path.startsWith(currentFolder) || path == currentFolder) null
         else currentFolder + path.removePrefix(currentFolder).substringBefore('/') + "/"
     }.distinct().sorted()
@@ -69,10 +74,45 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         scope.launch {
             try {
                 photos = repository.listSavedAssets().asReversed()
+                folders = repository.listGalleryFolders()
                 loadError = null
             } catch (error: Throwable) { loadError = "갤러리 조회 실패: ${error.message}" }
             finally { refreshing = false }
         }
+    }
+
+    folderAction?.let { action ->
+        AlertDialog(onDismissRequest = { if (!managing) folderAction = null },
+            title = { Text(when (action) { "create" -> "폴더 생성"; "rename" -> "폴더 이름 변경"; else -> "빈 폴더 삭제" }) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (action == "delete") Text("이 폴더를 삭제합니다. 사진이나 하위 폴더가 있으면 먼저 이동하거나 정리해 주세요.")
+                    else OutlinedTextField(value = folderName, onValueChange = { folderName = it; folderError = null },
+                        enabled = !managing, singleLine = true, label = { Text("폴더 이름") })
+                    folderError?.let { Text(it) }
+                }
+            },
+            confirmButton = { TextButton(enabled = !managing && (action == "delete" || folderName.isNotBlank()), onClick = {
+                managing = true
+                scope.launch {
+                    try {
+                        folder = when (action) {
+                            "create" -> repository.createGalleryFolder(folderTarget, folderName)
+                            "rename" -> repository.renameGalleryFolder(folderTarget, folderName)
+                            else -> {
+                                repository.deleteEmptyGalleryFolder(folderTarget)
+                                folderTarget.trimEnd('/').substringBeforeLast('/') + "/"
+                            }
+                        }
+                        photos = repository.listSavedAssets().asReversed()
+                        folders = repository.listGalleryFolders()
+                        operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; else -> "빈 폴더를 삭제했습니다." }
+                        folderAction = null
+                    } catch (error: Throwable) { folderError = "폴더 처리 실패: ${error.message}" }
+                    finally { managing = false }
+                }
+            }) { Text(if (action == "delete") "삭제" else "저장") } },
+            dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
     LaunchedEffect(Unit) { refresh() }
     LaunchedEffect(photos, folder) {
@@ -124,6 +164,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                             viewer = false
                         }
                         photos = repository.listSavedAssets().asReversed()
+                        folders = repository.listGalleryFolders()
                     } catch (error: Throwable) {
                         operationMessage = "삭제 결과 확인이 필요합니다: ${error.message}"
                     } finally { managing = false }
@@ -157,6 +198,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     try {
                         repository.moveGalleryAsset(targetId, path)
                         photos = repository.listSavedAssets().asReversed()
+                        folders = repository.listGalleryFolders()
                         folder = path
                         selectedId = targetId
                         operationMessage = "사진을 이동했습니다."
@@ -216,6 +258,21 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             }
             Text("사진 ${visible.size}개")
             currentFolder?.let { Text("폴더: $it") }
+            currentFolder?.let { path ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(enabled = !managing && !refreshing, onClick = {
+                        folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
+                    }) { Text("폴더 생성") }
+                    if (path != GALLERY_ROOT) {
+                        TextButton(enabled = !managing && !refreshing, onClick = {
+                            folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
+                        }) { Text("이름 변경") }
+                        TextButton(enabled = !managing && !refreshing, onClick = {
+                            folderTarget = path; folderError = null; folderAction = "delete"
+                        }) { Text("폴더 삭제") }
+                    }
+                }
+            }
             loadError?.let { Text(it) }
             operationMessage?.let { Text(it) }
             if (childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 160.dp)) {
