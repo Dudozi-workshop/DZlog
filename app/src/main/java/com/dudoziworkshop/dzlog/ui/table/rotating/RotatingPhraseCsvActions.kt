@@ -140,8 +140,6 @@ internal fun RotatingPhraseCsvActions(
         }
         Text("현재 세트 내보내기 · CSV 열: order, phrase, every (빈칸=기본)",
             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-        Text("기존 2열 CSV도 불러올 수 있습니다. 세트 기본 주기·번호 방식은 유지됩니다.",
-            style = DDZTypography.Caption, color = DDZColor.TextSecondary)
     }
 
     val preview = pendingItems

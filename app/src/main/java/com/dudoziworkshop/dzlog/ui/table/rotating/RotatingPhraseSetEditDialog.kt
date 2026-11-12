@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -43,7 +45,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /**
  * Keep the set period above the phrase list and the numbering/CSV actions below it.
- * Only the phrase list consumes remaining height and scrolls in normal portrait mode.
+ * Scaffold's bottom bar reserves the footer before the phrase list gets the remaining height.
  */
 @Composable
 fun RotatingPhraseSetEditDialog(
@@ -74,10 +76,26 @@ fun RotatingPhraseSetEditDialog(
         Scaffold(
             modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = DDZColor.Background,
-            // Insets are owned explicitly: DDZTopBar handles the status bar,
-            // navigationBarsPadding below handles the gesture/3-button area.
-            // Avoid applying Scaffold.safeDrawing's bottom inset a second time.
+            // Full-screen dialogs can report a consumed/zero nav inset on some devices.
+            // The bottomBar takes its own measurable height, including a conservative
+            // fallback for system navigation, so CSV can never be covered by the gesture bar.
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                val navigationHeight = with(LocalDensity.current) {
+                    WindowInsets.navigationBars.getBottom(this).toDp()
+                }
+                val missingNavigationSpace = (48.dp - navigationHeight).coerceAtLeast(0.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 16.dp + missingNavigationSpace),
+                ) {
+                    RotatingPhraseSetFooter(
+                        phraseSet = phraseSet,
+                        onUpdateSet = onUpdateSet,
+                    )
+                }
+            },
             topBar = {
                 DDZTopBar(
                     title = phraseSet.name,
@@ -115,13 +133,11 @@ fun RotatingPhraseSetEditDialog(
         ) { insets ->
             BoxWithConstraints(
                 modifier = Modifier.fillMaxSize().padding(insets)
-                    // Reserve the OS navigation area once, outside all scrolling content.
-                    .navigationBarsPadding()
-                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 16.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 6.dp),
             ) {
-                // Fixed header/footer, remaining height assigned to the phrase list.
-                // In unusually short windows, allow the whole page to scroll instead
-                // of forcing a minimum list height that could hide the footer.
+                // The pinned bottomBar has already been subtracted by Scaffold.
+                // Only the list consumes the remaining measured viewport height.
+                // Very short windows may scroll their content without moving the footer.
                 val shortScreen = maxHeight < 360.dp
                 val compactListHeight = maxHeight * 0.45f
                 Column(
@@ -148,10 +164,6 @@ fun RotatingPhraseSetEditDialog(
                         onEditPeriod = { index -> periodTargets = listOf(index) },
                         onBulkPeriod = { indices -> periodTargets = indices },
                         onAddItem = { editItem(null, "") },
-                    )
-                    RotatingPhraseSetFooter(
-                        phraseSet = phraseSet,
-                        onUpdateSet = onUpdateSet,
                     )
                 }
             }
