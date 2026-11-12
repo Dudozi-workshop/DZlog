@@ -4,8 +4,8 @@ import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 
 /**
  * UTF-8 CSV for one phrase set.
- * New format: order,phrase,every. Empty every = inherit the set default.
- * Older order,phrase CSVs remain importable as entirely inherited entries.
+ * Required format: order,phrase,every. Empty every = inherit the set default.
+ * Legacy two-column CSV input is intentionally rejected.
  * Other cell progress, IDs, and number-progress modes are never transferred.
  */
 internal object RotatingPhraseCsvCodec {
@@ -39,10 +39,8 @@ internal object RotatingPhraseCsvCodec {
             ?: return failure("CSV 형식이 올바르지 않습니다. 따옴표와 열 구성을 확인하세요.")
         if (rows.isEmpty()) return failure("CSV 파일이 비어 있습니다.")
         val header = rows[0].map { it.trim().lowercase() }
-        val legacy = header == listOf("order", "phrase")
-        val extended = header == listOf("order", "phrase", "every")
-        if (!legacy && !extended) {
-            return failure("첫 줄은 order,phrase,every 또는 기존 order,phrase 형식이어야 합니다.")
+        if (header != listOf("order", "phrase", "every")) {
+            return failure("CSV 첫 줄은 order,phrase,every 형식이어야 합니다. 3열 CSV 파일을 선택해 주세요.")
         }
         val data = rows.drop(1)
         if (data.isEmpty()) return failure("가져올 문구가 없습니다. 기존 목록은 유지됩니다.")
@@ -63,7 +61,7 @@ internal object RotatingPhraseCsvCodec {
             if ('\n' in phrase || '\r' in phrase) {
                 return failure((index + 2).toString() + "행 문구에는 줄바꿈을 넣을 수 없습니다.")
             }
-            val rawEvery = if (extended) row[2].trim() else ""
+            val rawEvery = row[2].trim()
             val every: Int? = if (rawEvery.isEmpty()) {
                 null
             } else {
