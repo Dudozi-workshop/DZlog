@@ -138,6 +138,8 @@ internal fun CameraNextCaptureInfoPopup(
                         modifier = Modifier.weight(1f),
                         minHeight = 48.dp,
                         horizontalPadding = 9.dp,
+                        leadingIconSize = 18.dp,
+                        leadingIconSpacing = 6.dp,
                         enabled = canChangeSelection,
                         onClick = onOpenTableEditor,
                     )
@@ -148,6 +150,8 @@ internal fun CameraNextCaptureInfoPopup(
                         modifier = Modifier.weight(1f),
                         minHeight = 48.dp,
                         horizontalPadding = 9.dp,
+                        leadingIconSize = 18.dp,
+                        leadingIconSpacing = 6.dp,
                         enabled = canChangeSelection,
                         onClick = onOpenSaveSettings,
                     )

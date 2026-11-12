@@ -50,7 +50,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.util.UUID
 
-/** Only the phrase rows scroll. Header, interval and footer never move with them. */
+/** The panel takes only remaining height; phrase rows alone scroll within it. */
 @Composable
 internal fun RotatingPhraseSetListPanel(
     phraseSet: RotatingPhraseSet,
@@ -60,7 +60,6 @@ internal fun RotatingPhraseSetListPanel(
     onEditPeriod: (Int) -> Unit,
     onBulkPeriod: (List<Int>) -> Unit,
     onAddItem: () -> Unit,
-    defaultPeriodBar: @Composable () -> Unit,
 ) {
     var searchExpanded by remember(phraseSet.id) { mutableStateOf(false) }
     var query by remember(phraseSet.id) { mutableStateOf("") }
@@ -138,7 +137,6 @@ internal fun RotatingPhraseSetListPanel(
                     Icon(Icons.Default.Add, contentDescription = "문구 추가", tint = DDZColor.PrimaryDark, modifier = Modifier.size(18.dp))
                 }
             }
-            defaultPeriodBar()
             if (searchExpanded) {
                 OutlinedTextField(
                     value = query,

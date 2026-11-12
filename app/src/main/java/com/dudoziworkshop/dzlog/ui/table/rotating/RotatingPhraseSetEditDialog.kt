@@ -42,8 +42,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 /**
- * Single purpose layout: a large independently scrollable phrase panel, then
- * pinned period/numbering/CSV controls. Existing edit policies remain shared.
+ * Keep the set period above the phrase list and the numbering/CSV actions below it.
+ * Only the phrase list consumes remaining height and scrolls in normal portrait mode.
  */
 @Composable
 fun RotatingPhraseSetEditDialog(
@@ -117,11 +117,12 @@ fun RotatingPhraseSetEditDialog(
                 modifier = Modifier.fillMaxSize().padding(insets)
                     // Reserve the OS navigation area once, outside all scrolling content.
                     .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 16.dp),
             ) {
-                // On short/landscape or keyboard-reduced screens, allow the footer
-                // to be reached by scrolling rather than letting it clip behind the nav bar.
-                val shortScreen = maxHeight < 420.dp
+                // Fixed header/footer, remaining height assigned to the phrase list.
+                // In unusually short windows, allow the whole page to scroll instead
+                // of forcing a minimum list height that could hide the footer.
+                val shortScreen = maxHeight < 360.dp
                 Column(
                     modifier = if (shortScreen) {
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -130,10 +131,14 @@ fun RotatingPhraseSetEditDialog(
                     },
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    RotatingPhraseDefaultPeriodBar(
+                        phraseSet = phraseSet,
+                        onUpdateSet = onUpdateSet,
+                    )
                     RotatingPhraseSetListPanel(
                         phraseSet = phraseSet,
                         modifier = if (shortScreen) {
-                            Modifier.fillMaxWidth().height(260.dp)
+                            Modifier.fillMaxWidth().height(maxHeight * 0.45f)
                         } else {
                             Modifier.weight(1f).fillMaxWidth()
                         },
@@ -142,12 +147,6 @@ fun RotatingPhraseSetEditDialog(
                         onEditPeriod = { index -> periodTargets = listOf(index) },
                         onBulkPeriod = { indices -> periodTargets = indices },
                         onAddItem = { editItem(null, "") },
-                        defaultPeriodBar = {
-                            RotatingPhraseDefaultPeriodBar(
-                                phraseSet = phraseSet,
-                                onUpdateSet = onUpdateSet,
-                            )
-                        },
                     )
                     RotatingPhraseSetFooter(
                         phraseSet = phraseSet,
