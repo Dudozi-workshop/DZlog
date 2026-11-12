@@ -1,16 +1,29 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
-/**
- * Positions the touch controls without clipping or overlapping the lock/EV controls.
- * Preferred layout: lock above the ring, EV below. At the top/bottom edge,
- * the controls stack together on the side with available vertical space.
- * This policy is view-independent and can be tested without Android.
- */
+// Shared focus-ring geometry. Touch targets are deliberately much larger
+// than the visually rendered lock and sun icons.
+internal const val FOCUS_RING_RADIUS_DP = 22
+internal const val FOCUS_RING_COMPACT_RADIUS_DP = 20
+internal const val FOCUS_LOCK_TOUCH_DP = 36
+internal const val FOCUS_EV_WIDTH_DP = 116
+internal const val FOCUS_EV_TOUCH_HEIGHT_DP = 36
+
 internal data class FocusControlsVerticalPlacement(
     val lockTop: Float,
     val exposureTop: Float,
+    val lockAtBottom: Boolean,
+    val exposureAbove: Boolean,
 )
 
+internal fun visibleFocusCenter(value: Float, extent: Float, radius: Float): Float =
+    if (extent <= radius * 2f) extent / 2f
+    else value.coerceIn(radius, extent - radius)
+
+/**
+ * Place the lock ON the circular outline (12 o'clock, or 6 o'clock near
+ * the top). The sun slider stays below the ring except at the bottom edge,
+ * where it moves above. Its hit region must not collide with the lock's.
+ */
 internal fun placeFocusControlsVertically(
     focusY: Float,
     viewHeight: Float,
@@ -19,35 +32,23 @@ internal fun placeFocusControlsVertically(
     exposureHeight: Float,
     gap: Float,
 ): FocusControlsVerticalPlacement {
-    val lockAbove = focusY - ringRadius - gap - lockHeight
-    val exposureBelow = focusY + ringRadius + gap
-    if (lockAbove >= 0f && exposureBelow + exposureHeight <= viewHeight) {
-        return FocusControlsVerticalPlacement(lockAbove, exposureBelow)
-    }
+    val centerY = visibleFocusCenter(focusY, viewHeight, ringRadius)
+    val lockAtBottom = centerY - ringRadius - lockHeight / 2f < 0f
+    val lockCenterY = centerY + if (lockAtBottom) ringRadius else -ringRadius
+    val lockTop = (lockCenterY - lockHeight / 2f)
+        .coerceIn(0f, (viewHeight - lockHeight).coerceAtLeast(0f))
 
-    // Top edge: both controls below the ring.
-    val stackedBelowLock = focusY + ringRadius + gap
-    val stackedBelowExposure = stackedBelowLock + lockHeight + gap
-    if (lockAbove < 0f && stackedBelowExposure + exposureHeight <= viewHeight) {
-        return FocusControlsVerticalPlacement(stackedBelowLock, stackedBelowExposure)
-    }
+    val below = centerY + ringRadius + gap + if (lockAtBottom) lockHeight / 2f else 0f
+    val above = centerY - ringRadius - gap - exposureHeight -
+        if (lockAtBottom) 0f else lockHeight / 2f
+    val exposureAbove = below + exposureHeight > viewHeight && above >= 0f
+    val candidate = if (exposureAbove) above else below
+    val exposureTop = candidate.coerceIn(0f, (viewHeight - exposureHeight).coerceAtLeast(0f))
 
-    // Bottom edge: lock above EV, both above the ring.
-    val stackedAboveExposure = focusY - ringRadius - gap - exposureHeight
-    val stackedAboveLock = stackedAboveExposure - gap - lockHeight
-    if (exposureBelow + exposureHeight > viewHeight && stackedAboveLock >= 0f) {
-        return FocusControlsVerticalPlacement(stackedAboveLock, stackedAboveExposure)
-    }
-
-    // Very short previews: keep the controls inside the bounds. The available
-    // height may not permit avoiding the focus ring, but never overlap controls.
-    val stackHeight = lockHeight + gap + exposureHeight
-    if (viewHeight >= stackHeight) {
-        val top = (focusY - stackHeight / 2f).coerceIn(0f, viewHeight - stackHeight)
-        return FocusControlsVerticalPlacement(top, top + lockHeight + gap)
-    }
     return FocusControlsVerticalPlacement(
-        0f,
-        (viewHeight - exposureHeight).coerceAtLeast(0f),
+        lockTop = lockTop,
+        exposureTop = exposureTop,
+        lockAtBottom = lockAtBottom,
+        exposureAbove = exposureAbove,
     )
 }
