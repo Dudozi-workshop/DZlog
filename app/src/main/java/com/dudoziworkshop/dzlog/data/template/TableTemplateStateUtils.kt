@@ -142,16 +142,11 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         kind = TableCellKind.valueOf(o.getString("kind")),
                         rawText = rawText,
                         typedValue = typedValue,
-                        numberDraft = if (o.has("numberDraft")) o.optString("numberDraft", "")
-                            else if (dataType == TableCellDataType.NUMBER) rawText else null,
+                        numberDraft = if (o.has("numberDraft")) o.optString("numberDraft", "") else null,
                         counterSeedDraft = if (o.has("counterSeedDraft")) {
                             o.optInt("counterSeedDraft", 1).coerceAtLeast(0)
-                        } else if (dataType == TableCellDataType.COUNTER) {
-                            o.optInt("counterSeed", 1).coerceAtLeast(0)
                         } else null,
-                        dateFormatDraft = if (o.has("dateFormatDraft")) o.optString("dateFormatDraft", "")
-                            else if (dataType == TableCellDataType.DATE) o.optString("formatPattern", "")
-                            else null,
+                        dateFormatDraft = if (o.has("dateFormatDraft")) o.optString("dateFormatDraft", "") else null,
                         timeFormatOptions = timeOpts,
                         cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
                         rowSpan = o.optInt("rowSpan", 1),
