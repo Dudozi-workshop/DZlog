@@ -59,7 +59,9 @@ internal fun FocusRingControlsOverlay(
         val lockHitPx = with(density) { FOCUS_LOCK_TOUCH_DP.dp.toPx() }
         val evWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() }
         val evHeightPx = with(density) { FOCUS_EV_TOUCH_HEIGHT_DP.dp.toPx() }
-        val gapPx = with(density) { 6.dp.toPx() }
+        // Combined with the 8dp track inset, the visible ring-to-EV-line gap
+        // is about 10dp (formerly 6dp + 23dp = 29dp).
+        val gapPx = with(density) { 2.dp.toPx() }
         val placement = placeFocusControlsVertically(
             focusY = focus.yPx,
             viewHeight = heightPx,
@@ -108,7 +110,7 @@ internal fun FocusRingControlsOverlay(
                 Icon(
                     imageVector = if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
                     contentDescription = null,
-                    tint = if (locked) DDZColor.SelectedSoft else Color.White,
+                    tint = if (locked) DDZColor.CameraFocusLocked else Color.White,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -122,6 +124,8 @@ internal fun FocusRingControlsOverlay(
                 minIndex = minExposureIndex,
                 maxIndex = maxExposureIndex,
                 exposureStep = exposureStep,
+                above = placement.exposureAbove,
+                locked = locked,
                 onIndexChange = onExposureIndexChange,
                 onInteractionChange = onExposureInteractionChange,
                 modifier = Modifier.offsetPx(evX, placement.exposureTop),
