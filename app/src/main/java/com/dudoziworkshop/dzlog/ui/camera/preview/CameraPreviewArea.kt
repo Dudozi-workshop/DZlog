@@ -185,9 +185,26 @@ internal fun CameraPreviewArea(
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
-        LaunchedEffect(focusControlsExpanded, focusInteractionId, aeLocked, tapFocusUi, exposureInteracting) {
-            if (!focusControlsExpanded || tapFocusUi == null || exposureInteracting) return@LaunchedEffect
-            delay(800L)
+        LaunchedEffect(
+            focusControlsExpanded, focusInteractionId, aeLocked,
+            tapFocusUi, exposureInteracting, lockRequestInFlight,
+        ) {
+            // Wait until AF finishes before starting the 800ms result hold.
+            // Slider gestures and AE-lock transactions suspend this timer.
+            val currentFocus = tapFocusUi ?: return@LaunchedEffect
+            if (!focusControlsExpanded || exposureInteracting || lockRequestInFlight) {
+                return@LaunchedEffect
+            }
+            delay(focusCollapseDelayMs(currentFocus.phase))
+            if (currentFocus.phase == FocusRingPhase.FOCUSING) {
+                // Hardware did not answer within 2s. Ignore a late callback
+                // instead of reopening controls or flashing an old result.
+                focusRequestId += 1
+                if (aeLocked) {
+                    // Keep the small locked ring but stop its focus pulse.
+                    onTapFocusUiChange(currentFocus.copy(phase = FocusRingPhase.TIMED_OUT))
+                }
+            }
             focusControlsExpanded = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
