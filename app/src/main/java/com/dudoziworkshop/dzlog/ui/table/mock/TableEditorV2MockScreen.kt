@@ -732,6 +732,11 @@ fun TableEditorV2Screen(
                         if (activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT) {
                             val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
                             selected?.domainCellId?.let { id ->
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    thickness = 1.dp,
+                                    color = DDZColor.Border,
+                                )
                                 TableEditorCellInfoRow(
                                     cell = selected,
                                     links = quickCellLinks(session.finalTemplateForSave(), id),
