@@ -33,6 +33,7 @@ internal fun mockCellsFromTemplate(
                         else -> "날짜(yyyyMMdd)"
                     }
                     TableCellDataType.TIME -> "시간(HHmm)"
+                    TableCellDataType.NUMBER -> cell.numberDraft ?: cell.rawText
                     TableCellDataType.ROTATING_TEXT -> templateState.phraseSets
                         .firstOrNull { it.id == cell.phraseSetId }
                         ?.items
@@ -73,7 +74,7 @@ internal fun applyTableEditorCellUiModelValue(
                         typedValue = CellValue.Text(nextValue),
                     )
                     TableCellDataType.NUMBER -> cell.copy(
-                        rawText = nextValue,
+                        numberDraft = nextValue,
                         typedValue = CellValue.Number(nextValue),
                     )
                     TableCellDataType.COUNTER -> {
@@ -82,7 +83,7 @@ internal fun applyTableEditorCellUiModelValue(
                             cell
                         } else {
                             cell.copy(
-                                rawText = nextValue,
+                                counterSeedDraft = parsed,
                                 typedValue = CellValue.CounterSeed(parsed),
                             )
                         }
@@ -130,7 +131,7 @@ internal fun applyMockDatePattern(
     return templateState.copy(
         cells = templateState.cells.map { cell ->
             if (cell.cellId == domainCellId && cell.dataType == TableCellDataType.DATE) {
-                cell.copy(formatPattern = normalized)
+                cell.copy(formatPattern = normalized, dateFormatDraft = normalized)
             } else {
                 cell
             }
