@@ -18,6 +18,11 @@ data class TableCellState(
     /** 타입별 값(정석형). TEXT/NUMBER/COUNTER seed 등 "의미값" 보관. */
     val typedValue: CellValue = CellValue.Auto,
 
+    /** Inactive type drafts are persisted to restore settings after switching cell types. */
+    val numberDraft: String? = null,
+    val counterSeedDraft: Int? = null,
+    val dateFormatDraft: String? = null,
+
     /** TIME 표시 옵션(토글 UI 연결용). TIME에서만 사용. */
     val timeFormatOptions: TimeFormatOptions? = null,
 
@@ -54,7 +59,7 @@ data class TableCellState(
     fun toEditableText(): String {
         return when (dataType) {
             TableCellDataType.TEXT -> rawText
-            TableCellDataType.NUMBER -> rawText
+            TableCellDataType.NUMBER -> numberDraft ?: rawText
             TableCellDataType.COUNTER -> when (val v = typedValue) {
                 is CellValue.CounterSeed -> v.start.toString()
                 else -> "1"
