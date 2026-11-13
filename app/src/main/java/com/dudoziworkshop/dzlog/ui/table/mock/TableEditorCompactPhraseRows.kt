@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +44,7 @@ internal fun TableEditorCompactSettingRow(
     label: String,
     value: String,
     onClick: () -> Unit,
+    valueIcon: ImageVector? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)
@@ -52,6 +54,8 @@ internal fun TableEditorCompactSettingRow(
     ) {
         Text(label, style = DDZTypography.SettingLabel, modifier = Modifier.weight(1f),
             color = DDZColor.TextPrimary, maxLines = 1)
+        if (valueIcon != null) Icon(valueIcon, contentDescription = null,
+            modifier = Modifier.size(16.dp), tint = DDZColor.TextSecondary)
         Text(value, style = DDZTypography.Secondary, modifier = Modifier.weight(1.3f),
             color = DDZColor.TextSecondary, maxLines = 1,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End)
