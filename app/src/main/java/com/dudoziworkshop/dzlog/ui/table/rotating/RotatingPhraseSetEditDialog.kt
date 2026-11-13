@@ -133,7 +133,7 @@ fun RotatingPhraseSetEditDialog(
         ) { insets ->
             BoxWithConstraints(
                 modifier = Modifier.fillMaxSize().padding(insets)
-                    .padding(start = 12.dp, end = 12.dp, top = 6.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 // The pinned bottomBar has already been subtracted by Scaffold.
                 // Only the list consumes the remaining measured viewport height.
@@ -146,7 +146,7 @@ fun RotatingPhraseSetEditDialog(
                     } else {
                         Modifier.fillMaxSize()
                     },
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     RotatingPhraseDefaultPeriodBar(
                         phraseSet = phraseSet,

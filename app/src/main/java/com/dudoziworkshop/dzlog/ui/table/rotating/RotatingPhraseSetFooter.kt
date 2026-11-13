@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +51,7 @@ internal fun RotatingPhraseDefaultPeriodBar(
     onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
 ) {
     var showCycleInfo by remember(phraseSet.id) { mutableStateOf(false) }
+    var showEveryInput by remember(phraseSet.id) { mutableStateOf(false) }
         Surface(
             color = DDZColor.Surface,
             border = BorderStroke(1.dp, DDZColor.Border),
@@ -60,13 +62,18 @@ internal fun RotatingPhraseDefaultPeriodBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    "기본 변경 주기",
-                    style = DDZTypography.Secondary,
-                    color = DDZColor.TextPrimary,
-                )
-                Box {
-                    IconButton(modifier = Modifier.size(40.dp), onClick = { showCycleInfo = true }) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        "기본 변경 주기",
+                        style = DDZTypography.Secondary,
+                        color = DDZColor.TextPrimary,
+                    )
+                    Box {
+                        IconButton(modifier = Modifier.size(36.dp), onClick = { showCycleInfo = true }) {
                         Icon(
                             Icons.Default.Info,
                             contentDescription = "기본 변경 주기 설명",
@@ -86,8 +93,8 @@ internal fun RotatingPhraseDefaultPeriodBar(
                             color = DDZColor.TextPrimary,
                         )
                     }
+                    }
                 }
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 DDZButton(
                     text = "−",
                     modifier = Modifier.width(36.dp),
@@ -101,7 +108,7 @@ internal fun RotatingPhraseDefaultPeriodBar(
                 )
                 Text(
                     "${phraseSet.defaultEvery}장",
-                    modifier = Modifier.padding(horizontal = 2.dp),
+                    modifier = Modifier.clickable { showEveryInput = true }.padding(horizontal = 5.dp, vertical = 8.dp),
                     style = DDZTypography.Secondary,
                     color = DDZColor.TextPrimary,
                 )
@@ -116,6 +123,16 @@ internal fun RotatingPhraseDefaultPeriodBar(
                 )
             }
         }
+    if (showEveryInput) {
+        RotatingPhraseDefaultEveryDialog(
+            initialEvery = phraseSet.defaultEvery,
+            onDismiss = { showEveryInput = false },
+            onApply = { value ->
+                onUpdateSet { it.copy(defaultEvery = value) }
+                showEveryInput = false
+            },
+        )
+    }
  }
 
 /** Secondary settings stay below the independently scrollable phrase list. */
@@ -127,7 +144,7 @@ internal fun RotatingPhraseSetFooter(
     var sheet by remember(phraseSet.id) { mutableStateOf<SetFooterSheet?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Surface(color = DDZColor.Surface, shape = RoundedCornerShape(14.dp)) {
+        Surface(color = DDZColor.Surface, border = BorderStroke(1.dp, DDZColor.Border), shape = RoundedCornerShape(14.dp)) {
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth()

@@ -108,6 +108,9 @@ internal fun RotatingPhraseSetListPanel(
                     modifier = Modifier.weight(1f),
                     style = DDZTypography.Body,
                     color = DDZColor.TextPrimary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 DDZButton(
                     text = if (selecting) "취소" else "선택",

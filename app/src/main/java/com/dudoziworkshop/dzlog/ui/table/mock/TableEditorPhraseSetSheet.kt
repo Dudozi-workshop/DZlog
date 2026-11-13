@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -111,11 +112,18 @@ internal fun TableEditorPhraseSetSheet(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(set.name, color = DDZColor.TextPrimary)
+                                    Text(set.name, color = DDZColor.TextPrimary,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    val separateCount = set.itemEveryOverrides
+                                        .take(set.items.size).count { it != null }
+                                    val summary = "문구 ${set.items.size}개 · 기본 ${set.defaultEvery}장" +
+                                        if (separateCount > 0) " · 별도 주기 ${separateCount}개" else ""
                                     Text(
-                                        "${set.items.size}개 문구",
+                                        summary,
                                         color = DDZColor.TextSecondary,
                                         style = DDZTypography.Secondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                                 if (isSelected) {
