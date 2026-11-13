@@ -80,6 +80,9 @@ internal fun IosCameraCapturePoc(
     var flash by remember { mutableIntStateOf(0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
     var placementRevision by remember { mutableIntStateOf(0) }
+    var counterRevision by remember { mutableIntStateOf(0) }
+    var counterSyncing by remember(session) { mutableStateOf(session?.selectedDocument?.usesAutoNext == true) }
+    var counterSyncReady by remember(session) { mutableStateOf(session?.selectedDocument?.usesAutoNext != true) }
     var liveTick by remember { mutableIntStateOf(0) }
     var overlayReady by remember { mutableStateOf(false) }
     var overlayEditing by remember { mutableStateOf(false) }
@@ -92,6 +95,24 @@ internal fun IosCameraCapturePoc(
         }
     }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
+
+    // Keep the visible filename and live overlay on the same persisted counter
+    // that saveJpeg will verify again immediately before writing Photos.
+    LaunchedEffect(session, settingsRevision) {
+        if (session == null) return@LaunchedEffect
+        counterSyncing = session.selectedDocument.usesAutoNext
+        counterSyncReady = !counterSyncing
+        try {
+            val before = session.selectedDocument.nextCounter
+            val next = session.synchronizeAutomaticCounter()
+            if (next != before) counterRevision += 1
+            counterSyncReady = true
+        } catch (error: Throwable) {
+            status = "촬영 번호 확인 실패: ${error.message}"
+        } finally {
+            counterSyncing = false
+        }
+    }
 
     LaunchedEffect(camera, showSettings, showGallery, showQuickValues) {
         try {
@@ -147,7 +168,9 @@ internal fun IosCameraCapturePoc(
         IosPhotoKitGalleryScreen(repository, onBack = { showGallery = false })
         return
     }
-    val info = remember(successfulSaves, settingsRevision, placementRevision, liveTick, showInfo) { session?.previewInfo() }
+    val info = remember(successfulSaves, settingsRevision, counterRevision, placementRevision, liveTick, showInfo) {
+        session?.previewInfo()
+    }
     if (showInfo && session != null && info != null) HomeSaveInfoSheet(
         fileName = info.previewNaming.displayName,
         relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
@@ -166,7 +189,8 @@ internal fun IosCameraCapturePoc(
                 Text("촬영 설정")
             }
         }
-        if (info != null) TextButton(onClick = { showInfo = true }, enabled = !busy && !overlayEditing) {
+        if (info != null) TextButton(onClick = { showInfo = true },
+            enabled = !busy && !overlayEditing && !counterSyncing && counterSyncReady) {
             Text(info.previewNaming.displayName.removeSuffix(".jpg"), maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
@@ -181,7 +205,7 @@ internal fun IosCameraCapturePoc(
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 enabled = !busy && !session.hasPending(),
-                revision = successfulSaves + settingsRevision + placementRevision + liveTick,
+                revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
                 onError = { status = it },
@@ -214,6 +238,7 @@ internal fun IosCameraCapturePoc(
             verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = { showGallery = true }, enabled = !busy && !overlayEditing) { Text("앨범 보기") }
         Button(shape = CircleShape, modifier = Modifier.size(76.dp), enabled = ready && !busy && !overlayEditing &&
+            !counterSyncing && counterSyncReady &&
             (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) && (onBack == null || session != null) &&
             (session?.hasPending() != true), onClick = {
             busy = true

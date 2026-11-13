@@ -3,6 +3,8 @@ package com.dudoziworkshop.dzlog.data.media
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
+import com.dudoziworkshop.dzlog.domain.counter.CounterMediaReadbackPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
 
 /**
  * iOS Photos adapter for the common capture/save contract.
@@ -70,6 +72,22 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
             )
         }
     }
+
+    /** Automatic next is based only on DZlog assets still present in Photos. */
+    suspend fun resolveStableAutomaticNext(
+        relativePathKey: String,
+        scanPrefix: String,
+        fnDelim: String,
+        currentNext: Int,
+    ): Int = CounterMediaReadbackPolicy.resolveStableNext(
+        records = listSavedAssets()
+            .filter { it.availability == CaptureMediaAvailability.PRESENT }
+            .map { CounterMediaRecord(it.asset.target.relativePath, it.asset.target.displayName) },
+        relativePathKey = relativePathKey,
+        scanPrefix = scanPrefix,
+        fnDelim = fnDelim,
+        currentNext = currentNext,
+    )
 
     override suspend fun readAsset(assetId: String): ByteArray? {
         if (!photos.hasReadAccess()) return null

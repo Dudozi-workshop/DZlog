@@ -1,6 +1,6 @@
 # iOS gallery management batch
 
-Status: implemented locally; native compile and integration verification pending.
+Status: implemented and published; combined native verification requested and not awaited.
 
 ## Batch 1 — individual photo deletion and movement
 
@@ -43,3 +43,4 @@ Status: implemented locally; native compile and integration verification pending
 - Gallery batches 1–3 are ready for one combined native compile/test request.
 - The request should include shared iOS index tests, iPhone ARM64 compilation and the existing complete UI regression. Share destinations still require physical-device QA.
 - Start CI after publishing these commits and continue with the next migration work without waiting for completion.
+- CI was requested at `96f58451`; the four relevant workflows were observed in progress, then migration work continued without polling for completion.

@@ -10,6 +10,7 @@ import com.dudoziworkshop.dzlog.domain.media.buildCaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
+import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeState
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
@@ -76,19 +77,25 @@ internal class IosCameraCaptureSession(
             NamingFormatDefaults.FILE_NAME_DELIMITER, selectedDocument.includePathInScope,
             selectedDocument.includeFilenameInScope, selectedDocument.saveMode, selectedDocument.nextCounter, 0))
 
-    private fun resolveCapturePreview(): FinalCapturePreview {
-        val doc = selectedDocument
+    private fun buildCaptureScope(
+        doc: com.dudoziworkshop.dzlog.data.template.EditorDocument,
+        now: com.dudoziworkshop.dzlog.domain.time.CaptureTime,
+    ): CaptureScopeState = buildScope(CaptureScopeInput(
+        templateState = doc.template.templateState, captureNow = now,
+        counterDigits = doc.counterPadding,
+        dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+        timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+        fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+        includeFilenameInCounterScope = doc.includeFilenameInScope,
+        saveMode = doc.saveMode, phraseProgressCursor = 0,
+    ))
+
+    private fun resolveCapturePreview(
+        doc: com.dudoziworkshop.dzlog.data.template.EditorDocument = selectedDocument,
+        now: com.dudoziworkshop.dzlog.domain.time.CaptureTime = tableEditorNow(),
+        scope: CaptureScopeState = buildCaptureScope(doc, now),
+    ): FinalCapturePreview {
         val counter = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
-        val now = tableEditorNow()
-        val scope = buildScope(CaptureScopeInput(
-            templateState = doc.template.templateState, captureNow = now,
-            counterDigits = doc.counterPadding,
-            dateFormat = NamingFormatDefaults.DATE_FORMAT_DEFAULT,
-            timeFormat = NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
-            includeFilenameInCounterScope = doc.includeFilenameInScope,
-            saveMode = doc.saveMode, phraseProgressCursor = 0,
-        ))
         return buildCapturePreview(scope, FinalCapturePreviewInput(
             templateState = doc.template.templateState, captureNow = now,
             counterDigits = doc.counterPadding,
@@ -99,6 +106,49 @@ internal class IosCameraCaptureSession(
             includeFilenameInCounterScope = doc.includeFilenameInScope,
             saveMode = doc.saveMode, syncedCounter = counter, phraseProgressCursor = 0,
         ))
+    }
+
+    /**
+     * Refresh the automatic number from saved DZlog filenames without replacing
+     * an explicit manual number. Same-stream refreshes never move backwards.
+     */
+    suspend fun synchronizeAutomaticCounter(): Int {
+        val doc = selectedDocument
+        val current = checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
+        if (!doc.usesAutoNext) return current
+        check(!hasPending()) { "이전 촬영 기록 복구가 필요합니다." }
+
+        val now = tableEditorNow()
+        val scope = buildCaptureScope(doc, now)
+        media.ensureWritePermission()
+        val next = media.resolveStableAutomaticNext(
+            relativePathKey = if (doc.includePathInScope) scope.counterScope.relativePathKey else "*",
+            scanPrefix = scope.scanPrefix,
+            fnDelim = NamingFormatDefaults.FILE_NAME_DELIMITER,
+            currentNext = current,
+        )
+        if (next == current) return current
+
+        // Refuse to overwrite settings changed while the Photos read was in flight.
+        check(store.load(doc.template) == workspace) {
+            "촬영 번호 확인 중 설정이 변경되었습니다. 다시 시도해 주세요."
+        }
+        val updated = workspace.save(doc.copy(nextCounter = next, usesAutoNext = true))
+        check(store.save(updated)) { "동기화한 촬영 번호를 저장하지 못했습니다." }
+        workspace = store.load(doc.template)
+        check(selectedDocument.nextCounter == next) { "동기화한 촬영 번호를 확인하지 못했습니다." }
+        return next
+    }
+
+    private suspend fun resolveSynchronizedCapture(): Pair<
+        com.dudoziworkshop.dzlog.data.template.EditorDocument,
+        FinalCapturePreview
+    > {
+        synchronizeAutomaticCounter()
+        val doc = selectedDocument
+        val now = tableEditorNow()
+        val scope = buildCaptureScope(doc, now)
+        return doc to resolveCapturePreview(doc, now, scope)
     }
 
     fun savePlacement(placement: IosCaptureTablePlacement): Boolean {
@@ -227,11 +277,12 @@ internal class IosCameraCaptureSession(
         renderedJpeg: ByteArray? = null,
         renderForPreview: ((FinalCapturePreview) -> ByteArray)? = null,
     ): Boolean {
-        val doc = checkNotNull(workspace.active) { "촬영 템플릿이 선택되지 않았습니다." }
-        checkNotNull(doc.nextCounter) { "촬영 번호 동기화가 필요합니다." }
         check(!hasPending()) { "이전 촬영 기록 복구가 필요합니다." }
 
-        val preview = resolveCapturePreview()
+        // Permission and readback happen before rendering, planning, or journaling.
+        // Manual mode returns its explicit number unchanged.
+        media.ensureWritePermission()
+        val (doc, preview) = resolveSynchronizedCapture()
         // Render from the exact preview used for the save plan. Never allow a
         // separately recomputed counter, timestamp, or phrase value.
         require(renderedJpeg == null || renderForPreview == null) {
