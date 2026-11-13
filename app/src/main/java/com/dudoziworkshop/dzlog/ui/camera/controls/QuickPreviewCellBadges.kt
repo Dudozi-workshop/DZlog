@@ -1,14 +1,13 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
@@ -16,7 +15,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePlan
@@ -24,17 +26,24 @@ import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 
-/** Status information belongs to quick editing only; never to saved photo pixels. */
+/** Edit-only status icons. No color panel, cell measurement, or saved-photo content. */
 @Composable
 internal fun QuickPreviewCellBadges(
     type: TableCellDataType,
     plan: QuickPreviewCellBadgePlan,
     active: Boolean,
     modifier: Modifier = Modifier,
+    darkTable: Boolean = false,
+    transparentTable: Boolean = false,
 ) {
     val size = with(LocalDensity.current) { plan.sizePx.toDp() }
-    val tint = if (active) DDZColor.SelectionEmphasis else DDZColor.TextSecondary
-    val badgeBackground = DDZColor.Surface.copy(alpha = 0.90f)
+    // Use icon-only contrast: light on dark, dark on light, outlined white on photos.
+    val tint = when {
+        transparentTable -> Color.White
+        darkTable -> Color(0xFFF2F5F0)
+        active -> DDZColor.SelectionEmphasis
+        else -> DDZColor.TextPrimary
+    }
     val cellTypeIcon = when (type) {
         TableCellDataType.TEXT -> DDZCellTypeIcons.Text
         TableCellDataType.NUMBER -> DDZCellTypeIcons.Number
@@ -45,57 +54,75 @@ internal fun QuickPreviewCellBadges(
     }
 
     Box(modifier) {
-        // The type marker always belongs to the LEFT, including narrow cells.
-        Icon(
-            cellTypeIcon,
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.TopStart)
-                .padding(DDZLayout.QuickInput.BadgeInset)
-                .size(size)
-                .background(badgeBackground, RoundedCornerShape(2.dp)),
-            tint = tint,
+        MarkerIcon(
+            image = cellTypeIcon, size = size, tint = tint, outline = transparentTable,
+            modifier = Modifier.align(Alignment.TopStart).padding(DDZLayout.QuickInput.BadgeInset),
         )
-
         if (plan.fileName || plan.path) {
-            // Filename/path links always belong to the RIGHT. Never suppress
-            // them for a small cell; stack only these two when necessary.
+            // Keep both links even on narrow cells; only their layout changes.
             if (plan.stackLinks) {
                 Column(
                     modifier = Modifier.align(Alignment.TopEnd)
                         .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
-                        .padding(DDZLayout.QuickInput.BadgeInset)
-                        .background(badgeBackground, RoundedCornerShape(2.dp)),
+                        .padding(DDZLayout.QuickInput.BadgeInset),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
-                    if (plan.fileName) Icon(
-                        Icons.Filled.Description, contentDescription = null,
-                        modifier = Modifier.size(size), tint = tint,
+                    if (plan.fileName) MarkerIcon(
+                        image = Icons.Filled.Description, size = size, tint = tint, outline = transparentTable,
                     )
-                    if (plan.path) Icon(
-                        Icons.Filled.Folder, contentDescription = null,
-                        modifier = Modifier.size(size), tint = tint,
+                    if (plan.path) MarkerIcon(
+                        image = Icons.Filled.Folder, size = size, tint = tint, outline = transparentTable,
                     )
                 }
             } else {
                 Row(
                     modifier = Modifier.align(Alignment.TopEnd)
                         .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
-                        .padding(DDZLayout.QuickInput.BadgeInset)
-                        .background(badgeBackground, RoundedCornerShape(2.dp)),
+                        .padding(DDZLayout.QuickInput.BadgeInset),
                     horizontalArrangement = Arrangement.spacedBy(DDZLayout.QuickInput.BadgeInset),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (plan.fileName) Icon(
-                        Icons.Filled.Description, contentDescription = null,
-                        modifier = Modifier.size(size), tint = tint,
+                    if (plan.fileName) MarkerIcon(
+                        image = Icons.Filled.Description, size = size, tint = tint, outline = transparentTable,
                     )
-                    if (plan.path) Icon(
-                        Icons.Filled.Folder, contentDescription = null,
-                        modifier = Modifier.size(size), tint = tint,
+                    if (plan.path) MarkerIcon(
+                        image = Icons.Filled.Folder, size = size, tint = tint, outline = transparentTable,
                     )
                 }
             }
         }
+    }
+}
+
+/** An icon-shaped hairline, not a rectangle, keeps markers visible over changing photos. */
+@Composable
+private fun MarkerIcon(
+    image: ImageVector,
+    size: Dp,
+    tint: Color,
+    outline: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.size(size)) {
+        if (outline) {
+            val edge = Color.Black.copy(alpha = 0.9f)
+            for ((dx, dy) in listOf(
+                -0.6.dp to 0.dp, 0.6.dp to 0.dp, 0.dp to -0.6.dp, 0.dp to 0.6.dp,
+            )) {
+                Icon(
+                    imageVector = image,
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize().offset(x = dx, y = dy),
+                    tint = edge,
+                )
+            }
+        }
+        Icon(
+            imageVector = image,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            tint = tint,
+        )
     }
 }

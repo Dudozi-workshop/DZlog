@@ -339,6 +339,8 @@ internal fun ColumnScope.MockTableCanvas(
                                                 ),
                                                 active = isSelected,
                                                 modifier = Modifier.fillMaxSize(),
+                                                darkTable = darkTable,
+                                                transparentTable = transparentTable,
                                             )
                                         }
                                     }

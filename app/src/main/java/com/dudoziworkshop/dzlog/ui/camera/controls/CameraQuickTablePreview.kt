@@ -240,6 +240,8 @@ internal fun CameraQuickTablePreview(
                                 plan = badges,
                                 active = active,
                                 modifier = Modifier.fillMaxSize(),
+                                darkTable = style.bgStyle == 0,
+                                transparentTable = style.bgStyle == 2,
                             )
                         }
                     }

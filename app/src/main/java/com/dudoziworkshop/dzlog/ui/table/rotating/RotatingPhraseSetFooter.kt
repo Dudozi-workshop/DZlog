@@ -65,7 +65,7 @@ internal fun RotatingPhraseDefaultPeriodBar(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                    horizontalArrangement = Arrangement.Start,
                 ) {
                     Text(
                         "기본 변경 주기",
