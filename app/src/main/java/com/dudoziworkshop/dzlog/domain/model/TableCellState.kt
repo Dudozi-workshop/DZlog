@@ -18,11 +18,6 @@ data class TableCellState(
     /** 타입별 값(정석형). TEXT/NUMBER/COUNTER seed 등 "의미값" 보관. */
     val typedValue: CellValue = CellValue.Auto,
 
-    /** Inactive type drafts are persisted to restore settings after switching cell types. */
-    val numberDraft: String? = null,
-    val counterSeedDraft: Int? = null,
-    val dateFormatDraft: String? = null,
-
     /** TIME 표시 옵션(토글 UI 연결용). TIME에서만 사용. */
     val timeFormatOptions: TimeFormatOptions? = null,
 
@@ -47,6 +42,11 @@ data class TableCellState(
 
     /** Legacy serialized flag retained for template and backup compatibility; quick edit no longer checks it. */
     val quickEditable: Boolean = true,
+
+    /** Inactive type drafts persist independently from the active type. */
+    val numberDraft: String? = null,
+    val counterSeedDraft: Int? = null,
+    val dateFormatDraft: String? = null,
 
 ) {
     /**
