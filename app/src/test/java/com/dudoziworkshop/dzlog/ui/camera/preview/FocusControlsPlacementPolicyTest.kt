@@ -9,7 +9,7 @@ class FocusControlsPlacementPolicyTest {
     private val ring = 22f
     private val lock = 36f
     private val exposure = 36f
-    private val gap = 6f
+    private val gap = 2f
 
     private fun place(y: Float, height: Float = 400f) = placeFocusControlsVertically(
         focusY = y,
@@ -25,7 +25,7 @@ class FocusControlsPlacementPolicyTest {
         assertFalse(p.lockAtBottom)
         assertFalse(p.exposureAbove)
         assertEquals(160f, p.lockTop, 0.001f)
-        assertEquals(228f, p.exposureTop, 0.001f)
+        assertEquals(224f, p.exposureTop, 0.001f)
     }
 
     @Test fun nearTopPlacesUprightLockOnBottomArcAndSliderBelowIt() {
@@ -33,7 +33,7 @@ class FocusControlsPlacementPolicyTest {
         assertTrue(p.lockAtBottom)
         assertFalse(p.exposureAbove)
         assertEquals(26f, p.lockTop, 0.001f)
-        assertEquals(68f, p.exposureTop, 0.001f)
+        assertEquals(64f, p.exposureTop, 0.001f)
         assertTrue(p.exposureTop >= p.lockTop + lock + gap)
     }
 
@@ -42,7 +42,7 @@ class FocusControlsPlacementPolicyTest {
         assertFalse(p.lockAtBottom)
         assertTrue(p.exposureAbove)
         assertEquals(338f, p.lockTop, 0.001f)
-        assertEquals(296f, p.exposureTop, 0.001f)
+        assertEquals(300f, p.exposureTop, 0.001f)
         assertTrue(p.exposureTop + exposure + gap <= p.lockTop)
     }
 
@@ -52,6 +52,14 @@ class FocusControlsPlacementPolicyTest {
         assertTrue(p.lockTop + lock <= 160f)
         assertTrue(p.exposureTop >= 0f)
         assertTrue(p.exposureTop + exposure <= 160f)
+    }
+
+    @Test fun visibleEvLineGapIsAboutOneThirdOfThePreviousLayout() {
+        val p = place(200f)
+        val newVisibleGap = p.exposureTop + FOCUS_EV_TRACK_INSET_DP - (200f + ring)
+        val oldVisibleGap = 6f + 23f
+        assertEquals(10f, newVisibleGap, 0.001f)
+        assertTrue(newVisibleGap < oldVisibleGap * 0.36f)
     }
 
     @Test fun ringCenterDoesNotDisappearPastHorizontalEdges() {
