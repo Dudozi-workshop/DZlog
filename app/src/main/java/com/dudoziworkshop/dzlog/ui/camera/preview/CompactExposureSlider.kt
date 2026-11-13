@@ -11,15 +11,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -30,9 +24,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -46,7 +38,6 @@ internal fun CompactExposureSlider(
     index: Int,
     minIndex: Int,
     maxIndex: Int,
-    exposureStep: Float,
     above: Boolean,
     locked: Boolean,
     onIndexChange: (Int) -> Unit,
@@ -70,7 +61,6 @@ internal fun CompactExposureSlider(
     val accent = if (locked) DDZColor.CameraFocusLocked else DDZColor.SelectedSoft
     val latestIndexChange by rememberUpdatedState(onIndexChange)
     val latestInteractionChange by rememberUpdatedState(onInteractionChange)
-    var interacting by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose { latestInteractionChange(false) }
@@ -84,7 +74,6 @@ internal fun CompactExposureSlider(
             .pointerInput(minIndex, maxIndex) {
                 awaitEachGesture {
                     val firstDown = awaitFirstDown(requireUnconsumed = false)
-                    interacting = true
                     latestInteractionChange(true)
                     fun changeAt(x: Float) {
                         val available = (size.width - 2f * trackInsetPx).coerceAtLeast(1f)
@@ -106,7 +95,6 @@ internal fun CompactExposureSlider(
                             }
                         }
                     } finally {
-                        interacting = false
                         latestInteractionChange(false)
                     }
                 }
@@ -144,14 +132,5 @@ internal fun CompactExposureSlider(
                 }
                 .size(16.dp),
         )
-        if (interacting) {
-            val ev = index * exposureStep
-            Text(
-                text = if (index == 0) "0.0" else String.format(Locale.US, "%+.1f", ev),
-                color = Color.White,
-                fontSize = 10.sp,
-                modifier = Modifier.align(if (above) Alignment.TopCenter else Alignment.BottomCenter),
-            )
-        }
     }
 }
