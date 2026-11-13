@@ -81,8 +81,8 @@ internal fun FocusRingOverlay(
             visibleFocusCenter(ui.xPx, size.width, radiusBase),
             visibleFocusCenter(ui.yPx, size.height, radiusBase),
         )
-        val ringColor = (if (failed) DDZColor.Destructive
-            else if (locked) DDZColor.SelectedSoft else Color.White).copy(alpha = alpha)
+        val ringColor = (if (locked) DDZColor.CameraFocusLocked
+            else if (failed) DDZColor.Destructive else Color.White).copy(alpha = alpha)
 
         if (showLock) {
             // Leave a small symmetrical gap either side of the lock on the
@@ -98,14 +98,14 @@ internal fun FocusRingOverlay(
                 useCenter = false,
                 topLeft = Offset(center.x - radius, center.y - radius),
                 size = Size(radius * 2f, radius * 2f),
-                style = Stroke(width = stroke),
+                style = Stroke(width = if (locked) with(density) { 1.75.dp.toPx() } else stroke),
             )
         } else {
             drawCircle(
                 color = ringColor,
                 radius = radius,
                 center = center,
-                style = Stroke(width = stroke),
+                style = Stroke(width = if (locked) with(density) { 1.75.dp.toPx() } else stroke),
             )
         }
     }
