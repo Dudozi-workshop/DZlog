@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
@@ -46,153 +47,169 @@ internal fun CameraQuickPhraseProgressDialog(
     }
     var showNumberInput by remember(cell.cellId, set.id) { mutableStateOf(false) }
     val listState = rememberLazyListState()
+    val rowHeight = 48.dp
     val listHeight = minOf(
-        (set.items.size.coerceAtMost(5) * 54).dp,
+        rowHeight * set.items.size.coerceAtMost(5),
         LocalConfiguration.current.screenHeightDp.dp * 0.36f,
     )
-    val currentPhrase = set.items[index]
     val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
-    val numeric = count.toIntOrNull()
-    val validCount = numeric?.takeIf { it in 0 until every }
-    val nextPhrase = set.items[(index + 1) % set.items.size]
+    val validCount = count.toIntOrNull()?.takeIf { it in 0 until every }
 
     LaunchedEffect(cell.cellId, set.id) {
         listState.scrollToItem(index)
     }
 
-    DDZBottomSheet(onDismiss = onDismiss, title = "문구 진행 상태") {
+    DDZBottomSheet(onDismiss = onDismiss) {
         Text(
-            "${set.name} · 문구 ${set.items.size}개 · 기본 ${set.defaultEvery}장",
-            color = DDZColor.TextSecondary,
-            style = DDZTypography.Caption,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            "문구 진행 상태",
+            modifier = Modifier.fillMaxWidth(),
+            style = DDZTypography.SectionTitle,
+            color = DDZColor.TextPrimary,
+            textAlign = TextAlign.Center,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 5.dp, start = 8.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+            color = DDZColor.Border,
+        )
+        // One table border, centered header text and left-aligned phrase values.
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, DDZColor.Border),
+            shape = RoundedCornerShape(10.dp),
+            color = DDZColor.Surface,
         ) {
-            Text("순서", modifier = Modifier.width(42.dp),
-                color = DDZColor.TextSecondary, style = DDZTypography.Caption)
-            Text("다음 촬영 문구", modifier = Modifier.weight(1f),
-                color = DDZColor.TextSecondary, style = DDZTypography.Caption)
-            Text("변경 주기", color = DDZColor.TextSecondary, style = DDZTypography.Caption)
-            Box(Modifier.width(24.dp))
-        }
-        // The viewport grows only up to five rows, then the list scrolls internally.
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().height(listHeight),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            itemsIndexed(set.items, key = { i, _ -> i }) { i, phrase ->
-                val isSelected = i == index
-                val period = (cell.everyOverride ?: set.everyForItem(i)).coerceAtLeast(1)
-                val typeLabel = when {
-                    cell.everyOverride != null -> "개별 설정"
-                    set.itemEveryOverrides.getOrNull(i) != null -> "문구별 설정"
-                    else -> null
-                }
-                Surface(
-                    onClick = {
-                        if (index != i) {
-                            index = i
-                            count = "0"
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(51.dp),
-                    shape = RoundedCornerShape(9.dp),
-                    color = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
-                    border = BorderStroke(
-                        if (isSelected) 1.5.dp else 1.dp,
-                        if (isSelected) DDZColor.SelectedDark else DDZColor.Border,
-                    ),
-                ) {
+            Column {
+                Surface(color = DDZColor.SurfaceSoft) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        modifier = Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text((i + 1).toString().padStart(2, '0'),
-                            modifier = Modifier.width(42.dp),
-                            color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
-                        Text(phrase, modifier = Modifier.weight(1f),
-                            color = DDZColor.TextPrimary, style = DDZTypography.Body,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("${period}장", color = DDZColor.TextPrimary,
-                                style = DDZTypography.Secondary)
-                            if (typeLabel != null) Text(
-                                typeLabel, color = DDZColor.TextSecondary,
-                                style = DDZTypography.Caption,
-                            )
-                        }
-                        Box(Modifier.width(24.dp), contentAlignment = Alignment.CenterEnd) {
-                            if (isSelected) Text("✓", color = DDZColor.SelectionEmphasis,
-                                style = DDZTypography.Body)
+                        Text(
+                            "순서", modifier = Modifier.width(42.dp),
+                            style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            "문구명", modifier = Modifier.weight(1f),
+                            style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            "주기", modifier = Modifier.width(44.dp),
+                            style = DDZTypography.Caption, color = DDZColor.TextSecondary,
+                            textAlign = TextAlign.Center,
+                        )
+                        Box(Modifier.width(22.dp))
+                    }
+                }
+                HorizontalDivider(color = DDZColor.Border)
+                // At most five visible rows; only this section scrolls.
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(listHeight),
+                    state = listState,
+                ) {
+                    itemsIndexed(set.items, key = { i, _ -> i }) { i, phrase ->
+                        if (i > 0) HorizontalDivider(color = DDZColor.Border)
+                        val chosen = i == index
+                        val period = (cell.everyOverride ?: set.everyForItem(i)).coerceAtLeast(1)
+                        Surface(
+                            onClick = {
+                                if (!chosen) {
+                                    index = i
+                                    count = "0"
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(rowHeight - if (i > 0) 1.dp else 0.dp),
+                            color = if (chosen) DDZColor.SelectedSoft else DDZColor.Surface,
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    (i + 1).toString().padStart(2, '0'),
+                                    modifier = Modifier.width(42.dp),
+                                    style = DDZTypography.Secondary, color = DDZColor.TextSecondary,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Text(
+                                    phrase, modifier = Modifier.weight(1f),
+                                    style = DDZTypography.Body, color = DDZColor.TextPrimary,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Start,
+                                )
+                                Text(
+                                    "${period}장", modifier = Modifier.width(44.dp),
+                                    style = DDZTypography.Secondary, color = DDZColor.TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Box(Modifier.width(22.dp), contentAlignment = Alignment.Center) {
+                                    if (chosen) Text(
+                                        "✓", style = DDZTypography.Body,
+                                        color = DDZColor.SelectionEmphasis,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+
         HorizontalDivider(
-            modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+            modifier = Modifier.padding(top = 14.dp, bottom = 14.dp),
             color = DDZColor.Border,
         )
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("저장 완료 장수", color = DDZColor.TextPrimary, style = DDZTypography.Body)
-                Text("${index + 1}/${set.items.size} · $currentPhrase",
-                    color = DDZColor.TextSecondary, style = DDZTypography.Caption,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                DDZButton(
-                    text = "−", modifier = Modifier.width(36.dp),
-                    minHeight = 36.dp, horizontalPadding = 4.dp,
-                    style = DDZButtonStyle.Secondary,
-                    enabled = validCount != null && validCount > 0,
-                    onClick = { count = ((validCount ?: 0) - 1).toString() },
-                )
-                Text(
-                    "${count}장", modifier = Modifier.clickable { showNumberInput = true }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = DDZColor.TextPrimary, style = DDZTypography.Body,
-                )
-                DDZButton(
-                    text = "+", modifier = Modifier.width(36.dp),
-                    minHeight = 36.dp, horizontalPadding = 4.dp,
-                    style = DDZButtonStyle.Secondary,
-                    enabled = validCount != null && validCount < every - 1,
-                    onClick = { count = ((validCount ?: 0) + 1).toString() },
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "저장 완료 장수",
+                style = DDZTypography.Body,
+                color = DDZColor.TextPrimary,
+            )
+            if (every == 1) {
+                Text("0 / 1장", style = DDZTypography.Body, color = DDZColor.TextPrimary)
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    DDZButton(
+                        text = "−", modifier = Modifier.width(36.dp),
+                        minHeight = 36.dp, horizontalPadding = 4.dp,
+                        style = DDZButtonStyle.Secondary,
+                        enabled = validCount != null && validCount > 0,
+                        onClick = { count = ((validCount ?: 0) - 1).toString() },
+                    )
+                    Text(
+                        "$count / ${every}장",
+                        modifier = Modifier.clickable { showNumberInput = true }
+                            .padding(horizontal = 7.dp, vertical = 9.dp),
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary,
+                    )
+                    DDZButton(
+                        text = "+", modifier = Modifier.width(36.dp),
+                        minHeight = 36.dp, horizontalPadding = 4.dp,
+                        style = DDZButtonStyle.Secondary,
+                        enabled = validCount != null && validCount < every - 1,
+                        onClick = { count = ((validCount ?: 0) + 1).toString() },
+                    )
+                }
             }
         }
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(4.dp)
-                .background(DDZColor.Border, RoundedCornerShape(4.dp)),
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth((validCount ?: 0).toFloat() / every)
-                    .fillMaxHeight()
-                    .background(DDZColor.SelectedDark, RoundedCornerShape(4.dp)),
+        if (validCount == null) {
+            Text(
+                "완료 장수는 0~${every - 1}장 사이로 입력해 주세요.",
+                style = DDZTypography.Caption,
+                color = DDZColor.Destructive,
             )
         }
-        Row(Modifier.fillMaxWidth().padding(top = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${every - (validCount ?: 0)}장 후 다음: $nextPhrase",
-                modifier = Modifier.weight(1f),
-                style = DDZTypography.Caption, color = DDZColor.TextSecondary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${count}/${every}장",
-                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-        }
-        if (validCount == null) Text(
-            "완료 장수는 0~${every - 1}장 사이로 입력해 주세요.",
-            style = DDZTypography.Caption, color = DDZColor.Destructive,
-        )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DDZButton(
