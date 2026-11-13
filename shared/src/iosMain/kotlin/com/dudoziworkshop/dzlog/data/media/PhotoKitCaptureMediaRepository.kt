@@ -13,7 +13,7 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
  * must serialize calls and commit the counter/table patch only after the receipt.
  * App-private logical paths are kept in the index, not mapped to Photos folders.
  */
-class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
+class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletionStore {
     private val photos = PhotoKitAssetAccess()
     private val index = PhotoKitCaptureMediaIndex()
 
@@ -112,6 +112,21 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository {
             check(index.load().any { it.asset.assetId == assetId }) { "Photo is no longer indexed." }
             val removed = photos.remove(listOf(assetId))
             if (removed) index.forgetDeleted(assetId)
+            return removed
+        } finally { saving = false }
+    }
+
+    /** Deletes original/result companions together for camera-session Undo. */
+    override suspend fun deleteCaptureAssets(captureId: String): Boolean {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            photos.ensureReadWriteAccess()
+            reconcilePending()
+            val entries = index.load().filter { it.captureId == captureId }
+            check(entries.isNotEmpty()) { "Capture is no longer indexed." }
+            val removed = photos.remove(entries.map { it.asset.assetId })
+            if (removed) index.forgetCapture(captureId)
             return removed
         } finally { saving = false }
     }

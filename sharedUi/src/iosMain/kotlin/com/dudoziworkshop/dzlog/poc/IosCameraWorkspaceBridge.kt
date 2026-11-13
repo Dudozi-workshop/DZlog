@@ -1,7 +1,10 @@
 package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.data.media.IosCaptureSaveCoordinator
+import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoCoordinator
+import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoRequest
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
+import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
 import com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -31,11 +34,42 @@ internal class IosCameraCaptureSession(
     private val store = IosWorkspaceStore(editorKey)
     private val media = PhotoKitCaptureMediaRepository()
     private val coordinator = IosCaptureSaveCoordinator(media)
+    private val undoCoordinator = IosCaptureUndoCoordinator(media)
+    private val sessionCaptures = mutableListOf<IosCaptureUndoRequest>()
 
-    fun hasPending(): Boolean = coordinator.hasPendingCapture()
+    fun hasPending(): Boolean = coordinator.hasPendingCapture() || undoCoordinator.hasPendingUndo()
+
+    val latestSessionCaptureId: String? get() = sessionCaptures.lastOrNull()?.captureId
+    val canUndoLatestCapture: Boolean get() = sessionCaptures.isNotEmpty() && !hasPending()
 
     val selectedDocument get() = checkNotNull(workspace.active)
     val documents get() = workspace.documents
+
+    suspend fun readLatestSessionThumbnail(): ByteArray? {
+        val captureId = latestSessionCaptureId ?: return null
+        val assets = media.listSavedAssets().filter {
+            it.captureId == captureId && it.availability == CaptureMediaAvailability.PRESENT
+        }
+        val selected = assets.firstOrNull { it.asset.target.role == CaptureMediaRole.RESULT }
+            ?: assets.firstOrNull { it.asset.target.role == CaptureMediaRole.ORIGINAL }
+            ?: return null
+        return media.readThumbnail(selected.asset.assetId)
+    }
+
+    suspend fun undoLatestCapture(): Boolean {
+        check(!coordinator.hasPendingCapture()) { "이전 촬영 저장 기록을 먼저 복구해 주세요." }
+        val request = sessionCaptures.lastOrNull() ?: return false
+        val rolledBack = undoCoordinator.deleteAndRollback(
+            request = request,
+            loadWorkspace = { store.load(request.after.active!!.template) },
+            persistWorkspace = { persistWorkspace?.invoke(it) ?: store.save(it) },
+        )
+        if (rolledBack) {
+            workspace = store.load(request.before.active!!.template)
+            sessionCaptures.removeAt(sessionCaptures.lastIndex)
+        }
+        return rolledBack
+    }
 
     /** Reject a draft opened before another save/settings change. */
     fun saveQuickValues(expected: com.dudoziworkshop.dzlog.data.template.EditorDocument,
@@ -58,6 +92,7 @@ internal class IosCameraCaptureSession(
         val updated = workspace.save(updatedCurrent).copy(activeTemplateId = targetTemplateId)
         if (!store.save(updated)) return false
         workspace = store.load(updated.active!!.template)
+        sessionCaptures.clear()
         return workspace.activeTemplateId == targetTemplateId
     }
 
@@ -67,6 +102,7 @@ internal class IosCameraCaptureSession(
         val updated = workspace.save(document)
         if (!store.save(updated)) return false
         workspace = store.load(document.template)
+        sessionCaptures.clear()
         return true
     }
 
@@ -137,6 +173,8 @@ internal class IosCameraCaptureSession(
         check(store.save(updated)) { "동기화한 촬영 번호를 저장하지 못했습니다." }
         workspace = store.load(doc.template)
         check(selectedDocument.nextCounter == next) { "동기화한 촬영 번호를 확인하지 못했습니다." }
+        // The previous session Undo snapshot no longer matches this externally advanced stream.
+        sessionCaptures.clear()
         return next
     }
 
@@ -283,6 +321,7 @@ internal class IosCameraCaptureSession(
         // Manual mode returns its explicit number unchanged.
         media.ensureWritePermission()
         val (doc, preview) = resolveSynchronizedCapture()
+        val beforeCaptureWorkspace = workspace
         // Render from the exact preview used for the save plan. Never allow a
         // separately recomputed counter, timestamp, or phrase value.
         require(renderedJpeg == null || renderForPreview == null) {
@@ -315,17 +354,28 @@ internal class IosCameraCaptureSession(
             loadWorkspace = { store.load(doc.template) },
             persistWorkspace = { persistWorkspace?.invoke(it) ?: store.save(it) },
         )
-        if (committed) workspace = store.load(doc.template)
+        if (committed) {
+            workspace = store.load(doc.template)
+            sessionCaptures += IosCaptureUndoRequest(plan.captureId, beforeCaptureWorkspace, workspace)
+        }
         return committed
     }
 
     companion object {
         fun hasPending(): Boolean =
-            IosCaptureSaveCoordinator(PhotoKitCaptureMediaRepository()).hasPendingCapture()
+            PhotoKitCaptureMediaRepository().let { media ->
+                IosCaptureSaveCoordinator(media).hasPendingCapture() ||
+                    IosCaptureUndoCoordinator(media).hasPendingUndo()
+            }
 
         suspend fun recover(store: IosWorkspaceStore, seed: SavedTableTemplate): Boolean {
-            val coordinator = IosCaptureSaveCoordinator(PhotoKitCaptureMediaRepository())
-            return coordinator.recoverPending(
+            val media = PhotoKitCaptureMediaRepository()
+            val captureRecovered = IosCaptureSaveCoordinator(media).recoverPending(
+                loadWorkspace = { store.load(seed) },
+                persistWorkspace = { store.save(it) },
+            )
+            if (!captureRecovered) return false
+            return IosCaptureUndoCoordinator(media).recoverPending(
                 loadWorkspace = { store.load(seed) },
                 persistWorkspace = { store.save(it) },
             )

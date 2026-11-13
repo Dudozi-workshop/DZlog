@@ -112,6 +112,31 @@ class PhotoKitCaptureMediaIndexTest {
     }
 
     @Test
+    fun sessionUndoForgetsAllCaptureRolesAndTheirFavoritesTogether() {
+        val suite = "dzlog.photokit.undo.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val undone = listOf(CaptureMediaRole.RESULT to "result", CaptureMediaRole.ORIGINAL to "original")
+                .map { (role, id) -> IndexedCaptureMedia("capture", PersistedCaptureAsset(
+                    CaptureMediaTarget(role, if (role == CaptureMediaRole.RESULT) "Pictures/DZlog/A/"
+                        else "Pictures/DZlog/A/original/", "A_0012.jpg"), id)) }
+            val retained = IndexedCaptureMedia("other", PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.RESULT, "Pictures/DZlog/A/", "A_0013.jpg"), "other"))
+            index.append(undone + retained)
+            index.setFavorite("result", true)
+            index.setFavorite("original", true)
+            index.setFavorite("other", true)
+
+            index.forgetCapture("capture")
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf(retained), restored.load())
+            assertEquals(setOf("other"), restored.favoriteAssetIds())
+            assertFailsWith<IllegalStateException> { restored.forgetCapture("capture") }
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun twoRolesRecoverWithLogicalPathsAfterIndexReinitialization() {
         val suite = "dzlog.photokit.test.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)

@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.poc
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -201,17 +204,20 @@ internal fun IosCameraBottomBar(
     controlsEnabled: Boolean,
     toolsSelected: Boolean,
     quickValuesEnabled: Boolean,
+    undoEnabled: Boolean,
+    recentThumbnail: ImageBitmap?,
     onOpenGallery: () -> Unit,
     onToggleTools: () -> Unit,
     onCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
+    onUndo: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 84.dp).padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
-            IosCameraChromeButton("앨범 보기", Icons.Default.Image, controlsEnabled, onOpenGallery)
+            IosCameraGalleryButton(recentThumbnail, controlsEnabled, onOpenGallery)
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraChromeButton("촬영 도구", Icons.Default.Tune, controlsEnabled, onToggleTools,
@@ -242,7 +248,31 @@ internal fun IosCameraBottomBar(
             IosCameraChromeButton("빠른 입력", Icons.Default.Edit, quickValuesEnabled, onOpenQuickValues)
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
-            IosCameraChromeButton("직전 촬영 삭제", Icons.AutoMirrored.Filled.Undo, false, {})
+            IosCameraChromeButton("직전 촬영 삭제", Icons.AutoMirrored.Filled.Undo,
+                undoEnabled, onUndo)
+        }
+    }
+}
+
+@Composable
+private fun IosCameraGalleryButton(
+    thumbnail: ImageBitmap?,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
+        Box(
+            Modifier.size(40.dp).clip(CameraChromeShape)
+                .border(1.dp, DDZColor.SageBorder, CameraChromeShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (thumbnail != null) Image(
+                bitmap = thumbnail,
+                contentDescription = "앨범 보기",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            ) else Icon(Icons.Default.Image, contentDescription = "앨범 보기", modifier = Modifier.size(22.dp),
+                tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.IconMuted.copy(alpha = 0.35f))
         }
     }
 }

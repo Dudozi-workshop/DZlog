@@ -154,6 +154,16 @@ internal class PhotoKitCaptureMediaIndex(
         persistState(load().filterNot { it.asset.assetId == assetId }, folders().toSet(), favoriteAssetIds() - assetId)
     }
 
+    /** Remove every role of one confirmed PhotoKit capture in a single index snapshot. */
+    fun forgetCapture(captureId: String) {
+        check(pending().isEmpty()) { "Recover the outstanding capture before deleting photos." }
+        val entries = load()
+        val removedIds = entries.filter { it.captureId == captureId }.map { it.asset.assetId }.toSet()
+        check(removedIds.isNotEmpty()) { "Capture is no longer indexed." }
+        persistState(entries.filterNot { it.captureId == captureId }, folders().toSet(),
+            favoriteAssetIds() - removedIds)
+    }
+
     private fun encode(entries: List<IndexedCaptureMedia>): JsonArray = JsonArray(entries.map { entry ->
             JsonObject(mapOf(
                 "captureId" to JsonPrimitive(entry.captureId),

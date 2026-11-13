@@ -9,6 +9,8 @@ import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
 import com.dudoziworkshop.dzlog.ui.home.HomeSaveInfoSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.interop.UIKitView
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
@@ -171,6 +173,13 @@ internal fun IosCameraCapturePoc(
     val info = remember(successfulSaves, settingsRevision, counterRevision, placementRevision, liveTick, showInfo) {
         session?.previewInfo()
     }
+    val latestSessionCaptureId = session?.latestSessionCaptureId
+    val recentThumbnail by produceState<ImageBitmap?>(initialValue = null,
+        latestSessionCaptureId, successfulSaves) {
+        value = session?.readLatestSessionThumbnail()?.let { bytes ->
+            runCatching { Image.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
+        }
+    }
     if (showInfo && session != null && info != null) HomeSaveInfoSheet(
         fileName = info.previewNaming.displayName,
         relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
@@ -212,6 +221,28 @@ internal fun IosCameraCapturePoc(
         }.onFailure { error ->
             status = "촬영 실패: ${error.message}"
             busy = false
+        }
+    }
+    val triggerUndo: () -> Unit = {
+        if (session != null && session.canUndoLatestCapture && !busy) {
+            busy = true
+            showTools = false
+            status = "직전 촬영 삭제 중"
+            scope.launch {
+                try {
+                    if (session.undoLatestCapture()) {
+                        successfulSaves = (successfulSaves - 1).coerceAtLeast(0)
+                        counterRevision += 1
+                        status = "직전 촬영 삭제·번호 복원 완료"
+                    } else {
+                        status = "직전 촬영 삭제 취소"
+                    }
+                } catch (error: Throwable) {
+                    status = "직전 촬영 복구 필요: ${error.message}"
+                } finally {
+                    busy = false
+                }
+            }
         }
     }
     Column(
@@ -282,10 +313,13 @@ internal fun IosCameraCapturePoc(
             controlsEnabled = !busy && !overlayEditing,
             toolsSelected = showTools,
             quickValuesEnabled = session != null && !busy && !overlayEditing && !session.hasPending(),
+            undoEnabled = session?.canUndoLatestCapture == true && !busy && !overlayEditing,
+            recentThumbnail = recentThumbnail,
             onOpenGallery = { showTools = false; showGallery = true },
             onToggleTools = { showTools = !showTools },
             onCapture = triggerCapture,
             onOpenQuickValues = { showTools = false; showQuickValues = true },
+            onUndo = triggerUndo,
         )
     }
 }
