@@ -193,7 +193,7 @@ internal fun applyMockPhraseEvery(
                 cell.dataType == TableCellDataType.ROTATING_TEXT &&
                 cell.phraseSetId != null
             ) {
-                cell.copy(everyOverride = every.coerceIn(1, RotatingPhraseSet.MAX_EVERY), phraseCompletedShots = 0)
+                cell.copy(everyOverride = every.coerceIn(1, RotatingPhraseSet.MAX_EVERY))
             } else {
                 cell
             }
@@ -234,9 +234,6 @@ internal fun updateMockPhraseSet(
             cells = state.cells.map { cell ->
                 if (cell.phraseSetId == phraseSetId && old.items != updated.items && !appendOnly)
                     cell.copy(phraseIndex = 0, phraseCompletedShots = 0)
-                else if (cell.phraseSetId == phraseSetId && cell.everyOverride == null &&
-                    old.everyForItem(cell.phraseIndex) != updated.everyForItem(cell.phraseIndex))
-                    cell.copy(phraseCompletedShots = 0)
                 else cell
             },
         )

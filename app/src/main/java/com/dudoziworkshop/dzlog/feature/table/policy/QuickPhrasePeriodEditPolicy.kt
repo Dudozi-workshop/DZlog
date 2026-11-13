@@ -80,12 +80,21 @@ internal fun applyQuickPhrasePeriodEdit(
     resolutions: Map<String, CellPhraseProgress> = emptyMap(),
 ): TableTemplateState? {
     val proposed = previewQuickPhrasePeriodEdit(original, edit) ?: return null
-    val conflicts = quickPhrasePeriodConflicts(original, proposed)
+    return applyPhrasePeriodResolutions(proposed, quickPhrasePeriodConflicts(original, proposed), resolutions)
+}
+
+/** Applies explicit per-cell choices to either a set edit or a cell-local edit. */
+internal fun applyPhrasePeriodResolutions(
+    proposed: TableTemplateState,
+    conflicts: List<QuickPhrasePeriodConflict>,
+    resolutions: Map<String, CellPhraseProgress>,
+): TableTemplateState? {
     if (conflicts.any { it.cellId !in resolutions }) return null
     val sets = proposed.phraseSets.associateBy { it.id }
+    val conflictIds = conflicts.map { it.cellId }.toSet()
     val updated = proposed.cells.map { cell ->
         val choice = resolutions[cell.cellId] ?: return@map cell
-        if (conflicts.none { it.cellId == cell.cellId }) return null
+        if (cell.cellId !in conflictIds) return null
         val set = sets[cell.phraseSetId] ?: return null
         if (choice.index !in set.items.indices) return null
         val cycle = (cell.everyOverride ?: set.everyForItem(choice.index)).coerceAtLeast(1)
