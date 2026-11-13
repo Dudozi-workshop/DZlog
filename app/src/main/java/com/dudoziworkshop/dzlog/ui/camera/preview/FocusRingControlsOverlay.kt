@@ -107,8 +107,19 @@ internal fun FocusRingControlsOverlay(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
+                val lockIcon = if (locked) Icons.Default.Lock else Icons.Default.LockOpen
+                if (locked) {
+                    // Visual 1dp dark edge helps the bright sage stand out
+                    // on foliage and pale lab surfaces; no pill background.
+                    Icon(
+                        imageVector = lockIcon,
+                        contentDescription = null,
+                        tint = Color.Black.copy(alpha = 0.7f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
                 Icon(
-                    imageVector = if (locked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    imageVector = lockIcon,
                     contentDescription = null,
                     tint = if (locked) DDZColor.CameraFocusLocked else Color.White,
                     modifier = Modifier.size(14.dp),
