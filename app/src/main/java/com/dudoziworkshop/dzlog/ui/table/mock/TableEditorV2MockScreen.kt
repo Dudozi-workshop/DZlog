@@ -422,6 +422,7 @@ fun TableEditorV2Screen(
                             rowWeights = draftTemplateState.rowWeights,
                             colWeights = draftTemplateState.colWeights,
                             templateCells = draftTemplateState.cells,
+                            linkTemplate = session.finalTemplateForSave(),
                             tableWidthRatio = cameraTablePrefs.widthRatio,
                             tableHeightRatio = cameraTablePrefs.heightRatio,
                             captureAspect = cameraTablePrefs.captureAspect,

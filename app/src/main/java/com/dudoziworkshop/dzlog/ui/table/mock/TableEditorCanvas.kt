@@ -51,6 +51,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.CaptureAspect
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
+import com.dudoziworkshop.dzlog.feature.table.policy.quickPreviewCellBadgePlan
+import com.dudoziworkshop.dzlog.ui.camera.controls.QuickPreviewCellBadges
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderAdapter
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderPayload
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
@@ -81,6 +87,7 @@ internal fun ColumnScope.MockTableCanvas(
     rowWeights: List<Float>?,
     colWeights: List<Float>?,
     templateCells: List<TableCellState>,
+    linkTemplate: TableTemplateState,
     tableWidthRatio: Int,
     tableHeightRatio: Int,
     captureAspect: CaptureAspect,
@@ -106,6 +113,7 @@ internal fun ColumnScope.MockTableCanvas(
     // A selection highlight is UI-only; it must not change the camera's bold text.
     val renderedValues = remember(cells, rows, cols) { editorRenderCells(cells, rows, cols) }
     val renderedRoots = remember(cells) { editorRenderRootCells(cells) }
+    val templateCellById = remember(templateCells) { templateCells.associateBy { it.cellId } }
     // Match the camera's content-driven cell sizing before uniform editor zoom/fit.
     val referenceGeometry = remember(
         renderedValues, templateCells, rows, cols, rowWeights, colWeights,
@@ -211,6 +219,9 @@ internal fun ColumnScope.MockTableCanvas(
                     val density = LocalDensity.current
                     val totalWidth = stableTableWidth
                     val totalHeight = stableTableHeight
+                    val markerSizePx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
+                    val minimumMarkerSizePx = with(density) { DDZLayout.QuickInput.MinCellMarker.toPx() }
+                    val markerInsetPx = with(density) { DDZSpacing.xs.toPx() }
                     val colWeightSum = resolvedColWeights.sum().coerceAtLeast(0.0001f)
                     val rowWeightSum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
                     val colSizes = resolvedColWeights.map { totalWidth * (it / colWeightSum) }
@@ -311,7 +322,28 @@ internal fun ColumnScope.MockTableCanvas(
                                     .clickable(enabled = !layoutMode && cell.domainCellId != null) {
                                         cell.domainCellId?.let(onCellClick)
                                     },
-                            ) { /* hit target and selection highlight; camera renderer owns text */ }
+                            ) {
+                                // Visual markers are an overlay: they never participate in
+                                // cell measurement or move the camera-matched text canvas.
+                                if (!layoutMode) {
+                                    cell.domainCellId?.let { cellId ->
+                                        templateCellById[cellId]?.let { templateCell ->
+                                            QuickPreviewCellBadges(
+                                                type = templateCell.dataType,
+                                                plan = quickPreviewCellBadgePlan(
+                                                    widthPx = with(density) { width.toPx() },
+                                                    idealSizePx = markerSizePx,
+                                                    minimumSizePx = minimumMarkerSizePx,
+                                                    insetPx = markerInsetPx,
+                                                    links = quickCellLinks(linkTemplate, cellId),
+                                                ),
+                                                active = isSelected,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         if (layoutMode) {
