@@ -19,6 +19,9 @@ import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVCaptureFocusModeContinuousAutoFocus
+import platform.AVFoundation.AVCaptureFocusModeAutoFocus
+import platform.AVFoundation.AVCaptureExposureModeContinuousAutoExposure
+import platform.AVFoundation.AVCaptureExposureModeLocked
 import platform.AVFoundation.AVCaptureFlashModeOff
 import platform.AVFoundation.AVCaptureFlashModeAuto
 import platform.AVFoundation.AVCaptureFlashModeOn
@@ -26,6 +29,7 @@ import platform.AVFoundation.AVCaptureVideoOrientationPortrait
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSSelectorFromString
+import platform.CoreGraphics.CGPointMake
 import platform.darwin.NSObject
 
 /**
@@ -46,6 +50,10 @@ internal class IosAvFoundationCamera {
     var maximumZoom: Float = 1f
         private set
     var flashAvailable: Boolean = false
+        private set
+    var minimumExposureBias: Float = 0f
+        private set
+    var maximumExposureBias: Float = 0f
         private set
     private var onPhoto: ((Result<ByteArray>) -> Unit)? = null
 
@@ -93,6 +101,8 @@ internal class IosAvFoundationCamera {
             this.device = device
             maximumZoom = minOf(6.0, device.activeFormat.videoMaxZoomFactor).toFloat().coerceAtLeast(1f)
             flashAvailable = device.hasFlash
+            minimumExposureBias = device.minExposureTargetBias
+            maximumExposureBias = device.maxExposureTargetBias
             configured = true
         } finally {
             session.commitConfiguration()
@@ -109,6 +119,7 @@ internal class IosAvFoundationCamera {
     }
 
     fun stop() {
+        resetFocusExposure()
         if (session.running) session.stopRunning()
         onPhoto = null
     }
@@ -120,6 +131,46 @@ internal class IosAvFoundationCamera {
     fun autoFocus(): Boolean = configureDevice { device ->
         check(device.isFocusModeSupported(AVCaptureFocusModeContinuousAutoFocus))
         device.focusMode = AVCaptureFocusModeContinuousAutoFocus
+    }
+
+    /** Device coordinates must come from AVCaptureVideoPreviewLayer conversion. */
+    fun focusAt(deviceX: Double, deviceY: Double, keepExposureLocked: Boolean): Boolean =
+        configureDevice { device ->
+            val point = CGPointMake(deviceX.coerceIn(0.0, 1.0), deviceY.coerceIn(0.0, 1.0))
+            check(device.focusPointOfInterestSupported)
+            check(device.isFocusModeSupported(AVCaptureFocusModeAutoFocus))
+            device.focusPointOfInterest = point
+            device.focusMode = AVCaptureFocusModeAutoFocus
+            if (!keepExposureLocked) {
+                if (device.exposurePointOfInterestSupported) device.exposurePointOfInterest = point
+                check(device.isExposureModeSupported(AVCaptureExposureModeContinuousAutoExposure))
+                device.exposureMode = AVCaptureExposureModeContinuousAutoExposure
+            }
+        }
+
+    fun setExposureLocked(locked: Boolean): Boolean = configureDevice { device ->
+        val mode = if (locked) AVCaptureExposureModeLocked else AVCaptureExposureModeContinuousAutoExposure
+        check(device.isExposureModeSupported(mode))
+        device.exposureMode = mode
+    }
+
+    fun setExposureBias(value: Float): Boolean = configureDevice { device ->
+        val bias = value.coerceIn(device.minExposureTargetBias, device.maxExposureTargetBias)
+        device.setExposureTargetBias(bias, completionHandler = null)
+    }
+
+    private fun resetFocusExposure() {
+        if (!configured) return
+        configureDevice { device ->
+            if (device.isExposureModeSupported(AVCaptureExposureModeContinuousAutoExposure)) {
+                device.exposureMode = AVCaptureExposureModeContinuousAutoExposure
+            }
+            device.setExposureTargetBias(0f.coerceIn(device.minExposureTargetBias,
+                device.maxExposureTargetBias), completionHandler = null)
+            if (device.isFocusModeSupported(AVCaptureFocusModeContinuousAutoFocus)) {
+                device.focusMode = AVCaptureFocusModeContinuousAutoFocus
+            }
+        }
     }
 
     fun setFlash(mode: Int): Boolean {

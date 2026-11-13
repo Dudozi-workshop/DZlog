@@ -141,6 +141,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("상태: 표 배치 저장 완료").waitForExistence(timeout: 20), app.debugDescription)
     }
 
+    private func tapLivePreview(_ x: CGFloat, _ y: CGFloat) {
+        let preview = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@", "촬영 표 미리보기"
+        )).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10), app.debugDescription)
+        preview.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).tap()
+    }
+
     func testNativeLiveTableMoveResizePersistsAndSaves() {
         openLiveTable(reset: true)
         let initialMove = String(describing: liveHandle("ios.table.move").value ?? "")
@@ -190,6 +198,30 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), value)
         dragLiveHandle("ios.table.move", dx: 30, dy: 30)
         XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
+        openLiveTable(reset: true)
+        tapLivePreview(0.08, 0.08)
+        XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(text("카메라 초점").exists)
+        XCTAssertTrue(button("노출 잠금").exists)
+        XCTAssertTrue(app.sliders["밝기 조절"].exists)
+
+        tapButton("노출 잠금")
+        XCTAssertTrue(text("상태: 노출 잠금").waitForExistence(timeout: 10))
+        tapButton("초점 최소화")
+        XCTAssertTrue(text("카메라 초점").exists)
+        XCTAssertTrue(button("노출 잠금 해제").exists)
+        XCTAssertFalse(app.sliders["밝기 조절"].exists)
+
+        // Locked first tap only expands EV. It must not move the focus point.
+        tapLivePreview(0.10, 0.82)
+        XCTAssertTrue(text("상태: 노출 잠금").exists)
+        XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
+        // The following tap is the explicit locked refocus and resets EV.
+        tapLivePreview(0.88, 0.82)
+        XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
     }
 
     func testConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: false) }

@@ -40,6 +40,7 @@ internal fun IosLiveTableFixture() {
     var locked by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("대기") }
+    var focusCollapseToken by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
     val doc = session.selectedDocument
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -49,7 +50,21 @@ internal fun IosLiveTableFixture() {
         Text(if (ready) "표 준비 완료" else "표 준비 중")
         Text("회전: ${session.tablePlacement?.rotationCwDeg}")
         IosLiveTablePreview(Modifier.fillMaxWidth().weight(1f), session, fixtureAspect = 2.0 / 3.0,
-            enabled = !locked && !busy, revision = revision, onReady = { ready = it }, onEditing = { editing = it },
+            enabled = !locked && !busy,
+            focusEnabled = !locked && !busy,
+            focusCollapseToken = focusCollapseToken,
+            minimumExposureBias = -2f,
+            maximumExposureBias = 2f,
+            onFocusAt = { _, _, exposureLocked ->
+                message = if (exposureLocked) "잠금 초점 이동" else "터치 초점 적용"
+                true
+            },
+            onExposureLock = { exposureLocked ->
+                message = if (exposureLocked) "노출 잠금" else "노출 자동"
+                true
+            },
+            onExposureBias = { true },
+            revision = revision, onReady = { ready = it }, onEditing = { editing = it },
             onSaved = { revision += 1; message = "표 배치 저장 완료" }, onError = { message = "실패: $it" })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = !editing && !busy, onClick = { locked = !locked }) { Text(if (locked) "조작 잠금 해제" else "조작 잠금") }
@@ -59,6 +74,9 @@ internal fun IosLiveTableFixture() {
                     rotationCwDeg = if (p.rotationCwDeg == 0) 90 else 0)))
                 revision += 1
             }) { Text("90도 전환") }
+            Button(enabled = !editing && !busy, onClick = { focusCollapseToken += 1 }) {
+                Text("초점 최소화")
+            }
         }
         Button(enabled = !busy && !editing, onClick = {
             busy = true

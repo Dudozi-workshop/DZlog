@@ -100,6 +100,8 @@ internal fun IosCameraCapturePoc(
     var liveTick by remember { mutableIntStateOf(0) }
     var overlayReady by remember { mutableStateOf(false) }
     var overlayEditing by remember { mutableStateOf(false) }
+    var focusInteractionToken by remember { mutableIntStateOf(0) }
+    var focusCollapseToken by remember { mutableIntStateOf(0) }
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
@@ -107,6 +109,12 @@ internal fun IosCameraCapturePoc(
         if (liveHasClock && ready && !busy && !overlayEditing && !showSettings && !showGallery && !showQuickValues) {
             while (true) { delay(1000); liveTick += 1 }
         }
+    }
+    LaunchedEffect(focusInteractionToken) {
+        if (focusInteractionToken <= 0) return@LaunchedEffect
+        // Android policy: allow focus to settle, retain the result briefly, then compact.
+        delay(2_800)
+        focusCollapseToken += 1
     }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
 
@@ -202,6 +210,7 @@ internal fun IosCameraCapturePoc(
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
     val triggerCapture: () -> Unit = {
+        focusCollapseToken += 1
         busy = true
         showTools = false
         status = "사진 촬영 중"
@@ -285,6 +294,14 @@ internal fun IosCameraCapturePoc(
                 enabled = !busy && !session.hasPending() && !showTools,
                 showGrid = showGrid,
                 showTable = showTable,
+                focusEnabled = ready && !busy && !overlayEditing,
+                focusCollapseToken = focusCollapseToken,
+                minimumExposureBias = camera.minimumExposureBias,
+                maximumExposureBias = camera.maximumExposureBias,
+                onFocusAt = camera::focusAt,
+                onExposureLock = camera::setExposureLocked,
+                onExposureBias = camera::setExposureBias,
+                onFocusInteraction = { focusInteractionToken += 1 },
                 revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
