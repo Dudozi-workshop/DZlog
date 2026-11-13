@@ -243,6 +243,7 @@ internal fun TableEditorCellUiModelEditor(
                 TableEditorCompactSettingRow(
                     label = "셀 종류",
                     value = cell.type.label,
+                    valueIcon = cell.type.choiceIcon(),
                     onClick = { showTypePicker = true },
                 )
             }
