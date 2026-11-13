@@ -9,6 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -19,6 +23,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import kotlinx.coroutines.delay
 
 /**
  * [FocusRingOverlay]
@@ -35,7 +40,14 @@ internal fun FocusRingOverlay(
 ) {
     val density = LocalDensity.current
     val isFocusing = (ui.phase == FocusRingPhase.FOCUSING)
-    val failed = (ui.phase == FocusRingPhase.FAILED)
+    var flashFailure by remember { mutableStateOf(false) }
+    LaunchedEffect(ui.phase, ui.xPx, ui.yPx) {
+        flashFailure = ui.phase == FocusRingPhase.FAILED
+        if (flashFailure) {
+            delay(FOCUS_FAILURE_FLASH_MS)
+            flashFailure = false
+        }
+    }
 
     val infinite = rememberInfiniteTransition(label = "focusRing")
     val pulseAlpha = infinite.animateFloat(
@@ -81,8 +93,10 @@ internal fun FocusRingOverlay(
             visibleFocusCenter(ui.xPx, size.width, radiusBase),
             visibleFocusCenter(ui.yPx, size.height, radiusBase),
         )
-        val ringColor = (if (locked) DDZColor.CameraFocusLocked
-            else if (failed) DDZColor.Destructive else Color.White).copy(alpha = alpha)
+        // Failure is a brief signal even when AE/AF lock is active;
+        // afterwards the locked ring returns to the sage accent.
+        val ringColor = (if (flashFailure) DDZColor.Destructive
+            else if (locked) DDZColor.CameraFocusLocked else Color.White).copy(alpha = alpha)
 
         if (showLock) {
             // Leave a small symmetrical gap either side of the lock on the
