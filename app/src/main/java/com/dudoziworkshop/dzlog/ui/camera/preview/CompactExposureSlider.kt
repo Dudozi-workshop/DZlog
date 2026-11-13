@@ -47,6 +47,8 @@ internal fun CompactExposureSlider(
     minIndex: Int,
     maxIndex: Int,
     exposureStep: Float,
+    above: Boolean,
+    locked: Boolean,
     onIndexChange: (Int) -> Unit,
     onInteractionChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -55,11 +57,17 @@ internal fun CompactExposureSlider(
     val density = LocalDensity.current
     val trackInsetPx = with(density) { 9.dp.toPx() }
     val sunSizePx = with(density) { 16.dp.toPx() }
-    val trackYpx = with(density) { 23.dp.toPx() }
+    // Put the visible line next to the ring, leaving the rest of the 36dp
+    // hit area on the side away from it. Keep a full-size touch surface.
+    val trackYpx = with(density) {
+        (if (above) FOCUS_EV_TOUCH_HEIGHT_DP - FOCUS_EV_TRACK_INSET_DP
+         else FOCUS_EV_TRACK_INSET_DP).dp.toPx()
+    }
     val trackWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() } - trackInsetPx * 2f
     val fraction = ((index.coerceIn(minIndex, maxIndex) - minIndex).toFloat() /
         (maxIndex - minIndex).toFloat()).coerceIn(0f, 1f)
     val thumbCenterX = trackInsetPx + fraction * trackWidthPx
+    val accent = if (locked) DDZColor.CameraFocusLocked else DDZColor.SelectedSoft
     val latestIndexChange by rememberUpdatedState(onIndexChange)
     val latestInteractionChange by rememberUpdatedState(onInteractionChange)
     var interacting by remember { mutableStateOf(false) }
@@ -116,7 +124,7 @@ internal fun CompactExposureSlider(
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = DDZColor.SelectedSoft,
+                color = accent,
                 start = start,
                 end = Offset(thumbCenterX, trackYpx),
                 strokeWidth = thickness,
@@ -126,7 +134,7 @@ internal fun CompactExposureSlider(
         Icon(
             imageVector = Icons.Default.WbSunny,
             contentDescription = null,
-            tint = DDZColor.SelectedSoft,
+            tint = accent,
             modifier = Modifier
                 .offset {
                     IntOffset(
@@ -142,7 +150,7 @@ internal fun CompactExposureSlider(
                 text = if (index == 0) "0.0" else String.format(Locale.US, "%+.1f", ev),
                 color = Color.White,
                 fontSize = 10.sp,
-                modifier = Modifier.align(Alignment.TopCenter),
+                modifier = Modifier.align(if (above) Alignment.TopCenter else Alignment.BottomCenter),
             )
         }
     }
