@@ -32,6 +32,19 @@ class RotatingPhraseSearchPolicyTest {
         assertEquals(listOf("초기 조사", "최종 조사", "중간 조사"), deleted)
     }
 
+    @Test fun filteredMultiSelectionChangesOnlyMatchingIndicesIncludingDuplicateLabels() {
+        val set = com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet(
+            "id", "조사", items, defaultEvery = 5,
+        )
+        val selected = RotatingPhraseSearchPolicy.matchingIndices(items, "중간")
+        val changed = com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
+            .setEveryForItems(set, selected, 2)
+        assertEquals(listOf(1, 3), selected)
+        assertEquals(listOf(5, 2, 5, 2), changed.items.indices.map(changed::everyForItem))
+        assertEquals(items, changed.items)
+        assertEquals(listOf(null, 2, null, 2), changed.itemEveryOverrides)
+    }
+
     @Test fun asciiSearchIsCaseInsensitiveAndWhitespaceTrimmed() {
         val values = listOf("Duke", "Liberty", "Draper")
         assertEquals(listOf(0), RotatingPhraseSearchPolicy.matchingIndices(values, " DUKE "))

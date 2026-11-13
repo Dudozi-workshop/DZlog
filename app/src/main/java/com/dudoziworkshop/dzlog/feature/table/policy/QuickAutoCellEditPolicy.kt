@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.feature.table.policy
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 
 /**
  * Quick editing is available for every visible root cell except counters.
@@ -30,24 +31,33 @@ internal fun selectQuickPhraseItem(
     })
 }
 
-/** A per-cell cycle change starts this same phrase with zero completed captures. */
+/** A fixed cell value keeps progress; overflow requires the caller's adjustment dialog. */
 internal fun updateQuickPhraseEvery(
     template: TableTemplateState,
     cellId: String,
     every: Int,
 ): TableTemplateState {
-    if (every < 1) return template
+    val updated = applyQuickPhrasePeriodEdit(
+        template, QuickPhrasePeriodEdit(cellId, false, every),
+    ) ?: return template
+    return if (updated == template) template else updated
+}
+
+/** Return this cell to the set's default/per-item periods, without clearing its count. */
+internal fun followQuickPhraseSetPeriods(
+    template: TableTemplateState,
+    cellId: String,
+): TableTemplateState {
     val cell = template.cells.firstOrNull {
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
-    val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
-        ?.takeIf { it.items.isNotEmpty() } ?: return template
-    val oldEvery = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
-    if (oldEvery == every) return template
-    val override = every.takeUnless { it == set.defaultEvery.coerceAtLeast(1) }
-    return template.copy(cells = template.cells.map {
-        if (it.cellId == cellId) it.copy(everyOverride = override, phraseCompletedShots = 0) else it
-    })
+    if (cell.everyOverride == null) return template
+    val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }
+        ?: return template
+    val updated = applyQuickPhrasePeriodEdit(
+        template, QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
+    ) ?: return template
+    return if (updated == template) template else updated
 }
 
 /** Completed captures must remain below the effective cycle length. */
@@ -61,7 +71,7 @@ internal fun updateQuickPhraseCompleted(
     } ?: return template
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
         ?.takeIf { it.items.isNotEmpty() } ?: return template
-    val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
+    val every = (cell.everyOverride ?: set.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
     if (completed !in 0 until every || cell.phraseCompletedShots == completed) return template
     return template.copy(cells = template.cells.map {
         if (it.cellId == cellId) it.copy(phraseCompletedShots = completed) else it

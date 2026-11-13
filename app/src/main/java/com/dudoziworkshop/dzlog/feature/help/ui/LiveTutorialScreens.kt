@@ -54,7 +54,8 @@ internal fun LiveTutorialScreens(location: TutorialLocation, template: TableTemp
                 onOpenRecentCaptureGrid = { _ -> })
             }
             "camera" -> CameraScreen(tableTemplateState = template, onTemplateChange = {},
-                onOpenTableEditor = {}, onOpenSaveSettings = {}, onOpenAlbum = {},
+                onOpenTableEditor = {}, onOpenSaveSettings = {},
+                onOpenProjectSelection = {}, onOpenTemplateSelection = {}, onOpenAlbum = {},
                 onOpenRecentCaptureGrid = { _ -> },
                 sessionCaptureStack = remember { mutableStateListOf() },
                 phraseUndoHistory = remember { CapturePhraseUndoHistory() },

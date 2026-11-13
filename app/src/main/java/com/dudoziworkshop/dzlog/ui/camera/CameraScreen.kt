@@ -139,6 +139,8 @@ fun CameraScreen(
     onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
+    onOpenProjectSelection: () -> Unit,
+    onOpenTemplateSelection: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -154,8 +156,6 @@ fun CameraScreen(
     quickTemplateId: String? = null,
     projectId: String? = null,
     projects: List<CaptureProject> = emptyList(),
-    onSelectProject: suspend (String?) -> Boolean = { false },
-    onManageProjects: () -> Unit = {},
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -193,12 +193,12 @@ fun CameraScreen(
                 quickTemplateId = quickTemplateId,
                 projectId = projectId,
                 projects = projects,
-                onSelectProject = onSelectProject,
-                onManageProjects = onManageProjects,
                 quickEditSelectionMemory = quickEditSelectionMemory,
                 onQuickTemplateSelect = onQuickTemplateSelect,
                 onOpenTableEditor = onOpenTableEditor,
                 onOpenSaveSettings = onOpenSaveSettings,
+                onOpenProjectSelection = onOpenProjectSelection,
+                onOpenTemplateSelection = onOpenTemplateSelection,
                 onOpenAlbum = onOpenAlbum,
                 onOpenRecentCaptureGrid = onOpenRecentCaptureGrid,
                 sessionCaptureStack = sessionCaptureStack,
@@ -230,6 +230,8 @@ fun CameraPreview(
     onPersistCapturedTemplate: suspend (TableTemplateState) -> Boolean = { false },
     onOpenTableEditor: () -> Unit,
     onOpenSaveSettings: () -> Unit,
+    onOpenProjectSelection: () -> Unit,
+    onOpenTemplateSelection: () -> Unit,
     onOpenAlbum: () -> Unit,
     onOpenRecentCaptureGrid: (relativePath: String) -> Unit,
     sessionCaptureStack: SnapshotStateList<List<Uri>>,
@@ -245,8 +247,6 @@ fun CameraPreview(
     quickTemplateId: String? = null,
     projectId: String? = null,
     projects: List<CaptureProject> = emptyList(),
-    onSelectProject: suspend (String?) -> Boolean = { false },
-    onManageProjects: () -> Unit = {},
     quickEditSelectionMemory: QuickEditSelectionMemory,
     onQuickTemplateSelect: suspend (String, TableTemplateState) -> Boolean = { _, _ -> false },
 ) {
@@ -1049,36 +1049,16 @@ fun CameraPreview(
                 templates = quickTemplates,
                 selectedTemplateId = quickTemplateId,
                 canChangeSelection = changesEnabled,
-                onSelectProject = { target ->
-                    if (changesEnabled && target != projectId) scope.launch {
-                        try {
-                            if (!onSelectProject(target)) {
-                                Toast.makeText(context, "프로젝트를 전환하지 못했어요.", Toast.LENGTH_SHORT).show()
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (error: Exception) {
-                            Toast.makeText(context, error.message ?: "프로젝트 전환 실패", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                onSelectTemplate = { target ->
-                    if (changesEnabled && target != quickTemplateId) scope.launch {
-                        try {
-                            if (!onQuickTemplateSelect(target, effectiveTemplate)) {
-                                Toast.makeText(context, "템플릿을 변경하지 못했어요.", Toast.LENGTH_SHORT).show()
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (error: Exception) {
-                            Toast.makeText(context, error.message ?: "템플릿 변경 실패", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                onManageProjects = {
+                onOpenProjectSelection = {
                     if (changesEnabled) {
                         showNextCaptureInfo = false
-                        onManageProjects()
+                        onOpenProjectSelection()
+                    }
+                },
+                onOpenTemplateSelection = {
+                    if (changesEnabled) {
+                        showNextCaptureInfo = false
+                        onOpenTemplateSelection()
                     }
                 },
                 onOpenTableEditor = {

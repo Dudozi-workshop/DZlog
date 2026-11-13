@@ -29,11 +29,13 @@ internal fun TableEditorPhraseProgressDialog(
     onApply: (Int, Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
     var index by remember(cell.id, set.items) {
         mutableStateOf(cell.phraseIndex.coerceIn(0, set.items.lastIndex))
     }
-    var completedText by remember(cell.id, every) {
+    val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+    // Selecting a different phrase resets the count to zero. Do not re-create
+    // this state just because that phrase has a different inherited period.
+    var completedText by remember(cell.id, set.items) {
         mutableStateOf(cell.phraseCompletedShots.coerceIn(0, every - 1).toString())
     }
     val completed = completedText.toIntOrNull()?.takeIf { it in 0 until every }

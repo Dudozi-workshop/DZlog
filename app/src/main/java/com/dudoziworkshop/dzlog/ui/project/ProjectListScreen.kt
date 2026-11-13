@@ -40,7 +40,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Non-selecting project list: tapping a row opens its detail, not the camera. */
+/** Existing project list supports selection only when opened from camera info. */
 @Composable
 internal fun ProjectListScreen(
     projects: List<CaptureProject>,
@@ -50,6 +50,8 @@ internal fun ProjectListScreen(
     onBack: () -> Unit,
     onCreate: (String) -> Unit,
     onOpenProject: (String) -> Unit,
+    selectionMode: Boolean = false,
+    onSelectProject: (String?) -> Unit = {},
 ) {
     var showCreate by rememberSaveable { mutableStateOf(createInitially) }
     val ongoing = remember(projects, summaries) {
@@ -71,7 +73,7 @@ internal fun ProjectListScreen(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
             }
-            Text("프로젝트", style = DDZTypography.ScreenTitle,
+            Text(if (selectionMode) "프로젝트 선택" else "프로젝트", style = DDZTypography.ScreenTitle,
                 color = DDZColor.TextPrimary, modifier = Modifier.weight(1f))
             TextButton(onClick = { showCreate = true }) { Text("+ 만들기") }
         }
@@ -82,6 +84,28 @@ internal fun ProjectListScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            if (selectionMode) {
+                item(key = "general-capture") {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .background(DDZColor.Surface, RoundedCornerShape(12.dp))
+                            .clickable { onSelectProject(null) }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("일반 촬영", style = DDZTypography.SettingLabel,
+                                color = DDZColor.TextPrimary)
+                            Text("프로젝트 없이 촬영", style = DDZTypography.Caption,
+                                color = DDZColor.TextSecondary)
+                            if (activeId == null) Text("현재 촬영 대상", style = DDZTypography.Caption,
+                                color = DDZColor.SelectedDark)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = "일반 촬영 선택",
+                            tint = DDZColor.IconMuted)
+                    }
+                }
+            }
             item {
                 Text("진행 중 · " + ongoing.size, style = DDZTypography.SectionTitle,
                     color = DDZColor.TextPrimary, modifier = Modifier.padding(vertical = 10.dp))
@@ -92,21 +116,23 @@ internal fun ProjectListScreen(
             }
             items(ongoing, key = { "active-" + it.id }) { project ->
                 ProjectListRow(project, summaries[project.id], project.id == activeId) {
-                    onOpenProject(project.id)
+                    if (selectionMode) onSelectProject(project.id) else onOpenProject(project.id)
                 }
             }
-            item {
-                Text("완료 · " + completed.size, style = DDZTypography.SectionTitle,
-                    color = DDZColor.TextPrimary,
-                    modifier = Modifier.padding(top = 24.dp, bottom = 10.dp))
-            }
-            if (completed.isEmpty()) item {
-                Text("완료된 프로젝트가 없습니다.", color = DDZColor.TextSecondary,
-                    style = DDZTypography.Secondary, modifier = Modifier.padding(12.dp))
-            }
-            items(completed, key = { "completed-" + it.id }) { project ->
-                ProjectListRow(project, summaries[project.id], false) {
-                    onOpenProject(project.id)
+            if (!selectionMode) {
+                item {
+                    Text("완료 · " + completed.size, style = DDZTypography.SectionTitle,
+                        color = DDZColor.TextPrimary,
+                        modifier = Modifier.padding(top = 24.dp, bottom = 10.dp))
+                }
+                if (completed.isEmpty()) item {
+                    Text("완료된 프로젝트가 없습니다.", color = DDZColor.TextSecondary,
+                        style = DDZTypography.Secondary, modifier = Modifier.padding(12.dp))
+                }
+                items(completed, key = { "completed-" + it.id }) { project ->
+                    ProjectListRow(project, summaries[project.id], false) {
+                        onOpenProject(project.id)
+                    }
                 }
             }
         }

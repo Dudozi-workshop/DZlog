@@ -43,8 +43,9 @@ object DDZLayout {
         val RowHeight = 56.dp
         val Touch = 44.dp
         val Icon = 16.dp
-        val CellMarker = 12.dp
+        val CellMarker = 10.dp
         val MinCellMarker = 8.dp
+        val BadgeInset = 2.dp
         val SelectionBorder = 2.dp
         val MinPreviewHeight = 144.dp
         val MapWidth = 22.dp

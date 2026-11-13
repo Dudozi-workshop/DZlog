@@ -39,13 +39,14 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun RotatingPhraseCsvActions(
     phraseSet: RotatingPhraseSet,
-    onReplaceItems: (List<String>) -> Unit,
+    onReplaceItems: (List<String>, List<Int?>) -> Unit,
+    showHeading: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val latestSet by rememberUpdatedState(phraseSet)
     val latestReplace by rememberUpdatedState(onReplaceItems)
-    var pendingItems by remember(phraseSet.id) { mutableStateOf<List<String>?>(null) }
+    var pendingItems by remember(phraseSet.id) { mutableStateOf<RotatingPhraseCsvCodec.ImportResult.Success?>(null) }
     var working by remember(phraseSet.id) { mutableStateOf(false) }
 
     val exportPicker = rememberLauncherForActivityResult(
@@ -56,7 +57,7 @@ internal fun RotatingPhraseCsvActions(
                 working = true
                 val result = withContext(Dispatchers.IO) {
                     runCatching {
-                        val csv = RotatingPhraseCsvCodec.encode(latestSet.items)
+                        val csv = RotatingPhraseCsvCodec.encode(latestSet.items, latestSet.itemEveryOverrides)
                         val output = context.contentResolver.openOutputStream(uri)
                             ?: error("CSV 파일을 열 수 없습니다.")
                         output.use { it.write(csv.toByteArray(Charsets.UTF_8)) }
@@ -104,7 +105,7 @@ internal fun RotatingPhraseCsvActions(
                 }
                 working = false
                 when (result) {
-                    is RotatingPhraseCsvCodec.ImportResult.Success -> pendingItems = result.items
+                    is RotatingPhraseCsvCodec.ImportResult.Success -> pendingItems = result
                     is RotatingPhraseCsvCodec.ImportResult.Failure ->
                         Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
                 }
@@ -114,7 +115,7 @@ internal fun RotatingPhraseCsvActions(
 
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("CSV 일괄 관리", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
+        if (showHeading) Text("CSV 일괄 관리", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DDZButton(
                 text = "CSV 내보내기",
@@ -137,9 +138,7 @@ internal fun RotatingPhraseCsvActions(
                 horizontalPadding = 6.dp,
             )
         }
-        Text("현재 세트만 내보냅니다 · CSV 열: order, phrase",
-            style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-        Text("불러오기는 목록을 확인한 뒤 교체합니다. 기존 주기·번호 방식은 유지됩니다.",
+        Text("현재 세트 내보내기 · CSV 열: order, phrase, every (빈칸=기본)",
             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
     }
 
@@ -150,13 +149,15 @@ internal fun RotatingPhraseCsvActions(
             title = { Text("문구 목록 교체") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("현재 " + phraseSet.items.size + "개 → 가져온 " + preview.size + "개")
-                    preview.take(3).forEachIndexed { index, item ->
-                        Text((index + 1).toString() + ". " + item,
+                    Text("현재 " + phraseSet.items.size + "개 → 가져온 " + preview.items.size + "개")
+                    preview.items.take(3).forEachIndexed { index, item ->
+                        val every = preview.itemEveryOverrides.getOrNull(index)
+                        Text((index + 1).toString() + ". " + item + " · " +
+                            (every?.let { it.toString() + "장" } ?: "기본"),
                             style = DDZTypography.Secondary, color = DDZColor.TextPrimary)
                     }
-                    if (preview.size > 3) {
-                        Text("외 " + (preview.size - 3) + "개",
+                    if (preview.items.size > 3) {
+                        Text("외 " + (preview.items.size - 3) + "개",
                             style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                     }
                     Text("이 세트를 사용하는 다른 셀에도 변경이 적용되며, 문구 진행 상태가 초기화될 수 있습니다. 표 편집에서 저장해야 확정됩니다.",
@@ -165,7 +166,7 @@ internal fun RotatingPhraseCsvActions(
             },
             confirmButton = {
                 DDZDialogAction(onClick = {
-                    latestReplace(preview)
+                    latestReplace(preview.items, preview.itemEveryOverrides)
                     pendingItems = null
                 }) { Text("목록 교체") }
             },

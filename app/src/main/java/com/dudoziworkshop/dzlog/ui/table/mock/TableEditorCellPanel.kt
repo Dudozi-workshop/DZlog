@@ -210,7 +210,7 @@ internal fun TableEditorCellUiModelEditor(
                             onClick = { showPhrasePicker = true },
                         )
                         if (selectedSet != null) {
-                            val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
+                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -226,15 +226,14 @@ internal fun TableEditorCellUiModelEditor(
                             if (selectedSet.items.isNotEmpty()) {
                                 val index = cell.phraseIndex.coerceIn(0, selectedSet.items.lastIndex)
                                 val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
-                                TableEditorSettingRow(label = "현재 문구", value = selectedSet.items[index],
-                                    onClick = { showPhraseProgress = true })
-                                TableEditorSettingRow(label = "저장 완료", value = "$completed / ${everyValue}장 · 조정",
-                                    onClick = { showPhraseProgress = true })
+                                TableEditorSettingRow(
+                                    label = "문구 진행 상태",
+                                    value = "${selectedSet.items[index]} · $completed / ${everyValue}장",
+                                    onClick = { showPhraseProgress = true },
+                                )
                                 Text("${everyValue - completed}장 더 촬영하면 ${selectedSet.items[(index + 1) % selectedSet.items.size]}",
                                     style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis)
-                                Text("주기 변경 시 현재 문구의 완료 장수가 초기화됩니다.",
-                                    style = DDZTypography.Caption, color = DDZColor.TextMuted)
                             }
                         }
                     }

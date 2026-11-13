@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.backup
 
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -66,7 +67,23 @@ internal object LocalTemplateBackupValidator {
                         "순환문구 항목이 올바르지 않습니다."
                     }
                 }
-                require(exactInt(p, "defaultEvery", 1..100000) > 0)
+                exactInt(p, "defaultEvery", 1..RotatingPhraseSet.MAX_EVERY)
+                // Older backups omit these intervals. New backups must not
+                // silently lose per-phrase periods when imported.
+                if (p.has("itemEveryOverrides")) {
+                    val periods = p.optJSONArray("itemEveryOverrides")
+                        ?: error("개별 변경 주기 목록이 올바르지 않습니다.")
+                    require(periods.length() == phrases.length()) {
+                        "개별 변경 주기와 문구 수가 일치하지 않습니다."
+                    }
+                    for (j in 0 until periods.length()) {
+                        val period = periods.opt(j)
+                        require(period == JSONObject.NULL ||
+                            (period is Int && period in 1..RotatingPhraseSet.MAX_EVERY)) {
+                            "개별 변경 주기는 1~${RotatingPhraseSet.MAX_EVERY}장이거나 기본값이어야 합니다."
+                        }
+                    }
+                }
             }
             for (index in 0 until cells.length()) {
                 val c = cells.getJSONObject(index)

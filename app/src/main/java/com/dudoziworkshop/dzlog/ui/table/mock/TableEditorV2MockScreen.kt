@@ -84,6 +84,11 @@ import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodEdit
+import com.dudoziworkshop.dzlog.feature.table.policy.previewQuickPhrasePeriodEdit
+import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
+import com.dudoziworkshop.dzlog.feature.table.policy.applyPhrasePeriodResolutions
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickPhraseConflictDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
@@ -190,6 +195,7 @@ fun TableEditorV2Screen(
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
+    var pendingPhraseProposal by remember { mutableStateOf<TableTemplateState?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
     var showSaveRules by remember { mutableStateOf(openSaveSettingsInitially) }
@@ -422,6 +428,7 @@ fun TableEditorV2Screen(
                             rowWeights = draftTemplateState.rowWeights,
                             colWeights = draftTemplateState.colWeights,
                             templateCells = draftTemplateState.cells,
+                            linkTemplate = session.finalTemplateForSave(),
                             tableWidthRatio = cameraTablePrefs.widthRatio,
                             tableHeightRatio = cameraTablePrefs.heightRatio,
                             captureAspect = cameraTablePrefs.captureAspect,
@@ -588,13 +595,15 @@ fun TableEditorV2Screen(
                                         },
                                         onPhraseEveryChange = { every ->
                                             selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(
-                                                    applyMockPhraseEvery(
-                                                        templateState = draftTemplateState,
-                                                        domainCellId = cellId,
-                                                        every = every,
-                                                    )
+                                                val candidate = previewQuickPhrasePeriodEdit(
+                                                    draftTemplateState,
+                                                    QuickPhrasePeriodEdit(cellId, false, every),
                                                 )
+                                                if (candidate != null) {
+                                                    if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
+                                                        session.commitTemplateChange(candidate)
+                                                    } else pendingPhraseProposal = candidate
+                                                }
                                             }
                                         },
                                         onCreatePhraseSet = { name ->
@@ -612,13 +621,14 @@ fun TableEditorV2Screen(
                                             } else null
                                         },
                                         onUpdatePhraseSet = { phraseSetId, transform ->
-                                            session.commitTemplateChange(
-                                                updateMockPhraseSet(
-                                                    templateState = draftTemplateState,
-                                                    phraseSetId = phraseSetId,
-                                                    transform = transform,
-                                                )
+                                            val candidate = updateMockPhraseSet(
+                                                templateState = draftTemplateState,
+                                                phraseSetId = phraseSetId,
+                                                transform = transform,
                                             )
+                                            if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
+                                                session.commitTemplateChange(candidate)
+                                            } else pendingPhraseProposal = candidate
                                         },
                                         onDeletePhraseSet = { phraseSetId ->
                                             session.commitTemplateChange(
@@ -848,6 +858,23 @@ fun TableEditorV2Screen(
             },
             onDismiss = { showCounterResetDialog = false },
         )
+    }
+
+    pendingPhraseProposal?.let { candidate ->
+        val conflicts = quickPhrasePeriodConflicts(draftTemplateState, candidate)
+        if (conflicts.isNotEmpty()) {
+            CameraQuickPhraseConflictDialog(
+                proposed = candidate,
+                conflicts = conflicts,
+                onDismiss = { pendingPhraseProposal = null },
+                onApply = { resolutions ->
+                    applyPhrasePeriodResolutions(candidate, conflicts, resolutions)?.let {
+                        session.commitTemplateChange(it)
+                    }
+                    pendingPhraseProposal = null
+                },
+            )
+        }
     }
 
     if (saveCoordinator.errorMessage != null) {

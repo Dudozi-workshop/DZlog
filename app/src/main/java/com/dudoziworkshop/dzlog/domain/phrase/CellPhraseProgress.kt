@@ -24,7 +24,7 @@ object CellPhraseProgressPolicy {
     }
 
     fun current(cell: TableCellState, set: RotatingPhraseSet): CellPhraseProgress {
-        val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
+        val every = (cell.everyOverride ?: set.everyForItem(cell.phraseIndex.coerceIn(0, (set.items.size - 1).coerceAtLeast(0)))).coerceAtLeast(1)
         return CellPhraseProgress(
             cell.phraseIndex.coerceIn(0, (set.items.size - 1).coerceAtLeast(0)),
             cell.phraseCompletedShots.coerceIn(0, every - 1),
@@ -34,7 +34,7 @@ object CellPhraseProgressPolicy {
     fun afterSuccessfulCapture(cell: TableCellState, set: RotatingPhraseSet): CellPhraseProgress {
         val current = current(cell, set)
         if (set.items.isEmpty()) return current
-        val every = (cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
+        val every = (cell.everyOverride ?: set.everyForItem(cell.phraseIndex.coerceIn(0, (set.items.size - 1).coerceAtLeast(0)))).coerceAtLeast(1)
         return if (current.completedShots + 1 >= every) {
             CellPhraseProgress((current.index + 1) % set.items.size, 0)
         } else current.copy(completedShots = current.completedShots + 1)

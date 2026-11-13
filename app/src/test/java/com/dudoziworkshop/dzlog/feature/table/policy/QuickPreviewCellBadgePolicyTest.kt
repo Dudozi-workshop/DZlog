@@ -27,6 +27,15 @@ class QuickPreviewCellBadgePolicyTest {
         assertEquals(12f, badges.sizePx, 0f)
     }
 
+    @Test fun compact_cell_scales_icons_before_stacking_without_hiding_them() {
+        val badges = plan(width = 30f)
+        assertEquals(9f, badges.sizePx, 0f)
+        assertTrue(badges.type)
+        assertTrue(badges.fileName)
+        assertTrue(badges.path)
+        assertTrue(badges.stackLinks)
+    }
+
     @Test fun narrow_cell_stacks_only_the_two_right_hand_links() {
         val badges = plan(width = 37f)
         assertTrue(badges.type)

@@ -4,6 +4,8 @@ import com.dudoziworkshop.dzlog.data.template.createSavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.newBlankTableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import org.json.JSONObject
+import org.json.JSONArray
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -113,6 +115,44 @@ class LocalTemplateBackupTest {
         } catch (expected: IllegalArgumentException) {
             assertTrue(expected.message?.isNotBlank() == true)
         }
+    }
+
+    @Test fun perPhrasePeriodBackupRoundtripAndInvalidArchiveGuards() {
+        val original = item()
+        val set = RotatingPhraseSet("set-1", "조사", listOf("기본", "개별"),
+            defaultEvery = 5, itemEveryOverrides = listOf(null, 3))
+        val withSet = original.copy(
+            templateState = original.templateState.copy(phraseSets = listOf(set)),
+        )
+        val archived = LocalTemplateBackupCodec.encode(listOf(withSet), withSet.id, 1000L)
+        val restored = LocalTemplateBackupCodec.decode(archived).templates.single()
+        assertEquals(set, restored.templateState.phraseSets.single())
+
+        fun payload(): JSONArray = JSONArray(JSONObject(archived).getString("payload"))
+        fun invalidPeriods(periods: JSONArray) {
+            val array = payload()
+            array.getJSONObject(0).getJSONObject("template").getJSONArray("phraseSets")
+                .getJSONObject(0).put("itemEveryOverrides", periods)
+            try {
+                LocalTemplateBackupValidator.validate(array)
+                throw AssertionError("Invalid phrase interval backup must fail")
+            } catch (expected: IllegalArgumentException) {
+                assertTrue(expected.message?.isNotBlank() == true)
+            }
+        }
+        invalidPeriods(JSONArray().put(3))
+        invalidPeriods(JSONArray().put(JSONObject.NULL).put(0))
+        invalidPeriods(JSONArray().put(JSONObject.NULL).put("5"))
+        invalidPeriods(JSONArray().put(JSONObject.NULL).put(1_000_000))
+
+        // Old backups have no individual period key and must remain importable.
+        val oldSet = withSet.copy(templateState = withSet.templateState.copy(
+            phraseSets = listOf(set.copy(itemEveryOverrides = emptyList())),
+        ))
+        val oldArchive = LocalTemplateBackupCodec.encode(listOf(oldSet), oldSet.id, 1000L)
+        assertEquals(emptyList<Int?>(),
+            LocalTemplateBackupCodec.decode(oldArchive).templates.single()
+                .templateState.phraseSets.single().itemEveryOverrides)
     }
 
     private fun rejects(json: String) {

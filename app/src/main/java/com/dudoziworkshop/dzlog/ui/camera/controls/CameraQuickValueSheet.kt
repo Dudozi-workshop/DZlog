@@ -113,6 +113,7 @@ internal fun CameraQuickValueSheet(
         else -> TableCellDataType.TEXT
     }
     val draft = remember { QuickValueDraft(template) }
+    var pendingPhrasePeriod by remember { mutableStateOf<QuickPhrasePeriodEdit?>(null) }
     val previewTemplate = draft.template
     val cells = remember(previewTemplate.cells) { quickNavigableCells(previewTemplate) }
     val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
@@ -430,17 +431,25 @@ internal fun CameraQuickValueSheet(
                                         val updated = selectQuickPhraseSet(draft.template, selected.cellId, id)
                                         if (updated != draft.template) { draft.template = updated; draft.dirty = true }
                                     },
-                                    onPhraseItem = { index ->
-                                        val updated = selectQuickPhraseItem(draft.template, selected.cellId, index)
+                                    onPhraseProgress = { index, completed ->
+                                        val updated = updateQuickPhraseProgress(draft.template, selected.cellId, index, completed)
                                         if (updated != draft.template) { draft.template = updated; draft.dirty = true }
                                     },
-                                    onPhraseEvery = { every ->
-                                        val updated = updateQuickPhraseEvery(draft.template, selected.cellId, every)
-                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
-                                    },
-                                    onPhraseCompleted = { completed ->
-                                        val updated = updateQuickPhraseCompleted(draft.template, selected.cellId, completed)
-                                        if (updated != draft.template) { draft.template = updated; draft.dirty = true }
+                                    onPhrasePeriodChange = { useSet, every ->
+                                        val edit = QuickPhrasePeriodEdit(selected.cellId, useSet, every)
+                                        val proposed = previewQuickPhrasePeriodEdit(draft.template, edit)
+                                        if (proposed != null) {
+                                            val conflicts = quickPhrasePeriodConflicts(draft.template, proposed)
+                                            if (conflicts.isEmpty()) {
+                                                val updated = applyQuickPhrasePeriodEdit(draft.template, edit)
+                                                if (updated != null && updated != draft.template) {
+                                                    draft.template = updated
+                                                    draft.dirty = true
+                                                }
+                                            } else {
+                                                pendingPhrasePeriod = edit
+                                            }
+                                        }
                                     },
                                 )
                             } else {
@@ -491,6 +500,24 @@ internal fun CameraQuickValueSheet(
                     }
                 }
             }
+        }
+    }
+    pendingPhrasePeriod?.let { edit ->
+        val proposed = previewQuickPhrasePeriodEdit(draft.template, edit)
+        if (proposed != null) {
+            CameraQuickPhraseConflictDialog(
+                proposed = proposed,
+                conflicts = quickPhrasePeriodConflicts(draft.template, proposed),
+                onDismiss = { pendingPhrasePeriod = null },
+                onApply = { resolutions ->
+                    val updated = applyQuickPhrasePeriodEdit(draft.template, edit, resolutions)
+                    if (updated != null && updated != draft.template) {
+                        draft.template = updated
+                        draft.dirty = true
+                    }
+                    pendingPhrasePeriod = null
+                },
+            )
         }
     }
 }

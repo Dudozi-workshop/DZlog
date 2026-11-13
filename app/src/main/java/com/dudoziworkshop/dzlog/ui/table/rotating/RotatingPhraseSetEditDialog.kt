@@ -1,155 +1,72 @@
 package com.dudoziworkshop.dzlog.ui.table.rotating
 
-import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog as AlertDialog
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
+import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBarIconButton
-import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
-import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
-import java.util.UUID
 
+/**
+ * Keep the set period above the phrase list and the numbering/CSV actions below it.
+ * Scaffold's bottom bar reserves the footer before the phrase list gets the remaining height.
+ */
 @Composable
 fun RotatingPhraseSetEditDialog(
     phraseSet: RotatingPhraseSet,
     onClose: () -> Unit,
     onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
-    onDeleteSet: (String) -> Unit
+    onDeleteSet: (String) -> Unit,
 ) {
     var showMenu by remember(phraseSet.id) { mutableStateOf(false) }
-    var showRenameDialog by remember(phraseSet.id) { mutableStateOf(false) }
-    var renameInput by remember(phraseSet.id) { mutableStateOf(phraseSet.name) }
-    var showDeleteConfirm by remember(phraseSet.id) { mutableStateOf(false) }
+    var showRename by remember(phraseSet.id) { mutableStateOf(false) }
+    var showDelete by remember(phraseSet.id) { mutableStateOf(false) }
+    var showItem by remember(phraseSet.id) { mutableStateOf(false) }
+    var editingIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
+    var editingText by remember(phraseSet.id) { mutableStateOf("") }
+    var continuousAdd by remember(phraseSet.id) { mutableStateOf(true) }
+    var periodTargets by remember(phraseSet.id) { mutableStateOf<List<Int>>(emptyList()) }
 
-    var showItemInputDialog by remember(phraseSet.id) { mutableStateOf(false) }
-    var editingItemIndex by remember(phraseSet.id) { mutableStateOf<Int?>(null) }
-    var itemInput by remember(phraseSet.id) { mutableStateOf("") }
-    var searchQuery by remember(phraseSet.id) { mutableStateOf("") }
-    val visibleIndices = RotatingPhraseSearchPolicy.matchingIndices(phraseSet.items, searchQuery)
-    val canReorder by rememberUpdatedState(RotatingPhraseSearchPolicy.reorderEnabled(searchQuery))
-    val itemIds = remember(phraseSet.id) { mutableStateListOf<String>() }
-
-    fun openRenameDialog() {
-        renameInput = phraseSet.name
-        if (!showRenameDialog) showRenameDialog = true
-    }
-
-    fun closeRenameDialog() {
-        if (showRenameDialog) showRenameDialog = false
-    }
-
-    fun openItemInputDialog(index: Int?, initialText: String) {
-        editingItemIndex = index
-        itemInput = initialText
-        if (!showItemInputDialog) showItemInputDialog = true
-    }
-
-    fun closeItemInputDialog() {
-        if (showItemInputDialog) showItemInputDialog = false
-    }
-
-    fun openDeleteConfirmDialog() {
-        if (!showDeleteConfirm) showDeleteConfirm = true
-    }
-
-    fun closeDeleteConfirmDialog() {
-        if (showDeleteConfirm) showDeleteConfirm = false
-    }
-
-    LaunchedEffect(phraseSet.id, phraseSet.items.size) {
-        val targetSize = phraseSet.items.size
-        while (itemIds.size < targetSize) {
-            itemIds.add(UUID.randomUUID().toString())
-        }
-        while (itemIds.size > targetSize) {
-            itemIds.removeAt(itemIds.lastIndex)
-        }
-
-        val clampedEditingIndex = editingItemIndex?.takeIf { it in phraseSet.items.indices }
-        if (editingItemIndex != clampedEditingIndex) {
-            editingItemIndex = clampedEditingIndex
-        }
-    }
-
-    val lazyListState = rememberLazyListState()
-    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        // Filtered rows do not have contiguous original indices. Disable dragging
-        // during search to avoid accidentally changing the full saved list order.
-        if (canReorder) {
-            onUpdateSet { set ->
-                val items = set.items
-                if (items.isEmpty()) return@onUpdateSet set
-
-                // The first lazy item is the header; only phrase rows can be reordered.
-                val fromIndex = from.index - 1
-                val toIndex = to.index - 1
-                if (fromIndex !in items.indices || toIndex !in items.indices || fromIndex == toIndex) {
-                    return@onUpdateSet set
-                }
-
-                val newList = items.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
-                }
-                set.copy(items = newList)
-            }
-
-            val fromIndex = from.index - 1
-            val toIndex = to.index - 1
-            if (fromIndex in itemIds.indices && toIndex in itemIds.indices && fromIndex != toIndex) {
-                itemIds.add(toIndex, itemIds.removeAt(fromIndex))
-            }
-        }
+    fun editItem(index: Int?, text: String) {
+        editingIndex = index
+        editingText = text
+        showItem = true
     }
 
     Dialog(
@@ -159,311 +76,192 @@ fun RotatingPhraseSetEditDialog(
         Scaffold(
             modifier = Modifier.fillMaxSize().imePadding(),
             containerColor = DDZColor.Background,
+            // Full-screen dialogs can report a consumed/zero nav inset on some devices.
+            // The bottomBar takes its own measurable height, including a conservative
+            // fallback for system navigation, so CSV can never be covered by the gesture bar.
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = {
+                val navigationHeight = with(LocalDensity.current) {
+                    WindowInsets.navigationBars.getBottom(this).toDp()
+                }
+                val missingNavigationSpace = (48.dp - navigationHeight).coerceAtLeast(0.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 16.dp + missingNavigationSpace),
+                ) {
+                    RotatingPhraseSetFooter(
+                        phraseSet = phraseSet,
+                        onUpdateSet = onUpdateSet,
+                    )
+                }
+            },
             topBar = {
-                DDZTopBar(title = "순환문구", onBack = onClose, actions = {
-                    Box {
-                        DDZTopBarIconButton(Icons.Default.MoreVert, "세트 메뉴", { showMenu = true })
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("세트 삭제", color = DDZColor.Destructive) },
-                                onClick = { showMenu = false; openDeleteConfirmDialog() },
-                                leadingIcon = { Icon(Icons.Default.DeleteOutline, null, tint = DDZColor.Destructive) },
-                            )
+                DDZTopBar(
+                    title = phraseSet.name,
+                    onBack = onClose,
+                    actions = {
+                        androidx.compose.foundation.layout.Box {
+                            DDZTopBarIconButton(Icons.Default.MoreVert, "세트 메뉴", { showMenu = true })
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("세트 이름 변경") },
+                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                                    onClick = {
+                                        showMenu = false
+                                        showRename = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("세트 삭제", color = DDZColor.Destructive) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = DDZColor.Destructive)
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        showDelete = true
+                                    },
+                                )
+                            }
                         }
-                    }
-                })
+                    },
+                )
             },
         ) { insets ->
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(insets).padding(horizontal = 18.dp),
-                state = lazyListState,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize().padding(insets)
+                    .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
             ) {
-                item(key = "set-name") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(phraseSet.name, style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                            Text("${phraseSet.items.size}개 문구", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                            Text("문구 수정·추가·삭제·순서 변경 시 첫 문구부터 시작합니다.",
-                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                        }
-                        IconButton(onClick = ::openRenameDialog) {
-                            Icon(Icons.Default.Edit, "세트 이름 변경", tint = DDZColor.PrimaryDark)
-                        }
-                    }
-                    // Keep CSV tools inside the existing first lazy item, so phrase
-                    // row indices in the drag/reorder policy remain unchanged.
-                    RotatingPhraseCsvActions(
-                        phraseSet = phraseSet,
-                        onReplaceItems = { imported ->
-                            if (phraseSet.items != imported) {
-                                onUpdateSet { it.copy(items = imported) }
-                            }
-                        },
-                    )
-                    // Within the existing header item: preserve the 1-based drag
-                    // offsets used by the reorderable list for unfiltered rows.
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text("문구 목록 (${phraseSet.items.size}개)",
-                            style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text("문구 검색") },
-                        )
-                        if (!canReorder) {
-                            Text("검색 결과 ${visibleIndices.size}개 · 검색 중 순서 변경 불가",
-                                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
-                        }
-                    }
-                }
-                items(
-                    visibleIndices.size,
-                    key = { visibleIndex ->
-                        val originalIndex = visibleIndices[visibleIndex]
-                        itemIds.getOrNull(originalIndex) ?: "${phraseSet.id}-$originalIndex"
+                // The pinned bottomBar has already been subtracted by Scaffold.
+                // Only the list consumes the remaining measured viewport height.
+                // Very short windows may scroll their content without moving the footer.
+                val shortScreen = maxHeight < 360.dp
+                val compactListHeight = maxHeight * 0.45f
+                Column(
+                    modifier = if (shortScreen) {
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    } else {
+                        Modifier.fillMaxSize()
                     },
-                ) { visibleIndex ->
-                    val index = visibleIndices[visibleIndex]
-                    val item = phraseSet.items.getOrNull(index) ?: return@items
-                    val stableId = itemIds.getOrNull(index) ?: "${phraseSet.id}-$index"
-                    ReorderableItem(reorderableState, key = stableId) { isDragging ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .background(
-                                    if (isDragging) DDZColor.SelectedSoft else DDZColor.Surface,
-                                    RoundedCornerShape(12.dp),
-                                )
-                                .heightIn(min = 56.dp)
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            IconButton(
-                                enabled = canReorder,
-                                onClick = {},
-                                modifier = if (canReorder) with(this@ReorderableItem) {
-                                    Modifier.draggableHandle()
-                                } else Modifier,
-                            ) {
-                                Icon(Icons.Default.DragHandle,
-                                    if (canReorder) "문구 순서 변경" else "검색 중 순서 변경 불가",
-                                    tint = if (canReorder) DDZColor.IconMuted else DDZColor.TextDisabled)
-                            }
-                            Text(
-                                item,
-                                modifier = Modifier.weight(1f).clickable {
-                                    openItemInputDialog(index, item)
-                                }.padding(vertical = 16.dp),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextPrimary,
-                            )
-                            IconButton(onClick = {
-                                if (index in itemIds.indices) itemIds.removeAt(index)
-                                onUpdateSet { set ->
-                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
-                                }
-                            }) {
-                                Icon(Icons.Default.DeleteOutline, "문구 삭제", tint = DDZColor.IconMuted)
-                            }
-                        }
-                    }
-                }
-                item(key = "phrase-actions") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (phraseSet.items.isEmpty() || visibleIndices.isEmpty()) {
-                            Text(
-                                if (phraseSet.items.isEmpty()) "문구를 추가해주세요." else "검색 결과가 없습니다.",
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextSecondary,
-                            )
-                        }
-                        DDZButton(
-                            text = "문구 추가",
-                            onClick = { openItemInputDialog(null, "") },
-                            leadingIcon = Icons.Default.Add,
-                            style = DDZButtonStyle.Secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).selectableGroup(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text("번호 진행 방식", style = DDZTypography.CardTitle, color = DDZColor.TextPrimary)
-                            RotatingCounterProgressMode.entries.forEach { mode ->
-                                val selected = phraseSet.counterProgressMode == mode
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .background(
-                                            if (selected) DDZColor.SelectedSoft else DDZColor.Surface,
-                                            RoundedCornerShape(12.dp),
-                                        )
-                                        .selectable(
-                                            selected = selected,
-                                            role = Role.RadioButton,
-                                            onClick = { onUpdateSet { it.copy(counterProgressMode = mode) } },
-                                        )
-                                        .heightIn(min = 56.dp)
-                                        .padding(end = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    RadioButton(
-                                        selected = selected,
-                                        onClick = null,
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = DDZColor.SelectedDark,
-                                            unselectedColor = DDZColor.IconMuted,
-                                        ),
-                                    )
-                                    Column(Modifier.padding(vertical = 8.dp)) {
-                                        Text(
-                                            if (mode == RotatingCounterProgressMode.PER_PHRASE)
-                                                "문구별로 따로" else "문구가 바뀌어도 계속",
-                                            style = DDZTypography.Body,
-                                            color = DDZColor.TextPrimary,
-                                        )
-                                        Text(
-                                            if (mode == RotatingCounterProgressMode.PER_PHRASE)
-                                                "A 0001 → B 0001 → A 0002" else "A 0001 → B 0002 → A 0003",
-                                            style = DDZTypography.Caption,
-                                            color = DDZColor.TextSecondary,
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                "변경한 내용은 표 편집에서 저장하면 적용돼요.",
-                                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextSecondary,
-                            )
-                        }
-                    }
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    RotatingPhraseDefaultPeriodBar(
+                        phraseSet = phraseSet,
+                        onUpdateSet = onUpdateSet,
+                    )
+                    RotatingPhraseSetListPanel(
+                        phraseSet = phraseSet,
+                        modifier = if (shortScreen) {
+                            Modifier.fillMaxWidth().height(compactListHeight)
+                        } else {
+                            Modifier.weight(1f).fillMaxWidth()
+                        },
+                        onUpdateSet = onUpdateSet,
+                        onEditItem = { index, text -> editItem(index, text) },
+                        onEditPeriod = { index -> periodTargets = listOf(index) },
+                        onBulkPeriod = { indices -> periodTargets = indices },
+                        onAddItem = { editItem(null, "") },
+                    )
                 }
             }
         }
     }
 
-    if (showRenameDialog) {
-        var renameDraft by remember(showRenameDialog, phraseSet.id) { mutableStateOf(renameInput) }
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            titleContentColor = DDZColor.TextPrimary,
-            textContentColor = DDZColor.TextPrimary,
-            onDismissRequest = ::closeRenameDialog,
+    if (showRename) {
+        var nameDraft by remember(showRename, phraseSet.id) { mutableStateOf(phraseSet.name) }
+        DDZAlertDialog(
+            onDismissRequest = { showRename = false },
             title = { Text("세트 이름 변경") },
             text = {
                 OutlinedTextField(
-                    value = renameDraft,
-                    onValueChange = { renameDraft = it },
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it },
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("세트 이름") }
+                    label = { Text("세트 이름") },
                 )
             },
             confirmButton = {
-                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = renameDraft.isNotBlank(), onClick = {
-                    val trimmed = renameDraft.trim()
-                    if (trimmed.isNotBlank()) {
-                        onUpdateSet { it.copy(name = trimmed) }
-                    }
-                    closeRenameDialog()
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
-                }
+                DDZDialogAction(
+                    style = DDZButtonStyle.Primary,
+                    enabled = nameDraft.isNotBlank(),
+                    onClick = {
+                        val name = nameDraft.trim()
+                        if (name.isNotBlank()) onUpdateSet { it.copy(name = name) }
+                        showRename = false
+                    },
+                ) { Text("적용", style = DDZTypography.ButtonText) }
             },
             dismissButton = {
-                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeRenameDialog) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
+                DDZDialogAction(
+                    style = DDZButtonStyle.Secondary,
+                    onClick = { showRename = false },
+                ) { Text("취소", style = DDZTypography.ButtonText) }
+            },
         )
     }
 
-    if (showItemInputDialog) {
-        var itemDraft by remember(showItemInputDialog, editingItemIndex, phraseSet.id) { mutableStateOf(itemInput) }
-        val isEdit = editingItemIndex != null
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            titleContentColor = DDZColor.TextPrimary,
-            textContentColor = DDZColor.TextPrimary,
-            onDismissRequest = ::closeItemInputDialog,
-            title = { Text(if (isEdit) "문구 수정" else "문구 추가") },
-            text = {
-                OutlinedTextField(
-                    value = itemDraft,
-                    onValueChange = { itemDraft = it },
-                    singleLine = true,
-                    label = { Text("문구") }
-                )
-            },
-            confirmButton = {
-                DDZDialogAction(style = DDZButtonStyle.Primary, enabled = itemDraft.isNotBlank(), onClick = {
-                    val trimmed = itemDraft.trim()
-                    if (trimmed.isNotBlank()) {
-                        if (editingItemIndex == null) {
-                            itemIds.add(UUID.randomUUID().toString())
-                            onUpdateSet { it.copy(items = it.items + trimmed) }
-                            // Show the newly added phrase even if the previous query hid it.
-                            searchQuery = ""
-                        } else {
-                            val idx = editingItemIndex!!
-                            onUpdateSet { set ->
-                                if (idx !in set.items.indices) {
-                                    set
-                                } else {
-                                    set.copy(
-                                        items = set.items.mapIndexed { i, value ->
-                                            if (i == idx) trimmed else value
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    closeItemInputDialog()
-                }) {
-                    Text("적용", style = DDZTypography.ButtonText)
+    if (showItem) {
+        val index = editingIndex
+        RotatingPhraseItemEditDialog(
+            initialText = editingText,
+            isEdit = index != null,
+            continuousAdd = continuousAdd,
+            canAdd = phraseSet.items.size < RotatingPhraseSet.MAX_ITEMS,
+            onContinuousAddChange = { continuousAdd = it },
+            onDismiss = { showItem = false },
+            onSave = { text ->
+                if (index == null) {
+                    onUpdateSet { RotatingPhraseSetItemPolicy.addItem(it, text) }
+                } else {
+                    onUpdateSet { RotatingPhraseSetItemPolicy.renameItem(it, index, text) }
                 }
             },
-            dismissButton = {
-                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeItemInputDialog) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
         )
     }
 
-    if (showDeleteConfirm) {
-        AlertDialog(
-            containerColor = DDZColor.Surface,
-            titleContentColor = DDZColor.TextPrimary,
-            textContentColor = DDZColor.TextPrimary,
-            onDismissRequest = ::closeDeleteConfirmDialog,
+    if (periodTargets.isNotEmpty()) {
+        val targets = periodTargets.filter { it in phraseSet.items.indices }
+        if (targets.isNotEmpty()) {
+            val intervals = targets.map { phraseSet.itemEveryOverrides.getOrNull(it) }
+            val existing = if (intervals.distinct().size == 1) intervals.first() else null
+            RotatingPhrasePeriodDialog(
+                initialEvery = existing,
+                defaultEvery = phraseSet.defaultEvery,
+                targetLabel = phraseSet.items[targets.first()],
+                selectedCount = targets.size,
+                mixedValues = intervals.distinct().size > 1,
+                onDismiss = { periodTargets = emptyList() },
+                onApply = { every ->
+                    onUpdateSet { set ->
+                        RotatingPhraseSetItemPolicy.setEveryForItems(set, targets, every)
+                    }
+                    periodTargets = emptyList()
+                },
+            )
+        }
+    }
+
+    if (showDelete) {
+        DDZAlertDialog(
+            onDismissRequest = { showDelete = false },
             title = { Text("세트 삭제") },
             text = { Text("${phraseSet.name} 세트를 삭제하시겠습니까?") },
             confirmButton = {
-                DDZDialogAction(style = DDZButtonStyle.Destructive, onClick = {
-                    onDeleteSet(phraseSet.id)
-                }) {
-                    Text("삭제", style = DDZTypography.ButtonText)
-                }
+                DDZDialogAction(
+                    style = DDZButtonStyle.Destructive,
+                    onClick = { onDeleteSet(phraseSet.id) },
+                ) { Text("삭제", style = DDZTypography.ButtonText) }
             },
             dismissButton = {
-                DDZDialogAction(style = DDZButtonStyle.Secondary, onClick = ::closeDeleteConfirmDialog) {
-                    Text("취소", style = DDZTypography.ButtonText)
-                }
-            }
+                DDZDialogAction(
+                    style = DDZButtonStyle.Secondary,
+                    onClick = { showDelete = false },
+                ) { Text("취소", style = DDZTypography.ButtonText) }
+            },
         )
     }
 }
-
