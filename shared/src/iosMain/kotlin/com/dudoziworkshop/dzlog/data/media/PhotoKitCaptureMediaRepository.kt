@@ -1,0 +1,220 @@
+package com.dudoziworkshop.dzlog.data.media
+
+import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
+import com.dudoziworkshop.dzlog.domain.media.CaptureMediaSavePlan
+import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
+import com.dudoziworkshop.dzlog.domain.counter.CounterMediaReadbackPolicy
+import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
+
+/**
+ * iOS Photos adapter for the common capture/save contract.
+ *
+ * One save is allowed at a time per repository instance; the capture coordinator
+ * must serialize calls and commit the counter/table patch only after the receipt.
+ * App-private logical paths are kept in the index, not mapped to Photos folders.
+ */
+class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletionStore {
+    private val photos = PhotoKitAssetAccess()
+    private val index = PhotoKitCaptureMediaIndex()
+
+    /** Ask for Photos access before staging the irreversible workspace journal. */
+    suspend fun ensureWritePermission() {
+        photos.ensureReadWriteAccess()
+    }
+    private var saving = false
+
+    override suspend fun saveAllOrRollback(
+        plan: CaptureMediaSavePlan,
+        jpegByRole: Map<CaptureMediaRole, ByteArray>,
+    ): ConfirmedCaptureMediaSave {
+        plan.validatePayloads(jpegByRole)
+        check(!saving) { "A previous iOS capture is still being saved." }
+        saving = true
+        try {
+            photos.ensureReadWriteAccess()
+            reconcilePending()
+            index.ensureCaptureIsNew(plan.captureId)
+            val batch = photos.create(plan, jpegByRole, index)
+            if (batch.metadataError != null || batch.entries.size != plan.targets.size) {
+                rollbackAndFail(batch.entries, batch.metadataError
+                    ?: IllegalStateException("PhotoKit returned an incomplete write receipt."),
+                    allCreatedAssetsTracked = batch.entries.size == plan.targets.size)
+            }
+
+            try {
+                index.append(batch.entries)
+            } catch (failure: Throwable) {
+                rollbackAndFail(batch.entries, failure)
+            }
+
+            // If clearing the journal fails, the indexed receipt is already durable.
+            // The next access reconciles it idempotently.
+            runCatching { index.clearPending() }
+            return plan.confirm(batch.entries.map { it.asset })
+        } finally {
+            saving = false
+        }
+    }
+
+    override suspend fun listSavedAssets(): List<SavedCaptureMedia> {
+        if (photos.hasReadAccess()) reconcilePending()
+        val readable = photos.hasReadAccess()
+        return index.load().map { entry ->
+            SavedCaptureMedia(
+                captureId = entry.captureId,
+                asset = entry.asset,
+                availability = when {
+                    !readable -> CaptureMediaAvailability.INACCESSIBLE
+                    photos.exists(entry.asset.assetId) -> CaptureMediaAvailability.PRESENT
+                    !photos.hasFullReadAccess() -> CaptureMediaAvailability.INACCESSIBLE
+                    else -> CaptureMediaAvailability.MISSING
+                },
+            )
+        }
+    }
+
+    /** Automatic next is based only on DZlog assets still present in Photos. */
+    suspend fun resolveStableAutomaticNext(
+        relativePathKey: String,
+        scanPrefix: String,
+        fnDelim: String,
+        currentNext: Int,
+    ): Int = CounterMediaReadbackPolicy.resolveStableNext(
+        records = listSavedAssets()
+            .filter { it.availability == CaptureMediaAvailability.PRESENT }
+            .map { CounterMediaRecord(it.asset.target.relativePath, it.asset.target.displayName) },
+        relativePathKey = relativePathKey,
+        scanPrefix = scanPrefix,
+        fnDelim = fnDelim,
+        currentNext = currentNext,
+    )
+
+    override suspend fun readAsset(assetId: String): ByteArray? {
+        if (!photos.hasReadAccess()) return null
+        reconcilePending()
+        // Never read arbitrary Photos assets through the DZlog private gallery.
+        if (index.load().none { it.asset.assetId == assetId }) return null
+        return photos.read(assetId)
+    }
+
+    suspend fun readThumbnail(assetId: String): ByteArray? {
+        if (!photos.hasReadAccess() || index.load().none { it.asset.assetId == assetId }) return null
+        return photos.thumbnail(assetId)
+    }
+
+    /** Deletes only the explicitly selected asset, never its original/result companion. */
+    suspend fun deleteGalleryAsset(assetId: String): Boolean {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            photos.ensureReadWriteAccess()
+            reconcilePending()
+            check(index.load().any { it.asset.assetId == assetId }) { "Photo is no longer indexed." }
+            val removed = photos.remove(listOf(assetId))
+            if (removed) index.forgetDeleted(assetId)
+            return removed
+        } finally { saving = false }
+    }
+
+    /** Deletes original/result companions together for camera-session Undo. */
+    override suspend fun deleteCaptureAssets(captureId: String): Boolean {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            photos.ensureReadWriteAccess()
+            reconcilePending()
+            val entries = index.load().filter { it.captureId == captureId }
+            check(entries.isNotEmpty()) { "Capture is no longer indexed." }
+            val removed = photos.remove(entries.map { it.asset.assetId })
+            if (removed) index.forgetCapture(captureId)
+            return removed
+        } finally { saving = false }
+    }
+
+    /** Changes DZlog's logical folder only; Photos resource names stay unchanged. */
+    suspend fun moveGalleryAsset(assetId: String, relativePath: String) {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            check(photos.hasReadAccess()) { "Photos access is required to move photos." }
+            reconcilePending()
+            check(photos.exists(assetId)) { "The selected photo is unavailable." }
+            index.move(assetId, relativePath)
+        } finally { saving = false }
+    }
+
+    fun listGalleryFolders(): List<String> = index.folders()
+
+    fun favoriteGalleryAssetIds(): Set<String> = index.favoriteAssetIds()
+
+    suspend fun setGalleryFavorite(assetId: String, favorite: Boolean) = manageFolder {
+        index.setFavorite(assetId, favorite)
+    }
+
+    suspend fun createGalleryFolder(parent: String, name: String): String = manageFolder {
+        index.createFolder(parent, name)
+    }
+
+    suspend fun renameGalleryFolder(path: String, name: String): String = manageFolder {
+        index.renameFolder(path, name)
+    }
+
+    suspend fun deleteEmptyGalleryFolder(path: String) = manageFolder {
+        index.deleteEmptyFolder(path)
+    }
+
+    private suspend fun <T> manageFolder(operation: () -> T): T {
+        check(!saving) { "Wait until the current photo operation finishes." }
+        saving = true
+        try {
+            reconcilePending()
+            return operation()
+        } finally { saving = false }
+    }
+
+    private suspend fun reconcilePending() {
+        val pending = index.pending()
+        if (pending.isEmpty()) return
+        check(photos.hasReadAccess()) { "Photos read permission is needed for interrupted save recovery." }
+
+        val surviving = pending.filter { photos.exists(it.asset.assetId) }
+        check(surviving.size == pending.size || photos.hasFullReadAccess()) {
+            "Full Photos access is needed to reconcile unavailable pending assets."
+        }
+        when (surviving.size) {
+            pending.size -> {
+                index.append(pending)
+                index.clearPending()
+            }
+            0 -> index.clearPending()
+            else -> {
+                // A PhotoKit transaction should be atomic. If the user deleted one
+                // role before recovery, remove its orphaned companion.
+                check(photos.remove(surviving.map { it.asset.assetId })) {
+                    "Could not roll back a partially available PhotoKit capture."
+                }
+                index.clearPending()
+            }
+        }
+    }
+
+    private suspend fun rollbackAndFail(
+        entries: List<IndexedCaptureMedia>,
+        cause: Throwable,
+        allCreatedAssetsTracked: Boolean = true,
+    ): Nothing {
+        val removed = runCatching {
+            photos.remove(entries.map { it.asset.assetId })
+        }.getOrDefault(false)
+        if (removed) runCatching { index.clearPending() }
+        // A missing placeholder may hide an untracked creation. Deleting only
+        // known IDs is not proof that the whole transaction was rolled back.
+        if (removed && allCreatedAssetsTracked) throw PhotoKitSaveRolledBackException(
+            "PhotoKit capture rolled back after metadata failure.", cause)
+        throw IllegalStateException(
+            "PhotoKit metadata failed; automatic asset rollback also failed. Manual recovery is required.",
+            cause,
+        )
+    }
+}
+

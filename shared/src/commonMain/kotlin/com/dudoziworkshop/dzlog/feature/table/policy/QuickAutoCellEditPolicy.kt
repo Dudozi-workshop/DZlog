@@ -7,17 +7,20 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 /**
  * Quick editing is opt-in per cell. Counters are deliberately excluded:
  * changing a counter seed would bypass the existing counter synchronisation rules.
+ *
+ * This policy is shared by Android and iOS so both camera surfaces accept the
+ * same automatic-cell choices without duplicating persistence rules.
  */
-internal fun quickSelectableCells(template: TableTemplateState): List<TableCellState> =
+fun quickSelectableCells(template: TableTemplateState): List<TableCellState> =
     quickRootCells(template)
         .filter { cell ->
             cell.quickEditable && cell.dataType != TableCellDataType.COUNTER
         }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
 
-internal val quickDateFormats: List<String> = listOf("yyyyMMdd", "yyMMdd", "MMdd")
+val quickDateFormats: List<String> = listOf("yyyyMMdd", "yyMMdd", "MMdd")
 
-internal fun updateQuickDateFormat(
+fun updateQuickDateFormat(
     template: TableTemplateState,
     cellId: String,
     pattern: String,
@@ -34,10 +37,8 @@ internal fun updateQuickDateFormat(
     })
 }
 
-/** Selecting a *different* saved phrase set resets only that cell's phrase progress.
- * Simply opening quick edit, or reselecting the same set, does not advance the cursor.
- */
-internal fun selectQuickPhraseSet(
+/** Selecting a different saved phrase set resets only that cell's phrase progress. */
+fun selectQuickPhraseSet(
     template: TableTemplateState,
     cellId: String,
     phraseSetId: String,

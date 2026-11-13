@@ -11,12 +11,25 @@ class EditorWorkspaceTest {
         TableStyleState(bgStyle = 2), 123), nextCounter = 28, usesAutoNext = false)
     @Test fun collectionSettingsAndCounterMetadataSurviveTogether() {
         val value = EditorWorkspace(listOf(document("a"), document("b").copy(nextCounter = 72)), "b",
-            WorkspaceSettings(2, true, false))
+            WorkspaceSettings(2, true, false, showCameraGrid = true, showCameraTable = false,
+                assistShutterXRatio = 0.31f, assistShutterYRatio = 0.74f))
         assertEquals(value, EditorWorkspaceCodec.decode(EditorWorkspaceCodec.encode(value)))
         val legacy = document("legacy")
         assertEquals(listOf(legacy), editorWorkspaceFromLegacy(legacy, document("seed").template).documents)
         assertEquals("legacy", editorWorkspaceFromLegacy(legacy, document("seed").template).activeTemplateId)
         assertEquals(28, value.save(document("b")).documents.first { it.template.id == "a" }.nextCounter)
+    }
+    @Test fun legacyCameraPreferencesUseSafeDefaults() {
+        val json = EditorWorkspaceCodec.encode(EditorWorkspace(listOf(document("a")), "a"))
+            .replace(",\"cameraGrid\":false", "")
+            .replace(",\"cameraTable\":true", "")
+            .replace(",\"assistX10000\":8200", "")
+            .replace(",\"assistY10000\":6200", "")
+        val settings = EditorWorkspaceCodec.decode(json).settings
+        assertFalse(settings.showCameraGrid)
+        assertTrue(settings.showCameraTable)
+        assertEquals(0.82f, settings.assistShutterXRatio)
+        assertEquals(0.62f, settings.assistShutterYRatio)
     }
     @Test fun rejectsDamageDuplicatesAndMissingActiveWithoutDroppingDocuments() {
         val json = EditorWorkspaceCodec.encode(EditorWorkspace(listOf(document("a")), "a"))

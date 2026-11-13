@@ -1,15 +1,30 @@
 import XCTest
 import Vision
 
+// Full-suite checkpoint after extending quick edit parity and template switching.
 final class PreviewInteractionTests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        // PhotoKit may present its asynchronous prompt after the explicit wait.
+        // Always handle it before XCTest's default handler selects Don't Allow.
+        addUIInterruptionMonitor(withDescription: "Photo library access") { alert in
+            for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                if alert.buttons[name].exists { alert.buttons[name].tap(); return true }
+            }
+            return false
+        }
     }
 
     override func tearDown() {
+        guard app.state != .notRunning else {
+            let note = XCTAttachment(string: "Application was not running at teardown; preserve the original test failure.")
+            note.lifetime = .keepAlways
+            add(note)
+            return
+        }
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = name
         image.lifetime = .keepAlways
@@ -19,6 +34,554 @@ final class PreviewInteractionTests: XCTestCase {
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
         app.terminate()
+    }
+
+    // Only the sensor JPEG is synthetic. Exercise the user settings form and
+    // production configured save entry, then relaunch and read the real gallery.
+    // These quick-value checks are the focused gate; milestone validation still
+    // runs this class as part of the complete, unfiltered UI suite.
+    func testQuickValuesCancelApplySaveAndRelaunch() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("입력 취소")
+        XCTAssertTrue(text("상태: 대기").waitForExistence(timeout: 20))
+        XCTAssertFalse(text("입력값: blue").exists)
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명: ", "blue")).firstMatch.exists)
+        tapButton("빠른 입력 열기")
+        tapScrollableButton("날짜 형식 · yyyyMMdd")
+        tapScrollableButton("yyMMdd · 짧은 연월일")
+        tapScrollableButton("문구 세트 · 과수원")
+        tapScrollableButton("온실")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("날짜형식: yyMMdd").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("문구세트: set-b").exists)
+        tapButton("입력값으로 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 입력 반영 사진 저장 완료"))
+        XCTAssertTrue(text("다음 번호: 13").exists)
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("날짜형식: yyMMdd").exists)
+        XCTAssertTrue(text("문구세트: set-b").exists)
+        XCTAssertTrue(text("다음 번호: 13").exists)
+    }
+
+    func testQuickValuesEligibilityNumbersAndStaleWorkspace() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("입력 정책 검증")
+        XCTAssertTrue(text("상태: 편집 대상·숫자·충돌 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    func testQuickValueTemplateSwitchPersistsDraftAndSelection() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("템플릿 · 빠른 입력 검증")
+        tapButton("빠른 입력 보조")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("입력값: SECOND").exists)
+        XCTAssertTrue(text("다음 번호: 40").exists)
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
+        tapButton("빠른 입력 열기")
+        tapButton("템플릿 · 빠른 입력 보조")
+        tapButton("빠른 입력 검증")
+        tapButton("입력 완료")
+        XCTAssertTrue(text("활성템플릿: 빠른 입력 검증").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("입력값: blue").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    private func liveHandle(_ identifier: String) -> XCUIElement {
+        // Kotlin's bundled UIKit interface exposes these native accessibility labels.
+        // Each handle has a unique label; frame/value/drag assertions remain unchanged.
+        let label = identifier == "ios.table.move" ? "표 이동" : "표 크기 조절"
+        return app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+    }
+
+    private func openLiveTable(reset: Bool) {
+        app.launchArguments = ["--live-table-placement-flow"] + (reset ? ["--reset-live-table-fixture"] : [])
+        app.launch()
+        XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("촬영 표 미리보기").exists)
+    }
+
+    private func dragLiveHandle(_ identifier: String, dx: CGFloat, dy: CGFloat) {
+        let handle = liveHandle(identifier)
+        XCTAssertTrue(handle.waitForExistence(timeout: 10), app.debugDescription)
+        let frame = handle.frame
+        XCTAssertTrue(app.frame.contains(frame))
+        let from = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+        let to = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX + dx, dy: frame.midY + dy))
+        from.press(forDuration: 0.15, thenDragTo: to)
+        XCTAssertTrue(text("상태: 표 배치 저장 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    private func tapLivePreview(_ x: CGFloat, _ y: CGFloat) {
+        let preview = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@", "촬영 표 미리보기"
+        )).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10), app.debugDescription)
+        preview.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).tap()
+    }
+
+    func testNativeLiveTableMoveResizePersistsAndSaves() {
+        openLiveTable(reset: true)
+        let initialMove = String(describing: liveHandle("ios.table.move").value ?? "")
+        dragLiveHandle("ios.table.move", dx: 55, dy: 45)
+        let moved = String(describing: liveHandle("ios.table.move").value ?? "")
+        XCTAssertNotEqual(moved, initialMove)
+        let beforeResize = liveHandle("ios.table.move").frame
+        let initialSize = String(describing: liveHandle("ios.table.resize").value ?? "")
+        dragLiveHandle("ios.table.resize", dx: -35, dy: -20)
+        let resized = String(describing: liveHandle("ios.table.resize").value ?? "")
+        let resizedPosition = String(describing: liveHandle("ios.table.move").value ?? "")
+        let afterResize = liveHandle("ios.table.move").frame
+        XCTAssertNotEqual(resized, initialSize)
+        XCTAssertLessThan(afterResize.width, beforeResize.width)
+        XCTAssertLessThan(afterResize.height, beforeResize.height)
+        // Offsets are percentages of the remaining free space. Resizing preserves
+        // the displayed top-left and recomputes those percentages, rounded to 1%.
+        let roundingTolerance = max(app.frame.width, app.frame.height) / 200 + 1
+        XCTAssertEqual(afterResize.minX, beforeResize.minX, accuracy: roundingTolerance)
+        XCTAssertEqual(afterResize.minY, beforeResize.minY, accuracy: roundingTolerance)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        tapButton("이 배치로 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"), app.debugDescription)
+        XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+        app.terminate()
+        openLiveTable(reset: false)
+        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), resizedPosition)
+        XCTAssertEqual(String(describing: liveHandle("ios.table.resize").value ?? ""), resized)
+        XCTAssertTrue(text("다음 번호: 13").exists)
+    }
+
+    func testNativeLiveTableRotationLockAndGeometryBounds() {
+        openLiveTable(reset: true)
+        tapButton("배치 계산 검증")
+        XCTAssertTrue(text("상태: 배치 계산·비율 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+        tapButton("90도 전환")
+        XCTAssertTrue(text("회전: 90").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20))
+        let box = liveHandle("ios.table.move").frame
+        XCTAssertGreaterThan(box.height, box.width)
+        let value = String(describing: liveHandle("ios.table.move").value ?? "")
+        tapButton("조작 잠금")
+        XCTAssertFalse(liveHandle("ios.table.move").isHittable)
+        XCTAssertTrue(text("촬영 표 미리보기").exists)
+        tapButton("조작 잠금 해제")
+        XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
+        XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), value)
+        dragLiveHandle("ios.table.move", dx: 30, dy: 30)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
+        openLiveTable(reset: true)
+        tapLivePreview(0.08, 0.08)
+        XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(text("카메라 초점").exists)
+        XCTAssertTrue(button("노출 잠금").exists)
+        XCTAssertTrue(app.sliders["밝기 조절"].exists)
+
+        tapButton("노출 잠금")
+        XCTAssertTrue(text("상태: 노출 잠금").waitForExistence(timeout: 10))
+        tapButton("초점 최소화")
+        XCTAssertTrue(text("카메라 초점").exists)
+        XCTAssertTrue(button("노출 잠금 해제").exists)
+        XCTAssertFalse(app.sliders["밝기 조절"].exists)
+
+        // Locked first tap only expands EV. It must not move the focus point.
+        tapLivePreview(0.10, 0.82)
+        XCTAssertTrue(text("상태: 노출 잠금").exists)
+        XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
+        // The following tap is the explicit locked refocus and resets EV.
+        tapLivePreview(0.88, 0.82)
+        XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
+    }
+
+    func testConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: false) }
+
+    func testMergedConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: true) }
+
+    private func verifyConfiguredModes(merged: Bool) {
+        for (label, mode, placement) in [("원본만", "ORIGINAL_ONLY", "없음"),
+                                         ("결과만", "WATERMARK_ONLY", "BOTTOM_RIGHT"),
+                                         ("원본과 결과", "BOTH", "BOTTOM_RIGHT")] {
+            configureCaptureFixture(label, merged: merged)
+            XCTAssertTrue(text("모드: \(mode)").exists)
+            XCTAssertTrue(text("배치: \(placement)").exists)
+            tapButton("촬영 저장")
+            XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 13").exists)
+            app.terminate()
+            app.launchArguments = configuredArguments(merged: merged)
+            app.launch()
+            XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+            XCTAssertTrue(text("모드: \(mode)").exists)
+            XCTAssertTrue(text("배치: \(placement)").exists)
+            tapButton("갤러리 열기")
+            XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        }
+    }
+
+    func testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure() { verifyConfiguredRecovery(merged: false) }
+
+    func testMergedConfiguredRecoveryAfterWorkspaceFailure() { verifyConfiguredRecovery(merged: true) }
+
+    private func verifyConfiguredRecovery(merged: Bool) {
+        for label in ["원본만", "결과만", "원본과 결과"] {
+            configureCaptureFixture(label, merged: merged)
+            tapButton("저장 후 복구 대기")
+            XCTAssertTrue(waitForPhotoState("상태: PhotoKit 저장·워크스페이스 복구 대기"), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 12").exists)
+            XCTAssertFalse(button("촬영 저장").isEnabled)
+            app.terminate()
+            app.launchArguments = configuredArguments(merged: merged)
+            app.launch()
+            XCTAssertTrue(text("상태: 재실행 복구 완료").waitForExistence(timeout: 30), app.debugDescription)
+            XCTAssertTrue(text("다음 번호: 13").exists)
+            XCTAssertTrue(text("대기 기록: false").exists)
+            app.terminate()
+            app.launch()
+            XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+            XCTAssertTrue(text("대기 기록: false").exists)
+            tapButton("갤러리 열기")
+            XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        }
+    }
+
+    private func configuredArguments(merged: Bool) -> [String] {
+        ["--configured-capture-flow"] + (merged ? ["--merged-capture-fixture"] : [])
+    }
+
+    func testCameraControlsStayDisabledWithoutCameraPermission() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+        XCTAssertTrue(button("촬영 도구").isEnabled)
+        XCTAssertFalse(button("직전 촬영 삭제").isEnabled)
+        tapButton("촬영 도구")
+        XCTAssertFalse(button("자동초점").isEnabled)
+        XCTAssertFalse(button("플래시 꺼짐").isEnabled)
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+    }
+
+    func testCameraSettingsPersistThroughNativeModalReturn() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("촬영 설정 열기")
+        tapButton("원본만")
+        tapButton("설정 저장")
+        tapButton("카메라 열기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("빠른 입력")
+        XCTAssertTrue(panelText("2행 2열 · 텍스트").waitForExistence(timeout: 20))
+        tapButton("입력 취소")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+        tapButton("촬영 설정")
+        tapButton("원본과 결과")
+        tapButton("설정 저장")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
+    }
+
+    func testCameraOverlayToolsPersistThroughNativeReturn() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("카메라 열기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("촬영 도구")
+        tapButton("격자 표시")
+        tapButton("표 숨기기")
+        tapButton("보조 셔터 켜기")
+        XCTAssertTrue(button("격자 숨기기").exists)
+        XCTAssertTrue(button("표 표시").exists)
+        XCTAssertTrue(button("보조 셔터 끄기").exists)
+        tapButton("촬영 도구")
+        XCTAssertTrue(button("보조 셔터").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("보조 셔터").isEnabled)
+        tapButton("뒤로가기")
+        tapButton("카메라 열기")
+        tapButton("촬영 도구")
+        XCTAssertTrue(button("격자 숨기기").waitForExistence(timeout: 20))
+        XCTAssertTrue(button("표 표시").exists)
+        XCTAssertTrue(button("보조 셔터 끄기").exists)
+    }
+
+    func testGalleryFolderGridViewerAndOriginalResultSwitch() {
+        configureCaptureFixture("원본과 결과", merged: true)
+        tapButton("촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
+        tapButton("갤러리 열기")
+        // Compose can merge the image description with the role and filename
+        // on the clickable grid cell. The placeholder label is only "사진".
+        let thumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 30), app.debugDescription)
+        thumbnail.tap()
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        // The first cell may be the original; restore the result selection
+        // before exercising the explicit original/result companion controls.
+        if app.buttons.matching(NSPredicate(format: "label == %@", "결과 보기")).firstMatch.exists {
+            tapButton("결과 보기")
+            XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        }
+        tapButton("사진 목록")
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapPanelText("갤러리 사진 미리보기")
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        tapButton("원본 보기")
+        XCTAssertTrue(button("결과 보기").waitForExistence(timeout: 20))
+        tapButton("결과 보기")
+        tapButton("사진 목록")
+        tapButton("폴더 보기")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
+        tapButton("목록 보기")
+        XCTAssertTrue(button("그리드 보기").exists)
+        tapButton("전체 사진")
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("다음 번호: 13").waitForExistence(timeout: 20))
+    }
+
+    func testGalleryFavoriteAndEmptyFolderManagementPersist() {
+        configureCaptureFixture("원본과 결과", merged: true)
+        tapButton("촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
+        tapButton("갤러리 열기")
+        let thumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 30), app.debugDescription)
+        thumbnail.tap()
+        tapButton("☆ 즐겨찾기")
+        XCTAssertTrue(button("★ 즐겨찾기").waitForExistence(timeout: 10))
+
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        tapButton("갤러리 열기")
+        tapButton("즐겨찾기")
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("폴더 보기")
+        tapButton("폴더 생성")
+        tapPanelText("폴더 이름")
+        typeWithVisibleKeyboard("qa")
+        tapButton("저장")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/qa/").waitForExistence(timeout: 20), app.debugDescription)
+        tapButton("폴더 삭제")
+        tapButton("삭제")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
+        tapButton("전체 사진")
+        let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(favoriteThumbnail.waitForExistence(timeout: 30))
+        favoriteThumbnail.tap()
+        tapButton("★ 즐겨찾기")
+        XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
+    }
+
+    func testMergedRasterPixelsAndMalformedSpans() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture"]
+        app.launch()
+        tapButton("병합 렌더 검증")
+        XCTAssertTrue(text("상태: 병합 픽셀·오류 차단 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    func testExifRasterIsUprightAndOriginalRemainsUnchanged() {
+        app.launchArguments = configuredArguments(merged: false) + ["--reset-configured-fixture"]
+        app.launch()
+        tapButton("사진 방향 검증")
+        XCTAssertTrue(text("상태: 사진 방향 검증 완료").waitForExistence(timeout: 20), app.debugDescription)
+    }
+
+    private func configureCaptureFixture(_ modeLabel: String, merged: Bool) {
+        if app.state != .notRunning { app.terminate() }
+        app.launchArguments = configuredArguments(merged: merged) + ["--reset-configured-fixture"]
+        app.launch()
+        if merged { XCTAssertTrue(text("병합 표 사용 중").waitForExistence(timeout: 20)) }
+        tapButton("촬영 설정 열기")
+        tapButton(modeLabel)
+        tapButton("설정 저장")
+        XCTAssertTrue(text("상태: 설정 복원 완료").waitForExistence(timeout: 20))
+    }
+
+    // Observe completion and the asynchronous system prompt together. A fixed
+    // short prompt wait can expire before PhotoKit asks, while a long fixed wait
+    // delays every already-authorized save and still misses later dialogs.
+    private func waitForPhotoState(_ label: String, timeout: TimeInterval = 60) -> Bool {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let alert = springboard.alerts.firstMatch
+            if alert.exists {
+                for name in ["Allow Full Access", "Allow Access to All Photos", "Allow Access to All Photos and Videos"] {
+                    if alert.buttons[name].exists { alert.buttons[name].tap(); break }
+                }
+            }
+            if text(label).exists { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return text(label).exists
+    }
+
+
+    func testMediaFixturePhotoKitSaveAndRelaunch() {
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        tapButton("테스트 사진 저장")
+        XCTAssertTrue(waitForPhotoState("저장: 저장 완료: 2개"))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+        XCTAssertTrue(text("조회: 사진 복원 완료").waitForExistence(timeout: 30))
+        XCTAssertTrue(text("PhotoKit 복원 이미지").exists)
+        app.terminate()
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("앨범 보기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "사진 ([2-9]|[1-9][0-9]+)개")).firstMatch.waitForExistence(timeout: 15), "Gallery count mismatch after fixture save. UI hierarchy: \(app.debugDescription)")
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 15))
+        // After a camera round trip the home and saved assets must remain readable.
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("최근 사진").waitForExistence(timeout: 20))
+        tapButton("앨범 보기")
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "사진 ([2-9]|[1-9][0-9]+)개")).firstMatch.waitForExistence(timeout: 20))
+    }
+
+    // Synthetic JPEG exercises the same iOS workspace/PhotoKit coordinator as the home camera.
+    // No simulator camera or production preference key is used.
+    func testCaptureWorkspaceCommitAndRelaunch() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("테스트 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("저장 상태: 원본 저장·워크스페이스 확정"))
+        XCTAssertTrue(text("다음 촬영 번호: 13").exists)
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+
+        app.terminate()
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("다음 촬영 번호: 13").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+    }
+
+    // In the simulator, a synthetic frame drives the real two-role PhotoKit
+    // transaction and workspace commit, then verifies persistent counter state.
+    func testBothModeCompositedJpegPhotoKitSaveAndRelaunch() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("BOTH 합성 실제 저장 검증")
+        XCTAssertTrue(waitForPhotoState("저장 상태: BOTH 합성·원본 저장·번호 확정"))
+        XCTAssertTrue(text("다음 촬영 번호: 13").exists)
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+        app.terminate()
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("다음 촬영 번호: 13").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("자동번호 셀: 13").exists)
+    }
+
+    // BOTH must reject missing rendered bytes without committing a counter or a pending journal.
+    func testBothModeMissingRenderedJpegIsRejected() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("BOTH 합성 누락 검증")
+        XCTAssertTrue(text("저장 상태: 합성 이미지 누락 차단·번호 유지").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("다음 촬영 번호: 12").exists)
+    }
+
+    func testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 합성 어댑터 검증")
+        XCTAssertTrue(text("저장 상태: 합성 JPEG 생성·크기 검증 완료").waitForExistence(timeout: 20))
+    }
+
+    func testCaptureResolvedTableOverlayProducesJpeg() {
+        app.launchArguments = ["--capture-workspace-flow"]
+        app.launch()
+        XCTAssertTrue(text("iOS M3-A 워크스페이스 저장 검증").waitForExistence(timeout: 15))
+        tapButton("표 데이터 합성 검증")
+        XCTAssertTrue(text("저장 상태: 표 데이터 오버레이 합성 완료").waitForExistence(timeout: 20))
+    }
+
+    // Denied permission must never start a camera session or allow capturing.
+    // This test-only argument forces denial; real OS permission prompts need device QA.
+    func testCameraPermissionDeniedBlocksCapture() {
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("이번 촬영: 0장").exists)
+        XCTAssertFalse(button("촬영").isEnabled)
+    }
+
+    // Real home entry uses the Swift permission gate and preserves the home VC on return.
+    func testHomeCameraPermissionDeniedEntryAndReturn() {
+        app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        XCTAssertTrue(button("촬영 시작").isEnabled)
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
+        tapButton("뒤로가기")
+        XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("최근 촬영").exists) // Home content is restored; counter text is not an exposed AX node.
     }
 
     private func text(_ label: String) -> XCUIElement {
@@ -42,6 +605,20 @@ final class PreviewInteractionTests: XCTestCase {
         // each caller verifies the resulting dismissal/selection, not just event synthesis.
         app.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+    }
+
+    private func tapScrollableButton(_ label: String) {
+        for _ in 0..<5 {
+            let element = app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            if element.exists && !element.frame.isEmpty && app.frame.contains(element.frame) {
+                let frame = element.frame
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                return
+            }
+            app.swipeUp()
+        }
+        XCTFail("Missing scrollable button: \(label)")
     }
 
     private func screenContains(_ marker: String) throws -> Bool {
@@ -95,12 +672,13 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testHomeTemplatePreviewSelectionAndBack() throws {
-        app.launchArguments = ["--home-navigation"]
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
         XCTAssertTrue(homeTemplateButton().exists)
         XCTAssertTrue(try screenContains("기본 촬영"))
         XCTAssertTrue(try screenContains("다음 촬영 번호 0001"))
-        XCTAssertTrue(text("아직 촬영한 사진이 없어요.").waitForExistence(timeout: 10))
+        // Other tests legitimately create PhotoKit assets in the same app sandbox.
+        XCTAssertTrue(text("최근 촬영").waitForExistence(timeout: 10))
         let home = XCTAttachment(screenshot: app.screenshot())
         home.name = "shared-home-empty"
         home.lifetime = .keepAlways
@@ -129,14 +707,14 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testHomeSaveInfoDisplaysAndDismisses() throws {
-        app.launchArguments = ["--home-navigation"]
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
         tapButton("저장 정보")
         XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
-        XCTAssertTrue(text("ios-sample_0001").waitForExistence(timeout: 10))
-        XCTAssertFalse(text("ios-sample_0001.jpg").exists, "Keep existing extension-free display")
-        XCTAssertTrue(text("PoC/현장 기록/").exists)
-        XCTAssertTrue(text("PoC/보관/").exists)
+        XCTAssertTrue(text("템플릿을 선택해 주세요.").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("ios-sample_0001").exists)
+        XCTAssertFalse(text("PoC/현장 기록/").exists)
+        XCTAssertFalse(text("PoC/보관/").exists)
         XCTAssertFalse(button("저장 설정 열기").isEnabled, "Unavailable settings must stay disabled")
         let sheet = XCTAttachment(screenshot: app.screenshot())
         sheet.name = "shared-home-save-info"
@@ -148,7 +726,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(text("다음 촬영 저장 정보").exists)
         tapButton("저장 정보")
         XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
-        XCTAssertTrue(text("ios-sample_0001").exists)
+        XCTAssertTrue(text("템플릿을 선택해 주세요.").exists)
     }
 
     private func panelText(_ label: String) -> XCUIElement {
@@ -408,3 +986,4 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("선택한 템플릿 · 스크롤 검증").waitForExistence(timeout: 10))
     }
 }
+

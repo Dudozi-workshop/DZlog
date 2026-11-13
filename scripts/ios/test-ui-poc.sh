@@ -4,6 +4,37 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
+  quick-values) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
+  ) ;;
+  media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableMoveResizePersistsAndSaves
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableRotationLockAndGeometryBounds
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraControlsStayDisabledWithoutCameraPermission
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFolderGridViewerAndOriginalResultSwitch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFavoriteAndEmptyFolderManagementPersist
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredRecoveryAfterWorkspaceFailure
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedRasterPixelsAndMalformedSpans
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeCompositedJpegPhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureResolvedTableOverlayProducesJpeg
+  ) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
@@ -34,11 +65,16 @@ shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
 # Bound native XCTest execution and preserve a partial transcript on simulator stalls.
 case "$test_scope" in
   settings) limit_seconds=480 ;;
+  quick-values) limit_seconds=600 ;;
+  # Multi-mode save/recovery cases each relaunch three times; keep a finite
+  # budget for the expanded native media bundle, including Photos prompts.
+  media) limit_seconds=1500 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
-  full) limit_seconds=1200 ;;
+  full) limit_seconds=1800 ;;
 esac
 python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \
   xcodebuild test-without-building "${xcode_args[@]}" ${selection[@]+"${selection[@]}"} \
     -resultBundlePath "$evidence_dir/interaction.xcresult"
+
