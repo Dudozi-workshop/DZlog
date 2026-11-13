@@ -134,6 +134,7 @@ internal fun CameraPreviewArea(
         var aeLocked by remember { mutableStateOf(false) }
         var lockRequestInFlight by remember { mutableStateOf(false) }
         var focusControlsExpanded by remember { mutableStateOf(false) }
+        var awaitingLockedRefocusTap by remember { mutableStateOf(false) }
         var exposureInteracting by remember { mutableStateOf(false) }
         var focusInteractionId by remember { mutableIntStateOf(0) }
         var focusRequestId by remember { mutableIntStateOf(0) }
@@ -166,6 +167,7 @@ internal fun CameraPreviewArea(
             aeLocked = false
             lockRequestInFlight = false
             focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
             exposureInteracting = false
             focusInteractionId += 1
             focusRequestId += 1
@@ -182,6 +184,7 @@ internal fun CameraPreviewArea(
 
         LaunchedEffect(focusControlsCollapseToken) {
             focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
@@ -206,11 +209,43 @@ internal fun CameraPreviewArea(
                 }
             }
             focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
-        fun requestFocusAt(xPx: Float, yPx: Float, locked: Boolean) {
+        fun requestExposureIndex(nextIndex: Int, force: Boolean = false) {
             val activeCamera = boundCamera ?: return
+            if (!exposureSupported) return
+            val next = nextIndex.coerceIn(minExposureIndex, maxExposureIndex)
+            if (next == exposureIndex && !force) return
+            exposureIndex = next
+            focusInteractionId += 1
+            val id = ++exposureRequestId
+            val future = runCatching { activeCamera.cameraControl.setExposureCompensationIndex(next) }.getOrNull()
+            if (future == null) {
+                exposureIndex = activeCamera.cameraInfo.exposureState.exposureCompensationIndex
+                return
+            }
+            future.addListener({
+                if (previewAlive.get() && id == exposureRequestId && liveBoundCamera.value === activeCamera) {
+                    exposureIndex = runCatching { future.get() }
+                        .getOrElse { activeCamera.cameraInfo.exposureState.exposureCompensationIndex }
+                }
+            }, ContextCompat.getMainExecutor(context))
+        }
+
+
+        fun requestFocusAt(
+            xPx: Float,
+            yPx: Float,
+            locked: Boolean,
+            resetExposure: Boolean = true,
+        ) {
+            val activeCamera = boundCamera ?: return
+            // A newly chosen AF point starts from neutral EV, including a
+            // locked refocus. Locking the existing point is not a new choice.
+            if (resetExposure) requestExposureIndex(0, force = true)
+            awaitingLockedRefocusTap = false
             val id = ++focusRequestId
             focusInteractionId += 1
             focusControlsExpanded = true
@@ -234,7 +269,21 @@ internal fun CameraPreviewArea(
         }
 
         val focusTapCallbackState = rememberUpdatedState<(Float, Float) -> Unit> { x, y ->
-            requestFocusAt(x, y, locked = aeLocked)
+            if (aeLocked) {
+                when (lockedFocusTapAction(focusControlsExpanded, awaitingLockedRefocusTap)) {
+                    LockedFocusTapAction.SHOW_EXPOSURE -> {
+                        // Do not change the locked AF position or EV yet.
+                        awaitingLockedRefocusTap = true
+                        focusControlsExpanded = true
+                        focusInteractionId += 1
+                    }
+                    LockedFocusTapAction.REFOCUS -> {
+                        requestFocusAt(x, y, locked = true)
+                    }
+                }
+            } else {
+                requestFocusAt(x, y, locked = false)
+            }
         }
 
         fun toggleFocusExposureLock() {
@@ -256,11 +305,14 @@ internal fun CameraPreviewArea(
                     return@requestTapAeLock
                 }
                 aeLocked = desired
+                awaitingLockedRefocusTap = false
                 focusInteractionId += 1
                 if (desired) {
                     // Reapply an AF-only metering point without a timeout, while
                     // preserving the exposure frozen by Camera2 AE lock.
-                    liveTapFocusUi.value?.let { requestFocusAt(it.xPx, it.yPx, locked = true) }
+                    liveTapFocusUi.value?.let {
+                        requestFocusAt(it.xPx, it.yPx, locked = true, resetExposure = false)
+                    }
                 } else {
                     focusRequestId += 1
                     runCatching { activeCamera.cameraControl.cancelFocusAndMetering() }
@@ -270,26 +322,6 @@ internal fun CameraPreviewArea(
             }
         }
 
-        fun requestExposureIndex(nextIndex: Int) {
-            val activeCamera = boundCamera ?: return
-            if (!exposureSupported) return
-            val next = nextIndex.coerceIn(minExposureIndex, maxExposureIndex)
-            if (next == exposureIndex) return
-            exposureIndex = next
-            focusInteractionId += 1
-            val id = ++exposureRequestId
-            val future = runCatching { activeCamera.cameraControl.setExposureCompensationIndex(next) }.getOrNull()
-            if (future == null) {
-                exposureIndex = activeCamera.cameraInfo.exposureState.exposureCompensationIndex
-                return
-            }
-            future.addListener({
-                if (previewAlive.get() && id == exposureRequestId && liveBoundCamera.value === activeCamera) {
-                    exposureIndex = runCatching { future.get() }
-                        .getOrElse { activeCamera.cameraInfo.exposureState.exposureCompensationIndex }
-                }
-            }, ContextCompat.getMainExecutor(context))
-        }
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
@@ -650,6 +682,7 @@ internal fun CameraPreviewArea(
                         onExposureInteractionChange = { exposureInteracting = it },
                         onRequestExpand = {
                             focusControlsExpanded = true
+                            if (aeLocked) awaitingLockedRefocusTap = true
                             focusInteractionId += 1
                         },
                     )
