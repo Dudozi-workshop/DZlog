@@ -7,6 +7,7 @@ internal const val FOCUS_RING_COMPACT_RADIUS_DP = 20
 internal const val FOCUS_LOCK_TOUCH_DP = 36
 internal const val FOCUS_EV_WIDTH_DP = 116
 internal const val FOCUS_EV_TOUCH_HEIGHT_DP = 36
+internal const val FOCUS_EV_TRACK_INSET_DP = 8
 
 internal data class FocusControlsVerticalPlacement(
     val lockTop: Float,
