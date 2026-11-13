@@ -221,7 +221,7 @@ internal fun ColumnScope.MockTableCanvas(
                     val totalHeight = stableTableHeight
                     val markerSizePx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
                     val minimumMarkerSizePx = with(density) { DDZLayout.QuickInput.MinCellMarker.toPx() }
-                    val markerInsetPx = with(density) { DDZSpacing.xs.toPx() }
+                    val markerInsetPx = with(density) { DDZLayout.QuickInput.BadgeInset.toPx() }
                     val colWeightSum = resolvedColWeights.sum().coerceAtLeast(0.0001f)
                     val rowWeightSum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
                     val colSizes = resolvedColWeights.map { totalWidth * (it / colWeightSum) }

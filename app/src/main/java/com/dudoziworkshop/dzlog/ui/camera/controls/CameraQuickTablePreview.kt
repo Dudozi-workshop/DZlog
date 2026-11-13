@@ -146,7 +146,7 @@ internal fun CameraQuickTablePreview(
         val payload = remember(renderCells, baseline) { TableRenderPayload(template.rows, template.cols,
             baseline.resolvedLayout.finalRowWeights, baseline.resolvedLayout.finalColWeights, renderCells) }
         val markerPx = with(density) { DDZLayout.QuickInput.CellMarker.toPx() }
-        val gapPx = with(density) { DDZSpacing.xs.toPx() }
+        val gapPx = with(density) { DDZLayout.QuickInput.BadgeInset.toPx() }
         Surface(Modifier.size(availableWidth + padding * 2, viewportHeight + padding * 2 + headingHeight + hintHeight).tutorialTarget("camera.quick-table"),
             shape = RoundedCornerShape(DDZLayout.Radius.Medium), color = DDZColor.SurfaceSoft) {
             Column(Modifier.padding(padding)) {

@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,7 +102,14 @@ internal fun CameraQuickPhrasePeriodControl(
     var numberDialog by remember(cell.cellId) { mutableStateOf(false) }
     val isSet = cell.everyOverride == null
     val currentIndex = cell.phraseIndex.coerceIn(0, set.items.lastIndex)
-    val cellValue = cell.everyOverride ?: set.everyForItem(currentIndex)
+    // Keep the last local value while temporarily following the set in this editor.
+    var rememberedIndividual by remember(cell.cellId, set.id) {
+        mutableStateOf(cell.everyOverride ?: set.everyForItem(currentIndex))
+    }
+    LaunchedEffect(cell.everyOverride) {
+        cell.everyOverride?.let { rememberedIndividual = it }
+    }
+    val cellValue = cell.everyOverride ?: rememberedIndividual
     val activeValue = if (isSet) set.defaultEvery else cellValue
     val effectiveEvery = cell.everyOverride ?: set.everyForItem(currentIndex)
 

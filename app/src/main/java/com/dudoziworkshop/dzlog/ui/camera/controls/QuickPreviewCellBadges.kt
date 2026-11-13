@@ -22,7 +22,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickPreviewCellBadgePlan
 import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 
 /** Status information belongs to quick editing only; never to saved photo pixels. */
 @Composable
@@ -50,7 +50,7 @@ internal fun QuickPreviewCellBadges(
             cellTypeIcon,
             contentDescription = null,
             modifier = Modifier.align(Alignment.TopStart)
-                .padding(DDZSpacing.xs)
+                .padding(DDZLayout.QuickInput.BadgeInset)
                 .size(size)
                 .background(badgeBackground, RoundedCornerShape(2.dp)),
             tint = tint,
@@ -63,7 +63,7 @@ internal fun QuickPreviewCellBadges(
                 Column(
                     modifier = Modifier.align(Alignment.TopEnd)
                         .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
-                        .padding(DDZSpacing.xs)
+                        .padding(DDZLayout.QuickInput.BadgeInset)
                         .background(badgeBackground, RoundedCornerShape(2.dp)),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                     horizontalAlignment = Alignment.End,
@@ -81,9 +81,9 @@ internal fun QuickPreviewCellBadges(
                 Row(
                     modifier = Modifier.align(Alignment.TopEnd)
                         .wrapContentSize(align = Alignment.TopEnd, unbounded = true)
-                        .padding(DDZSpacing.xs)
+                        .padding(DDZLayout.QuickInput.BadgeInset)
                         .background(badgeBackground, RoundedCornerShape(2.dp)),
-                    horizontalArrangement = Arrangement.spacedBy(DDZSpacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(DDZLayout.QuickInput.BadgeInset),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (plan.fileName) Icon(
