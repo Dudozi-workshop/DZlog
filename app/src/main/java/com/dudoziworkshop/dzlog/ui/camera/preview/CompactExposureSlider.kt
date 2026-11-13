@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
  * A tiny background-free exposure line. The sun IS the slider thumb;
  * it is not a separate icon beside a Material slider.
  *
- * The touch surface is 116x36dp despite the 2dp visual track.
+ * The touch surface is 78x36dp despite the 2dp visual track.
  */
 @Composable
 internal fun CompactExposureSlider(
