@@ -3,7 +3,6 @@ package com.dudoziworkshop.dzlog.poc
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
@@ -76,6 +75,7 @@ internal fun IosCameraCapturePoc(
     var showGallery by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showQuickValues by remember { mutableStateOf(false) }
+    var showTools by remember { mutableStateOf(false) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var flash by remember { mutableIntStateOf(0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
@@ -177,34 +177,69 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; showSettings = true },
         onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
     )
-    Column(
-        Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) TextButton(onClick = onBack, enabled = !busy && !overlayEditing) { Text("뒤로가기") }
-            Text("카메라")
-            TextButton(onClick = { showSettings = true }, enabled = !busy && !overlayEditing && session != null && !session.hasPending()) {
-                Text("촬영 설정")
+    val captureEnabled = ready && !busy && !overlayEditing && !counterSyncing && counterSyncReady &&
+        (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
+        (onBack == null || session != null) && session?.hasPending() != true
+    val triggerCapture: () -> Unit = {
+        busy = true
+        showTools = false
+        status = "사진 촬영 중"
+        runCatching {
+            camera.captureJpeg { result ->
+                scope.launch {
+                    try {
+                        val jpeg = result.getOrThrow()
+                        val committed = if (session != null) {
+                            session.saveConfiguredJpeg(jpeg)
+                        } else {
+                            check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
+                            saveStandaloneCameraFixture(jpeg, repository)
+                            true
+                        }
+                        if (committed) {
+                            successfulSaves += 1
+                            status = "사진 저장 완료"
+                        } else {
+                            status = "사진 저장됨 · 촬영 기록 복구 필요"
+                        }
+                    } catch (error: Throwable) {
+                        status = "사진 저장 실패: ${error.message}"
+                    } finally {
+                        busy = false
+                    }
+                }
             }
+        }.onFailure { error ->
+            status = "촬영 실패: ${error.message}"
+            busy = false
         }
-        if (info != null) TextButton(onClick = { showInfo = true },
-            enabled = !busy && !overlayEditing && !counterSyncing && counterSyncReady) {
-            Text(info.previewNaming.displayName.removeSuffix(".jpg"), maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        }
-        Text(status)
-        Text("이번 촬영: ${successfulSaves}장")
-        if (session != null) TextButton(onClick = { showQuickValues = true },
-            enabled = !busy && !overlayEditing && !session.hasPending()) { Text("빠른 입력") }
-        if (permissionGranted && onBack != null && session == null) Text("촬영할 템플릿과 저장 설정이 준비되지 않았습니다.")
-        if (session?.hasPending() == true) Text("이전 촬영 기록을 복구한 후 촬영해 주세요.")
+    }
+    Column(
+        Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding(),
+    ) {
+        IosCameraTopBar(
+            displayName = info?.previewNaming?.displayName ?: "DZlog 촬영",
+            infoEnabled = info != null && !busy && !overlayEditing && !counterSyncing && counterSyncReady,
+            settingsEnabled = !busy && !overlayEditing && session != null && !session.hasPending(),
+            backEnabled = onBack != null && !busy && !overlayEditing,
+            onBack = {
+                if (showTools) showTools = false else onBack?.invoke()
+            },
+            onOpenInfo = { showTools = false; showInfo = true },
+            onOpenSettings = { showTools = false; showSettings = true },
+        )
+        IosCameraStatusStrip(status, successfulSaves)
+        if (permissionGranted && onBack != null && session == null) Text(
+            "촬영할 템플릿과 저장 설정이 준비되지 않았습니다.",
+            modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
+        if (session?.hasPending() == true) Text(
+            "이전 촬영 기록을 복구한 후 촬영해 주세요.",
+            modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
         Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),
             contentAlignment = Alignment.Center) {
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
-                enabled = !busy && !session.hasPending(),
+                enabled = !busy && !session.hasPending() && !showTools,
                 revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
@@ -220,61 +255,38 @@ internal fun IosCameraCapturePoc(
                     }.apply { layer.addSublayer(camera.previewLayer) }
                 },
             )
+            if (showTools) IosCameraToolPanel(
+                ready = ready && !busy,
+                flashAvailable = camera.flashAvailable,
+                flashLabel = listOf("꺼짐", "자동", "켜짐")[flash],
+                zoom = zoom,
+                maximumZoom = camera.maximumZoom,
+                onAutoFocus = {
+                    if (!camera.autoFocus()) status = "자동초점을 설정할 수 없습니다."
+                },
+                onCycleFlash = {
+                    val next = (flash + 1) % 3
+                    if (camera.setFlash(next)) flash = next
+                },
+                onZoomChange = { if (camera.setZoom(it)) zoom = it },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+            ) else IosCameraZoomChip(
+                zoom = zoom,
+                enabled = ready && !busy && camera.maximumZoom > 1f,
+                onClick = { showTools = true },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+            )
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { if (!camera.autoFocus()) status = "자동초점을 설정할 수 없습니다." }, enabled = ready && !busy) {
-                Text("자동초점")
-            }
-            TextButton(enabled = ready && !busy && camera.flashAvailable, onClick = {
-                val next = (flash + 1) % 3
-                if (camera.setFlash(next)) flash = next
-            }) { Text("플래시 " + listOf("꺼짐", "자동", "켜짐")[flash]) }
-        }
-        Text("줌 ${((zoom * 10).toInt() / 10f)}배")
-        Slider(value = zoom, valueRange = 1f..maxOf(1.01f, camera.maximumZoom),
-            enabled = ready && !busy && camera.maximumZoom > 1f,
-            onValueChange = { if (camera.setZoom(it)) zoom = it })
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { showGallery = true }, enabled = !busy && !overlayEditing) { Text("앨범 보기") }
-        Button(shape = CircleShape, modifier = Modifier.size(76.dp), enabled = ready && !busy && !overlayEditing &&
-            !counterSyncing && counterSyncReady &&
-            (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) && (onBack == null || session != null) &&
-            (session?.hasPending() != true), onClick = {
-            busy = true
-            status = "사진 촬영 중"
-            runCatching {
-                camera.captureJpeg { result ->
-                    scope.launch {
-                        try {
-                            val jpeg = result.getOrThrow()
-                            val committed = if (session != null) {
-                                session.saveConfiguredJpeg(jpeg)
-                            } else {
-                                check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
-                                saveStandaloneCameraFixture(jpeg, repository)
-                                true
-                            }
-                            if (committed) {
-                                successfulSaves += 1
-                                status = "사진 저장 완료"
-                            } else {
-                                status = "사진 저장됨 · 촬영 기록 복구 필요"
-                            }
-                        } catch (error: Throwable) {
-                            status = "사진 저장 실패: ${error.message}"
-                        } finally {
-                            busy = false
-                        }
-                    }
-                }
-            }.onFailure { error ->
-                status = "촬영 실패: ${error.message}"
-                busy = false
-            }
-        }) { Text(if (busy) "저장 중" else "촬영") }
-        Text("${successfulSaves}장")
-        }
+        IosCameraBottomBar(
+            captureEnabled = captureEnabled,
+            controlsEnabled = !busy && !overlayEditing,
+            toolsSelected = showTools,
+            quickValuesEnabled = session != null && !busy && !overlayEditing && !session.hasPending(),
+            onOpenGallery = { showTools = false; showGallery = true },
+            onToggleTools = { showTools = !showTools },
+            onCapture = triggerCapture,
+            onOpenQuickValues = { showTools = false; showQuickValues = true },
+        )
     }
 }
 
