@@ -144,7 +144,6 @@ internal fun CameraPreviewArea(
         val exposureSupported = exposureState?.isExposureCompensationSupported == true
         val minExposureIndex = exposureState?.exposureCompensationRange?.lower ?: 0
         val maxExposureIndex = exposureState?.exposureCompensationRange?.upper ?: 0
-        val exposureStep = exposureState?.exposureCompensationStep?.toFloat() ?: 1f
 
         // Release transient Camera2 control when leaving the preview/rebinding.
         // Keep these changes scoped to the old camera rather than a new binding.
@@ -628,7 +627,6 @@ internal fun CameraPreviewArea(
                         exposureIndex = exposureIndex,
                         minExposureIndex = minExposureIndex,
                         maxExposureIndex = maxExposureIndex,
-                        exposureStep = exposureStep,
                         exposureSupported = exposureSupported,
                         onToggleLock = ::toggleFocusExposureLock,
                         onExposureIndexChange = ::requestExposureIndex,
