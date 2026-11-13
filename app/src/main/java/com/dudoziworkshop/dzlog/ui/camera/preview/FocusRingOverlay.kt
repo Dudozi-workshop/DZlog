@@ -91,6 +91,19 @@ internal fun FocusRingOverlay(
                 with(density) { FOCUS_LOCK_TOUCH_DP.dp.toPx() } / 2f < 0f
             val gapCenterAngle = if (lockAtBottom) 90f else 270f
             val halfGapDegrees = 24f
+            if (locked) {
+                // A subtle dark keyline makes the sage ring legible over
+                // bright specimens without adding a filled background.
+                drawArc(
+                    color = Color.Black.copy(alpha = 0.65f * alpha),
+                    startAngle = gapCenterAngle + halfGapDegrees,
+                    sweepAngle = 360f - 2f * halfGapDegrees,
+                    useCenter = false,
+                    topLeft = Offset(center.x - radius, center.y - radius),
+                    size = Size(radius * 2f, radius * 2f),
+                    style = Stroke(width = with(density) { 3.5.dp.toPx() }),
+                )
+            }
             drawArc(
                 color = ringColor,
                 startAngle = gapCenterAngle + halfGapDegrees,
@@ -101,6 +114,14 @@ internal fun FocusRingOverlay(
                 style = Stroke(width = if (locked) with(density) { 1.75.dp.toPx() } else stroke),
             )
         } else {
+            if (locked) {
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.65f * alpha),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = with(density) { 3.5.dp.toPx() }),
+                )
+            }
             drawCircle(
                 color = ringColor,
                 radius = radius,
