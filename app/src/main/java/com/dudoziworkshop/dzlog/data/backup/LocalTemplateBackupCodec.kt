@@ -39,7 +39,10 @@ object LocalTemplateBackupCodec {
             item.copy(templateState = item.templateState.copy(
                 cells = item.templateState.cells.map { cell ->
                     if (cell.dataType == TableCellDataType.COUNTER) {
-                        cell.copy(typedValue = CellValue.CounterSeed(1))
+                        cell.copy(typedValue = CellValue.CounterSeed(1), counterSeedDraft = 1)
+                    } else if (cell.counterSeedDraft != null) {
+                        // Inactive counter drafts must not leak previous capture progress.
+                        cell.copy(counterSeedDraft = 1)
                     } else cell
                 }
             ))

@@ -120,7 +120,9 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         CellValue.CounterSeed(seed)
                     }
                     TableCellDataType.TEXT -> CellValue.Text(rawText)
-                    TableCellDataType.NUMBER -> CellValue.Number(rawText)
+                    TableCellDataType.NUMBER -> CellValue.Number(
+                        if (o.has("numberDraft")) o.optString("numberDraft", "") else rawText
+                    )
                     else -> CellValue.Auto
                 }
 
@@ -140,6 +142,11 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         kind = TableCellKind.valueOf(o.getString("kind")),
                         rawText = rawText,
                         typedValue = typedValue,
+                        numberDraft = if (o.has("numberDraft")) o.optString("numberDraft", "") else null,
+                        counterSeedDraft = if (o.has("counterSeedDraft")) {
+                            o.optInt("counterSeedDraft", 1).coerceAtLeast(0)
+                        } else null,
+                        dateFormatDraft = if (o.has("dateFormatDraft")) o.optString("dateFormatDraft", "") else null,
                         timeFormatOptions = timeOpts,
                         cellId = o.optString("cellId", java.util.UUID.randomUUID().toString()),
                         rowSpan = o.optInt("rowSpan", 1),
@@ -279,6 +286,9 @@ fun TableTemplateState.toJsonString(): String {
         o.put("colIndex", c.colIndex)
         o.put("kind", c.kind.name)
         o.put("rawText", c.rawText)
+        c.numberDraft?.let { o.put("numberDraft", it) }
+        c.counterSeedDraft?.let { o.put("counterSeedDraft", it) }
+        c.dateFormatDraft?.let { o.put("dateFormatDraft", it) }
         o.put("cellId", c.cellId)
         o.put("rowSpan", c.rowSpan)
         o.put("colSpan", c.colSpan)

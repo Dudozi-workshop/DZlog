@@ -116,7 +116,7 @@ internal fun CameraQuickValueSheet(
     var pendingPhrasePeriod by remember { mutableStateOf<QuickPhrasePeriodEdit?>(null) }
     val previewTemplate = draft.template
     val cells = remember(previewTemplate.cells) { quickNavigableCells(previewTemplate) }
-    val values = remember { cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap() }
+    val values = remember { cells.map { it.cellId to TextFieldValue(it.toEditableText(), TextRange(it.toEditableText().length)) }.toMutableStateMap() }
     var selectedId by remember(activeTemplateId) {
         mutableStateOf(if (readOnlyGuide) cells.firstOrNull { it.dataType == guideType }?.cellId else selectionMemory.initialSelection(activeTemplateId, cells.map { it.cellId }))
     }
@@ -131,7 +131,7 @@ internal fun CameraQuickValueSheet(
             guidePage == "quick-phrase" && selected != null -> template.copy(cells = template.cells.map {
                 if (it.cellId == selected.cellId) it.copy(phraseSetId = if (guideOn) "guide-set-b" else "guide-set-a") else it })
             guidePage in listOf("quick-text", "quick-number") && selected != null -> {
-                val text = if (guideOn) { if (guideType == TableCellDataType.NUMBER) "15" else "생육 조사" } else selected.rawText
+                val text = if (guideOn) { if (guideType == TableCellDataType.NUMBER) "15" else "생육 조사" } else selected.toEditableText()
                 values[selected.cellId] = TextFieldValue(text)
                 updateQuickCellValues(template, mapOf(selected.cellId to text))
             }
@@ -453,7 +453,7 @@ internal fun CameraQuickValueSheet(
                                     },
                                 )
                             } else {
-                            val value = values[selected.cellId] ?: TextFieldValue(selected.rawText)
+                            val value = values[selected.cellId] ?: TextFieldValue(selected.toEditableText())
                             fun change(nextValue: TextFieldValue) {
                                 val accepted = if (number) decimalInputOrPrevious(nextValue.text, value.text) else nextValue.text
                                 if (number && accepted != nextValue.text.replace('−', '-')) return

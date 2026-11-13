@@ -606,6 +606,23 @@ fun TableEditorV2Screen(
                                                 }
                                             }
                                         },
+                                        onPhraseFollowSet = {
+                                            selected.domainCellId?.let { cellId ->
+                                                val set = draftTemplateState.phraseSets
+                                                    .firstOrNull { it.id == selected.phraseSetId }
+                                                if (set != null) {
+                                                    val candidate = previewQuickPhrasePeriodEdit(
+                                                        draftTemplateState,
+                                                        QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
+                                                    )
+                                                    if (candidate != null) {
+                                                        if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
+                                                            session.commitTemplateChange(candidate)
+                                                        } else pendingPhraseProposal = candidate
+                                                    }
+                                                }
+                                            }
+                                        },
                                         onCreatePhraseSet = { name ->
                                             val newId = java.util.UUID.randomUUID().toString()
                                             val updated = com.dudoziworkshop.dzlog.feature.table.policy.RotatingPhraseSetCreationPolicy
@@ -712,9 +729,14 @@ fun TableEditorV2Screen(
                                 )
                             }
                         }
-                        if (!imeVisible && activeTab == MockBottomTab.CONTENT) {
+                        if (activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT) {
                             val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
                             selected?.domainCellId?.let { id ->
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    thickness = 1.dp,
+                                    color = DDZColor.Border,
+                                )
                                 TableEditorCellInfoRow(
                                     cell = selected,
                                     links = quickCellLinks(session.finalTemplateForSave(), id),

@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -56,6 +57,7 @@ internal fun TableEditorCellUiModelEditor(
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
     onPhraseEveryChange: (Int) -> Unit,
+    onPhraseFollowSet: () -> Unit,
     onPhraseProgressChange: (Int, Int) -> Unit,
     onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
@@ -204,43 +206,41 @@ internal fun TableEditorCellUiModelEditor(
                     )
                     TableEditorCellType.ROTATING_TEXT -> {
                         val selectedSet = phraseSets.firstOrNull { it.id == cell.phraseSetId }
-                        TableEditorSettingRow(
+                        TableEditorCompactSettingRow(
                             label = "문구 세트",
                             value = selectedSet?.name ?: "선택 안 함",
                             onClick = { showPhrasePicker = true },
                         )
                         if (selectedSet != null) {
-                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
-                                DDZButton(text = "−", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
-                                    onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) })
-                                Text(everyValue.toString() + "장")
-                                DDZButton(text = "+", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
-                                    onClick = { onPhraseEveryChange(everyValue + 1) })
-                            }
+                            HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
+                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(cell.phraseIndex))
+                                .coerceAtLeast(1)
+                            TableEditorPhrasePeriodRow(
+                                every = everyValue,
+                                overridden = cell.everyOverride != null,
+                                onEveryChange = onPhraseEveryChange,
+                                onFollowSet = onPhraseFollowSet,
+                            )
                             if (selectedSet.items.isNotEmpty()) {
                                 val index = cell.phraseIndex.coerceIn(0, selectedSet.items.lastIndex)
                                 val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
-                                TableEditorSettingRow(
+                                HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
+                                TableEditorCompactSettingRow(
                                     label = "문구 진행 상태",
-                                    value = "${selectedSet.items[index]} · $completed / ${everyValue}장",
+                                    value = "${selectedSet.items[index]} · ${completed}/${everyValue}장",
                                     onClick = { showPhraseProgress = true },
                                 )
-                                Text("${everyValue - completed}장 더 촬영하면 ${selectedSet.items[(index + 1) % selectedSet.items.size]}",
-                                    style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
                     else -> Unit
                 }
 
-                TableEditorSettingRow(
+            }
+            // Keep common cell-type controls below the scrollable details.
+            if (!compactInput) {
+                HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
+                TableEditorCompactSettingRow(
                     label = "셀 종류",
                     value = cell.type.label,
                     valueIcon = cell.type.choiceIcon(),

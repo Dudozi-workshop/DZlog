@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.domain.naming
 
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.domain.table.ResolvedCell
+import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickCellValues
 import org.junit.Assert.*
 import org.junit.Test
@@ -41,7 +42,14 @@ class NamingCellPreviewTest {
             cellId = "n", dataType = TableCellDataType.NUMBER, rawText = "1")),
             fileNameSlotDrafts = listOf(cell("n")), pathSlotDrafts = listOf(cell("n")))
         val edited = updateQuickCellValues(template, mapOf("n" to "-4.00"))
-        val cells = listOf(resolved("n", edited.cells.single().rawText, TableCellDataType.NUMBER))
+        // The inactive TEXT draft remains separate; resolved NUMBER content drives naming.
+        assertEquals("1", edited.cells.single().rawText)
+        assertEquals("-4.00", edited.cells.single().numberDraft)
+        val cells = TableResolver().plan(
+            cells = edited.cells,
+            captureNow = Date(0),
+            config = TableResolver.Config(4, "yyyyMMdd", "HHmm"),
+        ).resolvedCells
         val file = preview(true, "n", cells, edited.fileNameSlotDrafts, counter = null)
         val path = preview(false, "n", cells, edited.pathSlotDrafts)
         assertEquals("-4.00.jpg", file.text)

@@ -28,7 +28,9 @@ class QuickCellValuePolicyTest {
         assertEquals(template.colWeights, changed.colWeights)
         assertEquals(template.fileNameSlotDrafts, changed.fileNameSlotDrafts)
         assertEquals("old", template.cells[0].rawText)
-        assertEquals("-", updateQuickCellValues(changed, mapOf("number" to "-")).cells[1].rawText)
+        val editedNumber = updateQuickCellValues(changed, mapOf("number" to "-")).cells[1]
+        assertEquals("-", editedNumber.numberDraft)
+        assertEquals("", editedNumber.rawText)
     }
 
     @Test fun legacyLockedTextAndNumberRemainEditable() {

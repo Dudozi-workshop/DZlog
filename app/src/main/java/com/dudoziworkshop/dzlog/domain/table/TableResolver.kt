@@ -93,7 +93,7 @@ class TableResolver {
             }
 
             TableCellDataType.NUMBER -> {
-                val t = cell.rawText.trim()
+                val t = (cell.numberDraft ?: cell.rawText).trim()
                 ResolvedCell(
                     id = cell.cellId,
                     type = cell.dataType,

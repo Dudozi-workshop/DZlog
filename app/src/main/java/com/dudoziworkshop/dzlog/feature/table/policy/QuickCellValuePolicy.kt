@@ -22,9 +22,12 @@ internal fun updateQuickCellValues(template: TableTemplateState, values: Map<Str
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
         when {
-            text == null || text == cell.rawText -> cell
+            text == null -> cell
+            cell.dataType == TableCellDataType.TEXT && text == cell.rawText -> cell
+            cell.dataType == TableCellDataType.NUMBER && text == (cell.numberDraft ?: cell.rawText) -> cell
             cell.dataType == TableCellDataType.TEXT -> cell.copy(rawText = text, typedValue = CellValue.Text(text))
-            cell.dataType == TableCellDataType.NUMBER -> cell.copy(rawText = text, typedValue = CellValue.Number(text))
+            cell.dataType == TableCellDataType.NUMBER ->
+                cell.copy(numberDraft = text, typedValue = CellValue.Number(text))
             else -> cell
         }
     })

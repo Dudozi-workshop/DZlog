@@ -25,16 +25,16 @@ internal fun TableEditorCellTypeSheet(
     onSelect: (TableEditorCellType) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    DDZBottomSheet(title = "셀에 무엇을 표시할까요?", onDismiss = onDismiss) {
+    DDZBottomSheet(title = "셀 종류", onDismiss = onDismiss) {
         Column(
             modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             TableEditorCellType.entries.chunked(2).forEach { types ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     types.forEach { type ->
                         val isSelected = type == selectedType
@@ -42,7 +42,10 @@ internal fun TableEditorCellTypeSheet(
                             text = type.label + if (isSelected) " ✓" else "",
                             leadingIcon = type.choiceIcon(),
                             modifier = Modifier.weight(1f).semantics { selected = isSelected },
-                            minHeight = 56.dp,
+                            minHeight = 52.dp,
+                            horizontalPadding = 8.dp,
+                            leadingIconSize = 18.dp,
+                            leadingIconSpacing = 6.dp,
                             style = DDZButtonStyle.Secondary,
                             containerColorOverride = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
                             onClick = { onSelect(type) },

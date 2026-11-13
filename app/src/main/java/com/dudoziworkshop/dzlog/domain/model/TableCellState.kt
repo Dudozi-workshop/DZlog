@@ -43,6 +43,11 @@ data class TableCellState(
     /** Legacy serialized flag retained for template and backup compatibility; quick edit no longer checks it. */
     val quickEditable: Boolean = true,
 
+    /** Inactive type drafts persist independently from the active type. */
+    val numberDraft: String? = null,
+    val counterSeedDraft: Int? = null,
+    val dateFormatDraft: String? = null,
+
 ) {
     /**
      * UI(TextField)에 넣을 "편집용 문자열".
@@ -54,7 +59,7 @@ data class TableCellState(
     fun toEditableText(): String {
         return when (dataType) {
             TableCellDataType.TEXT -> rawText
-            TableCellDataType.NUMBER -> rawText
+            TableCellDataType.NUMBER -> numberDraft ?: rawText
             TableCellDataType.COUNTER -> when (val v = typedValue) {
                 is CellValue.CounterSeed -> v.start.toString()
                 else -> "1"
