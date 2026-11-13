@@ -37,6 +37,7 @@ import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
+import com.dudoziworkshop.dzlog.feature.table.policy.rotatingPhraseSetSummary
 
 @Composable
 internal fun TableEditorPhraseSetSheet(
@@ -114,10 +115,7 @@ internal fun TableEditorPhraseSetSheet(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(set.name, color = DDZColor.TextPrimary,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    val separateCount = set.itemEveryOverrides
-                                        .take(set.items.size).count { it != null }
-                                    val summary = "문구 ${set.items.size}개 · 기본 ${set.defaultEvery}장" +
-                                        if (separateCount > 0) " · 별도 주기 ${separateCount}개" else ""
+                                    val summary = rotatingPhraseSetSummary(set)
                                     Text(
                                         summary,
                                         color = DDZColor.TextSecondary,

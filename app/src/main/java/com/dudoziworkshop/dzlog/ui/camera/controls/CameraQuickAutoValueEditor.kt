@@ -35,6 +35,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.quickDateFormats
+import com.dudoziworkshop.dzlog.feature.table.policy.rotatingPhraseSetSummary
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -169,17 +170,27 @@ internal fun CameraQuickAutoValueEditor(
                     QuickValuePicker.PHRASE_SET -> {
                         availableSets.forEach { set ->
                             val isSelected = set.id == cell.phraseSetId
-                            DDZButton(
-                                text = set.name,
-                                modifier = Modifier.fillMaxWidth().semantics { selected = isSelected },
-                                style = DDZButtonStyle.Secondary,
-                                containerColorOverride = if (isSelected) DDZColor.SelectedSoft else null,
-                                enabled = enabled,
+                            Surface(
                                 onClick = {
                                     onPhraseSet(set.id)
                                     picker = null
                                 },
-                            )
+                                modifier = Modifier.fillMaxWidth().semantics { selected = isSelected },
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, if (isSelected) DDZColor.SageBorder else DDZColor.Border),
+                                color = if (isSelected) DDZColor.SelectedSoft else DDZColor.Surface,
+                                enabled = enabled,
+                            ) {
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(set.name, style = DDZTypography.Body,
+                                        color = DDZColor.TextPrimary, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis)
+                                    Text(rotatingPhraseSetSummary(set), style = DDZTypography.Caption,
+                                        color = DDZColor.TextSecondary, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis)
+                                }
+                            }
                         }
                     }
 

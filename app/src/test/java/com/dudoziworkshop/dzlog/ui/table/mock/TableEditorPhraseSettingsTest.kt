@@ -10,10 +10,10 @@ class TableEditorPhraseSettingsTest {
         phraseSetId = set.id, phraseIndex = 2, phraseCompletedShots = 5)
     private val template = TableTemplateState(1, 1, listOf(cell), phraseSets = listOf(set))
 
-    @Test fun period_change_keeps_item_and_restarts_its_completed_count() {
+    @Test fun period_change_keeps_item_and_its_completed_count() {
         val next = applyMockPhraseEvery(template, cell.cellId, 6).cells.single()
         assertEquals(2, next.phraseIndex)
-        assertEquals(0, next.phraseCompletedShots)
+        assertEquals(5, next.phraseCompletedShots)
         assertEquals(6, next.everyOverride)
     }
 
@@ -73,7 +73,7 @@ class TableEditorPhraseSettingsTest {
         assertEquals(counter, updated.cells[3])
     }
 
-    @Test fun perItemPeriodUpdatesOnlyResetAffectedInheritedCells() {
+    @Test fun perItemPeriodUpdatesPreserveProgressUntilConflictIsResolved() {
         val inheritedCurrent = cell.copy(cellId = "inherited-current", colIndex = 0,
             phraseIndex = 2, phraseCompletedShots = 5, everyOverride = null)
         val inheritedOther = cell.copy(cellId = "inherited-other", colIndex = 1,
@@ -85,8 +85,10 @@ class TableEditorPhraseSettingsTest {
         val changed = updateMockPhraseSet(working, set.id) {
             com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.setEvery(it, 2, 3)
         }
-        assertEquals(0, changed.cells[0].phraseCompletedShots)
+        assertEquals(5, changed.cells[0].phraseCompletedShots)
         assertEquals(2, changed.cells[0].phraseIndex)
+        assertEquals(1, com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts(
+            working, changed).size)
         assertEquals(inheritedOther, changed.cells[1])
         assertEquals(fixedCurrent, changed.cells[2])
         assertEquals(3, changed.phraseSets.single().everyForItem(2))
