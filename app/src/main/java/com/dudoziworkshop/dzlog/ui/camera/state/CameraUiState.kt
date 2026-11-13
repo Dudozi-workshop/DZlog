@@ -70,6 +70,7 @@ internal class CaptureUiState {
     val captureGate: AtomicBoolean = AtomicBoolean(false)
 
     var tapFocusUi by mutableStateOf<TapFocusUiState?>(null)
+    var focusControlsCollapseToken by mutableIntStateOf(0)
     var now by mutableStateOf(Date())
     var actualZoomTenths by mutableIntStateOf(10)
     var maxZoomTenths by mutableIntStateOf(20)

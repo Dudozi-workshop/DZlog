@@ -45,6 +45,9 @@ object DDZColor {
     // Camera / overlay exception tokens
     val OverlayScrim = Color(0xFF2D2926)
     val OverlayText = Color.White
+    // Brighter sage-lime for an AF/AE-locked camera overlay: visibly distinct
+    // from white controls even over foliage and dark preview backgrounds.
+    val CameraFocusLocked = Color(0xFFACDB72)
 
     // Compatibility aliases. Remove gradually as screens migrate to semantic names.
     val Card = SurfaceSoft

@@ -8,6 +8,8 @@ import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import android.graphics.RectF
 import android.util.Log
 import android.view.View
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.camera.core.Camera
 import androidx.camera.core.ImageCapture
 import androidx.camera.view.PreviewView
@@ -50,8 +52,13 @@ import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.domain.watermark.WatermarkBuilder
 import com.dudoziworkshop.dzlog.ui.camera.controller.bindCamera
+import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
+import com.dudoziworkshop.dzlog.ui.camera.interop.requestTapAeLock
+import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
+import kotlinx.coroutines.delay
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.max
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 
 /**
@@ -71,10 +78,10 @@ internal fun CameraPreviewArea(
     isTableLocked: Boolean,
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
+    focusControlsCollapseToken: Int = 0,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
-    val scope = args.scope
     val captureAspect = args.captureAspect
 
     var previewLogged by remember { mutableStateOf(false) }
@@ -119,6 +126,202 @@ internal fun CameraPreviewArea(
         val liveWatermarkBounds = rememberUpdatedState(watermarkBoundsRect)
         val liveWatermarkRawRect = rememberUpdatedState(watermarkRawRect)
         val liveHandleCorner = rememberUpdatedState(activeHandleCorner)
+        // Asynchronous CameraX/Camera2 callbacks must not apply to a rebound camera.
+        val liveBoundCamera = rememberUpdatedState(boundCamera)
+        val liveFocusMode = rememberUpdatedState(args.focusMode)
+        val liveTapFocusUi = rememberUpdatedState(tapFocusUi)
+        val previewAlive = remember { AtomicBoolean(true) }
+        var aeLocked by remember { mutableStateOf(false) }
+        var lockRequestInFlight by remember { mutableStateOf(false) }
+        var focusControlsExpanded by remember { mutableStateOf(false) }
+        var awaitingLockedRefocusTap by remember { mutableStateOf(false) }
+        var exposureInteracting by remember { mutableStateOf(false) }
+        var focusInteractionId by remember { mutableIntStateOf(0) }
+        var focusRequestId by remember { mutableIntStateOf(0) }
+        var exposureRequestId by remember { mutableIntStateOf(0) }
+        var exposureIndex by remember { mutableIntStateOf(0) }
+
+        val exposureState = boundCamera?.cameraInfo?.exposureState
+        val exposureSupported = exposureState?.isExposureCompensationSupported == true
+        val minExposureIndex = exposureState?.exposureCompensationRange?.lower ?: 0
+        val maxExposureIndex = exposureState?.exposureCompensationRange?.upper ?: 0
+
+        // Release transient Camera2 control when leaving the preview/rebinding.
+        // Keep these changes scoped to the old camera rather than a new binding.
+        DisposableEffect(boundCamera) {
+            val oldCamera = boundCamera
+            onDispose {
+                if (oldCamera != null) {
+                    requestTapAeLock(context, oldCamera, false) { }
+                    runCatching { oldCamera.cameraControl.setExposureCompensationIndex(0) }
+                    runCatching { oldCamera.cameraControl.cancelFocusAndMetering() }
+                }
+            }
+        }
+        DisposableEffect(Unit) {
+            onDispose { previewAlive.set(false) }
+        }
+
+        // Hardware and transient UI are scoped to the bound camera.
+        LaunchedEffect(boundCamera, args.focusMode) {
+            aeLocked = false
+            lockRequestInFlight = false
+            focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
+            exposureInteracting = false
+            focusInteractionId += 1
+            focusRequestId += 1
+            exposureRequestId += 1
+            exposureIndex = boundCamera?.cameraInfo?.exposureState?.exposureCompensationIndex ?: 0
+            onTapFocusUiChange(null)
+            if (args.focusMode != CameraFocusMode.AUTO && boundCamera != null) {
+                // Switching to the existing manual-focus tool must clear AE lock/EV.
+                requestTapAeLock(context, boundCamera, false) { }
+                runCatching { boundCamera.cameraControl.setExposureCompensationIndex(0) }
+                exposureIndex = 0
+            }
+        }
+
+        LaunchedEffect(focusControlsCollapseToken) {
+            focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
+            if (!aeLocked) onTapFocusUiChange(null)
+        }
+
+        LaunchedEffect(
+            focusControlsExpanded, focusInteractionId, aeLocked,
+            tapFocusUi, exposureInteracting, lockRequestInFlight,
+        ) {
+            // Wait until AF finishes before starting the 800ms result hold.
+            // Slider gestures and AE-lock transactions suspend this timer.
+            val currentFocus = tapFocusUi ?: return@LaunchedEffect
+            if (!focusControlsExpanded || exposureInteracting || lockRequestInFlight) {
+                return@LaunchedEffect
+            }
+            delay(focusCollapseDelayMs(currentFocus.phase))
+            if (currentFocus.phase == FocusRingPhase.FOCUSING) {
+                // Hardware did not answer within 2s. Ignore a late callback
+                // instead of reopening controls or flashing an old result.
+                focusRequestId += 1
+                if (aeLocked) {
+                    // Keep the small locked ring but stop its focus pulse.
+                    onTapFocusUiChange(currentFocus.copy(phase = FocusRingPhase.TIMED_OUT))
+                }
+            }
+            focusControlsExpanded = false
+            awaitingLockedRefocusTap = false
+            if (!aeLocked) onTapFocusUiChange(null)
+        }
+
+        fun requestExposureIndex(nextIndex: Int, force: Boolean = false) {
+            val activeCamera = boundCamera ?: return
+            if (!exposureSupported) return
+            val next = nextIndex.coerceIn(minExposureIndex, maxExposureIndex)
+            if (next == exposureIndex && !force) return
+            exposureIndex = next
+            focusInteractionId += 1
+            val id = ++exposureRequestId
+            val future = runCatching { activeCamera.cameraControl.setExposureCompensationIndex(next) }.getOrNull()
+            if (future == null) {
+                exposureIndex = activeCamera.cameraInfo.exposureState.exposureCompensationIndex
+                return
+            }
+            future.addListener({
+                if (previewAlive.get() && id == exposureRequestId && liveBoundCamera.value === activeCamera) {
+                    exposureIndex = runCatching { future.get() }
+                        .getOrElse { activeCamera.cameraInfo.exposureState.exposureCompensationIndex }
+                }
+            }, ContextCompat.getMainExecutor(context))
+        }
+
+
+        fun requestFocusAt(
+            xPx: Float,
+            yPx: Float,
+            locked: Boolean,
+            resetExposure: Boolean = true,
+        ) {
+            val activeCamera = boundCamera ?: return
+            // A newly chosen AF point starts from neutral EV, including a
+            // locked refocus. Locking the existing point is not a new choice.
+            if (resetExposure) requestExposureIndex(0, force = true)
+            awaitingLockedRefocusTap = false
+            val id = ++focusRequestId
+            focusInteractionId += 1
+            focusControlsExpanded = true
+            onTapFocusUiChange(TapFocusUiState(xPx, yPx, FocusRingPhase.FOCUSING))
+            startTapToFocus(
+                context = context,
+                camera = activeCamera,
+                previewView = previewView,
+                xPx = xPx,
+                yPx = yPx,
+                locked = locked,
+                onResult = { success ->
+                    if (previewAlive.get() && id == focusRequestId && liveBoundCamera.value === activeCamera && liveFocusMode.value == CameraFocusMode.AUTO) {
+                        onTapFocusUiChange(
+                            TapFocusUiState(xPx, yPx,
+                                if (success) FocusRingPhase.SUCCESS else FocusRingPhase.FAILED)
+                        )
+                    }
+                },
+            )
+        }
+
+        val focusTapCallbackState = rememberUpdatedState<(Float, Float) -> Unit> { x, y ->
+            if (aeLocked) {
+                when (lockedFocusTapAction(focusControlsExpanded, awaitingLockedRefocusTap)) {
+                    LockedFocusTapAction.SHOW_EXPOSURE -> {
+                        // Do not change the locked AF position or EV yet.
+                        awaitingLockedRefocusTap = true
+                        focusControlsExpanded = true
+                        focusInteractionId += 1
+                    }
+                    LockedFocusTapAction.REFOCUS -> {
+                        requestFocusAt(x, y, locked = true)
+                    }
+                }
+            } else {
+                requestFocusAt(x, y, locked = false)
+            }
+        }
+
+        fun toggleFocusExposureLock() {
+            val activeCamera = boundCamera ?: return
+            if (lockRequestInFlight || args.focusMode != CameraFocusMode.AUTO) return
+            val desired = !aeLocked
+            lockRequestInFlight = true
+            requestTapAeLock(context, activeCamera, desired) { applied ->
+                if (!previewAlive.get() ||
+                    liveBoundCamera.value !== activeCamera ||
+                    liveFocusMode.value != CameraFocusMode.AUTO) {
+                    // A stale lock completion must not affect the next camera session.
+                    if (applied && desired) requestTapAeLock(context, activeCamera, false) { }
+                    return@requestTapAeLock
+                }
+                lockRequestInFlight = false
+                if (!applied) {
+                    Toast.makeText(context, "이 기기에서는 노출 잠금을 사용할 수 없습니다.", Toast.LENGTH_SHORT).show()
+                    return@requestTapAeLock
+                }
+                aeLocked = desired
+                awaitingLockedRefocusTap = false
+                focusInteractionId += 1
+                if (desired) {
+                    // Reapply an AF-only metering point without a timeout, while
+                    // preserving the exposure frozen by Camera2 AE lock.
+                    liveTapFocusUi.value?.let {
+                        requestFocusAt(it.xPx, it.yPx, locked = true, resetExposure = false)
+                    }
+                } else {
+                    focusRequestId += 1
+                    runCatching { activeCamera.cameraControl.cancelFocusAndMetering() }
+                    focusControlsExpanded = false
+                    onTapFocusUiChange(null)
+                }
+            }
+        }
+
 
         fun commitWatermarkOffsetIfNeeded() {
             args.onWatermarkOffsetRatioCommit(previewOffsetX, previewOffsetY)
@@ -240,12 +443,10 @@ internal fun CameraPreviewArea(
         val gestureModifier = Modifier
             .fillMaxSize()
             .cameraPreviewGestureModifier(
-                context = context,
-                scope = scope,
                 previewView = previewView,
                 boundCamera = boundCamera,
                 captureRect = captureRect,
-                tapFocusUi = tapFocusUi,
+                focusTapCallbackState = focusTapCallbackState,
                 focusMode = args.focusMode,
                 suppressWatermarkTapUntilMs = suppressWatermarkTapUntilMs,
                 watermarkBoundsRectState = liveWatermarkBounds,
@@ -258,7 +459,6 @@ internal fun CameraPreviewArea(
                 dragTableWidthPx = dragTableWidthPx,
                 dragTableHeightPx = dragTableHeightPx,
                 dragPreviewOffsetPx = dragPreviewOffsetPx,
-                onTapFocusUiChange = onTapFocusUiChange,
                 onCommitWatermarkOffsetIfNeeded = ::commitWatermarkOffsetIfNeeded,
                 onWatermarkArmedChange = onTableSelectionChange,
                 onWatermarkDragActiveChange = { watermarkDragActive = it },
@@ -433,7 +633,11 @@ internal fun CameraPreviewArea(
                     tapFocusUi = if (LocalTutorialReadOnly.current && LocalTutorialLocation.current?.pageId == "focus") {
                         TapFocusUiState(previewBoxWidthPx * 0.60f, previewBoxHeightPx * 0.60f,
                             if (LocalTutorialDemoProgress.current < 0.5f) FocusRingPhase.FOCUSING else FocusRingPhase.SUCCESS)
-                    } else tapFocusUi,
+                    } else if (capturedUri != null) null else tapFocusUi,
+                    tapFocusLocked = aeLocked,
+                    tapFocusCompact = !focusControlsExpanded,
+                    tapFocusShowLock = (aeLocked || focusControlsExpanded) &&
+                        !LocalTutorialReadOnly.current,
                     isWatermarkArmed = isWatermarkArmed,
                     isTableLocked = isTableLocked,
                     watermarkOffsetOverridePx = effectiveOverrideOffsetPx,
@@ -460,6 +664,29 @@ internal fun CameraPreviewArea(
                 )
 
                 Box(modifier = gestureModifier)
+
+                // Interactive camera controls sit ABOVE the preview tap layer.
+                // They do not cover the rest of the preview or interfere with
+                // table dragging, pinch zoom, or the capture button.
+                if (args.focusMode == CameraFocusMode.AUTO && capturedUri == null) {
+                    FocusRingControlsOverlay(
+                        focus = tapFocusUi,
+                        locked = aeLocked,
+                        expanded = focusControlsExpanded,
+                        exposureIndex = exposureIndex,
+                        minExposureIndex = minExposureIndex,
+                        maxExposureIndex = maxExposureIndex,
+                        exposureSupported = exposureSupported,
+                        onToggleLock = ::toggleFocusExposureLock,
+                        onExposureIndexChange = ::requestExposureIndex,
+                        onExposureInteractionChange = { exposureInteracting = it },
+                        onRequestExpand = {
+                            focusControlsExpanded = true
+                            if (aeLocked) awaitingLockedRefocusTap = true
+                            focusInteractionId += 1
+                        },
+                    )
+                }
             }
         }
     }

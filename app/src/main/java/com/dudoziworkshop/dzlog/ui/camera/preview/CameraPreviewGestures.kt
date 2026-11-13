@@ -1,6 +1,5 @@
 package com.dudoziworkshop.dzlog.ui.camera.preview
 
-import android.content.Context
 import android.graphics.RectF
 import android.os.SystemClock
 import androidx.camera.core.Camera
@@ -16,22 +15,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
-import com.dudoziworkshop.dzlog.ui.camera.controller.startTapToFocus
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFocusMode
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 internal fun Modifier.cameraPreviewGestureModifier(
-    context: Context,
-    scope: CoroutineScope,
     previewView: PreviewView,
     boundCamera: Camera?,
     captureRect: RectF,
-    tapFocusUi: TapFocusUiState?,
     focusMode: CameraFocusMode,
     suppressWatermarkTapUntilMs: Long,
     watermarkBoundsRectState: State<RectF?>,
@@ -44,7 +36,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     dragTableWidthPx: Float,
     dragTableHeightPx: Float,
     dragPreviewOffsetPx: Offset?,
-    onTapFocusUiChange: (TapFocusUiState?) -> Unit,
+    focusTapCallbackState: State<(Float, Float) -> Unit>,
     onCommitWatermarkOffsetIfNeeded: () -> Unit,
     onWatermarkArmedChange: (Boolean) -> Unit,
     onWatermarkDragActiveChange: (Boolean) -> Unit,
@@ -69,7 +61,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
     activeHandleCornerState: State<ResizeHandleCorner?>,
     onActiveHandleCornerChange: (ResizeHandleCorner?) -> Unit,
 ): Modifier = this
-    .pointerInput(boundCamera, captureRect, tapFocusUi, focusMode, isWatermarkArmed) {
+    .pointerInput(boundCamera, captureRect, focusMode, isWatermarkArmed) {
         detectTapGestures { offset ->
             if (SystemClock.uptimeMillis() < suppressWatermarkTapUntilMs) return@detectTapGestures
             if (watermarkBoundsRectState.value?.contains(offset.x, offset.y) == true) {
@@ -84,31 +76,7 @@ internal fun Modifier.cameraPreviewGestureModifier(
             val activeCamera = boundCamera ?: return@detectTapGestures
             if (!captureRect.contains(offset.x, offset.y)) return@detectTapGestures
 
-            onTapFocusUiChange(
-                TapFocusUiState(
-                    xPx = offset.x,
-                    yPx = offset.y,
-                    phase = FocusRingPhase.FOCUSING
-                )
-            )
-            startTapToFocus(
-                context = context,
-                camera = activeCamera,
-                previewView = previewView,
-                xPx = offset.x,
-                yPx = offset.y,
-                onResult = { success ->
-                    scope.launch {
-                        if (success) {
-                            onTapFocusUiChange(TapFocusUiState(offset.x, offset.y, FocusRingPhase.SUCCESS))
-                            delay(350)
-                        } else {
-                            delay(200)
-                        }
-                        onTapFocusUiChange(null)
-                    }
-                }
-            )
+            focusTapCallbackState.value(offset.x, offset.y)
         }
     }
     .pointerInput(boundCamera, captureRect, isWatermarkArmed, isTableLocked) {
