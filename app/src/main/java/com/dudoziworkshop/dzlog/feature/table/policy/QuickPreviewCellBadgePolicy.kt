@@ -32,8 +32,10 @@ internal fun quickPreviewCellBadgePlan(
     insetPx: Float,
     links: QuickCellLinks,
 ): QuickPreviewCellBadgePlan {
-    val size = idealSizePx.coerceAtLeast(minimumSizePx).coerceAtLeast(1f)
     val inset = insetPx.coerceAtLeast(0f)
+    // Use available width before stacking right-side links; never suppress markers.
+    val fitSize = (widthPx - inset * 3f) / 2f
+    val size = minOf(idealSizePx, fitSize).coerceAtLeast(minimumSizePx).coerceAtLeast(1f)
     val fullRowWidth = (1 + links.count) * size + (links.count * inset) + 2f * inset
     return QuickPreviewCellBadgePlan(
         sizePx = size,

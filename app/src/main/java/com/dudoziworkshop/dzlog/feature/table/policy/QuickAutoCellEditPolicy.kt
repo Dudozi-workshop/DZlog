@@ -31,28 +31,19 @@ internal fun selectQuickPhraseItem(
     })
 }
 
-/**
- * A fixed value is always stored explicitly, even when it equals the set's
- * current default. "전체 설정" is the ONLY way back to inherited per-item rules.
- */
+/** A fixed cell value keeps progress; overflow requires the caller's adjustment dialog. */
 internal fun updateQuickPhraseEvery(
     template: TableTemplateState,
     cellId: String,
     every: Int,
 ): TableTemplateState {
-    if (every !in 1..RotatingPhraseSet.MAX_EVERY) return template
-    val cell = template.cells.firstOrNull {
-        it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
-    } ?: return template
-    val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
-        ?.takeIf { it.items.isNotEmpty() } ?: return template
-    if (cell.everyOverride == every) return template
-    return template.copy(cells = template.cells.map {
-        if (it.cellId == cellId) it.copy(everyOverride = every, phraseCompletedShots = 0) else it
-    })
+    val updated = applyQuickPhrasePeriodEdit(
+        template, QuickPhrasePeriodEdit(cellId, false, every),
+    ) ?: return template
+    return if (updated == template) template else updated
 }
 
-/** Switch just this cell to the saved set's default and per-phrase intervals. */
+/** Return this cell to the set's default/per-item periods, without clearing its count. */
 internal fun followQuickPhraseSetPeriods(
     template: TableTemplateState,
     cellId: String,
@@ -60,12 +51,13 @@ internal fun followQuickPhraseSetPeriods(
     val cell = template.cells.firstOrNull {
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
-    if (cell.everyOverride == null || template.phraseSets.none {
-            it.id == cell.phraseSetId && it.items.isNotEmpty()
-        }) return template
-    return template.copy(cells = template.cells.map {
-        if (it.cellId == cellId) it.copy(everyOverride = null, phraseCompletedShots = 0) else it
-    })
+    if (cell.everyOverride == null) return template
+    val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }
+        ?: return template
+    val updated = applyQuickPhrasePeriodEdit(
+        template, QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
+    ) ?: return template
+    return if (updated == template) template else updated
 }
 
 /** Completed captures must remain below the effective cycle length. */
