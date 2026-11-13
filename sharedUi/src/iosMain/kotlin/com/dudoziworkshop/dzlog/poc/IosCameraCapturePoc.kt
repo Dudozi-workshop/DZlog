@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Image as SkiaImage
 import platform.Foundation.NSUUID
 import platform.CoreGraphics.CGRectMake
 import platform.UIKit.UIView
@@ -78,6 +79,17 @@ internal fun IosCameraCapturePoc(
     var showInfo by remember { mutableStateOf(false) }
     var showQuickValues by remember { mutableStateOf(false) }
     var showTools by remember { mutableStateOf(false) }
+    var showGrid by remember(session) { mutableStateOf(session?.showCameraGrid ?: false) }
+    var showTable by remember(session) { mutableStateOf(session?.showCameraTable ?: true) }
+    var assistShutterEnabled by remember(session) {
+        mutableStateOf(session?.assistShutterEnabled ?: false)
+    }
+    var assistShutterXRatio by remember(session) {
+        mutableFloatStateOf(session?.assistShutterXRatio ?: 0.82f)
+    }
+    var assistShutterYRatio by remember(session) {
+        mutableFloatStateOf(session?.assistShutterYRatio ?: 0.62f)
+    }
     var zoom by remember { mutableFloatStateOf(1f) }
     var flash by remember { mutableIntStateOf(0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
@@ -177,7 +189,7 @@ internal fun IosCameraCapturePoc(
     val recentThumbnail by produceState<ImageBitmap?>(initialValue = null,
         latestSessionCaptureId, successfulSaves) {
         value = session?.readLatestSessionThumbnail()?.let { bytes ->
-            runCatching { Image.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
+            runCatching { SkiaImage.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
         }
     }
     if (showInfo && session != null && info != null) HomeSaveInfoSheet(
@@ -271,6 +283,8 @@ internal fun IosCameraCapturePoc(
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 enabled = !busy && !session.hasPending() && !showTools,
+                showGrid = showGrid,
+                showTable = showTable,
                 revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
@@ -300,12 +314,44 @@ internal fun IosCameraCapturePoc(
                     if (camera.setFlash(next)) flash = next
                 },
                 onZoomChange = { if (camera.setZoom(it)) zoom = it },
+                showGrid = showGrid,
+                showTable = showTable,
+                assistShutterEnabled = assistShutterEnabled,
+                onToggleGrid = {
+                    val next = !showGrid
+                    if (session == null || session.setShowCameraGrid(next)) showGrid = next
+                    else status = "격자 표시 설정을 저장하지 못했습니다."
+                },
+                onToggleTable = {
+                    val next = !showTable
+                    if (session == null || session.setShowCameraTable(next)) showTable = next
+                    else status = "표 미리보기 설정을 저장하지 못했습니다."
+                },
+                onToggleAssistShutter = {
+                    val next = !assistShutterEnabled
+                    if (session == null || session.setAssistShutterEnabled(next)) assistShutterEnabled = next
+                    else status = "보조 셔터 설정을 저장하지 못했습니다."
+                },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             ) else IosCameraZoomChip(
                 zoom = zoom,
                 enabled = ready && !busy && camera.maximumZoom > 1f,
                 onClick = { showTools = true },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+            )
+            IosFloatingAssistShutter(
+                visible = assistShutterEnabled && !showTools && !overlayEditing,
+                captureEnabled = captureEnabled,
+                xRatio = assistShutterXRatio,
+                yRatio = assistShutterYRatio,
+                onPositionRatioChange = { x, y ->
+                    if (session == null || session.setAssistShutterPosition(x, y)) {
+                        assistShutterXRatio = x
+                        assistShutterYRatio = y
+                    } else status = "보조 셔터 위치를 저장하지 못했습니다."
+                },
+                onCapture = triggerCapture,
+                modifier = Modifier.fillMaxSize(),
             )
         }
         IosCameraBottomBar(

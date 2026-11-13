@@ -11,9 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
@@ -130,9 +133,15 @@ internal fun IosCameraToolPanel(
     flashLabel: String,
     zoom: Float,
     maximumZoom: Float,
+    showGrid: Boolean,
+    showTable: Boolean,
+    assistShutterEnabled: Boolean,
     onAutoFocus: () -> Unit,
     onCycleFlash: () -> Unit,
     onZoomChange: (Float) -> Unit,
+    onToggleGrid: () -> Unit,
+    onToggleTable: () -> Unit,
+    onToggleAssistShutter: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -148,6 +157,17 @@ internal fun IosCameraToolPanel(
                     ready && flashAvailable, onCycleFlash)
                 CameraToolStatus("줌 ${formatIosZoom(zoom)}배", Icons.Default.Tune,
                     ready && maximumZoom > 1f)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                CameraToolAction(if (showGrid) "격자 숨기기" else "격자 표시", Icons.Default.GridOn,
+                    true, onToggleGrid, selected = showGrid)
+                CameraToolAction(if (showTable) "표 숨기기" else "표 표시", Icons.Default.TableChart,
+                    true, onToggleTable, selected = showTable)
+                CameraToolAction(
+                    if (assistShutterEnabled) "보조 셔터 끄기" else "보조 셔터 켜기",
+                    Icons.Default.CameraAlt, true, onToggleAssistShutter,
+                    selected = assistShutterEnabled,
+                )
             }
             Slider(
                 value = zoom.coerceIn(1f, maxOf(1.01f, maximumZoom)),
@@ -180,13 +200,14 @@ private fun RowScope.CameraToolAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
+    selected: Boolean = false,
 ) {
     TextButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.weight(1f),
         colors = ButtonDefaults.textButtonColors(
-            contentColor = DDZColor.OverlayText,
+            contentColor = if (selected) DDZColor.SageLight else DDZColor.OverlayText,
             disabledContentColor = DDZColor.OverlayText.copy(alpha = 0.38f),
         ),
     ) {

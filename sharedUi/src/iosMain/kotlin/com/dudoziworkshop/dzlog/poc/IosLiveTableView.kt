@@ -22,6 +22,8 @@ internal fun IosLiveTablePreview(
     previewLayer: AVCaptureVideoPreviewLayer? = null,
     fixtureAspect: Double? = null,
     enabled: Boolean,
+    showGrid: Boolean = false,
+    showTable: Boolean = true,
     revision: Int,
     onReady: (Boolean) -> Unit,
     onEditing: (Boolean) -> Unit,
@@ -45,7 +47,8 @@ internal fun IosLiveTablePreview(
         properties = UIKitInteropProperties(interactionMode = UIKitInteropInteractionMode.NonCooperative,
             isNativeAccessibilityEnabled = true),
         update = {
-            it.bind(placement, enabled, revision, session::renderLiveOverlay, session::savePlacement,
+            it.bind(placement, enabled, showGrid, showTable, revision,
+                session::renderLiveOverlay, session::savePlacement,
                 onReady, onEditing, onSaved, onError)
         })
 }
@@ -55,6 +58,7 @@ internal class IosLiveTableView(
     private val fixtureAspect: Double?,
 ) : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
     private val image = UIImageView()
+    private val gridLines = List(4) { UIView() }
     private val moveHandle = UIView()
     private val resizeHandle = UILabel()
     private val target = LiveTableGestureTarget(this)
@@ -63,6 +67,8 @@ internal class IosLiveTableView(
     private var placement: IosCaptureTablePlacement? = null
     private var start: IosCaptureTablePlacement? = null
     private var enabled = false
+    private var showGrid = false
+    private var showTable = true
     private var revision = -1
     private var dirty = true
     private var viewport = IosTableBounds(0f, 0f, 0f, 0f, 0f, 0f)
@@ -80,6 +86,11 @@ internal class IosLiveTableView(
         clipsToBounds = true
         backgroundColor = UIColor.blackColor
         preview?.let { layer.addSublayer(it) }
+        gridLines.forEach { line ->
+            line.backgroundColor = UIColor.whiteColor.colorWithAlphaComponent(0.42)
+            line.userInteractionEnabled = false
+            addSubview(line)
+        }
         addSubview(image)
         addSubview(moveHandle)
         addSubview(resizeHandle)
@@ -100,25 +111,28 @@ internal class IosLiveTableView(
         resizeHandle.addGestureRecognizer(resizePan)
     }
 
-    fun bind(p: IosCaptureTablePlacement?, active: Boolean, version: Int,
+    fun bind(p: IosCaptureTablePlacement?, active: Boolean, gridVisible: Boolean,
+        tableVisible: Boolean, version: Int,
         renderer: (Int, Int) -> ByteArray, writer: (IosCaptureTablePlacement) -> Boolean,
         onReady: (Boolean) -> Unit, onEditing: (Boolean) -> Unit,
         onSaved: () -> Unit, onError: (String) -> Unit) {
         render = renderer; commit = writer; ready = onReady; editing = onEditing; saved = onSaved; error = onError
-        if (start == null && (placement != p || revision != version)) {
+        if (start == null && (placement != p || revision != version ||
+                showGrid != gridVisible || showTable != tableVisible)) {
             if (placement != p) { previewReady = false; onReady(false) }
             start = null
-            placement = p; revision = version; dirty = true
+            placement = p; revision = version
+            showGrid = gridVisible; showTable = tableVisible; dirty = true
             setNeedsLayout()
         }
         if (!active && start != null) {
             start = null; dirty = true; setNeedsLayout(); onEditing(false)
         }
         enabled = active
-        moveHandle.hidden = p == null || !active
-        resizeHandle.hidden = p == null || !active
-        movePan.enabled = active && p != null
-        resizePan.enabled = active && p != null
+        moveHandle.hidden = p == null || !active || !tableVisible
+        resizeHandle.hidden = p == null || !active || !tableVisible
+        movePan.enabled = active && p != null && tableVisible
+        resizePan.enabled = active && p != null && tableVisible
     }
 
     override fun layoutSubviews() {
@@ -133,14 +147,15 @@ internal class IosLiveTableView(
             viewport = frame
             dirty = true
         }
+        updateGrid(frame)
         if (!dirty || start != null) return
         dirty = false
         image.transform = CGAffineTransformMakeTranslation(0.0, 0.0)
         image.setFrame(rect)
         val p = placement
-        moveHandle.hidden = p == null || !enabled
-        resizeHandle.hidden = p == null || !enabled
-        image.hidden = p == null
+        moveHandle.hidden = p == null || !enabled || !showTable
+        resizeHandle.hidden = p == null || !enabled || !showTable
+        image.hidden = p == null || !showTable
         if (p != null) {
             try {
                 val w = 720
@@ -159,6 +174,22 @@ internal class IosLiveTableView(
         } else image.image = null
         previewReady = true
         ready?.invoke(true)
+    }
+
+    private fun updateGrid(frame: IosTableBounds) {
+        gridLines.forEach { it.hidden = !showGrid }
+        if (!showGrid) return
+        val oneThirdW = frame.width / 3f
+        val oneThirdH = frame.height / 3f
+        val stroke = 1.0
+        gridLines[0].setFrame(CGRectMake((frame.x + oneThirdW).toDouble(), frame.y.toDouble(),
+            stroke, frame.height.toDouble()))
+        gridLines[1].setFrame(CGRectMake((frame.x + oneThirdW * 2).toDouble(), frame.y.toDouble(),
+            stroke, frame.height.toDouble()))
+        gridLines[2].setFrame(CGRectMake(frame.x.toDouble(), (frame.y + oneThirdH).toDouble(),
+            frame.width.toDouble(), stroke))
+        gridLines[3].setFrame(CGRectMake(frame.x.toDouble(), (frame.y + oneThirdH * 2).toDouble(),
+            frame.width.toDouble(), stroke))
     }
 
     private fun fixtureRect(): CValue<CGRect> {
@@ -229,6 +260,7 @@ internal class IosLiveTableView(
         resizeHandle.removeGestureRecognizer(resizePan)
         target.owner = null
         image.image = null
+        gridLines.forEach { it.removeFromSuperview() }
         render = null; commit = null; ready = null; editing = null; saved = null; error = null
         preview?.removeFromSuperlayer()
     }

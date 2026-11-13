@@ -44,6 +44,43 @@ internal class IosCameraCaptureSession(
 
     val selectedDocument get() = checkNotNull(workspace.active)
     val documents get() = workspace.documents
+    val showCameraGrid get() = workspace.settings.showCameraGrid
+    val showCameraTable get() = workspace.settings.showCameraTable
+    val assistShutterEnabled get() = workspace.settings.assistShutterEnabled
+    val assistShutterXRatio get() = workspace.settings.assistShutterXRatio
+    val assistShutterYRatio get() = workspace.settings.assistShutterYRatio
+
+    fun setShowCameraGrid(enabled: Boolean): Boolean = saveCameraPreferences(
+        workspace.settings.copy(showCameraGrid = enabled),
+    )
+
+    fun setShowCameraTable(enabled: Boolean): Boolean = saveCameraPreferences(
+        workspace.settings.copy(showCameraTable = enabled),
+    )
+
+    fun setAssistShutterEnabled(enabled: Boolean): Boolean = saveCameraPreferences(
+        workspace.settings.copy(assistShutterEnabled = enabled),
+    )
+
+    fun setAssistShutterPosition(xRatio: Float, yRatio: Float): Boolean = saveCameraPreferences(
+        workspace.settings.copy(
+            assistShutterXRatio = xRatio.coerceIn(0f, 1f),
+            assistShutterYRatio = yRatio.coerceIn(0f, 1f),
+        ),
+    )
+
+    private fun saveCameraPreferences(
+        settings: com.dudoziworkshop.dzlog.data.template.WorkspaceSettings,
+    ): Boolean {
+        if (hasPending() || store.load(selectedDocument.template) != workspace) return false
+        val updated = workspace.copy(settings = settings)
+        if (!store.save(updated)) return false
+        workspace = store.load(selectedDocument.template)
+        // Undo snapshots contain the whole workspace. Never roll a later camera preference
+        // change back as a side effect of deleting a photo.
+        sessionCaptures.clear()
+        return workspace.settings == settings
+    }
 
     suspend fun readLatestSessionThumbnail(): ByteArray? {
         val captureId = latestSessionCaptureId ?: return null

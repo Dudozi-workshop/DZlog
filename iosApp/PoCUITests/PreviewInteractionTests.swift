@@ -292,6 +292,29 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
     }
 
+    func testCameraOverlayToolsPersistThroughNativeReturn() {
+        app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("카메라 열기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        tapButton("촬영 도구")
+        tapButton("격자 표시")
+        tapButton("표 숨기기")
+        tapButton("보조 셔터 켜기")
+        XCTAssertTrue(button("격자 숨기기").exists)
+        XCTAssertTrue(button("표 표시").exists)
+        XCTAssertTrue(button("보조 셔터 끄기").exists)
+        tapButton("촬영 도구")
+        XCTAssertTrue(button("보조 셔터").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("보조 셔터").isEnabled)
+        tapButton("뒤로가기")
+        tapButton("카메라 열기")
+        tapButton("촬영 도구")
+        XCTAssertTrue(button("격자 숨기기").waitForExistence(timeout: 20))
+        XCTAssertTrue(button("표 표시").exists)
+        XCTAssertTrue(button("보조 셔터 끄기").exists)
+    }
+
     func testGalleryFolderGridViewerAndOriginalResultSwitch() {
         configureCaptureFixture("원본과 결과", merged: true)
         tapButton("촬영 저장")
