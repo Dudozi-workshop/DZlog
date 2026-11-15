@@ -37,6 +37,7 @@ internal fun FocusRingControlsOverlay(
     exposureIndex: Int,
     minExposureIndex: Int,
     maxExposureIndex: Int,
+    exposureStep: Float,
     exposureSupported: Boolean,
     onToggleLock: () -> Unit,
     onExposureIndexChange: (Int) -> Unit,
@@ -56,7 +57,7 @@ internal fun FocusRingControlsOverlay(
         val centerX = visibleFocusCenter(focus.xPx, widthPx, radius)
         val centerY = visibleFocusCenter(focus.yPx, heightPx, radius)
         val lockHitPx = with(density) { FOCUS_LOCK_TOUCH_DP.dp.toPx() }
-        val evWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() }
+        val evWidthPx = with(density) { FOCUS_EV_TOUCH_WIDTH_DP.dp.toPx() }
         val evHeightPx = with(density) { FOCUS_EV_TOUCH_HEIGHT_DP.dp.toPx() }
         // Combined with the 8dp track inset, the visible ring-to-EV-line gap
         // is about 10dp (formerly 6dp + 23dp = 29dp).
@@ -69,25 +70,6 @@ internal fun FocusRingControlsOverlay(
             exposureHeight = evHeightPx,
             gap = gapPx,
         )
-
-        if (locked && !expanded) {
-            // A small central hit area lets the user adjust EV again without
-            // moving the locked focus point. The lock itself only unlocks.
-            Box(
-                modifier = Modifier
-                    .offsetPx(
-                        centerX - with(density) { 12.dp.toPx() },
-                        centerY - with(density) { 12.dp.toPx() },
-                    )
-                    .size(24.dp)
-                    .semantics { contentDescription = "밝기 조절 열기" }
-                    .clickable(
-                        interactionSource = expandInteraction,
-                        indication = null,
-                        onClick = onRequestExpand,
-                    ),
-            )
-        }
 
         if (locked || expanded) {
             val lockX = (centerX - lockHitPx / 2f)
@@ -126,6 +108,26 @@ internal fun FocusRingControlsOverlay(
             }
         }
 
+        if (locked) {
+            // This central 36dp target is placed AFTER the 48dp lock target:
+            // the ring center wins if their invisible hit regions overlap.
+            // Only the actual lock arc unlocks; the center reopens EV.
+            Box(
+                modifier = Modifier
+                    .offsetPx(
+                        centerX - with(density) { 18.dp.toPx() },
+                        centerY - with(density) { 18.dp.toPx() },
+                    )
+                    .size(36.dp)
+                    .semantics { contentDescription = "밝기 조절 열기" }
+                    .clickable(
+                        interactionSource = expandInteraction,
+                        indication = null,
+                        onClick = onRequestExpand,
+                    ),
+            )
+        }
+
         if (expanded && exposureSupported && maxExposureIndex > minExposureIndex) {
             val evX = (centerX - evWidthPx / 2f)
                 .coerceIn(0f, (widthPx - evWidthPx).coerceAtLeast(0f))
@@ -133,6 +135,7 @@ internal fun FocusRingControlsOverlay(
                 index = exposureIndex,
                 minIndex = minExposureIndex,
                 maxIndex = maxExposureIndex,
+                exposureStep = exposureStep,
                 above = placement.exposureAbove,
                 locked = locked,
                 onIndexChange = onExposureIndexChange,
