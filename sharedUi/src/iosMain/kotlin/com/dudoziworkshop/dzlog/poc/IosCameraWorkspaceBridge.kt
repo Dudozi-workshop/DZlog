@@ -21,6 +21,7 @@ import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import org.jetbrains.skia.Image
 import platform.Foundation.NSUUID
+import kotlin.math.roundToInt
 
 /**
  * The native camera receives a snapshot of the selected iOS editor document.
@@ -49,6 +50,8 @@ internal class IosCameraCaptureSession(
     val assistShutterEnabled get() = workspace.settings.assistShutterEnabled
     val assistShutterXRatio get() = workspace.settings.assistShutterXRatio
     val assistShutterYRatio get() = workspace.settings.assistShutterYRatio
+    val cameraZoom get() = workspace.settings.cameraZoomTenths / 10f
+    val cameraFlashMode get() = workspace.settings.cameraFlashMode
 
     fun setShowCameraGrid(enabled: Boolean): Boolean = saveCameraPreferences(
         workspace.settings.copy(showCameraGrid = enabled),
@@ -68,6 +71,15 @@ internal class IosCameraCaptureSession(
             assistShutterYRatio = yRatio.coerceIn(0f, 1f),
         ),
     )
+
+    fun setCameraZoom(zoom: Float): Boolean = saveCameraPreferences(
+        workspace.settings.copy(cameraZoomTenths = (zoom * 10f).roundToInt().coerceIn(10, 100)),
+    )
+
+    fun setCameraFlashMode(mode: Int): Boolean {
+        if (mode !in 0..2) return false
+        return saveCameraPreferences(workspace.settings.copy(cameraFlashMode = mode))
+    }
 
     private fun saveCameraPreferences(
         settings: com.dudoziworkshop.dzlog.data.template.WorkspaceSettings,

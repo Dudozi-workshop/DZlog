@@ -15,6 +15,7 @@ import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Surface
 import org.jetbrains.skia.impl.use
 import platform.Foundation.NSProcessInfo
+import kotlin.math.roundToInt
 
 private const val LIVE_TEST_KEY = "dzlog.ios.live-placement.uitest.v1"
 
@@ -41,6 +42,7 @@ internal fun IosLiveTableFixture() {
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("대기") }
     var focusCollapseToken by remember { mutableIntStateOf(0) }
+    var cameraZoom by remember { mutableFloatStateOf(1f) }
     val scope = rememberCoroutineScope()
     val doc = session.selectedDocument
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -49,6 +51,7 @@ internal fun IosLiveTableFixture() {
         Text("다음 번호: ${doc.nextCounter}")
         Text(if (ready) "표 준비 완료" else "표 준비 중")
         Text("회전: ${session.tablePlacement?.rotationCwDeg}")
+        Text("배율: ${((cameraZoom * 10).roundToInt() / 10f)}")
         IosLiveTablePreview(Modifier.fillMaxWidth().weight(1f), session, fixtureAspect = 2.0 / 3.0,
             enabled = !locked && !busy,
             focusEnabled = !locked && !busy,
@@ -64,6 +67,14 @@ internal fun IosLiveTableFixture() {
                 true
             },
             onExposureBias = { true },
+            zoomEnabled = !locked && !busy,
+            currentZoom = cameraZoom,
+            maximumZoom = 6f,
+            onZoomChange = { next -> cameraZoom = next; true },
+            onZoomFinished = { next ->
+                cameraZoom = next
+                message = "배율 저장 ${((next * 10).roundToInt() / 10f)}"
+            },
             revision = revision, onReady = { ready = it }, onEditing = { editing = it },
             onSaved = { revision += 1; message = "표 배치 저장 완료" }, onError = { message = "실패: $it" })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

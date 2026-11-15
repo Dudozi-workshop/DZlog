@@ -32,6 +32,11 @@ internal fun IosLiveTablePreview(
     onExposureLock: (Boolean) -> Boolean = { false },
     onExposureBias: (Float) -> Boolean = { false },
     onFocusInteraction: () -> Unit = {},
+    zoomEnabled: Boolean = false,
+    currentZoom: Float = 1f,
+    maximumZoom: Float = 1f,
+    onZoomChange: (Float) -> Boolean = { false },
+    onZoomFinished: (Float) -> Unit = {},
     revision: Int,
     onReady: (Boolean) -> Unit,
     onEditing: (Boolean) -> Unit,
@@ -58,6 +63,7 @@ internal fun IosLiveTablePreview(
             it.bind(placement, enabled, showGrid, showTable, focusEnabled,
                 focusCollapseToken, minimumExposureBias, maximumExposureBias,
                 onFocusAt, onExposureLock, onExposureBias, onFocusInteraction, revision,
+                zoomEnabled, currentZoom, maximumZoom, onZoomChange, onZoomFinished,
                 session::renderLiveOverlay, session::savePlacement,
                 onReady, onEditing, onSaved, onError)
         })
@@ -78,6 +84,7 @@ internal class IosLiveTableView(
     private val movePan = UIPanGestureRecognizer(target, NSSelectorFromString("move:"))
     private val resizePan = UIPanGestureRecognizer(target, NSSelectorFromString("resize:"))
     private val focusTap = UITapGestureRecognizer(target, NSSelectorFromString("focus:"))
+    private val pinchZoom = UIPinchGestureRecognizer(target, NSSelectorFromString("pinchZoom:"))
     private var placement: IosCaptureTablePlacement? = null
     private var start: IosCaptureTablePlacement? = null
     private var enabled = false
@@ -96,6 +103,12 @@ internal class IosLiveTableView(
     private var exposureLock: ((Boolean) -> Boolean)? = null
     private var exposureBias: ((Float) -> Boolean)? = null
     private var focusInteraction: (() -> Unit)? = null
+    private var zoomEnabled = false
+    private var currentZoom = 1f
+    private var maximumZoom = 1f
+    private var pinchStartZoom = 1f
+    private var zoomWriter: ((Float) -> Boolean)? = null
+    private var zoomCommit: ((Float) -> Unit)? = null
     private var revision = -1
     private var dirty = true
     private var viewport = IosTableBounds(0f, 0f, 0f, 0f, 0f, 0f)
@@ -153,9 +166,11 @@ internal class IosLiveTableView(
         exposureSlider.minimumTrackTintColor = UIColor.systemYellowColor
         exposureSlider.maximumTrackTintColor = UIColor.whiteColor.colorWithAlphaComponent(0.55)
         focusTap.cancelsTouchesInView = false
+        pinchZoom.cancelsTouchesInView = false
         moveHandle.addGestureRecognizer(movePan)
         resizeHandle.addGestureRecognizer(resizePan)
         addGestureRecognizer(focusTap)
+        addGestureRecognizer(pinchZoom)
         focusLock.addTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.addTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
     }
@@ -167,6 +182,8 @@ internal class IosLiveTableView(
         exposureLockWriter: (Boolean) -> Boolean,
         exposureBiasWriter: (Float) -> Boolean,
         onFocusInteraction: () -> Unit, version: Int,
+        zoomActive: Boolean, zoomValue: Float, maxZoom: Float,
+        zoomValueWriter: (Float) -> Boolean, onZoomCommit: (Float) -> Unit,
         renderer: (Int, Int) -> ByteArray, writer: (IosCaptureTablePlacement) -> Boolean,
         onReady: (Boolean) -> Unit, onEditing: (Boolean) -> Unit,
         onSaved: () -> Unit, onError: (String) -> Unit) {
@@ -175,12 +192,18 @@ internal class IosLiveTableView(
         exposureLock = exposureLockWriter
         exposureBias = exposureBiasWriter
         focusInteraction = onFocusInteraction
+        zoomEnabled = zoomActive && maxZoom > 1f
+        currentZoom = zoomValue.coerceIn(1f, maxOf(1f, maxZoom))
+        maximumZoom = maxOf(1f, maxZoom)
+        zoomWriter = zoomValueWriter
+        zoomCommit = onZoomCommit
         focusEnabled = focusActive
         minimumExposureBias = minExposureBias
         maximumExposureBias = maxExposureBias
         exposureSlider.minimumValue = minExposureBias
         exposureSlider.maximumValue = maxExposureBias
         focusTap.enabled = focusActive
+        pinchZoom.enabled = zoomEnabled
         if (!focusActive) clearFocusControls()
         if (focusCollapseToken != collapseToken) {
             focusCollapseToken = collapseToken
@@ -331,6 +354,24 @@ internal class IosLiveTableView(
         focusInteraction?.invoke()
     }
 
+    fun pinchZoom(sender: UIPinchGestureRecognizer) {
+        if (!zoomEnabled) return
+        when (sender.state) {
+            UIGestureRecognizerStateBegan -> {
+                pinchStartZoom = currentZoom
+                collapseFocusControls()
+            }
+            UIGestureRecognizerStateChanged -> {
+                val next = (pinchStartZoom * sender.scale.toFloat()).coerceIn(1f, maximumZoom)
+                if (zoomWriter?.invoke(next) == true) currentZoom = next
+            }
+            UIGestureRecognizerStateEnded -> zoomCommit?.invoke(currentZoom)
+            UIGestureRecognizerStateCancelled,
+            UIGestureRecognizerStateFailed -> Unit
+            else -> Unit
+        }
+    }
+
     private fun collapseFocusControls() {
         focusExpanded = false
         awaitingLockedRefocusTap = false
@@ -462,6 +503,7 @@ internal class IosLiveTableView(
         moveHandle.removeGestureRecognizer(movePan)
         resizeHandle.removeGestureRecognizer(resizePan)
         removeGestureRecognizer(focusTap)
+        removeGestureRecognizer(pinchZoom)
         focusLock.removeTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.removeTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
         target.owner = null
@@ -469,6 +511,7 @@ internal class IosLiveTableView(
         gridLines.forEach { it.removeFromSuperview() }
         render = null; commit = null; ready = null; editing = null; saved = null; error = null
         focusAt = null; exposureLock = null; exposureBias = null; focusInteraction = null
+        zoomWriter = null; zoomCommit = null
         preview?.removeFromSuperlayer()
     }
 }
@@ -479,4 +522,5 @@ private class LiveTableGestureTarget(var owner: IosLiveTableView?) : NSObject() 
     @ObjCAction fun focus(sender: UITapGestureRecognizer) { owner?.focus(sender) }
     @ObjCAction fun toggleFocusLock(sender: UIButton) { owner?.toggleFocusLock() }
     @ObjCAction fun exposureChanged(sender: UISlider) { owner?.exposureChanged(sender) }
+    @ObjCAction fun pinchZoom(sender: UIPinchGestureRecognizer) { owner?.pinchZoom(sender) }
 }

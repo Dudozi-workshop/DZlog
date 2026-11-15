@@ -90,8 +90,8 @@ internal fun IosCameraCapturePoc(
     var assistShutterYRatio by remember(session) {
         mutableFloatStateOf(session?.assistShutterYRatio ?: 0.62f)
     }
-    var zoom by remember { mutableFloatStateOf(1f) }
-    var flash by remember { mutableIntStateOf(0) }
+    var zoom by remember(session) { mutableFloatStateOf(session?.cameraZoom ?: 1f) }
+    var flash by remember(session) { mutableIntStateOf(session?.cameraFlashMode ?: 0) }
     var settingsRevision by remember { mutableIntStateOf(0) }
     var placementRevision by remember { mutableIntStateOf(0) }
     var counterRevision by remember { mutableIntStateOf(0) }
@@ -146,6 +146,10 @@ internal fun IosCameraCapturePoc(
             } else if (!camera.configure()) {
                 status = "카메라를 사용할 수 없는 기기입니다."
             } else {
+                val restoredZoom = (session?.cameraZoom ?: zoom).coerceIn(1f, camera.maximumZoom)
+                if (camera.setZoom(restoredZoom)) zoom = restoredZoom
+                flash = session?.cameraFlashMode ?: flash
+                camera.setFlash(flash)
                 withContext(Dispatchers.Default) { camera.start() }
                 ready = true
                 status = "카메라 준비 완료"
@@ -302,6 +306,16 @@ internal fun IosCameraCapturePoc(
                 onExposureLock = camera::setExposureLocked,
                 onExposureBias = camera::setExposureBias,
                 onFocusInteraction = { focusInteractionToken += 1 },
+                zoomEnabled = ready && !busy && !overlayEditing,
+                currentZoom = zoom,
+                maximumZoom = camera.maximumZoom,
+                onZoomChange = { next ->
+                    camera.setZoom(next).also { applied -> if (applied) zoom = next }
+                },
+                onZoomFinished = { next ->
+                    if (session.setCameraZoom(next)) zoom = session.cameraZoom
+                    else status = "카메라 배율을 저장하지 못했습니다."
+                },
                 revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
@@ -328,9 +342,20 @@ internal fun IosCameraCapturePoc(
                 },
                 onCycleFlash = {
                     val next = (flash + 1) % 3
-                    if (camera.setFlash(next)) flash = next
+                    if (camera.setFlash(next)) {
+                        if (session == null || session.setCameraFlashMode(next)) flash = next
+                        else {
+                            camera.setFlash(flash)
+                            status = "플래시 설정을 저장하지 못했습니다."
+                        }
+                    }
                 },
                 onZoomChange = { if (camera.setZoom(it)) zoom = it },
+                onZoomFinished = {
+                    if (session == null || session.setCameraZoom(zoom)) {
+                        zoom = session?.cameraZoom ?: zoom
+                    } else status = "카메라 배율을 저장하지 못했습니다."
+                },
                 showGrid = showGrid,
                 showTable = showTable,
                 assistShutterEnabled = assistShutterEnabled,

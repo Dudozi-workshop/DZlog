@@ -13,11 +13,15 @@ data class WorkspaceSettings(
     val showCameraTable: Boolean = true,
     val assistShutterXRatio: Float = 0.82f,
     val assistShutterYRatio: Float = 0.62f,
+    val cameraZoomTenths: Int = 10,
+    val cameraFlashMode: Int = 0,
 ) {
     init {
         require(qualityMode in 0..2)
         require(assistShutterXRatio.isFinite() && assistShutterXRatio in 0f..1f)
         require(assistShutterYRatio.isFinite() && assistShutterYRatio in 0f..1f)
+        require(cameraZoomTenths in 10..100)
+        require(cameraFlashMode in 0..2)
     }
 }
 
@@ -53,7 +57,9 @@ object EditorWorkspaceCodec {
             .put("cameraGrid", value.settings.showCameraGrid)
             .put("cameraTable", value.settings.showCameraTable)
             .put("assistX10000", (value.settings.assistShutterXRatio * 10_000).roundToInt())
-            .put("assistY10000", (value.settings.assistShutterYRatio * 10_000).roundToInt()).toString()
+            .put("assistY10000", (value.settings.assistShutterYRatio * 10_000).roundToInt())
+            .put("cameraZoomTenths", value.settings.cameraZoomTenths)
+            .put("cameraFlashMode", value.settings.cameraFlashMode).toString()
     }
     fun decode(json: String): EditorWorkspace {
         val root = CompatJsonObject(json)
@@ -71,6 +77,8 @@ object EditorWorkspaceCodec {
             showCameraTable = root.optBoolean("cameraTable", true),
             assistShutterXRatio = root.optInt("assistX10000", 8_200).coerceIn(0, 10_000) / 10_000f,
             assistShutterYRatio = root.optInt("assistY10000", 6_200).coerceIn(0, 10_000) / 10_000f,
+            cameraZoomTenths = root.optInt("cameraZoomTenths", 10).coerceIn(10, 100),
+            cameraFlashMode = root.optInt("cameraFlashMode", 0).coerceIn(0, 2),
         ))
     }
 }

@@ -141,11 +141,16 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("상태: 표 배치 저장 완료").waitForExistence(timeout: 20), app.debugDescription)
     }
 
-    private func tapLivePreview(_ x: CGFloat, _ y: CGFloat) {
+    private func livePreview() -> XCUIElement {
         let preview = app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@", "촬영 표 미리보기"
         )).firstMatch
         XCTAssertTrue(preview.waitForExistence(timeout: 10), app.debugDescription)
+        return preview
+    }
+
+    private func tapLivePreview(_ x: CGFloat, _ y: CGFloat) {
+        let preview = livePreview()
         preview.coordinate(withNormalizedOffset: CGVector(dx: x, dy: y)).tap()
     }
 
@@ -222,6 +227,13 @@ final class PreviewInteractionTests: XCTestCase {
         // The following tap is the explicit locked refocus and resets EV.
         tapLivePreview(0.88, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
+    }
+
+    func testNativePreviewPinchZoomCommitsCompactScale() {
+        openLiveTable(reset: true)
+        livePreview().pinch(withScale: 2.0, velocity: 1.0)
+        XCTAssertTrue(text("상태: 배율 저장 2.0").waitForExistence(timeout: 10), app.debugDescription)
+        XCTAssertTrue(text("배율: 2.0").exists)
     }
 
     func testConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: false) }

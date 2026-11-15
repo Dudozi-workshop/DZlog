@@ -139,6 +139,7 @@ internal fun IosCameraToolPanel(
     onAutoFocus: () -> Unit,
     onCycleFlash: () -> Unit,
     onZoomChange: (Float) -> Unit,
+    onZoomFinished: () -> Unit,
     onToggleGrid: () -> Unit,
     onToggleTable: () -> Unit,
     onToggleAssistShutter: () -> Unit,
@@ -174,6 +175,7 @@ internal fun IosCameraToolPanel(
                 valueRange = 1f..maxOf(1.01f, maximumZoom),
                 enabled = ready && maximumZoom > 1f,
                 onValueChange = onZoomChange,
+                onValueChangeFinished = onZoomFinished,
             )
         }
     }
