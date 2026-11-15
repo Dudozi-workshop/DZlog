@@ -672,7 +672,6 @@ internal fun CameraPreviewArea(
                         onExposureInteractionChange = { exposureInteracting = it },
                         onRequestExpand = {
                             focusControlsExpanded = true
-                            if (aeLocked) awaitingLockedRefocusTap = true
                             focusInteractionId += 1
                         },
                     )
