@@ -56,4 +56,41 @@ internal fun checkIosExifRaster() {
     val png = checkNotNull(overlay.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)).bytes
     val result = Image.makeFromEncoded(IosCaptureResultRenderer.compositeJpeg(upright, png))
     check(result.width == 48 && result.height == 32)
+    checkIosResultQuality()
+}
+
+/** Exercise the actual encoded raster, including scale, overlay and input preservation. */
+private fun checkIosResultQuality() {
+    val photo = Surface.makeRasterN32Premul(2000, 1000)
+    photo.canvas.clear(0xFFFF0000.toInt())
+    val overlay = Surface.makeRasterN32Premul(2000, 1000)
+    overlay.canvas.clear(0x00000000)
+    val blue = org.jetbrains.skia.Paint().apply { color = 0xFF0000FF.toInt() }
+    overlay.canvas.drawRect(org.jetbrains.skia.Rect.makeXYWH(1000f, 0f, 1000f, 1000f), blue)
+    val original = checkNotNull(photo.makeImageSnapshot().encodeToData(EncodedImageFormat.JPEG, 99)).bytes
+    val copy = original.copyOf()
+    val png = checkNotNull(overlay.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)).bytes
+    for (mode in 0..2) {
+        val encoded = IosCaptureResultRenderer.compositeJpeg(original, png, mode)
+        val image = Image.makeFromEncoded(encoded)
+        val expectedWidth = if (mode == 0) 1800 else 2000
+        check(image.width == expectedWidth && image.height == expectedWidth / 2) {
+            "사진 품질 $mode 크기가 잘못됐습니다: ${image.width}x${image.height}"
+        }
+        val pixels = Bitmap.makeFromImage(image)
+        val left = pixels.getColor(image.width / 4, image.height / 2)
+        val right = pixels.getColor(image.width * 3 / 4, image.height / 2)
+        check((left ushr 16 and 255) > 150 && (left and 255) < 80)
+        check((right and 255) > 150 && (right ushr 16 and 255) < 80)
+        check(original.contentEquals(copy)) { "품질 설정이 원본 데이터를 변경했습니다." }
+    }
+    val small = Image.makeFromEncoded(IosCaptureResultRenderer.compositeJpeg(
+        liveQualityOverlay(240, 160), liveQualityOverlay(240, 160), 0))
+    check(small.width == 240 && small.height == 160) { "작은 사진을 확대했습니다." }
+}
+
+private fun liveQualityOverlay(width: Int, height: Int): ByteArray {
+    val surface = Surface.makeRasterN32Premul(width, height)
+    surface.canvas.clear(0x00000000)
+    return checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)).bytes
 }

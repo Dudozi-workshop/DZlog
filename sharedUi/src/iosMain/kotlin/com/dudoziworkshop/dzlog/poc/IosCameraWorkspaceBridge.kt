@@ -325,7 +325,7 @@ internal class IosCameraCaptureSession(
                 heightRatio = heightRatio,
                 rotationCwDeg = rotationCwDeg,
             )
-            IosCaptureResultRenderer.compositeJpeg(upright, overlay)
+            IosCaptureResultRenderer.compositeJpeg(upright, overlay, workspace.settings.qualityMode)
         })
     }
 
@@ -354,7 +354,7 @@ internal class IosCameraCaptureSession(
                 offsetYRatio = offsetYRatio,
                 rotationDegrees = rotationDegrees,
             )
-            IosCaptureResultRenderer.compositeJpeg(upright, overlay)
+            IosCaptureResultRenderer.compositeJpeg(upright, overlay, workspace.settings.qualityMode)
         })
     }
 
