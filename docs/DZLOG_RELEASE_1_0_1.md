@@ -32,7 +32,7 @@
 
 1. Play Console 운영 중인 최고 versionCode가 5 미만인지 확인. 이미 5 이상이면 새 코드로 증가.
 2. 기존에 등록된 **동일 업로드 서명 키**로 Android App Bundle(.aab)을 서명. CI 테스트 APK 서명 키로 대체 금지.
-3. 릴리스 빌드에 기존 운영 결제 검증 설정(`dzlogBillingVerifierUrl`, `dzlogBillingPublicKeyB64`)을 안전하게 주입하고 Pro 결제 동작이 유지되는지 확인. 소스 저장소에 비밀값 추가 금지.
+3. 현재 `MonetizationRolloutConfig.mode = ALL_UNLOCKED`로, Pro 구매와 결제 검증 경로가 비활성화되어 있음. **이번 1.0.1을 전체 기능 개방 정책으로 유지하려는지**, Play Console에 게시된 기존 운영 버전의 결제/접근 정책과 비교해 확인. 유료 판매 재개가 의도라면 이번 AAB를 올리지 말고 별도 `PAID_RELEASE` 구현·결제 검증 및 재빌드를 먼저 진행. 기존 서명 키와 결제 비밀값은 소스 저장소에 저장 금지.
 4. 정식 `applicationId=com.dudoziworkshop.dzlog`, `versionName=1.0.1`, `versionCode=5` 확인.
 5. Play Console > 테스트 및 출시 > 프로덕션 > 새 버전 만들기에서 **서명된 AAB** 업로드 후 업데이트 설명 입력 및 제출.
 6. 심사 완료 후 실제 게시 상태 확인.
