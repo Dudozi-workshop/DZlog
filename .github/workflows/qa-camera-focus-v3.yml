@@ -1,0 +1,37 @@
+name: QA Camera Focus Controls V3
+on:
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
+    paths:
+      - 'app/**'
+      - '.github/workflows/qa-camera-focus-v3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-camera-focus-v3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check preinstalled Android SDK
+        run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile Android and run unit tests
+        run: bash ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest --no-daemon --stacktrace
+      - name: Assemble isolated installable QA APK
+        run: bash ./gradlew :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=focusv3${{ github.run_number }} --no-daemon --stacktrace
+      - name: Upload QA APK (not for Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: DZlog-focusV3-QA-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
