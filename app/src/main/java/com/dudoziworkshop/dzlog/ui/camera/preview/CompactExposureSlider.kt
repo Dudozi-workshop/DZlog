@@ -11,13 +11,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -25,6 +28,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextStyle
+import java.util.Locale
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.roundToInt
 
@@ -32,13 +38,14 @@ import kotlin.math.roundToInt
  * A tiny background-free exposure line. The sun IS the slider thumb;
  * it is not a separate icon beside a Material slider.
  *
- * The touch surface is 78x36dp despite the 2dp visual track.
+ * The 78dp visible track sits inside a larger 108x48dp touch surface.
  */
 @Composable
 internal fun CompactExposureSlider(
     index: Int,
     minIndex: Int,
     maxIndex: Int,
+    exposureStep: Float,
     above: Boolean,
     locked: Boolean,
     onIndexChange: (Int) -> Unit,
@@ -47,7 +54,7 @@ internal fun CompactExposureSlider(
 ) {
     if (maxIndex <= minIndex) return
     val density = LocalDensity.current
-    val trackInsetPx = with(density) { 9.dp.toPx() }
+    val trackInsetPx = with(density) { ((FOCUS_EV_TOUCH_WIDTH_DP - FOCUS_EV_WIDTH_DP) / 2f).dp.toPx() }
     val sunSizePx = with(density) { 16.dp.toPx() }
     // Put the visible line next to the ring, leaving the rest of the 36dp
     // hit area on the side away from it. Keep a full-size touch surface.
@@ -55,7 +62,7 @@ internal fun CompactExposureSlider(
         (if (above) FOCUS_EV_TOUCH_HEIGHT_DP - FOCUS_EV_TRACK_INSET_DP
          else FOCUS_EV_TRACK_INSET_DP).dp.toPx()
     }
-    val trackWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() } - trackInsetPx * 2f
+    val trackWidthPx = with(density) { FOCUS_EV_WIDTH_DP.dp.toPx() }
     val fraction = ((index.coerceIn(minIndex, maxIndex) - minIndex).toFloat() /
         (maxIndex - minIndex).toFloat()).coerceIn(0f, 1f)
     val thumbCenterX = trackInsetPx + fraction * trackWidthPx
@@ -69,7 +76,7 @@ internal fun CompactExposureSlider(
 
     Box(
         modifier = modifier
-            .width(FOCUS_EV_WIDTH_DP.dp)
+            .width(FOCUS_EV_TOUCH_WIDTH_DP.dp)
             .height(FOCUS_EV_TOUCH_HEIGHT_DP.dp)
             .semantics { contentDescription = "밝기 조절" }
             .pointerInput(minIndex, maxIndex) {
@@ -132,6 +139,22 @@ internal fun CompactExposureSlider(
                     )
                 }
                 .size(16.dp),
+        )
+        Text(
+            text = if (index == 0) "0.0"
+                else String.format(Locale.US, "%+.1f", index * exposureStep),
+            color = Color.White,
+            fontSize = 10.sp,
+            style = TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.85f),
+                    offset = Offset(0f, 1f),
+                    blurRadius = 2f,
+                ),
+            ),
+            modifier = Modifier.align(
+                if (above) Alignment.TopCenter else Alignment.BottomCenter,
+            ),
         )
     }
 }
