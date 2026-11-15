@@ -4,9 +4,10 @@ package com.dudoziworkshop.dzlog.ui.camera.preview
 // than the visually rendered lock and sun icons.
 internal const val FOCUS_RING_RADIUS_DP = 22
 internal const val FOCUS_RING_COMPACT_RADIUS_DP = 20
-internal const val FOCUS_LOCK_TOUCH_DP = 36
+internal const val FOCUS_LOCK_TOUCH_DP = 48
 internal const val FOCUS_EV_WIDTH_DP = 78
-internal const val FOCUS_EV_TOUCH_HEIGHT_DP = 36
+internal const val FOCUS_EV_TOUCH_WIDTH_DP = 108
+internal const val FOCUS_EV_TOUCH_HEIGHT_DP = 48
 internal const val FOCUS_EV_TRACK_INSET_DP = 8
 
 internal data class FocusControlsVerticalPlacement(

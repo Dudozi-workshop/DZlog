@@ -134,7 +134,6 @@ internal fun CameraPreviewArea(
         var aeLocked by remember { mutableStateOf(false) }
         var lockRequestInFlight by remember { mutableStateOf(false) }
         var focusControlsExpanded by remember { mutableStateOf(false) }
-        var awaitingLockedRefocusTap by remember { mutableStateOf(false) }
         var exposureInteracting by remember { mutableStateOf(false) }
         var focusInteractionId by remember { mutableIntStateOf(0) }
         var focusRequestId by remember { mutableIntStateOf(0) }
@@ -145,6 +144,7 @@ internal fun CameraPreviewArea(
         val exposureSupported = exposureState?.isExposureCompensationSupported == true
         val minExposureIndex = exposureState?.exposureCompensationRange?.lower ?: 0
         val maxExposureIndex = exposureState?.exposureCompensationRange?.upper ?: 0
+        val exposureStep = exposureState?.exposureCompensationStep?.toFloat() ?: 1f
 
         // Release transient Camera2 control when leaving the preview/rebinding.
         // Keep these changes scoped to the old camera rather than a new binding.
@@ -167,7 +167,6 @@ internal fun CameraPreviewArea(
             aeLocked = false
             lockRequestInFlight = false
             focusControlsExpanded = false
-            awaitingLockedRefocusTap = false
             exposureInteracting = false
             focusInteractionId += 1
             focusRequestId += 1
@@ -184,7 +183,6 @@ internal fun CameraPreviewArea(
 
         LaunchedEffect(focusControlsCollapseToken) {
             focusControlsExpanded = false
-            awaitingLockedRefocusTap = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
@@ -209,7 +207,6 @@ internal fun CameraPreviewArea(
                 }
             }
             focusControlsExpanded = false
-            awaitingLockedRefocusTap = false
             if (!aeLocked) onTapFocusUiChange(null)
         }
 
@@ -242,10 +239,9 @@ internal fun CameraPreviewArea(
             resetExposure: Boolean = true,
         ) {
             val activeCamera = boundCamera ?: return
-            // A newly chosen AF point starts from neutral EV, including a
-            // locked refocus. Locking the existing point is not a new choice.
+            // Reset EV only for unlocked AF-point changes. Locked refocus
+            // preserves the operator's exposure adjustment.
             if (resetExposure) requestExposureIndex(0, force = true)
-            awaitingLockedRefocusTap = false
             val id = ++focusRequestId
             focusInteractionId += 1
             focusControlsExpanded = true
@@ -269,20 +265,14 @@ internal fun CameraPreviewArea(
         }
 
         val focusTapCallbackState = rememberUpdatedState<(Float, Float) -> Unit> { x, y ->
-            if (aeLocked) {
-                when (lockedFocusTapAction(focusControlsExpanded, awaitingLockedRefocusTap)) {
-                    LockedFocusTapAction.SHOW_EXPOSURE -> {
-                        // Do not change the locked AF position or EV yet.
-                        awaitingLockedRefocusTap = true
-                        focusControlsExpanded = true
-                        focusInteractionId += 1
-                    }
-                    LockedFocusTapAction.REFOCUS -> {
-                        requestFocusAt(x, y, locked = true)
-                    }
-                }
-            } else {
-                requestFocusAt(x, y, locked = false)
+            if (!lockRequestInFlight) {
+                // Every preview tap moves AF immediately. While locked keep
+                // the current exposure compensation, even for a new AF point.
+                requestFocusAt(
+                    x, y,
+                    locked = aeLocked,
+                    resetExposure = shouldResetExposureOnPreviewTap(aeLocked),
+                )
             }
         }
 
@@ -305,7 +295,6 @@ internal fun CameraPreviewArea(
                     return@requestTapAeLock
                 }
                 aeLocked = desired
-                awaitingLockedRefocusTap = false
                 focusInteractionId += 1
                 if (desired) {
                     // Reapply an AF-only metering point without a timeout, while
@@ -676,13 +665,13 @@ internal fun CameraPreviewArea(
                         exposureIndex = exposureIndex,
                         minExposureIndex = minExposureIndex,
                         maxExposureIndex = maxExposureIndex,
+                        exposureStep = exposureStep,
                         exposureSupported = exposureSupported,
                         onToggleLock = ::toggleFocusExposureLock,
                         onExposureIndexChange = ::requestExposureIndex,
                         onExposureInteractionChange = { exposureInteracting = it },
                         onRequestExpand = {
                             focusControlsExpanded = true
-                            if (aeLocked) awaitingLockedRefocusTap = true
                             focusInteractionId += 1
                         },
                     )

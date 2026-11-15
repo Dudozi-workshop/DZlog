@@ -7,8 +7,8 @@ import org.junit.Test
 
 class FocusControlsPlacementPolicyTest {
     private val ring = 22f
-    private val lock = 36f
-    private val exposure = 36f
+    private val lock = 48f
+    private val exposure = 48f
     private val gap = 2f
 
     private fun place(y: Float, height: Float = 400f) = placeFocusControlsVertically(
@@ -24,7 +24,7 @@ class FocusControlsPlacementPolicyTest {
         val p = place(200f)
         assertFalse(p.lockAtBottom)
         assertFalse(p.exposureAbove)
-        assertEquals(160f, p.lockTop, 0.001f)
+        assertEquals(154f, p.lockTop, 0.001f)
         assertEquals(224f, p.exposureTop, 0.001f)
     }
 
@@ -32,8 +32,8 @@ class FocusControlsPlacementPolicyTest {
         val p = place(10f)
         assertTrue(p.lockAtBottom)
         assertFalse(p.exposureAbove)
-        assertEquals(26f, p.lockTop, 0.001f)
-        assertEquals(64f, p.exposureTop, 0.001f)
+        assertEquals(20f, p.lockTop, 0.001f)
+        assertEquals(70f, p.exposureTop, 0.001f)
         assertTrue(p.exposureTop >= p.lockTop + lock + gap)
     }
 
@@ -41,8 +41,8 @@ class FocusControlsPlacementPolicyTest {
         val p = place(390f)
         assertFalse(p.lockAtBottom)
         assertTrue(p.exposureAbove)
-        assertEquals(338f, p.lockTop, 0.001f)
-        assertEquals(300f, p.exposureTop, 0.001f)
+        assertEquals(332f, p.lockTop, 0.001f)
+        assertEquals(282f, p.exposureTop, 0.001f)
         assertTrue(p.exposureTop + exposure + gap <= p.lockTop)
     }
 
