@@ -17,6 +17,7 @@
 
 | 병합일 (KST) | PR | 영역 | 변경 전 → 변경 후 | 병합 커밋 |
 | --- | --- | --- | --- | --- |
+| 11.15 09:24 | [#115](https://github.com/Dudozi-workshop/DZlog/pull/115) | 카메라·초점·밝기 | 잠금 후 재초점 2회 터치·EV 초기화 및 작은 터치영역 → 1회 재초점·EV 유지, 1.2초 최소화, 조작영역 확대·EV 수치 표시 | [`2582044`](https://github.com/Dudozi-workshop/DZlog/commit/2582044667e7290272bd072a59b1e4029ef4ddf2) |
 | 11.13 19:00 | [#113](https://github.com/Dudozi-workshop/DZlog/pull/113) | 표 편집·순환문구 | 분산된 설정·큰 선택창 → 컴팩트 통합 UI·하단 셀 이동 유지. 셀 종류를 바꾼 뒤 돌아와도 유형별 입력·문구 상태를 복원하도록 개선 | [`83bfaf0`](https://github.com/Dudozi-workshop/DZlog/commit/83bfaf0032e4d6cae5d32b1cdf319425006e18f7) |
 | 11.13 10:39 | [#108](https://github.com/Dudozi-workshop/DZlog/pull/108) | 순환문구 | 세트 기본 주기 중심 → 문구별 주기·셀별 고정 주기 지원, CSV에 주기 열 추가 및 이전 형식 호환 | [`a8f66f3`](https://github.com/Dudozi-workshop/DZlog/commit/a8f66f3122bfca5465589293e84f601dc074eca9) |
 | 11.13 10:39 | [#111](https://github.com/Dudozi-workshop/DZlog/pull/111) | 카메라·촬영 정보 | 촬영 정보 팝업 중심 → 프로젝트·템플릿 목록으로 직접 이동하고 기존 화면으로 복귀. 순환문구 편집 화면 구성도 정리 (일부 #108 내용 통합) | [`1e405ec`](https://github.com/Dudozi-workshop/DZlog/commit/1e405ec959c23c8ef0c45760317e729b39ace239) |
