@@ -72,7 +72,7 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
             HomeNavigationPoc(
                 template = remember { productionStarterTemplate() },
                 editorKey = IOS_PRODUCTION_STARTUP_TEST_KEY,
-                resetTestFixture = true,
+                resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-production-home-fixture"),
             )
         } else if (NSProcessInfo.processInfo.arguments.contains("--table-structure")) {
             TableStructurePoc()

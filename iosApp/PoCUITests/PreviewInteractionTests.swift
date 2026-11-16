@@ -982,15 +982,31 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testProductionFirstLaunchUsesBlankStarterInsteadOfBlueberryFixture() throws {
-        app.launchArguments = ["--production-home-flow"]
+        app.launchArguments = ["--production-home-flow", "--reset-production-home-fixture"]
         app.launch()
 
         XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
         XCTAssertFalse(text("현장 기록").exists)
         XCTAssertFalse(text("블루베리 관찰 기록").exists)
-        openHomeTemplates()
+        tapButton("촬영 시작")
+        XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["표 확대 보기 · 기본 촬영"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["표 확대 보기 · 현장 기록"].exists)
+        tapButton("표 확대 보기 · 기본 촬영")
+        tapButton("이 템플릿 선택")
+        tapButton("설정")
+        tapPanelText("사진 품질")
+        tapPanelText("화질 우선")
+
+        app.terminate()
+        app.launchArguments = ["--production-home-flow"]
+        app.launch()
+        tapButton("설정")
+        XCTAssertTrue(panelText("화질 우선").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        tapButton("표 편집")
+        XCTAssertTrue(text("표 편집").waitForExistence(timeout: 10),
+                      "The selected production starter must reopen directly after relaunch")
     }
 
     func testEditorContentStructureStyleSaveAndRelaunch() throws {

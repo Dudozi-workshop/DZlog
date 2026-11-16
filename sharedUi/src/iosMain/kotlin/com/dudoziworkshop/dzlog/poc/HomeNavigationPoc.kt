@@ -285,6 +285,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 if (NSProcessInfo.processInfo.arguments.contains("--deny-camera-permission-for-ui-test")) {
                     // Preserve the permission-denied XCTest route without modifying user data.
                     NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+                } else if (workspace.active == null) {
+                    showList = true
                 } else {
                     val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
                     if (issue != null) {
