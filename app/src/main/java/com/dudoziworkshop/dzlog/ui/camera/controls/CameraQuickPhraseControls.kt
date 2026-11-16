@@ -125,7 +125,7 @@ internal fun CameraQuickPhrasePeriodControl(
             ) {
                 Text("변경 주기", color = DDZColor.TextPrimary, style = DDZTypography.Secondary)
                 if (!expanded) Text(
-                    "${if (isSet) "세트 설정" else "개별 설정"} · 현재 ${effectiveEvery}장",
+                    "${if (isSet) "전체" else "개별"} · ${effectiveEvery}장",
                     color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
             }
             if (expanded) {
@@ -133,7 +133,7 @@ internal fun CameraQuickPhrasePeriodControl(
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         DDZButton(
-                            text = "세트 설정 (${set.defaultEvery}장)",
+                            text = "전체 (${set.defaultEvery}장)",
                             modifier = Modifier.weight(1f),
                             minHeight = 36.dp, horizontalPadding = 2.dp,
                             textStyleOverride = DDZTypography.Caption,
@@ -143,7 +143,7 @@ internal fun CameraQuickPhrasePeriodControl(
                             onClick = { if (!isSet) onPeriodChange(true, set.defaultEvery) },
                         )
                         DDZButton(
-                            text = "개별 설정 (${cellValue}장)",
+                            text = "개별 (${cellValue}장)",
                             modifier = Modifier.weight(1f),
                             minHeight = 36.dp, horizontalPadding = 2.dp,
                             textStyleOverride = DDZTypography.Caption,
@@ -170,7 +170,7 @@ internal fun CameraQuickPhrasePeriodControl(
                             onClick = { onPeriodChange(isSet, activeValue + 1) })
                     }
                     Text(
-                        if (isSet) "세트 기본 주기를 변경합니다." else "현재 셀에만 적용돼요.",
+                        if (isSet) "세트 기본값 변경" else "현재 셀만 변경",
                         style = DDZTypography.Caption, color = DDZColor.TextSecondary,
                         maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                 }
