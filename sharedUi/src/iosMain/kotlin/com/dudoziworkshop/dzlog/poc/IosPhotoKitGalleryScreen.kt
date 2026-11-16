@@ -3,6 +3,8 @@ package com.dudoziworkshop.dzlog.poc
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +26,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.skia.Image as SkiaImage
 import platform.Foundation.NSData
 import platform.Foundation.NSNotificationCenter
@@ -41,6 +44,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var favoritesOnly by remember { mutableStateOf(false) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    var imageLoadRevision by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf("사진 확인 중") }
     var loadError by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
@@ -87,6 +91,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 photos = repository.listSavedAssets().asReversed()
                 folders = repository.listGalleryFolders()
                 favorites = repository.favoriteGalleryAssetIds()
+                imageLoadRevision += 1
                 loadError = null
             } catch (error: Throwable) { loadError = "갤러리 조회 실패: ${error.message}" }
             finally { refreshing = false }
@@ -141,7 +146,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 ?: visible.firstOrNull())?.asset?.assetId
         }
     }
-    LaunchedEffect(selectedId, photos, folder, favoritesOnly) {
+    LaunchedEffect(selectedId, photos, folder, favoritesOnly, imageLoadRevision) {
         image = null
         val entry = photos.firstOrNull { it.asset.assetId == selectedId }
         if (entry == null) {
@@ -157,6 +162,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 "사진 접근 권한이 없습니다." else "저장된 사진을 찾을 수 없습니다."
             return@LaunchedEffect
         }
+        message = "사진 불러오는 중"
         try {
             val bytes = repository.readAsset(entry.asset.assetId)
             val restored = bytes?.takeIf { it.isNotEmpty() }?.let { SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }
@@ -164,6 +170,8 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 image = restored
                 message = if (restored == null) "사진 파일을 읽을 수 없습니다." else "사진 복원 완료"
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Throwable) { if (selectedId == entry.asset.assetId) message = "사진 조회 실패: ${error.message}" }
     }
 
@@ -235,13 +243,15 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         if (viewer) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
+                TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
                 Text("사진 보기")
             }
+            loadError?.let { Text(it) }
             Text(selected?.asset?.target?.displayName.orEmpty())
             Text(message)
             operationMessage?.let { Text(it) }
             if (managing) Text("사진 처리 중")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(enabled = !managing && selected != null, onClick = {
                     val id = selectedId ?: return@TextButton
                     managing = true
@@ -274,18 +284,22 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     onClick = { deleteTarget = selectedId }) { Text("사진 삭제") }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                image?.let { Image(it, "사진 확대 보기", Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
+                key(selectedId, image) {
+                    image?.let { IosGalleryImageViewer(it, enabled = !managing && !refreshing) }
+                }
             }
-            val entries = if (visible.any { it.asset.assetId == selectedId }) visible else photos
+            // A companion may live outside the active folder/favorites filter.
+            // Do not silently expand previous/next navigation to the entire library.
+            val entries = visible
             val index = entries.indexOfFirst { it.asset.assetId == selectedId }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(enabled = !managing && index > 0, onClick = { selectedId = entries[index - 1].asset.assetId }) { Text("이전 사진") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index > 0, onClick = { selectedId = entries[index - 1].asset.assetId }) { Text("이전 사진") }
                 val companion = photos.firstOrNull { it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
-                if (companion != null) Button(enabled = !managing, onClick = { selectedId = companion.asset.assetId }) {
+                if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing, onClick = { selectedId = companion.asset.assetId }) {
                     Text(if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기" else "결과 보기")
                 }
-                Button(enabled = !managing && index >= 0 && index < entries.lastIndex,
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index >= 0 && index < entries.lastIndex,
                     onClick = { selectedId = entries[index + 1].asset.assetId }) { Text("다음 사진") }
             }
         } else {
@@ -294,7 +308,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
                 Text("갤러리")
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { folder = if (folder == null) GALLERY_ROOT else null }) {
                     Text(if (folder == null) "폴더 보기" else "전체 사진")
                 }
