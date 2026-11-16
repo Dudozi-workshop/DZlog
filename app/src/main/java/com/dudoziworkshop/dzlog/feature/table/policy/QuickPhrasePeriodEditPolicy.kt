@@ -5,8 +5,12 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 
-/** Set mode edits the shared default; cell mode stores a local fixed interval. */
+/** Overall edits the set default; individual edits only the currently selected phrase's interval.
+ * The legacy cell-wide override is cleared on an explicit interval edit so it cannot mask
+ * the per-phrase value. Unrelated sets and unrelated phrase overrides are preserved.
+ */
 internal data class QuickPhrasePeriodEdit(
     val cellId: String,
     val useSetDefault: Boolean,
@@ -36,13 +40,18 @@ internal fun previewQuickPhrasePeriodEdit(
     } ?: return null
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }
         ?: return null
-    val changedSets = if (edit.useSetDefault) template.phraseSets.map {
-        if (it.id == set.id) it.copy(defaultEvery = edit.every) else it
-    } else template.phraseSets
+    val phraseIndex = cell.phraseIndex.coerceIn(0, set.items.lastIndex)
+    val changedSets = template.phraseSets.map { phraseSet ->
+        if (phraseSet.id != set.id) phraseSet
+        else if (edit.useSetDefault) {
+            RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, null)
+                .copy(defaultEvery = edit.every)
+        } else {
+            RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, edit.every)
+        }
+    }
     val changedCells = template.cells.map {
-        if (it.cellId == edit.cellId) {
-            it.copy(everyOverride = if (edit.useSetDefault) null else edit.every)
-        } else it
+        if (it.cellId == edit.cellId && it.everyOverride != null) it.copy(everyOverride = null) else it
     }
     return template.copy(phraseSets = changedSets, cells = changedCells)
 }
@@ -83,7 +92,7 @@ internal fun applyQuickPhrasePeriodEdit(
     return applyPhrasePeriodResolutions(proposed, quickPhrasePeriodConflicts(original, proposed), resolutions)
 }
 
-/** Applies explicit per-cell choices to either a set edit or a cell-local edit. */
+/** Applies explicit per-cell progress choices after a shared-set or phrase-specific interval edit. */
 internal fun applyPhrasePeriodResolutions(
     proposed: TableTemplateState,
     conflicts: List<QuickPhrasePeriodConflict>,
