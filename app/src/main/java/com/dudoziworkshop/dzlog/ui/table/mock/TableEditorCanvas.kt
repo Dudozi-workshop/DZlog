@@ -375,7 +375,18 @@ internal fun ColumnScope.MockTableCanvas(
                                     .offset(x = x, y = y)
                                     .size(width = width, height = height)
                                     .background(
-                                        if (isSelected) DDZColor.Primary.copy(alpha = 0.16f) else Color.Transparent
+                                        when {
+                                            !isSelected -> Color.Transparent
+                                            layoutMode -> DDZColor.Primary.copy(alpha = 0.16f)
+                                            else -> DDZColor.SelectionOverlay
+                                        }
+                                    )
+                                    // Match the camera quick-edit selection: clear sage fill + dark 2dp stroke.
+                                    .then(
+                                        if (isSelected && !layoutMode) Modifier.border(
+                                            DDZLayout.QuickInput.SelectionBorder,
+                                            DDZColor.SelectionEmphasis,
+                                        ) else Modifier
                                     )
                                     .semantics {
                                         contentDescription = cell.previewValue ?: cell.value
