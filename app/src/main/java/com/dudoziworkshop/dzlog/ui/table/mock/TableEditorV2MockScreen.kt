@@ -514,8 +514,7 @@ fun TableEditorV2Screen(
                                     val target = cells.firstOrNull {
                                         it.domainCellId == domainCellId && !it.isCovered
                                     }
-                                    val editable = target?.type == TableEditorCellType.TEXT ||
-                                        target?.type == TableEditorCellType.NUMBER
+                                    val editable = editorCanKeepKeyboard(target?.type)
                                     pendingInputFocusCellId = if (imeVisible && editable) domainCellId else null
                                     selectionState.selectEditCell(domainCellId)
                                     if (imeVisible && !editable) {
@@ -781,8 +780,7 @@ fun TableEditorV2Screen(
                                     onMove = { nextId ->
                                         // Transfer input focus only when the keyboard is already open.
                                         val next = cells.firstOrNull { it.domainCellId == nextId }
-                                        val nextEditable = next?.type == TableEditorCellType.TEXT ||
-                                            next?.type == TableEditorCellType.NUMBER
+                                        val nextEditable = editorCanKeepKeyboard(next?.type)
                                         pendingInputFocusCellId = if (imeVisible && nextEditable) nextId else null
                                         selectionState.selectEditCell(nextId)
                                         if (imeVisible && !nextEditable) {
