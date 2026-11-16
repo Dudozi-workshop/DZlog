@@ -51,6 +51,9 @@ internal fun TableEditorCellUiModelEditor(
     cell: TableEditorCellUiModel,
     phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
+    textFavorites: List<String>,
+    onFavoriteAdd: (String) -> Unit,
+    onFavoriteRemove: (String) -> Unit,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
@@ -181,6 +184,13 @@ internal fun TableEditorCellUiModelEditor(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 when (cell.type) {
+                    TableEditorCellType.TEXT -> TableEditorTextFavoritesRow(
+                        currentText = cell.value,
+                        favorites = textFavorites,
+                        onApply = onValueChange,
+                        onSave = { onFavoriteAdd(cell.value) },
+                        onRemove = onFavoriteRemove,
+                    )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
                         style = DDZTypography.Caption,
