@@ -391,7 +391,10 @@ fun TableEditorV2Screen(
             val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
             val expandedInputHeight = minOf(
                 DDZLayout.QuickInput.ExpandedHeight,
-                (cellPanelMaxHeight - 64.dp).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
+                (
+                    if (imeVisible) maxHeight * 0.4f
+                    else cellPanelMaxHeight - 64.dp
+                ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
             val editorPanelModifier = Modifier.heightIn(
                 max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
