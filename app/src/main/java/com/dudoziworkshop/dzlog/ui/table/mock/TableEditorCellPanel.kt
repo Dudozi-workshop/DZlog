@@ -129,7 +129,6 @@ internal fun TableEditorCellUiModelEditor(
                                         modifier = Modifier.fillMaxWidth()
                                             .height(if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight)
                                             .focusRequester(inputFocusRequester)
-                                            .focusRequester(inputFocusRequester)
                                             .onFocusChanged { if (it.isFocused) onInputFocus() },
                                         value = textDraft,
                                         onValueChange = { next ->
@@ -148,6 +147,7 @@ internal fun TableEditorCellUiModelEditor(
                                 } else {
                                     DDZTextField(
                                         modifier = Modifier.fillMaxWidth()
+                                            .focusRequester(inputFocusRequester)
                                             .onFocusChanged { if (it.isFocused) onInputFocus() },
                                         value = cell.value,
                                         onValueChange = { next ->
