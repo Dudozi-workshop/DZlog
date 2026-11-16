@@ -45,6 +45,9 @@ internal fun updateQuickPhraseEvery(
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
     if (template.phraseSets.none { it.id == cell.phraseSetId && it.items.isNotEmpty() }) return template
+    // Reapplying the same legacy period is not an edit: keep template identity
+    // so camera quick edit does not mark an unchanged draft as modified.
+    if (cell.everyOverride == every) return template
     val candidate = template.copy(cells = template.cells.map {
         if (it.cellId == cellId) it.copy(everyOverride = every) else it
     })
