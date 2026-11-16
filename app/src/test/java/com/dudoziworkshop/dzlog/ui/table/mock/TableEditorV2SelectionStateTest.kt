@@ -80,6 +80,37 @@ class TableEditorV2SelectionStateTest {
         assertEquals("left", state.selectedCellId)
     }
 
+    @Test fun coveredContentCellIsNotRestoredAfterMerge() {
+        val merged = template.copy(cells = listOf(
+            template.cells[0].copy(colSpan = 2),
+            template.cells[1],
+        ))
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        // The covered cell still exists in the stored template but cannot be edited.
+        state.restoreEditSelection(merged)
+        assertNull(state.selectedCellId)
+
+        // A root remains selectable; never replace the covered cell with a
+        // different root without an explicit selection.
+        state.selectEditCell("left")
+        state.restoreEditSelection(merged)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun coveredContentCellIsClearedWhenReconcilingStyleOrSaveTabs() {
+        val merged = template.copy(cells = listOf(
+            template.cells[0].copy(colSpan = 2),
+            template.cells[1],
+        ))
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        state.reconcileEditSelection(merged)
+        assertNull(state.selectedCellId)
+        state.restoreEditSelection(merged)
+        assertNull(state.selectedCellId)
+    }
+
     @Test fun removedSelectedCellIsClearedSafely() {
         val state = TableEditorV2SelectionState()
         state.selectEditCell("right")
