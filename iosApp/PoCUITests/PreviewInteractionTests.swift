@@ -871,6 +871,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
         tapButton("설정")
+        XCTAssertTrue(text("버전 0.0.1 (1)").waitForExistence(timeout: 10))
         tapScrollablePanelText("사용법 및 도움말")
         XCTAssertTrue(text("DZlog의 주요 기능을 순서대로 살펴볼 수 있어요.").waitForExistence(timeout: 10))
         tapPanelText("카메라 촬영")
@@ -887,6 +888,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("뒤로가기")
         tapScrollablePanelText("도움 주신 분들")
         XCTAssertTrue(text("함께해 주셔서 감사합니다").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("버전 0.0.1 (1)").exists)
         XCTAssertTrue(text("특별한 감사").exists)
         XCTAssertTrue(text("루루").exists)
         XCTAssertTrue(text("채채").exists)

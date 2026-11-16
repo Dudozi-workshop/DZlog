@@ -29,7 +29,7 @@ private val iosSpecialThanks = listOf("루루", "채채", "작은박")
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun IosCreditsSettingsScreen(onBack: () -> Unit) {
+internal fun IosCreditsSettingsScreen(versionLabel: String, onBack: () -> Unit) {
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = { DDZTopBar(title = "도움 주신 분들", onBack = onBack) },
@@ -52,6 +52,8 @@ internal fun IosCreditsSettingsScreen(onBack: () -> Unit) {
                 ) {
                     Text("DZlog", style = DDZTypography.ScreenTitle, color = DDZColor.PrimaryDark)
                     Text("함께해 주셔서 감사합니다", style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary)
+                    Text(versionLabel, style = DDZTypography.Caption,
                         color = DDZColor.TextSecondary)
                 }
             }

@@ -36,6 +36,7 @@ import platform.Foundation.*
 /** The existing home/list/editor/settings UI with an iOS persistence adapter. */
 @Composable
 internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String = IOS_EDITOR_KEY, resetTestFixture: Boolean = false) {
+    val appVersionLabel = remember { iosAppVersionLabel() }
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
     val initial = remember(store) {
         if (resetTestFixture) store.resetTestFixture()
@@ -215,7 +216,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     } else if (showHelp) {
         IosHelpSettingsScreen(onBack = { showHelp = false })
     } else if (showCredits) {
-        IosCreditsSettingsScreen(onBack = { showCredits = false })
+        IosCreditsSettingsScreen(
+            versionLabel = appVersionLabel,
+            onBack = { showCredits = false },
+        )
     } else if (showPermissions) {
         IosPermissionsSettingsScreen(onBack = { showPermissions = false })
     } else if (showCaptureFeedback) {
@@ -231,7 +235,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             onBack = { showSettings = false }, qualityMode = workspace.settings.qualityMode,
             assistShutterEnabled = workspace.settings.assistShutterEnabled,
             undoSavePathWarningEnabled = workspace.settings.undoSavePathWarningEnabled,
-            isQualityExpanded = qualityExpanded, isQualitySaving = false, version = "iOS 개발 빌드",
+            isQualityExpanded = qualityExpanded, isQualitySaving = false, version = appVersionLabel,
             onToggleQuality = { qualityExpanded = !qualityExpanded },
             onSelectQuality = { mode ->
                 if (persist(workspace.copy(settings = workspace.settings.copy(qualityMode = mode)))) qualityExpanded = false
@@ -349,6 +353,13 @@ private fun formatIosRecentCaptureTime(epochMilliseconds: Long): String {
 
 private fun formatIosRecentCaptureLocation(relativePath: String): String =
     relativePath.removePrefix("Pictures/").trimEnd('/').ifBlank { "DZlog" }
+
+private fun iosAppVersionLabel(): String {
+    val bundle = NSBundle.mainBundle
+    val version = bundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "-"
+    val build = bundle.objectForInfoDictionaryKey("CFBundleVersion") as? String ?: "-"
+    return "버전 $version ($build)"
+}
 
 /** Same PNG as Android, loaded once from the native bundle; all rendering stays shared. */
 @OptIn(ExperimentalForeignApi::class)
