@@ -11,6 +11,74 @@ import platform.Foundation.NSUUID
 import platform.Foundation.NSUserDefaults
 
 class PhotoKitCaptureMediaIndexTest {
+    private fun batchEntry(id: String, name: String, path: String = "Pictures/DZlog/A/") =
+        IndexedCaptureMedia("capture-$id", PersistedCaptureAsset(
+            CaptureMediaTarget(CaptureMediaRole.RESULT, path, name), id))
+
+    @Test
+    fun batchMoveValidatesEveryMemberBeforePersistingAndPreservesOtherAssets() {
+        val suite = "dzlog.photokit.batch-move.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val entries = listOf(batchEntry("a", "A.jpg"), batchEntry("b", "B.jpg"), batchEntry("c", "C.jpg"))
+            index.append(entries)
+            index.setFavorite("a", true)
+            assertFailsWith<IllegalArgumentException> { index.move(emptySet(), "Pictures/DZlog/B/") }
+            assertFailsWith<IllegalStateException> { index.move(setOf("a", "missing"), "Pictures/DZlog/B/") }
+            assertEquals(entries, index.load())
+            index.move(setOf("a", "b"), "Pictures/DZlog/B/")
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf("Pictures/DZlog/B/", "Pictures/DZlog/B/", "Pictures/DZlog/A/"),
+                restored.load().map { it.asset.target.relativePath })
+            assertEquals(entries.last(), restored.load().last())
+            assertEquals(setOf("a"), restored.favoriteAssetIds())
+            assertTrue("Pictures/DZlog/B/" in restored.folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun batchMoveRejectsInternalAndDestinationNameConflictsWithoutPartialChanges() {
+        val suite = "dzlog.photokit.batch-conflict.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val entries = listOf(batchEntry("a", "Same.jpg"), batchEntry("b", "Same.jpg", "Pictures/DZlog/B/"),
+                batchEntry("c", "Other.jpg"))
+            index.append(entries)
+            assertFailsWith<IllegalStateException> { index.move(setOf("a", "b"), "Pictures/DZlog/C/") }
+            assertFailsWith<IllegalStateException> { index.move(setOf("a", "c"), "Pictures/DZlog/B/") }
+            assertEquals(entries, PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite)).load())
+            index.stagePending(listOf(batchEntry("pending", "Pending.jpg")))
+            assertFailsWith<IllegalStateException> { index.move(setOf("a", "c"), "Pictures/DZlog/C/") }
+            assertFailsWith<IllegalStateException> { index.forgetDeleted(setOf("a", "c")) }
+            assertEquals(entries, index.load())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun confirmedBatchDeletionRemovesOnlySelectedIdsAndFavoritesInOneSnapshot() {
+        val suite = "dzlog.photokit.batch-delete.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val result = batchEntry("result", "Photo.jpg")
+            val original = result.copy(asset = PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, "Pictures/DZlog/A/original/", "Photo.jpg"), "original"))
+            val unrelated = batchEntry("other", "Other.jpg")
+            index.append(listOf(result, original, unrelated))
+            listOf("result", "original", "other").forEach { index.setFavorite(it, true) }
+            index.forgetDeleted(setOf("result", "other"))
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf(original), restored.load())
+            assertEquals(setOf("original"), restored.favoriteAssetIds())
+            assertTrue("Pictures/DZlog/A/" in restored.folders())
+            // A retry after a confirmed deletion is idempotent, not another Photos action.
+            restored.forgetDeleted(setOf("result", "other"))
+            assertEquals(listOf(original), restored.load())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
     @Test
     fun emptyFoldersAndSubtreeRenameSurviveRelaunch() {
         val suite = "dzlog.photokit.folders.${NSUUID().UUIDString}"

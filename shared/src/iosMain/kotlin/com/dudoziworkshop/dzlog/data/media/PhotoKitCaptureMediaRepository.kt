@@ -104,16 +104,24 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletio
         return photos.thumbnail(assetId)
     }
 
-    /** Deletes only the explicitly selected asset, never its original/result companion. */
-    suspend fun deleteGalleryAsset(assetId: String): Boolean {
+    /** Deletes only explicitly selected assets, never implicit original/result companions. */
+    suspend fun deleteGalleryAsset(assetId: String): Boolean = deleteGalleryAssets(setOf(assetId))
+
+    suspend fun deleteGalleryAssets(assetIds: Set<String>): Boolean {
+        require(assetIds.isNotEmpty() && assetIds.all { it.isNotBlank() }) { "Select at least one photo." }
+        val selectedIds = assetIds.toSet()
         check(!saving) { "Wait until the current photo operation finishes." }
         saving = true
         try {
             photos.ensureReadWriteAccess()
             reconcilePending()
-            check(index.load().any { it.asset.assetId == assetId }) { "Photo is no longer indexed." }
-            val removed = photos.remove(listOf(assetId))
-            if (removed) index.forgetDeleted(assetId)
+            val indexed = index.load()
+            check(selectedIds.all { id -> indexed.count { it.asset.assetId == id } == 1 }) {
+                "A selected photo is no longer uniquely indexed."
+            }
+            // One Photos transaction/prompt; cancellation preserves the entire index.
+            val removed = photos.remove(selectedIds.sorted())
+            if (removed) index.forgetDeleted(selectedIds)
             return removed
         } finally { saving = false }
     }
@@ -133,15 +141,24 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletio
         } finally { saving = false }
     }
 
-    /** Changes DZlog's logical folder only; Photos resource names stay unchanged. */
-    suspend fun moveGalleryAsset(assetId: String, relativePath: String) {
+    /** Changes DZlog's logical folders only; Photos resource names stay unchanged. */
+    suspend fun moveGalleryAsset(assetId: String, relativePath: String) =
+        moveGalleryAssets(setOf(assetId), relativePath)
+
+    suspend fun moveGalleryAssets(assetIds: Set<String>, relativePath: String) {
+        require(assetIds.isNotEmpty() && assetIds.all { it.isNotBlank() }) { "Select at least one photo." }
+        val selectedIds = assetIds.toSet()
         check(!saving) { "Wait until the current photo operation finishes." }
         saving = true
         try {
             check(photos.hasReadAccess()) { "Photos access is required to move photos." }
             reconcilePending()
-            check(photos.exists(assetId)) { "The selected photo is unavailable." }
-            index.move(assetId, relativePath)
+            val indexed = index.load()
+            check(selectedIds.all { id -> indexed.count { it.asset.assetId == id } == 1 }) {
+                "A selected photo is no longer uniquely indexed."
+            }
+            check(selectedIds.all { photos.exists(it) }) { "A selected photo is unavailable." }
+            index.move(selectedIds, relativePath)
         } finally { saving = false }
     }
 
