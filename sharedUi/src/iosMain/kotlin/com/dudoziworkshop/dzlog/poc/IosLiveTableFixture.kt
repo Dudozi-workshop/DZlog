@@ -43,6 +43,7 @@ internal fun IosLiveTableFixture() {
     var message by remember { mutableStateOf("대기") }
     var focusCollapseToken by remember { mutableIntStateOf(0) }
     var cameraZoom by remember { mutableFloatStateOf(1f) }
+    var cameraExposureBias by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val doc = session.selectedDocument
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -52,6 +53,7 @@ internal fun IosLiveTableFixture() {
         Text(if (ready) "표 준비 완료" else "표 준비 중")
         Text("회전: ${session.tablePlacement?.rotationCwDeg}")
         Text("배율: ${((cameraZoom * 10).roundToInt() / 10f)}")
+        Text("밝기 보정: ${((cameraExposureBias * 10).roundToInt() / 10f)}")
         IosLiveTablePreview(Modifier.fillMaxWidth().weight(1f), session, fixtureAspect = 2.0 / 3.0,
             enabled = !locked && !busy,
             focusEnabled = !locked && !busy,
@@ -66,7 +68,7 @@ internal fun IosLiveTableFixture() {
                 message = if (exposureLocked) "노출 잠금" else "노출 자동"
                 true
             },
-            onExposureBias = { true },
+            onExposureBias = { next -> cameraExposureBias = next; true },
             zoomEnabled = !locked && !busy,
             currentZoom = cameraZoom,
             maximumZoom = 6f,

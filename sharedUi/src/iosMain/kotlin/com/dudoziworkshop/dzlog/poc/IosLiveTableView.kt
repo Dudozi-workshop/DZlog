@@ -319,10 +319,12 @@ internal class IosLiveTableView(
             )
         }
         val applied = devicePoint.useContents {
-            exposureBias?.invoke(0f)
+            // A locked refocus moves AF only. Keep both the native bias and
+            // slider value; resetting either silently changes the chosen light.
+            if (!exposureLocked) exposureBias?.invoke(0f)
             focusAt?.invoke(x, y, exposureLocked) == true
         }
-        exposureSlider.value = 0f
+        if (!exposureLocked) exposureSlider.value = 0f
         focusX = location.useContents { x.toFloat() }
         focusY = location.useContents { y.toFloat() }
         focusExpanded = true

@@ -215,6 +215,15 @@ final class PreviewInteractionTests: XCTestCase {
 
         tapButton("노출 잠금")
         XCTAssertTrue(text("상태: 노출 잠금").waitForExistence(timeout: 10))
+        let brightness = app.sliders["밝기 조절"]
+        brightness.adjust(toNormalizedSliderPosition: 0.75)
+        let biasLabel = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "밝기 보정:")).firstMatch
+        XCTAssertTrue(biasLabel.waitForExistence(timeout: 10))
+        let biasChanged = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", "밝기 보정: 0.0"), object: biasLabel)
+        XCTAssertEqual(XCTWaiter.wait(for: [biasChanged], timeout: 5), .completed)
+        let retainedBias = biasLabel.label
+        let retainedSlider = String(describing: brightness.value ?? "")
+        XCTAssertNotEqual(retainedBias, "밝기 보정: 0.0")
         tapButton("초점 최소화")
         XCTAssertTrue(text("카메라 초점").exists)
         XCTAssertTrue(button("노출 잠금 해제").exists)
@@ -224,9 +233,21 @@ final class PreviewInteractionTests: XCTestCase {
         tapLivePreview(0.10, 0.82)
         XCTAssertTrue(text("상태: 노출 잠금").exists)
         XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
-        // The following tap is the explicit locked refocus and resets EV.
+        XCTAssertEqual(biasLabel.label, retainedBias)
+        // Explicit locked refocus preserves the native bias and slider, repeatedly.
         tapLivePreview(0.88, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
+        XCTAssertEqual(biasLabel.label, retainedBias)
+        XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
+        tapLivePreview(0.10, 0.82)
+        tapLivePreview(0.88, 0.08)
+        XCTAssertEqual(biasLabel.label, retainedBias)
+        XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
+
+        tapButton("노출 잠금 해제")
+        tapLivePreview(0.08, 0.08)
+        XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("밝기 보정: 0.0").exists)
     }
 
     func testNativePreviewPinchZoomCommitsCompactScale() {
