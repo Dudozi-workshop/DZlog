@@ -113,9 +113,11 @@ internal fun ColumnScope.MockTableCanvas(
     val previewDragged by previewScroll.interactionSource.collectIsDraggedAsState()
     var manuallyScrolledCell by remember { mutableStateOf<String?>(null) }
     var lastAutoSelectedCell by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(previewDragged, selectedCellId) {
+    LaunchedEffect(previewDragged, selectedCellId, layoutMode) {
         if (previewDragged) manuallyScrolledCell = selectedCellId
-        else if (manuallyScrolledCell != selectedCellId) manuallyScrolledCell = null
+        // Structure selection is separate from Content selection. Switching
+        // tabs must not erase the user's last manual Content scroll preference.
+        else if (!layoutMode && manuallyScrolledCell != selectedCellId) manuallyScrolledCell = null
     }
     val background = Color.Transparent
     // A selection highlight is UI-only; it must not change the camera's bold text.
