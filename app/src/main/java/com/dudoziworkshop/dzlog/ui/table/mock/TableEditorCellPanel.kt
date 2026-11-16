@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloseFullscreen
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
@@ -51,9 +53,7 @@ internal fun TableEditorCellUiModelEditor(
     cell: TableEditorCellUiModel,
     phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
-    textFavorites: List<String>,
-    onFavoriteAdd: (String) -> Unit,
-    onFavoriteRemove: (String) -> Unit,
+    textFavoritesModel: TableEditorTextFavoritesViewModel,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
@@ -114,16 +114,24 @@ internal fun TableEditorCellUiModelEditor(
                                         }) { Text("±") } }
                                     } else {
                                         // Reserve the same text inset in both modes for the overlay button.
-                                        { androidx.compose.foundation.layout.Spacer(Modifier.size(DDZLayout.QuickInput.Touch)) }
+                                        { androidx.compose.foundation.layout.Spacer(Modifier.width(DDZLayout.QuickInput.Touch * 2)) }
                                     },
                                 )
-                                if (isText) IconButton(
-                                    onClick = onToggleInputExpanded,
-                                    modifier = Modifier.align(Alignment.BottomEnd).size(DDZLayout.QuickInput.Touch),
+                                if (isText) Row(
+                                    modifier = Modifier.align(Alignment.BottomEnd),
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(if (inputExpanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
-                                        if (inputExpanded) "입력창 축소" else "입력창 확대",
-                                        tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
+                                    TableEditorTextFavoriteStar(cell.value, textFavoritesModel)
+                                    IconButton(
+                                        onClick = onToggleInputExpanded,
+                                        modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+                                    ) {
+                                        Icon(
+                                            if (inputExpanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                                            if (inputExpanded) "입력창 축소" else "입력창 확대",
+                                            tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -178,18 +186,16 @@ internal fun TableEditorCellUiModelEditor(
             }
 
             // Common cell controls live in the fixed bottom row; only details scroll here.
-            if (!compactInput) Column(
+            if (!compactInput || cell.type == TableEditorCellType.TEXT) Column(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 when (cell.type) {
                     TableEditorCellType.TEXT -> TableEditorTextFavoritesRow(
-                        currentText = cell.value,
-                        favorites = textFavorites,
+                        model = textFavoritesModel,
                         onApply = onValueChange,
-                        onSave = { onFavoriteAdd(cell.value) },
-                        onRemove = onFavoriteRemove,
+                        compact = compactInput,
                     )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
