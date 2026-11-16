@@ -113,11 +113,19 @@ internal fun ColumnScope.MockTableCanvas(
     val previewDragged by previewScroll.interactionSource.collectIsDraggedAsState()
     var manuallyScrolledCell by remember { mutableStateOf<String?>(null) }
     var lastAutoSelectedCell by remember { mutableStateOf<String?>(null) }
+    var wasPreviewDragged by remember { mutableStateOf(false) }
+    var retainedManualScrollPx by remember { mutableStateOf(0) }
     LaunchedEffect(previewDragged, selectedCellId, layoutMode) {
-        if (previewDragged) manuallyScrolledCell = selectedCellId
-        // Structure selection is separate from Content selection. Switching
-        // tabs must not erase the user's last manual Content scroll preference.
-        else if (!layoutMode && manuallyScrolledCell != selectedCellId) manuallyScrolledCell = null
+        if (previewDragged) {
+            manuallyScrolledCell = selectedCellId
+            wasPreviewDragged = true
+        } else {
+            // Store the user's actual position before a shorter viewport clamps
+            // ScrollState to zero. Preserve it through Structure/Style/Save tabs.
+            if (wasPreviewDragged && !layoutMode) retainedManualScrollPx = previewScroll.value
+            wasPreviewDragged = false
+            if (!layoutMode && manuallyScrolledCell != selectedCellId) manuallyScrolledCell = null
+        }
     }
     val background = Color.Transparent
     // A selection highlight is UI-only; it must not change the camera's bold text.
@@ -184,8 +192,18 @@ internal fun ColumnScope.MockTableCanvas(
         // cell may reveal itself and the next cell; an already visible selection
         // and a user's manual scroll keep their current viewport position.
         LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols, resolvedRowWeights) {
-            if (preserveInputScale && selected != null && !previewDragged &&
-                manuallyScrolledCell != selectedCellId) {
+            if (preserveInputScale && selected != null && !previewDragged) {
+                if (manuallyScrolledCell == selectedCellId) {
+                    // On IME reopen restore the manually chosen region instead of
+                    // jumping back to the selected cell or the top of the table.
+                    withFrameNanos { }
+                    if (previewDragged) return@LaunchedEffect
+                    val saved = retainedManualScrollPx.coerceIn(0, previewScroll.maxValue)
+                    if (kotlin.math.abs(saved - previewScroll.value) > 1) {
+                        previewScroll.scrollTo(saved)
+                    }
+                    return@LaunchedEffect
+                }
                 val nextId = editorCellNeighbours(cells, selectedCellId).next
                 val next = cells.firstOrNull { it.domainCellId == nextId && !it.isCovered }
                 val sum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
