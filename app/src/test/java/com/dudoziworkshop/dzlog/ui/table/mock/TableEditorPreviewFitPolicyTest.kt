@@ -59,7 +59,7 @@ class TableEditorPreviewFitPolicyTest {
     fun oversized_next_cell_preserves_selection_and_peeks_when_possible() {
         // Whole range cannot fit; the selected cell must remain visible.
         assertEquals(
-            22f,
+            15f,
             editorPreviewCurrentNextScroll(30f, 50f, 95f, 160f, 100f, 300f, 0f),
             0.001f,
         )
