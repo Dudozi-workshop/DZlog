@@ -165,11 +165,13 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
         NSUserDefaults.standardUserDefaults.synchronize()
     }.getOrDefault(false)
     fun resetTestFixture() {
-        check(legacyKey == IOS_EDITOR_TEST_KEY || legacyKey == IOS_NAVIGATION_TEST_KEY)
+        check(legacyKey == IOS_EDITOR_TEST_KEY || legacyKey == IOS_NAVIGATION_TEST_KEY ||
+            legacyKey == IOS_PRODUCTION_STARTUP_TEST_KEY)
         NSUserDefaults.standardUserDefaults.removeObjectForKey(workspaceKey)
         NSUserDefaults.standardUserDefaults.removeObjectForKey(legacyKey)
         NSUserDefaults.standardUserDefaults.synchronize()
     }
 }
 internal const val IOS_NAVIGATION_TEST_KEY = "dzlog.ios.navigation.uitest.v1"
+internal const val IOS_PRODUCTION_STARTUP_TEST_KEY = "dzlog.ios.production-startup.uitest.v1"
 

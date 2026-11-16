@@ -39,6 +39,7 @@ case "$test_scope" in
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionFirstLaunchUsesBlankStarterInsteadOfBlueberryFixture
   ) ;;
   full) selection=() ;;
   *) echo "Unsupported UI scope: $test_scope" >&2; exit 2 ;;

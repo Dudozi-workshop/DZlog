@@ -11,7 +11,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
  * Immutable starter definitions. Merely browsing this catalog must not persist a template.
  * A caller creates one SavedTableTemplate only after explicit user confirmation.
  */
-internal data class OnboardingStarterDefinition(
+data class OnboardingStarterDefinition(
     val id: String,
     val title: String,
     val category: String,
@@ -25,7 +25,7 @@ internal data class OnboardingStarterDefinition(
     val pathCells: List<Int> = emptyList(),
 )
 
-internal object OnboardingStarterCatalog {
+object OnboardingStarterCatalog {
     const val DEFAULT_ID = "basic"
     val definitions: List<OnboardingStarterDefinition> = listOf(
         OnboardingStarterDefinition("basic", "기본 촬영", "basic",

@@ -981,6 +981,18 @@ final class PreviewInteractionTests: XCTestCase {
         add(image)
     }
 
+    func testProductionFirstLaunchUsesBlankStarterInsteadOfBlueberryFixture() throws {
+        app.launchArguments = ["--production-home-flow"]
+        app.launch()
+
+        XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("현장 기록").exists)
+        XCTAssertFalse(text("블루베리 관찰 기록").exists)
+        openHomeTemplates()
+        XCTAssertTrue(app.buttons["표 확대 보기 · 기본 촬영"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["표 확대 보기 · 현장 기록"].exists)
+    }
+
     func testEditorContentStructureStyleSaveAndRelaunch() throws {
         app.launchArguments = ["--editor-flow", "--reset-editor-fixture"]
         app.launch()
