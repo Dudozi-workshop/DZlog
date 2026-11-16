@@ -332,7 +332,7 @@ fun TableEditorV2Screen(
                         onClick = {
                             if (mode == MockMode.LAYOUT) {
                                 mode = MockMode.EDIT
-                                selectionState.clearLayoutSelection()
+                                selectionState.restoreEditSelection(draftTemplateState)
                             } else {
                                 saveScope.launch {
                                     if (saveCoordinator.save(session, onSave)) onBack()
@@ -351,21 +351,26 @@ fun TableEditorV2Screen(
                 MockBottomBar(
                     active = activeTab,
                     onContent = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
-                        selectionState.reconcileEditSelection(draftTemplateState)
-                        selectionState.clearLayoutSelection()
+                        selectionState.restoreEditSelection(draftTemplateState)
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                     },
                     onLayout = {
-                        selectionState.reconcileEditSelection(draftTemplateState)
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                         mode = MockMode.LAYOUT
+                        selectionState.restoreLayoutSelection(draftTemplateState)
                     },
                     onStyle = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
                         selectionState.reconcileEditSelection(draftTemplateState)
                         showSaveRules = false
@@ -373,8 +378,10 @@ fun TableEditorV2Screen(
                         showStyle = true
                     },
                     onSaveRules = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
-                        selectionState.clearLayoutSelection()
+                        selectionState.reconcileEditSelection(draftTemplateState)
                         showStyle = false
                         saveDetailTrail = emptyList()
                         showSaveRules = true
