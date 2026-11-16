@@ -86,6 +86,52 @@ class TableEditorPreviewFitPolicyTest {
     }
 
     @Test
+    fun same_visible_selection_stays_put_when_keyboard_or_tab_changes() {
+        assertEquals(false, editorPreviewShouldReveal(
+            true, "row15", "row15", 150f, 180f, 120f, 100f, false,
+        ))
+        // A transition out of the scrollable input mode must not force a reset.
+        assertEquals(false, editorPreviewShouldReveal(
+            false, "row15", "row15", 150f, 180f, 120f, 100f, false,
+        ))
+        assertEquals(false, editorPreviewShouldReveal(
+            true, null, "row15", 150f, 180f, 120f, 100f, false,
+        ))
+    }
+
+    @Test
+    fun new_selection_reveals_itself_but_manual_scroll_wins_until_selection_changes() {
+        // A newly selected cell may reveal itself and its next editable cell.
+        assertEquals(true, editorPreviewShouldReveal(
+            true, "row16", "row15", 150f, 180f, 120f, 100f, false,
+        ))
+        // Selected row 15 is outside the viewport and needs a minimal correction.
+        assertEquals(true, editorPreviewShouldReveal(
+            true, "row15", "row15", 80f, 105f, 120f, 140f, false,
+        ))
+        // User scrolled to row 18 manually: do not pull the view back to row 15.
+        assertEquals(false, editorPreviewShouldReveal(
+            true, "row15", "row15", 80f, 105f, 120f, 140f, true,
+        ))
+        assertEquals(false, editorPreviewShouldReveal(
+            true, "row16", "row15", 150f, 180f, 120f, 100f, true,
+        ))
+    }
+
+    @Test
+    fun clipping_and_margin_are_respected_after_viewport_resize() {
+        assertEquals(false, editorPreviewShouldReveal(
+            true, "cell", "cell", 130f, 190f, 120f, 100f, false,
+        ))
+        assertEquals(true, editorPreviewShouldReveal(
+            true, "cell", "cell", 130f, 190f, 90f, 100f, false,
+        ))
+        assertEquals(true, editorPreviewShouldReveal(
+            true, "cell", "cell", 107f, 130f, 120f, 100f, false,
+        ))
+    }
+
+    @Test
     fun shrinking_keeps_gesture_zoom_then_refits_the_same_aspect_on_release() {
         val initial = editorPreviewFitScale(80f, 20f, 400f, 300f)
         assertEquals(5f, initial, 0.0001f)
