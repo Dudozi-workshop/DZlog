@@ -8,9 +8,10 @@ import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 
-/** Overall edits the set default; individual edits only the currently selected phrase's interval.
- * The legacy cell-wide override is cleared on an explicit interval edit so it cannot mask
- * the per-phrase value. Unrelated sets and unrelated phrase overrides are preserved.
+/** Overall edits the shared default; individual edits only the selected phrase interval.
+ * Existing cell-wide overrides are retained for unrelated phrases. An explicit
+ * phrase override has priority over a legacy cell-wide period during capture.
+ * Returning the selected phrase to overall also clears that cell's legacy period.
  */
 internal data class QuickPhrasePeriodEdit(
     val cellId: String,
