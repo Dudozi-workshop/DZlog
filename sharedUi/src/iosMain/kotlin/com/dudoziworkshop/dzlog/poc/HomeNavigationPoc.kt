@@ -51,6 +51,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
     var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
     var recentPhotoName by remember { mutableStateOf("") }
+    var recentPhotoTime by remember { mutableStateOf("-") }
+    var recentPhotoLocation by remember { mutableStateOf("") }
     val cameraReturnRevision = IosCameraReturnSignal.revision
     var recoveryRevision by remember { mutableIntStateOf(0) }
     var recoveryPending by remember { mutableStateOf(IosCameraCaptureSession.hasPending()) }
@@ -82,6 +84,9 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             } ?: indexed.lastOrNull { it.availability == CaptureMediaAvailability.PRESENT }
             recentPhoto = null
             recentPhotoName = recent?.asset?.target?.displayName.orEmpty()
+            recentPhotoTime = recent?.createdAtMillis?.let(::formatIosRecentCaptureTime) ?: "-"
+            recentPhotoLocation = recent?.asset?.target?.relativePath
+                ?.let(::formatIosRecentCaptureLocation).orEmpty()
             if (recent != null) {
                 val bytes = runCatching { photoRepository.readAsset(recent.asset.assetId) }.getOrNull()
                 recentPhoto = bytes?.let { runCatching { Image.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }.getOrNull() }
@@ -298,7 +303,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             recentCapture = {
                 HomeRecentCaptureContent(
                     hasImage = recentPhoto != null, displayName = recentPhotoName,
-                    timeText = "DZlog 저장 사진", recentLabel = "최근 촬영",
+                    timeText = recentPhotoTime, locationText = recentPhotoLocation,
+                    recentLabel = "최근 촬영",
                     emptyTitle = "아직 촬영한 사진이 없어요.", emptyHint = "첫 기록을 남겨보세요.",
                     onOpenAlbum = { showGallery = true }, onOpenImage = { showGallery = true },
                     albumEnabled = true,
@@ -330,6 +336,19 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
         )
     }
 }
+
+private fun formatIosRecentCaptureTime(epochMilliseconds: Long): String {
+    val now = tableEditorNow()
+    val captured = now.copy(epochMilliseconds = epochMilliseconds)
+    return if (formatCaptureTime("yyyyMMdd", captured) == formatCaptureTime("yyyyMMdd", now)) {
+        "오늘 ${formatCaptureTime("HH:mm", captured)}"
+    } else {
+        formatCaptureTime("yyyy.MM.dd HH:mm", captured)
+    }
+}
+
+private fun formatIosRecentCaptureLocation(relativePath: String): String =
+    relativePath.removePrefix("Pictures/").trimEnd('/').ifBlank { "DZlog" }
 
 /** Same PNG as Android, loaded once from the native bundle; all rendering stays shared. */
 @OptIn(ExperimentalForeignApi::class)

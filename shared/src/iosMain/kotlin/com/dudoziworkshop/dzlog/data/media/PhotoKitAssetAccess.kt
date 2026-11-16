@@ -12,6 +12,7 @@ import kotlin.coroutines.suspendCoroutine
 import platform.Foundation.NSData
 import platform.Foundation.NSMutableArray
 import platform.Foundation.create
+import platform.Foundation.timeIntervalSince1970
 import platform.Photos.PHAccessLevelReadWrite
 import platform.Photos.PHAsset
 import platform.Photos.PHAssetChangeRequest
@@ -37,6 +38,8 @@ internal data class PhotoKitCreatedBatch(
     val entries: List<IndexedCaptureMedia>,
     val metadataError: Throwable? = null,
 )
+
+internal data class PhotoKitAssetMetadata(val createdAtMillis: Long?)
 
 /** Only a confirmed failed PhotoKit transaction or confirmed rollback may use this signal. */
 internal class PhotoKitSaveRolledBackException(message: String, cause: Throwable? = null) :
@@ -65,6 +68,14 @@ internal class PhotoKitAssetAccess {
         status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited
 
     fun exists(assetId: String): Boolean = find(assetId) != null
+
+    fun metadata(assetId: String): PhotoKitAssetMetadata? {
+        val asset = find(assetId) ?: return null
+        val createdAt = asset.creationDate ?: asset.modificationDate
+        return PhotoKitAssetMetadata(
+            createdAtMillis = createdAt?.timeIntervalSince1970?.times(1_000.0)?.toLong(),
+        )
+    }
 
     private fun find(assetId: String): PHAsset? {
         if (!hasReadAccess()) return null

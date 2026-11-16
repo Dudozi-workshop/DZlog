@@ -60,15 +60,17 @@ class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletio
         if (photos.hasReadAccess()) reconcilePending()
         val readable = photos.hasReadAccess()
         return index.load().map { entry ->
+            val metadata = if (readable) photos.metadata(entry.asset.assetId) else null
             SavedCaptureMedia(
                 captureId = entry.captureId,
                 asset = entry.asset,
                 availability = when {
                     !readable -> CaptureMediaAvailability.INACCESSIBLE
-                    photos.exists(entry.asset.assetId) -> CaptureMediaAvailability.PRESENT
+                    metadata != null -> CaptureMediaAvailability.PRESENT
                     !photos.hasFullReadAccess() -> CaptureMediaAvailability.INACCESSIBLE
                     else -> CaptureMediaAvailability.MISSING
                 },
+                createdAtMillis = metadata?.createdAtMillis,
             )
         }
     }

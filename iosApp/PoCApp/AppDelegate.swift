@@ -17,6 +17,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     private static let closeCamera = Notification.Name("dzlog.dismissCamera")
     private static let sharePhoto = Notification.Name("dzlog.sharePhoto")
     private static let openSystemSettings = Notification.Name("dzlog.openSystemSettings")
+    private static let permissionStatusRequest = Notification.Name("dzlog.permissionStatusRequest")
+    private static let permissionStatusUpdated = Notification.Name("dzlog.permissionStatusUpdated")
     private static let exportWorkspace = Notification.Name("dzlog.exportWorkspace")
     private static let importWorkspace = Notification.Name("dzlog.importWorkspace")
     private static let exportCompleted = Notification.Name("dzlog.workspaceExportCompleted")
@@ -43,6 +45,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
         NotificationCenter.default.addObserver(
             self, selector: #selector(openSystemSettingsFromSettings(_:)),
             name: Self.openSystemSettings, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(reportPermissionStatus(_:)),
+            name: Self.permissionStatusRequest, object: nil
         )
         NotificationCenter.default.addObserver(
             self, selector: #selector(exportWorkspaceFromSettings(_:)),
@@ -116,6 +122,18 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     @objc private func openSystemSettingsFromSettings(_ notification: Notification) {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    @objc private func reportPermissionStatus(_ notification: Notification) {
+        let label: String
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: label = "허용됨"
+        case .denied: label = "거부됨"
+        case .restricted: label = "제한됨"
+        case .notDetermined: label = "요청 전"
+        @unknown default: label = "확인 필요"
+        }
+        NotificationCenter.default.post(name: Self.permissionStatusUpdated, object: label)
     }
 
     @objc private func exportWorkspaceFromSettings(_ notification: Notification) {

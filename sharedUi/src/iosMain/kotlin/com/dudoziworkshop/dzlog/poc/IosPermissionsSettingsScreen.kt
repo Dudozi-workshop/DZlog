@@ -15,8 +15,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,13 +28,8 @@ import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
-import platform.AVFoundation.AVAuthorizationStatusAuthorized
-import platform.AVFoundation.AVAuthorizationStatusDenied
-import platform.AVFoundation.AVAuthorizationStatusNotDetermined
-import platform.AVFoundation.AVAuthorizationStatusRestricted
-import platform.AVFoundation.AVCaptureDevice
-import platform.AVFoundation.AVMediaTypeVideo
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Photos.PHAccessLevelReadWrite
 import platform.Photos.PHAuthorizationStatusAuthorized
 import platform.Photos.PHAuthorizationStatusDenied
@@ -44,8 +41,19 @@ import platform.Photos.PHPhotoLibrary
 @Composable
 internal fun IosPermissionsSettingsScreen(onBack: () -> Unit) {
     var refreshRevision by remember { mutableIntStateOf(0) }
-    val cameraStatus = remember(refreshRevision) { iosCameraPermissionLabel() }
+    var cameraStatus by remember { mutableStateOf("확인 중") }
     val photosStatus = remember(refreshRevision) { iosPhotosPermissionLabel() }
+    val center = remember { NSNotificationCenter.defaultCenter }
+
+    DisposableEffect(center) {
+        val observer = center.addObserverForName(
+            IOS_PERMISSION_STATUS_UPDATED, null, NSOperationQueue.mainQueue,
+        ) { notification ->
+            cameraStatus = notification.`object` as? String ?: "확인 필요"
+        }
+        center.postNotificationName(IOS_PERMISSION_STATUS_REQUEST, null)
+        onDispose { center.removeObserver(observer) }
+    }
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -72,7 +80,10 @@ internal fun IosPermissionsSettingsScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Button(onClick = { refreshRevision += 1 }) { Text("상태 새로고침") }
+                Button(onClick = {
+                    refreshRevision += 1
+                    center.postNotificationName(IOS_PERMISSION_STATUS_REQUEST, null)
+                }) { Text("상태 새로고침") }
                 Button(onClick = {
                     NSNotificationCenter.defaultCenter.postNotificationName(
                         "dzlog.openSystemSettings", null,
@@ -98,15 +109,8 @@ private fun PermissionStatusRow(title: String, status: String, explanation: Stri
     }
 }
 
-private fun iosCameraPermissionLabel(): String = when (
-    AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
-) {
-    AVAuthorizationStatusAuthorized -> "허용됨"
-    AVAuthorizationStatusDenied -> "거부됨"
-    AVAuthorizationStatusRestricted -> "제한됨"
-    AVAuthorizationStatusNotDetermined -> "요청 전"
-    else -> "확인 필요"
-}
+private const val IOS_PERMISSION_STATUS_REQUEST = "dzlog.permissionStatusRequest"
+private const val IOS_PERMISSION_STATUS_UPDATED = "dzlog.permissionStatusUpdated"
 
 private fun iosPhotosPermissionLabel(): String = when (
     PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)

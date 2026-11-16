@@ -80,7 +80,7 @@ internal fun IosWorkspaceBackupScreen(
         ) { notification ->
             busy = false
             message = null
-            error = notification.object as? String ?: "백업 파일을 내보내지 못했습니다."
+            error = notification.`object` as? String ?: "백업 파일을 내보내지 못했습니다."
         }
         val importSelected = center.addObserverForName(
             IOS_IMPORT_SELECTED, null, NSOperationQueue.mainQueue,
@@ -88,7 +88,7 @@ internal fun IosWorkspaceBackupScreen(
             busy = false
             message = null
             runCatching {
-                val raw = requireNotNull(notification.object as? String) { "백업 파일을 읽을 수 없습니다." }
+                val raw = requireNotNull(notification.`object` as? String) { "백업 파일을 읽을 수 없습니다." }
                 val archive = LocalTemplateBackupCodec.decode(raw)
                 val summary = LocalTemplateBackupMerge.preview(
                     workspace.documents.map { it.template }, archive,
@@ -107,7 +107,7 @@ internal fun IosWorkspaceBackupScreen(
         ) { notification ->
             busy = false
             message = null
-            error = notification.object as? String ?: "백업 파일을 열지 못했습니다."
+            error = notification.`object` as? String ?: "백업 파일을 열지 못했습니다."
         }
         onDispose {
             center.removeObserver(exportCompleted)

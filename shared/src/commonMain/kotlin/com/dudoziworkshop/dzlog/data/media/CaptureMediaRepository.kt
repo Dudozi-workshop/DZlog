@@ -22,6 +22,7 @@ data class SavedCaptureMedia(
     val captureId: String,
     val asset: PersistedCaptureAsset,
     val availability: CaptureMediaAvailability,
+    val createdAtMillis: Long? = null,
 )
 
 interface CaptureMediaRepository {

@@ -509,6 +509,11 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
         app.launch()
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH %@", "오늘 "
+        )).firstMatch.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(text("DZlog/M3A-PhotoKit").exists)
+        XCTAssertFalse(text("DZlog 저장 사진").exists)
         tapButton("앨범 보기")
         XCTAssertTrue(text("갤러리").waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "사진 ([2-9]|[1-9][0-9]+)개")).firstMatch.waitForExistence(timeout: 15), "Gallery count mismatch after fixture save. UI hierarchy: \(app.debugDescription)")
