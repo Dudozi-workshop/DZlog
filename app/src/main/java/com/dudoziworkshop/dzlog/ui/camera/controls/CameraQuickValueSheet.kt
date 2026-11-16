@@ -144,6 +144,7 @@ internal fun CameraQuickValueSheet(
         }
     }
     var expanded by remember { mutableStateOf(false) }
+    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     var switching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -197,9 +198,13 @@ internal fun CameraQuickValueSheet(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer); commit() }
     }
     fun select(id: String) {
-        if (cells.none { it.cellId == id }) return
+        val target = cells.firstOrNull { it.cellId == id } ?: return
+        if (selectedId != id) expanded = false
+        if (target.dataType != TableCellDataType.TEXT) compactFavoritesExpanded = false
         selectedId?.let { oldId -> values[oldId]?.let { values[oldId] = it.copy(composition = null) } }
-        values[id]?.let { values[id] = it.copy(composition = null) }
+        values[id]?.let { values[id] = it.copy(
+            selection = TextRange(it.text.length), composition = null,
+        ) }
         selectedId = id
         selectionMemory.recordSelection(activeTemplateId, id, cells.map { it.cellId })
         if (focused && cells.any {
@@ -213,6 +218,10 @@ internal fun CameraQuickValueSheet(
         // Focus belongs to the dialog window; do not retain the camera window's manager.
         val focus = LocalFocusManager.current
         val keyboard = LocalSoftwareKeyboardController.current
+        val imeVisible = WindowInsets.isImeVisible
+        LaunchedEffect(imeVisible) {
+            if (!imeVisible) compactFavoritesExpanded = false
+        }
         val context = LocalContext.current
         val view = LocalView.current
         val density = LocalDensity.current
@@ -511,7 +520,9 @@ internal fun CameraQuickValueSheet(
                                 TableEditorTextFavoritesRow(
                                     model = textFavoritesModel,
                                     enabled = !switching && !readOnlyGuide,
-                                    compact = focused,
+                                    compact = imeVisible,
+                                    compactExpanded = compactFavoritesExpanded,
+                                    onCompactExpandedChange = { compactFavoritesExpanded = it },
                                     onApply = { text ->
                                         change(TextFieldValue(text, TextRange(text.length)))
                                     },
