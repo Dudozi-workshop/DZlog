@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickCellLinks
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -60,6 +61,18 @@ internal fun TableEditorWorkPanel(modifier: Modifier = Modifier, content: @Compo
         shape = RoundedCornerShape(topStart = radius, topEnd = radius),
         content = content,
     )
+}
+
+/**
+ * The selected cell panel has two non-scrollable controls: the input (56dp)
+ * and its navigation/info row (44dp). Reserve vertical padding and divider,
+ * even on short landscape viewports, before allocating space to the preview.
+ */
+internal fun editorContentPanelMaxHeight(availableHeight: Dp, bottomTabHeight: Dp): Dp {
+    val minimumForFixedControls =
+        DDZLayout.QuickInput.RowHeight + DDZLayout.QuickInput.Touch + 24.dp
+    val proportional = (availableHeight + bottomTabHeight) * 0.35f - bottomTabHeight
+    return maxOf(minimumForFixedControls, proportional).coerceAtMost(availableHeight)
 }
 
 /** Stable domain identity: row/column changes can renumber temporary UI indexes. */
