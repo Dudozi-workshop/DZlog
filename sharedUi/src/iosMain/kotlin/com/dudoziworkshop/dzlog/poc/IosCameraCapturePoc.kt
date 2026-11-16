@@ -72,6 +72,7 @@ internal fun IosCameraCapturePoc(
 ) {
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember { PhotoKitCaptureMediaRepository() }
+    val captureFeedback = remember { IosCaptureFeedback() }
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -191,8 +192,9 @@ internal fun IosCameraCapturePoc(
 
     if (showSettings && session != null) {
         IosCaptureSettingsScreen(session.selectedDocument, session.continuousPreviewMode,
-            onBack = { showSettings = false }) { document, previewMode ->
-            if (session.saveCaptureSettings(document, previewMode)) {
+            session.captureHapticEnabled, onBack = { showSettings = false }) {
+                document, previewMode, hapticEnabled ->
+            if (session.saveCaptureSettings(document, previewMode, hapticEnabled)) {
                 settingsRevision += 1
                 showSettings = false
             }
@@ -234,8 +236,11 @@ internal fun IosCameraCapturePoc(
         busy = true
         showTools = false
         status = "사진 촬영 중"
+        captureFeedback.prepare(session?.captureHapticEnabled ?: true)
         runCatching {
-            camera.captureJpeg { result ->
+            camera.captureJpeg(onCaptureStarted = {
+                captureFeedback.play(session?.captureHapticEnabled ?: true)
+            }) { result ->
                 scope.launch {
                     try {
                         val jpeg = result.getOrThrow()

@@ -53,6 +53,7 @@ internal class IosCameraCaptureSession(
     val cameraZoom get() = workspace.settings.cameraZoomTenths / 10f
     val cameraFlashMode get() = workspace.settings.cameraFlashMode
     val continuousPreviewMode get() = workspace.settings.continuousPreviewMode
+    val captureHapticEnabled get() = workspace.settings.captureHapticEnabled
 
     fun setShowCameraGrid(enabled: Boolean): Boolean = saveCameraPreferences(
         workspace.settings.copy(showCameraGrid = enabled),
@@ -159,16 +160,19 @@ internal class IosCameraCaptureSession(
     fun saveCaptureSettings(
         document: com.dudoziworkshop.dzlog.data.template.EditorDocument,
         continuousPreviewMode: Int,
+        captureHapticEnabled: Boolean,
     ): Boolean {
         if (continuousPreviewMode !in 0..2 || hasPending() ||
             document.template.id != workspace.activeTemplateId) return false
         if (store.load(document.template) != workspace) return false
         val updated = workspace.save(document).copy(settings = workspace.settings.copy(
-            continuousPreviewMode = continuousPreviewMode))
+            continuousPreviewMode = continuousPreviewMode,
+            captureHapticEnabled = captureHapticEnabled))
         if (!store.save(updated)) return false
         workspace = store.load(document.template)
         sessionCaptures.clear()
-        return workspace.active == document && workspace.settings.continuousPreviewMode == continuousPreviewMode
+        return workspace.active == document && workspace.settings.continuousPreviewMode == continuousPreviewMode &&
+            workspace.settings.captureHapticEnabled == captureHapticEnabled
     }
 
     fun previewInfo() = com.dudoziworkshop.dzlog.domain.preview.buildPreview(

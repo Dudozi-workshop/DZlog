@@ -16,6 +16,7 @@ data class WorkspaceSettings(
     val cameraZoomTenths: Int = 10,
     val cameraFlashMode: Int = 0,
     val continuousPreviewMode: Int = 0,
+    val captureHapticEnabled: Boolean = true,
 ) {
     init {
         require(qualityMode in 0..2)
@@ -62,7 +63,8 @@ object EditorWorkspaceCodec {
             .put("assistY10000", (value.settings.assistShutterYRatio * 10_000).roundToInt())
             .put("cameraZoomTenths", value.settings.cameraZoomTenths)
             .put("cameraFlashMode", value.settings.cameraFlashMode)
-            .put("continuousPreviewMode", value.settings.continuousPreviewMode).toString()
+            .put("continuousPreviewMode", value.settings.continuousPreviewMode)
+            .put("captureHapticEnabled", value.settings.captureHapticEnabled).toString()
     }
     fun decode(json: String): EditorWorkspace {
         val root = CompatJsonObject(json)
@@ -83,6 +85,7 @@ object EditorWorkspaceCodec {
             cameraZoomTenths = root.optInt("cameraZoomTenths", 10).coerceIn(10, 100),
             cameraFlashMode = root.optInt("cameraFlashMode", 0).coerceIn(0, 2),
             continuousPreviewMode = root.optInt("continuousPreviewMode", 0).coerceIn(0, 2),
+            captureHapticEnabled = root.optBoolean("captureHapticEnabled", true),
         ))
     }
 }

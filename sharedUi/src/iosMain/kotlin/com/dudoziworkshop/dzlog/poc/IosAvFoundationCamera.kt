@@ -185,7 +185,7 @@ internal class IosAvFoundationCamera {
         try { block(active) } finally { active.unlockForConfiguration() }
     }.isSuccess
 
-    fun captureJpeg(callback: (Result<ByteArray>) -> Unit) {
+    fun captureJpeg(onCaptureStarted: () -> Unit = {}, callback: (Result<ByteArray>) -> Unit) {
         check(configured && session.running) { "카메라가 실행 중이지 않습니다." }
         check(onPhoto == null) { "이미 촬영 중입니다." }
         onPhoto = callback
@@ -196,6 +196,7 @@ internal class IosAvFoundationCamera {
         )
         if (flashAvailable) settings.flashMode = flashMode
         photoOutput.capturePhotoWithSettings(settings, delegate = photoDelegate)
+        onCaptureStarted()
     }
 }
 

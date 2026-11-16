@@ -314,6 +314,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("촬영 설정 열기")
         tapButton("원본만")
         tapButton("유지")
+        tapButton("촬영 진동 끄기")
         tapButton("설정 저장")
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
@@ -331,12 +332,14 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
         XCTAssertTrue(text("다음 번호: 12").exists)
         XCTAssertTrue(text("촬영 확인: 2").exists)
+        XCTAssertTrue(text("촬영 진동: false").exists)
         app.terminate()
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
         XCTAssertTrue(text("촬영 확인: 2").exists)
+        XCTAssertTrue(text("촬영 진동: false").exists)
     }
 
     func testCameraOverlayToolsPersistThroughNativeReturn() {

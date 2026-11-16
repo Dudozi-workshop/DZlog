@@ -18,8 +18,9 @@ import kotlin.math.roundToInt
 internal fun IosCaptureSettingsScreen(
     document: EditorDocument,
     continuousPreviewMode: Int,
+    captureHapticEnabled: Boolean,
     onBack: () -> Unit,
-    onApply: (EditorDocument, Int) -> Unit,
+    onApply: (EditorDocument, Int, Boolean) -> Unit,
 ) {
     var mode by remember(document) { mutableStateOf(document.saveMode) }
     // Draft suggestions only: Cancel never writes these values to the document.
@@ -27,6 +28,7 @@ internal fun IosCaptureSettingsScreen(
         EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)) }
     var number by remember(document) { mutableStateOf((document.nextCounter ?: 1).toString()) }
     var previewMode by remember(continuousPreviewMode) { mutableIntStateOf(continuousPreviewMode) }
+    var hapticEnabled by remember(captureHapticEnabled) { mutableStateOf(captureHapticEnabled) }
     val next = number.toIntOrNull()?.takeIf { it > 0 && it < Int.MAX_VALUE }
     val layoutError = runCatching { iosCaptureCellRects(document.template.templateState) }.exceptionOrNull()?.message
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding()
@@ -39,9 +41,17 @@ internal fun IosCaptureSettingsScreen(
             Button(enabled = next != null && (mode == SaveMode.ORIGINAL_ONLY || layoutError == null), onClick = {
                 onApply(document.copy(saveMode = mode, nextCounter = next,
                     usesAutoNext = if (next != document.nextCounter) false else document.usesAutoNext,
-                    capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement), previewMode)
+                    capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement),
+                    previewMode, hapticEnabled)
             }) { Text("설정 저장") }
         }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Switch(checked = hapticEnabled, onCheckedChange = { hapticEnabled = it })
+            TextButton(onClick = { hapticEnabled = !hapticEnabled }) {
+                Text(if (hapticEnabled) "촬영 진동 끄기" else "촬영 진동 켜기")
+            }
+        }
+        Text("촬영음은 iPhone 시스템 설정과 지역 정책을 따릅니다.")
         Text("촬영 후 확인")
         for ((value, label) in listOf(0 to "안 함", 1 to "잠깐", 2 to "유지")) {
             Row {

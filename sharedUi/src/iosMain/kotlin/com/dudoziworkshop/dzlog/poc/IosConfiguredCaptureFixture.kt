@@ -66,9 +66,9 @@ internal fun IosConfiguredCaptureFixture() {
     }
     if (settings) {
         IosCaptureSettingsScreen(checkNotNull(workspace.active), workspace.settings.continuousPreviewMode,
-            { settings = false }) { document, previewMode ->
+            workspace.settings.captureHapticEnabled, { settings = false }) { document, previewMode, hapticEnabled ->
             check(store.save(workspace.save(document).copy(settings = workspace.settings.copy(
-                continuousPreviewMode = previewMode))))
+                continuousPreviewMode = previewMode, captureHapticEnabled = hapticEnabled))))
             workspace = store.load(seed)
             check(workspace.active == document)
             settings = false
@@ -90,6 +90,7 @@ internal fun IosConfiguredCaptureFixture() {
         Text("다음 번호: ${doc.nextCounter}")
         Text("배치: ${doc.capturePlacement?.anchor?.name ?: "없음"}")
         Text("촬영 확인: ${workspace.settings.continuousPreviewMode}")
+        Text("촬영 진동: ${workspace.settings.captureHapticEnabled}")
         Text("대기 기록: ${IosCameraCaptureSession.hasPending()}")
         Button(onClick = { settings = true }, enabled = !busy && !IosCameraCaptureSession.hasPending()) { Text("촬영 설정 열기") }
         for (interrupt in listOf(false, true)) {
