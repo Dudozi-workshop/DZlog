@@ -105,8 +105,8 @@ private fun CompactStyleRow(label: String, content: @Composable RowScope.() -> U
 private fun StyleChoices(
     labels: List<String>,
     current: Int,
-    onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth(),
+    onSelect: (Int) -> Unit,
 ) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         labels.forEachIndexed { index, label ->
