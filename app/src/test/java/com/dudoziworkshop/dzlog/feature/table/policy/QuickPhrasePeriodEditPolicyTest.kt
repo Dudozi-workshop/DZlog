@@ -39,25 +39,47 @@ class QuickPhrasePeriodEditPolicyTest {
             "c1" to CellPhraseProgress(0, 1), "c2" to CellPhraseProgress(0, 0))))
     }
 
-    @Test fun `switching cell scope preserves progress when valid and does not affect peers`() {
+    @Test fun `editing selected phrase preserves completed shots and other phrase periods`() {
         val result = applyQuickPhrasePeriodEdit(template, QuickPhrasePeriodEdit("c1", false, 4))!!
-        assertEquals(4, result.cells.first().everyOverride)
-        assertEquals(3, result.cells.first().phraseCompletedShots)
+        assertEquals(4, result.phraseSets.single().everyForItem(0))
+        assertEquals(2, result.phraseSets.single().everyForItem(1))
+        assertEquals(5, result.phraseSets.single().defaultEvery)
+        assertEquals(listOf(3, 1, 1), result.cells.map { it.phraseCompletedShots })
         assertEquals(c2, result.cells[1])
-        assertEquals(set, result.phraseSets.first())
     }
 
-    @Test fun `individual camera quick period stays local and never updates set default`() {
+    @Test fun `individual camera quick period edits only selected phrase and never set default`() {
         val individual = applyQuickPhrasePeriodEdit(
             template, QuickPhrasePeriodEdit("c1", false, 6),
         )!!
         assertEquals(5, individual.phraseSets.single().defaultEvery)
-        assertEquals(listOf(null, 2), individual.phraseSets.single().itemEveryOverrides)
-        assertEquals(6, individual.cells.first().everyOverride)
-        assertNull(individual.cells[1].everyOverride)
-        assertNull(individual.cells[2].everyOverride)
-        assertEquals(5, individual.phraseSets.single().everyForItem(0))
+        assertEquals(listOf(6, 2), individual.phraseSets.single().itemEveryOverrides)
+        assertTrue(individual.cells.all { it.everyOverride == null })
+        assertEquals(6, individual.phraseSets.single().everyForItem(0))
         assertEquals(2, individual.phraseSets.single().everyForItem(1))
+        assertEquals(template.cells, individual.cells)
+    }
+
+    @Test fun `B individual change does not alter A C or overall default`() {
+        val abc = RotatingPhraseSet("abc", "ABC", listOf("A", "B", "C"), defaultEvery = 5)
+        val current = c1.copy(phraseSetId = "abc", phraseIndex = 1, phraseCompletedShots = 2)
+        val other = c2.copy(phraseSetId = "abc", phraseIndex = 0)
+        val working = TableTemplateState(1, 2, cells = listOf(current, other), phraseSets = listOf(abc))
+
+        val edited = applyQuickPhrasePeriodEdit(working, QuickPhrasePeriodEdit("c1", false, 3))!!
+        assertEquals(5, edited.phraseSets.single().defaultEvery)
+        assertEquals(listOf(5, 3, 5), edited.phraseSets.single().items.indices.map {
+            edited.phraseSets.single().everyForItem(it)
+        })
+        assertEquals(listOf(null, 3, null), edited.phraseSets.single().itemEveryOverrides)
+        assertEquals(working.cells, edited.cells)
+
+        val reset = applyQuickPhrasePeriodEdit(edited, QuickPhrasePeriodEdit("c1", true, 5))!!
+        assertEquals(listOf(5, 5, 5), reset.phraseSets.single().items.indices.map {
+            reset.phraseSets.single().everyForItem(it)
+        })
+        assertEquals(5, reset.phraseSets.single().defaultEvery)
+        assertNull(reset.phraseSets.single().itemEveryOverrides[1])
     }
 
     @Test fun `only set mode changes shared default while preserving per item override`() {
