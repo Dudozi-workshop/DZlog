@@ -178,13 +178,12 @@ internal fun ColumnScope.MockTableCanvas(
         val frameHeight = stableTableHeight + gutter * 2
         val contentHeight = maxOf(viewportHeight, frameHeight)
         val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
-        // Typing does not move the preview. A new selection can reveal itself and
-        // only its next editable cell, but a user's manual scroll takes precedence.
-        LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols) {
-            if (!preserveInputScale || selected == null) {
-                previewScroll.scrollTo(0)
-                lastAutoSelectedCell = selectedCellId
-            } else if (!previewDragged && manuallyScrolledCell != selectedCellId) {
+        // Do not reset scroll on keyboard close/tab switch. A newly selected
+        // cell may reveal itself and the next cell; an already visible selection
+        // and a user's manual scroll keep their current viewport position.
+        LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols, resolvedRowWeights) {
+            if (preserveInputScale && selected != null && !previewDragged &&
+                manuallyScrolledCell != selectedCellId) {
                 val nextId = editorCellNeighbours(cells, selectedCellId).next
                 val next = cells.firstOrNull { it.domainCellId == nextId && !it.isCovered }
                 val sum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
@@ -198,6 +197,16 @@ internal fun ColumnScope.MockTableCanvas(
                 withFrameNanos { }
                 if (previewDragged || manuallyScrolledCell == selectedCellId) return@LaunchedEffect
                 val currentScroll = with(density) { previewScroll.value.toDp().value }
+                if (!editorPreviewShouldReveal(
+                        isScrollable = true,
+                        selectedId = selectedCellId,
+                        previouslyRevealedId = lastAutoSelectedCell,
+                        selectedTop = currentTop,
+                        selectedBottom = currentBottom,
+                        viewportHeight = viewportHeight.value,
+                        currentScroll = currentScroll,
+                        manuallyScrolledSelected = false,
+                    )) return@LaunchedEffect
                 val target = editorPreviewCurrentNextScroll(
                     selectedTop = currentTop,
                     selectedBottom = currentBottom,
