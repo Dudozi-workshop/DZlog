@@ -82,10 +82,11 @@ internal fun TableEditorCellUiModelEditor(
     modifier: Modifier = Modifier,
 ) {
     val favoriteActionsEnabled = !LocalTutorialReadOnly.current
-    var showDatePicker by remember(cell.id) { mutableStateOf(false) }
-    var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
-    var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
-    var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
+    val cellKey = editorCellStateKey(cell)
+    var showDatePicker by remember(cellKey) { mutableStateOf(false) }
+    var showPhrasePicker by remember(cellKey) { mutableStateOf(false) }
+    var showPhraseProgress by remember(cellKey) { mutableStateOf(false) }
+    var editingPhraseSetId by remember(cellKey) { mutableStateOf<String?>(null) }
     val inputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     // A text field can be recreated when moving between TEXT and NUMBER.
@@ -115,10 +116,10 @@ internal fun TableEditorCellUiModelEditor(
                         TableEditorCellType.TEXT,
                         TableEditorCellType.NUMBER -> {
                             val isText = cell.type == TableEditorCellType.TEXT
-                            var textDraft by remember(cell.id) {
+                            var textDraft by remember(cellKey) {
                                 mutableStateOf(TextFieldValue(cell.value, TextRange(cell.value.length)))
                             }
-                            LaunchedEffect(cell.id, cell.value) {
+                            LaunchedEffect(cellKey, cell.value) {
                                 if (isText && textDraft.text != cell.value) {
                                     textDraft = TextFieldValue(cell.value, TextRange(cell.value.length))
                                 }
