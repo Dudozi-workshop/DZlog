@@ -41,7 +41,12 @@ internal class TableEditorV2SelectionState {
         if (stored.selectedCellIds.isNotEmpty()) {
             layoutSelection = if (stored.range != null &&
                 stored.selectedCellIds.all { it in valid }) {
-                normalizeMockLayoutSelection(templateState, stored.range)
+                val restored = normalizeMockLayoutSelection(templateState, stored.range)
+                restored.copy(
+                    lastSelectedCellId = stored.lastSelectedCellId
+                        ?.takeIf { it in restored.selectedCellIds }
+                        ?: restored.lastSelectedCellId,
+                )
             } else MockLayoutSelection()
         }
         syncFocusedCellFromLayout()
