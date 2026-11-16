@@ -4,6 +4,7 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 
 /**
  * Quick editing is available for every visible root cell except counters.
@@ -81,7 +82,7 @@ internal fun updateQuickPhraseCompleted(
     } ?: return template
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId }
         ?.takeIf { it.items.isNotEmpty() } ?: return template
-    val every = (cell.everyOverride ?: set.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
+    val every = CellPhraseProgressPolicy.everyFor(cell, set, cell.phraseIndex)
     if (completed !in 0 until every || cell.phraseCompletedShots == completed) return template
     return template.copy(cells = template.cells.map {
         if (it.cellId == cellId) it.copy(phraseCompletedShots = completed) else it
