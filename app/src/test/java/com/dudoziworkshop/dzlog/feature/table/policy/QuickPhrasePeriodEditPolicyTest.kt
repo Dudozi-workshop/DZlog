@@ -155,6 +155,40 @@ class QuickPhrasePeriodEditPolicyTest {
             mapOf("c1" to CellPhraseProgress(0, 4))))
     }
 
+    @Test fun `conflict resolution uses phrase override before legacy cell interval`() {
+        val shared = RotatingPhraseSet(
+            "legacy", "Legacy", listOf("A", "B"), defaultEvery = 5,
+            itemEveryOverrides = listOf(null, 5),
+        )
+        val cell = c1.copy(
+            phraseSetId = "legacy", phraseIndex = 1,
+            everyOverride = 6, phraseCompletedShots = 4,
+        )
+        val working = TableTemplateState(
+            1, 1, cells = listOf(cell), phraseSets = listOf(shared),
+        )
+        val edit = QuickPhrasePeriodEdit("c1", false, 2)
+        val proposed = previewQuickPhrasePeriodEdit(working, edit)!!
+        val conflicts = quickPhrasePeriodConflicts(working, proposed)
+        assertEquals(1, conflicts.size)
+        assertEquals(2, conflicts.single().newEvery)
+
+        // A legacy six-shot override must not allow three completed B shots
+        // once B has its own two-shot cycle.
+        assertNull(applyPhrasePeriodResolutions(
+            proposed, conflicts, mapOf("c1" to CellPhraseProgress(1, 3)),
+        ))
+        val resolved = applyPhrasePeriodResolutions(
+            proposed, conflicts, mapOf("c1" to CellPhraseProgress(1, 1)),
+        )!!
+        assertEquals(6, resolved.cells.single().everyOverride)
+        assertEquals(1, resolved.cells.single().phraseCompletedShots)
+        assertEquals(2, resolved.phraseSets.single().everyForItem(1))
+        assertEquals(6, com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy.everyFor(
+            resolved.cells.single(), resolved.phraseSets.single(), 0,
+        ))
+    }
+
     @Test fun `table detail and quick edit reject completed counts outside selected phrase period`() {
         val abc = RotatingPhraseSet(
             "abc", "ABC", listOf("A", "B", "C"), defaultEvery = 5,
