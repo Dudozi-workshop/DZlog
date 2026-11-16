@@ -35,16 +35,18 @@ class RotatingPhrasePerItemCoreTest {
         assertEquals(0, cell.phraseIndex)
     }
 
-    @Test fun explicitCellPeriodOverridesEveryPhraseAndResetReturnsToSet() {
-        val fixed = TableCellState(0, 0, cellId = "fixed",
+    @Test fun selectedPhraseOverrideWinsOverLegacyCellCycleWithoutChangingOtherPhrases() {
+        val legacy = TableCellState(0, 0, cellId = "legacy",
             dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = base.id,
-            everyOverride = 4, phraseIndex = 3, phraseCompletedShots = 3)
-        assertEquals(4, CellPhraseProgressPolicy.current(fixed, base).completedShots + 1)
-        assertEquals(CellPhraseProgress(4, 0), CellPhraseProgressPolicy.afterSuccessfulCapture(fixed, base))
-        val inherited = fixed.copy(everyOverride = null)
+            everyOverride = 4, phraseIndex = 3, phraseCompletedShots = 2)
+        assertEquals(3, CellPhraseProgressPolicy.everyFor(legacy, base, 3))
+        assertEquals(4, CellPhraseProgressPolicy.everyFor(legacy, base, 0))
+        assertEquals(4, CellPhraseProgressPolicy.everyFor(legacy, base, 1))
         assertEquals(CellPhraseProgress(4, 0),
-            CellPhraseProgressPolicy.afterSuccessfulCapture(inherited, base))
-        assertEquals(3, base.everyForItem(3))
+            CellPhraseProgressPolicy.afterSuccessfulCapture(legacy, base))
+        val inherited = legacy.copy(everyOverride = null)
+        assertEquals(3, CellPhraseProgressPolicy.everyFor(inherited, base, 3))
+        assertEquals(5, CellPhraseProgressPolicy.everyFor(inherited, base, 0))
     }
 
     @Test fun movingOrDeletingDuplicatePhrasesKeepsTheirOwnOverrides() {
