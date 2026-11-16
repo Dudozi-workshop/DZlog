@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,7 +51,6 @@ internal fun TableEditorCellUiModelEditor(
     cell: TableEditorCellUiModel,
     phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
-    onTypeChange: (TableEditorCellType) -> Unit,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
@@ -62,7 +60,6 @@ internal fun TableEditorCellUiModelEditor(
     onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
-    onClose: () -> Unit,
     compactInput: Boolean = false,
     inputExpanded: Boolean,
     expandedInputHeight: Dp,
@@ -70,7 +67,6 @@ internal fun TableEditorCellUiModelEditor(
     onInputFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showTypePicker by remember(cell.id) { mutableStateOf(false) }
     var showDatePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
@@ -164,26 +160,21 @@ internal fun TableEditorCellUiModelEditor(
                             }
                         }
 
-                        TableEditorCellType.DATE,
-                        TableEditorCellType.TIME,
-                        TableEditorCellType.ROTATING_TEXT -> {
+                        TableEditorCellType.DATE -> {
                             Text(
-                                text = (cell.previewValue ?: cell.value).ifBlank {
-                                    if (cell.type == TableEditorCellType.ROTATING_TEXT) "문구 세트를 선택하세요" else ""
-                                },
+                                text = (cell.previewValue ?: cell.value),
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        TableEditorCellType.TIME,
+                        TableEditorCellType.ROTATING_TEXT -> Unit
                     }
-                }
-                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Close, "셀 편집 닫기", tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
                 }
             }
 
-            // The selected value stays above the scrollable type-specific settings.
+            // Common cell controls live in the fixed bottom row; only details scroll here.
             if (!compactInput) Column(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
@@ -237,16 +228,6 @@ internal fun TableEditorCellUiModelEditor(
                 }
 
             }
-            // Keep common cell-type controls below the scrollable details.
-            if (!compactInput) {
-                HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
-                TableEditorCompactSettingRow(
-                    label = "셀 종류",
-                    value = cell.type.label,
-                    valueIcon = cell.type.choiceIcon(),
-                    onClick = { showTypePicker = true },
-                )
-            }
         }
 
     }
@@ -255,17 +236,6 @@ internal fun TableEditorCellUiModelEditor(
         phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }?.let { set ->
             TableEditorPhraseProgressDialog(cell, set, onPhraseProgressChange, { showPhraseProgress = false })
         }
-    }
-
-    if (showTypePicker) {
-        TableEditorCellTypeSheet(
-            selectedType = cell.type,
-            onSelect = { type ->
-                onTypeChange(type)
-                showTypePicker = false
-            },
-            onDismiss = { showTypePicker = false },
-        )
     }
 
     if (showDatePicker) {
