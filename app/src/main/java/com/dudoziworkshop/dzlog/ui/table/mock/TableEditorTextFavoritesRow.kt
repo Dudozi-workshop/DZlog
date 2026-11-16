@@ -79,6 +79,12 @@ internal fun TableEditorTextFavoritesRow(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (change != null) {
                     Text(change.label, style = DDZTypography.Caption, modifier = Modifier.weight(1f))
+                    if (compact && favorites.isNotEmpty()) {
+                        TextButton(
+                            onClick = { onCompactExpandedChange(!compactExpanded) },
+                            enabled = enabled,
+                        ) { Text(if (compactExpanded) "접기" else "펼치기") }
+                    }
                     TextButton(onClick = model::undo, enabled = enabled) { Text("되돌리기") }
                 } else if (compact) {
                     Text("자주 쓰는 텍스트", style = DDZTypography.Caption, modifier = Modifier.weight(1f))
