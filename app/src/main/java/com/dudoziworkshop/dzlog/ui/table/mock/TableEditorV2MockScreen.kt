@@ -510,8 +510,18 @@ fun TableEditorV2Screen(
                                         tappedDomainCellId = domainCellId,
                                     )
                                 } else {
-                                    pendingInputFocusCellId = null
+                                    // Preview taps and Previous/Next use the same IME handoff rule.
+                                    val target = cells.firstOrNull {
+                                        it.domainCellId == domainCellId && !it.isCovered
+                                    }
+                                    val editable = target?.type == TableEditorCellType.TEXT ||
+                                        target?.type == TableEditorCellType.NUMBER
+                                    pendingInputFocusCellId = if (imeVisible && editable) domainCellId else null
                                     selectionState.selectEditCell(domainCellId)
+                                    if (imeVisible && !editable) {
+                                        focusManager.clearFocus()
+                                        keyboard?.hide()
+                                    }
                                 }
                             },
                             onCellRangeDrag = { startId, endId ->
