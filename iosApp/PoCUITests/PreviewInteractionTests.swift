@@ -815,6 +815,25 @@ final class PreviewInteractionTests: XCTestCase {
                       "Quality choice must survive an app relaunch")
     }
 
+    func testCaptureHapticSettingPersistsFromGlobalSettings() throws {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("설정")
+        tapPanelText("촬영 효과음 및 진동")
+        XCTAssertTrue(text("촬영 진동: 켜짐").waitForExistence(timeout: 10))
+        XCTAssertTrue(try screenContains("시스템 설정과 지역 정책"))
+        tapButton("촬영 진동 끄기")
+        XCTAssertTrue(text("촬영 진동: 꺼짐").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("진동 미리보기").isEnabled)
+
+        app.terminate()
+        app.launchArguments = ["--navigation-flow"]
+        app.launch()
+        tapButton("설정")
+        tapPanelText("촬영 효과음 및 진동")
+        XCTAssertTrue(text("촬영 진동: 꺼짐").waitForExistence(timeout: 10))
+    }
+
     func testHomeCatalogSettingsAndRelaunch() throws {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()

@@ -89,6 +89,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     }
     var showList by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showCaptureFeedback by remember { mutableStateOf(false) }
     var qualityExpanded by remember { mutableStateOf(false) }
     var showSaveInfo by remember { mutableStateOf(false) }
     var editorFromList by remember { mutableStateOf(false) }
@@ -178,6 +179,14 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 initialNextCounter = document.nextCounter, initialUsesAutoNext = document.usesAutoNext,
             )
         }
+    } else if (showCaptureFeedback) {
+        IosCaptureFeedbackSettingsScreen(
+            hapticEnabled = workspace.settings.captureHapticEnabled,
+            onBack = { showCaptureFeedback = false },
+            onChangeHaptic = { enabled ->
+                persist(workspace.copy(settings = workspace.settings.copy(captureHapticEnabled = enabled)))
+            },
+        )
     } else if (showSettings) {
         SettingsRootContent(
             onBack = { showSettings = false }, qualityMode = workspace.settings.qualityMode,
@@ -190,7 +199,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             },
             onChangeAssistShutter = { persist(workspace.copy(settings = workspace.settings.copy(assistShutterEnabled = it))) },
             onChangeUndoWarning = { persist(workspace.copy(settings = workspace.settings.copy(undoSavePathWarningEnabled = it))) },
-            onOpenPermissions = ::unavailable, onOpenCaptureFeedback = ::unavailable,
+            onOpenPermissions = ::unavailable,
+            onOpenCaptureFeedback = { showCaptureFeedback = true },
             onOpenCredits = ::unavailable, onOpenGuide = ::unavailable,
             onOpenExport = ::unavailable, onOpenImport = ::unavailable,
         )

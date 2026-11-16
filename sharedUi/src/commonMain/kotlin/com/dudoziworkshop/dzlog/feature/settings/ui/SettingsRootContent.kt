@@ -195,7 +195,7 @@ fun SettingsRootContent(
                         SettingsActionRow(
                             icon = Icons.Default.CameraAlt,
                             title = "촬영 효과음 및 진동",
-                            subtitle = "효과음 선택·미리 듣기·음량·진동 강도",
+                            subtitle = "촬영 소리와 진동 동작 설정",
                             onClick = onOpenCaptureFeedback,
                             trailing = {
                                 Icon(
