@@ -82,6 +82,42 @@ class QuickPhrasePeriodEditPolicyTest {
         assertNull(reset.phraseSets.single().itemEveryOverrides[1])
     }
 
+    @Test fun `individual edit keeps old cell wide periods for other phrases`() {
+        val abc = RotatingPhraseSet("abc", "ABC", listOf("A", "B", "C"), defaultEvery = 5)
+        val legacy = c1.copy(phraseSetId = "abc", phraseIndex = 1,
+            everyOverride = 2, phraseCompletedShots = 1)
+        val working = TableTemplateState(1, 1, cells = listOf(legacy), phraseSets = listOf(abc))
+        val edited = applyQuickPhrasePeriodEdit(working, QuickPhrasePeriodEdit("c1", false, 3))!!
+        assertEquals(2, edited.cells.single().everyOverride)
+        val changedSet = edited.phraseSets.single()
+        assertEquals(5, changedSet.defaultEvery)
+        assertEquals(2, com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy.everyFor(
+            legacy, changedSet, 0))
+        assertEquals(3, com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy.everyFor(
+            legacy, changedSet, 1))
+        assertEquals(2, com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy.everyFor(
+            legacy, changedSet, 2))
+    }
+
+    @Test fun `shortening one phrase requires explicit resolution for other cells on that phrase`() {
+        val first = c1.copy(phraseIndex = 1, phraseCompletedShots = 1)
+        val second = c2.copy(phraseIndex = 1, phraseCompletedShots = 3)
+        val working = template.copy(
+            cells = listOf(first, second),
+            phraseSets = listOf(set.copy(itemEveryOverrides = listOf(null, 5))),
+        )
+        val edit = QuickPhrasePeriodEdit("c1", false, 2)
+        val proposal = previewQuickPhrasePeriodEdit(working, edit)!!
+        assertEquals(listOf("c2"), quickPhrasePeriodConflicts(working, proposal).map { it.cellId })
+        assertNull(applyQuickPhrasePeriodEdit(working, edit))
+        val applied = applyQuickPhrasePeriodEdit(
+            working, edit, mapOf("c2" to CellPhraseProgress(1, 1)),
+        )!!
+        assertEquals(5, applied.phraseSets.single().defaultEvery)
+        assertEquals(2, applied.phraseSets.single().everyForItem(1))
+        assertEquals(1, applied.cells[1].phraseCompletedShots)
+    }
+
     @Test fun `only set mode changes shared default while preserving per item override`() {
         val inherited = applyQuickPhrasePeriodEdit(
             template, QuickPhrasePeriodEdit("c1", true, 7),
