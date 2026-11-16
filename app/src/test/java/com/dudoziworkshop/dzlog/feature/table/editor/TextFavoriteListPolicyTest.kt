@@ -16,7 +16,6 @@ class TextFavoriteListPolicyTest {
             listOf("자연", "드래퍼"),
             TextFavoriteListPolicy.toggle(initial, "인공", 20),
         )
-        assertEquals(initial, initial) // Applying a chip does not mutate the ordered list.
     }
 
     @Test
