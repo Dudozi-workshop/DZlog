@@ -49,7 +49,7 @@ internal fun CameraQuickPhraseProgressCard(
 ) {
     var open by remember(cell.cellId) { mutableStateOf(false) }
     val progress = CellPhraseProgressPolicy.current(cell, set)
-    val every = (cell.everyOverride ?: set.everyForItem(progress.index)).coerceAtLeast(1)
+    val every = CellPhraseProgressPolicy.everyFor(cell, set, progress.index)
     val phrase = set.items[progress.index]
     val next = set.items[(progress.index + 1) % set.items.size]
     Surface(
@@ -100,18 +100,20 @@ internal fun CameraQuickPhrasePeriodControl(
 ) {
     var expanded by remember(cell.cellId) { mutableStateOf(false) }
     var numberDialog by remember(cell.cellId) { mutableStateOf(false) }
-    val isSet = cell.everyOverride == null
     val currentIndex = cell.phraseIndex.coerceIn(0, set.items.lastIndex)
-    // Keep the last local value while temporarily following the set in this editor.
-    var rememberedIndividual by remember(cell.cellId, set.id) {
-        mutableStateOf(cell.everyOverride ?: set.everyForItem(currentIndex))
+    val phraseOverride = set.itemEveryOverrides.getOrNull(currentIndex)
+    // "개별" edits the selected phrase in its shared set, not every phrase in
+    // the selected table cell. Legacy cell-wide overrides remain visible until edited.
+    val isSet = phraseOverride == null && cell.everyOverride == null
+    var rememberedIndividual by remember(cell.cellId, set.id, currentIndex) {
+        mutableStateOf(phraseOverride ?: cell.everyOverride ?: set.defaultEvery)
     }
-    LaunchedEffect(cell.everyOverride) {
-        cell.everyOverride?.let { rememberedIndividual = it }
+    LaunchedEffect(phraseOverride, cell.everyOverride) {
+        (phraseOverride ?: cell.everyOverride)?.let { rememberedIndividual = it }
     }
-    val cellValue = cell.everyOverride ?: rememberedIndividual
-    val activeValue = if (isSet) set.defaultEvery else cellValue
-    val effectiveEvery = cell.everyOverride ?: set.everyForItem(currentIndex)
+    val individualValue = phraseOverride ?: cell.everyOverride ?: rememberedIndividual
+    val activeValue = if (isSet) set.defaultEvery else individualValue
+    val effectiveEvery = CellPhraseProgressPolicy.everyFor(cell, set, currentIndex)
 
     Surface(color = DDZColor.Surface, border = BorderStroke(1.dp, DDZColor.Border),
         shape = RoundedCornerShape(10.dp)) {
@@ -123,7 +125,7 @@ internal fun CameraQuickPhrasePeriodControl(
             ) {
                 Text("변경 주기", color = DDZColor.TextPrimary, style = DDZTypography.Secondary)
                 if (!expanded) Text(
-                    "${if (isSet) "세트 설정" else "개별 설정"} · 현재 ${effectiveEvery}장",
+                    "${if (isSet) "전체" else "개별"} · ${effectiveEvery}장",
                     color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
             }
             if (expanded) {
@@ -131,7 +133,7 @@ internal fun CameraQuickPhrasePeriodControl(
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         DDZButton(
-                            text = "세트 설정 (${set.defaultEvery}장)",
+                            text = "전체 (${set.defaultEvery}장)",
                             modifier = Modifier.weight(1f),
                             minHeight = 36.dp, horizontalPadding = 2.dp,
                             textStyleOverride = DDZTypography.Caption,
@@ -141,14 +143,14 @@ internal fun CameraQuickPhrasePeriodControl(
                             onClick = { if (!isSet) onPeriodChange(true, set.defaultEvery) },
                         )
                         DDZButton(
-                            text = "개별 설정 (${cellValue}장)",
+                            text = "개별 (${individualValue}장)",
                             modifier = Modifier.weight(1f),
                             minHeight = 36.dp, horizontalPadding = 2.dp,
                             textStyleOverride = DDZTypography.Caption,
                             style = DDZButtonStyle.Secondary,
                             containerColorOverride = if (!isSet) DDZColor.SelectedSoft else null,
                             enabled = enabled,
-                            onClick = { if (isSet) onPeriodChange(false, cellValue) },
+                            onClick = { if (isSet) onPeriodChange(false, individualValue) },
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
@@ -168,7 +170,7 @@ internal fun CameraQuickPhrasePeriodControl(
                             onClick = { onPeriodChange(isSet, activeValue + 1) })
                     }
                     Text(
-                        if (isSet) "세트 기본 주기를 변경합니다." else "현재 셀에만 적용돼요.",
+                        if (isSet) "세트 기본값 변경" else "선택 문구만 변경",
                         style = DDZTypography.Caption, color = DDZColor.TextSecondary,
                         maxLines = 1, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                 }

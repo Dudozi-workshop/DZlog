@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,11 +30,13 @@ internal fun TableEditorSettingRow(
     onClick: () -> Unit,
     leadingIcon: ImageVector? = null,
     valueIcon: ImageVector? = null,
+    compact: Boolean = false,
 ) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick)
-        .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+    val rowHeight = if (compact) saveMenuRowHeight(LocalDensity.current.fontScale) else 48.dp
+    Row(Modifier.fillMaxWidth().heightIn(min = rowHeight).clickable(onClick = onClick)
+        .padding(vertical = if (compact) 4.dp else 8.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (leadingIcon != null) Icon(leadingIcon, contentDescription = null,

@@ -2,6 +2,9 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,9 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,10 +36,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZTextField
@@ -52,7 +60,7 @@ internal fun TableEditorCellUiModelEditor(
     cell: TableEditorCellUiModel,
     phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
     onValueChange: (String) -> Unit,
-    onTypeChange: (TableEditorCellType) -> Unit,
+    textFavoritesModel: TableEditorTextFavoritesViewModel,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
@@ -62,19 +70,34 @@ internal fun TableEditorCellUiModelEditor(
     onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
-    onClose: () -> Unit,
     compactInput: Boolean = false,
+    compactFavoritesExpanded: Boolean = false,
+    onCompactFavoritesExpandedChange: (Boolean) -> Unit = {},
     inputExpanded: Boolean,
     expandedInputHeight: Dp,
     onToggleInputExpanded: () -> Unit,
     onInputFocus: () -> Unit,
+    requestInputFocus: Boolean = false,
+    onInputFocusHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var showTypePicker by remember(cell.id) { mutableStateOf(false) }
-    var showDatePicker by remember(cell.id) { mutableStateOf(false) }
-    var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
-    var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
-    var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
+    val favoriteActionsEnabled = !LocalTutorialReadOnly.current
+    val cellKey = editorCellStateKey(cell)
+    var showDatePicker by remember(cellKey) { mutableStateOf(false) }
+    var showPhrasePicker by remember(cellKey) { mutableStateOf(false) }
+    var showPhraseProgress by remember(cellKey) { mutableStateOf(false) }
+    var editingPhraseSetId by remember(cellKey) { mutableStateOf<String?>(null) }
+    val inputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    // A text field can be recreated when moving between TEXT and NUMBER.
+    LaunchedEffect(cell.domainCellId, cell.type, requestInputFocus) {
+        if (requestInputFocus && (cell.type == TableEditorCellType.TEXT ||
+                cell.type == TableEditorCellType.NUMBER)) {
+            inputFocusRequester.requestFocus()
+            keyboardController?.show()
+            onInputFocusHandled()
+        }
+    }
 
     CompositionLocalProvider(LocalTextStyle provides DDZTypography.Body) {
         Column(
@@ -93,38 +116,69 @@ internal fun TableEditorCellUiModelEditor(
                         TableEditorCellType.TEXT,
                         TableEditorCellType.NUMBER -> {
                             val isText = cell.type == TableEditorCellType.TEXT
+                            var textDraft by remember(cellKey) {
+                                mutableStateOf(TextFieldValue(cell.value, TextRange(cell.value.length)))
+                            }
+                            LaunchedEffect(cellKey, cell.value) {
+                                if (isText && textDraft.text != cell.value) {
+                                    textDraft = TextFieldValue(cell.value, TextRange(cell.value.length))
+                                }
+                            }
                             Box(Modifier.fillMaxWidth()) {
-                                DDZTextField(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .then(if (isText) Modifier.height(
-                                            if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight
-                                        ) else Modifier)
-                                        .onFocusChanged { if (it.isFocused) onInputFocus() },
-                                    value = cell.value,
-                                    onValueChange = { input ->
-                                        onValueChange(if (cell.type == TableEditorCellType.NUMBER) decimalInputOrPrevious(input, cell.value) else input)
-                                    },
-                                    label = "값",
-                                    singleLine = !isText,
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Decimal else KeyboardType.Text,
-                                    ),
-                                    trailingIcon = if (cell.type == TableEditorCellType.NUMBER) {
-                                        { androidx.compose.material3.TextButton(onClick = {
-                                            onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
-                                        }) { Text("±") } }
-                                    } else {
-                                        // Reserve the same text inset in both modes for the overlay button.
-                                        { androidx.compose.foundation.layout.Spacer(Modifier.size(DDZLayout.QuickInput.Touch)) }
-                                    },
-                                )
-                                if (isText) IconButton(
-                                    onClick = onToggleInputExpanded,
-                                    modifier = Modifier.align(Alignment.BottomEnd).size(DDZLayout.QuickInput.Touch),
+                                if (isText) {
+                                    DDZTextField(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .height(if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight)
+                                            .focusRequester(inputFocusRequester)
+                                            .onFocusChanged { if (it.isFocused) onInputFocus() },
+                                        value = textDraft,
+                                        onValueChange = { next ->
+                                            textDraft = next
+                                            onValueChange(next.text)
+                                        },
+                                        label = "값",
+                                        singleLine = false,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                                        trailingIcon = {
+                                            androidx.compose.foundation.layout.Spacer(
+                                                Modifier.width(DDZLayout.QuickInput.Touch * 2)
+                                            )
+                                        },
+                                    )
+                                } else {
+                                    DDZTextField(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .focusRequester(inputFocusRequester)
+                                            .onFocusChanged { if (it.isFocused) onInputFocus() },
+                                        value = cell.value,
+                                        onValueChange = { next ->
+                                            onValueChange(decimalInputOrPrevious(next, cell.value))
+                                        },
+                                        label = "값",
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        trailingIcon = {
+                                            androidx.compose.material3.TextButton(onClick = {
+                                                onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
+                                            }) { Text("±") }
+                                        },
+                                    )
+                                }
+                                if (isText) Row(
+                                    modifier = Modifier.align(Alignment.BottomEnd),
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(if (inputExpanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
-                                        if (inputExpanded) "입력창 축소" else "입력창 확대",
-                                        tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon))
+                                    TableEditorTextFavoriteStar(cell.value, textFavoritesModel, enabled = favoriteActionsEnabled)
+                                    IconButton(
+                                        onClick = onToggleInputExpanded,
+                                        modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+                                    ) {
+                                        Icon(
+                                            if (inputExpanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                                            if (inputExpanded) "입력창 축소" else "입력창 확대",
+                                            tint = DDZColor.TextMuted, modifier = Modifier.size(DDZLayout.QuickInput.Icon),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -164,32 +218,35 @@ internal fun TableEditorCellUiModelEditor(
                             }
                         }
 
-                        TableEditorCellType.DATE,
-                        TableEditorCellType.TIME,
-                        TableEditorCellType.ROTATING_TEXT -> {
+                        TableEditorCellType.DATE -> {
                             Text(
-                                text = (cell.previewValue ?: cell.value).ifBlank {
-                                    if (cell.type == TableEditorCellType.ROTATING_TEXT) "문구 세트를 선택하세요" else ""
-                                },
+                                text = (cell.previewValue ?: cell.value),
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        TableEditorCellType.TIME,
+                        TableEditorCellType.ROTATING_TEXT -> Unit
                     }
-                }
-                IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Close, "셀 편집 닫기", tint = DDZColor.TextMuted, modifier = Modifier.size(16.dp))
                 }
             }
 
-            // The selected value stays above the scrollable type-specific settings.
-            if (!compactInput) Column(
+            // Common cell controls live in the fixed bottom row; only details scroll here.
+            if (!compactInput || cell.type == TableEditorCellType.TEXT) Column(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 when (cell.type) {
+                    TableEditorCellType.TEXT -> TableEditorTextFavoritesRow(
+                        model = textFavoritesModel,
+                        onApply = onValueChange,
+                        enabled = favoriteActionsEnabled,
+                        compact = compactInput,
+                        compactExpanded = compactFavoritesExpanded,
+                        onCompactExpandedChange = onCompactFavoritesExpandedChange,
+                    )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
                         style = DDZTypography.Caption,
@@ -213,16 +270,17 @@ internal fun TableEditorCellUiModelEditor(
                         )
                         if (selectedSet != null) {
                             HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
-                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(cell.phraseIndex))
+                            val index = cell.phraseIndex.coerceIn(0, (selectedSet.items.size - 1).coerceAtLeast(0))
+                            val phraseOverride = selectedSet.itemEveryOverrides.getOrNull(index)
+                            val everyValue = (phraseOverride ?: cell.everyOverride ?: selectedSet.defaultEvery)
                                 .coerceAtLeast(1)
                             TableEditorPhrasePeriodRow(
                                 every = everyValue,
-                                overridden = cell.everyOverride != null,
+                                overridden = phraseOverride != null || cell.everyOverride != null,
                                 onEveryChange = onPhraseEveryChange,
                                 onFollowSet = onPhraseFollowSet,
                             )
                             if (selectedSet.items.isNotEmpty()) {
-                                val index = cell.phraseIndex.coerceIn(0, selectedSet.items.lastIndex)
                                 val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
                                 HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
                                 TableEditorCompactSettingRow(
@@ -237,16 +295,6 @@ internal fun TableEditorCellUiModelEditor(
                 }
 
             }
-            // Keep common cell-type controls below the scrollable details.
-            if (!compactInput) {
-                HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
-                TableEditorCompactSettingRow(
-                    label = "셀 종류",
-                    value = cell.type.label,
-                    valueIcon = cell.type.choiceIcon(),
-                    onClick = { showTypePicker = true },
-                )
-            }
         }
 
     }
@@ -255,17 +303,6 @@ internal fun TableEditorCellUiModelEditor(
         phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }?.let { set ->
             TableEditorPhraseProgressDialog(cell, set, onPhraseProgressChange, { showPhraseProgress = false })
         }
-    }
-
-    if (showTypePicker) {
-        TableEditorCellTypeSheet(
-            selectedType = cell.type,
-            onSelect = { type ->
-                onTypeChange(type)
-                showTypePicker = false
-            },
-            onDismiss = { showTypePicker = false },
-        )
     }
 
     if (showDatePicker) {

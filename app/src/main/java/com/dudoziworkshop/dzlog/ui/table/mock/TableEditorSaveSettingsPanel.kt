@@ -54,18 +54,21 @@ internal fun TableEditorSaveSettingsPanel(
             leadingIcon = Icons.Filled.Description,
             value = fileNamePreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.FILE_NAME) },
+            compact = true,
         ) }
         Box(Modifier.fillMaxWidth().tutorialTarget("saving.menu.folder")) { TableEditorSettingRow(
             label = if (showSavingExample) "예시 저장경로" else "저장경로",
             leadingIcon = Icons.Filled.Folder,
             value = pathPreview,
             onClick = { onOpenDetail(TableEditorSaveDetail.SAVE_PATH) },
+            compact = true,
         ) }
         Box(Modifier.fillMaxWidth().tutorialTarget("saving.menu.counter")) { TableEditorSettingRow(
             label = "자동번호",
             leadingIcon = DDZCellTypeIcons.AutoNumber,
             value = "다음 ${formatMockCounter(nextCounter, counterPadding)} · ${counterPaddingLabel(counterPadding)}",
             onClick = { onOpenDetail(TableEditorSaveDetail.AUTO_NUMBER) },
+            compact = true,
         ) }
     }
 }
@@ -90,3 +93,8 @@ internal fun formatMockCounter(value: Int, counterPadding: Int): String {
 }
 
 
+
+// Three two-line menu entries, 4dp between rows and 8dp outer vertical padding.
+// Scale height with system font size while retaining a comfortable tap target.
+internal fun saveMenuRowHeight(fontScale: Float) = (52f * fontScale.coerceAtLeast(1f)).dp
+internal fun saveMenuPanelHeight(fontScale: Float) = saveMenuRowHeight(fontScale) * 3 + 24.dp

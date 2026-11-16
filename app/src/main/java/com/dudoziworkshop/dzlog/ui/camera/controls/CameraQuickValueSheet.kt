@@ -48,6 +48,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
@@ -55,6 +56,9 @@ import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.table.TableResolver
 import com.dudoziworkshop.dzlog.feature.table.policy.*
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorTextFavoriteStar
+import com.dudoziworkshop.dzlog.ui.table.mock.TableEditorTextFavoritesRow
 import com.dudoziworkshop.dzlog.feature.table.render.TableRenderStyle
 import com.dudoziworkshop.dzlog.ui.common.DDZCellTypeIcons
 import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
@@ -78,6 +82,7 @@ private class QuickValueDraft(initial: TableTemplateState) {
 }
 
 /** Table-first quick editing. Input finishes typing; Complete returns to the camera. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CameraQuickValueSheet(
     template: TableTemplateState,
@@ -102,6 +107,7 @@ internal fun CameraQuickValueSheet(
     onCommit: (TableTemplateState) -> Unit,
 ) {
     val readOnlyGuide = LocalTutorialReadOnly.current
+    val textFavoritesModel: TableEditorTextFavoritesViewModel = viewModel()
     val guidePage = if (readOnlyGuide) LocalTutorialLocation.current?.pageId else null
     val guideOn = LocalTutorialDemoProgress.current >= 0.5f
     val guideType = when (guidePage) {
@@ -139,6 +145,7 @@ internal fun CameraQuickValueSheet(
         }
     }
     var expanded by remember { mutableStateOf(false) }
+    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     var switching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -192,9 +199,13 @@ internal fun CameraQuickValueSheet(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer); commit() }
     }
     fun select(id: String) {
-        if (cells.none { it.cellId == id }) return
+        val target = cells.firstOrNull { it.cellId == id } ?: return
+        if (selectedId != id) expanded = false
+        if (target.dataType != TableCellDataType.TEXT) compactFavoritesExpanded = false
         selectedId?.let { oldId -> values[oldId]?.let { values[oldId] = it.copy(composition = null) } }
-        values[id]?.let { values[id] = it.copy(composition = null) }
+        values[id]?.let { values[id] = it.copy(
+            selection = TextRange(it.text.length), composition = null,
+        ) }
         selectedId = id
         selectionMemory.recordSelection(activeTemplateId, id, cells.map { it.cellId })
         if (focused && cells.any {
@@ -208,6 +219,10 @@ internal fun CameraQuickValueSheet(
         // Focus belongs to the dialog window; do not retain the camera window's manager.
         val focus = LocalFocusManager.current
         val keyboard = LocalSoftwareKeyboardController.current
+        val imeVisible = WindowInsets.isImeVisible
+        LaunchedEffect(imeVisible) {
+            if (!imeVisible) compactFavoritesExpanded = false
+        }
         val context = LocalContext.current
         val view = LocalView.current
         val density = LocalDensity.current
@@ -291,8 +306,21 @@ internal fun CameraQuickValueSheet(
             // Reserve a table viewport even with the keyboard and manual input expansion.
             val fixedChrome = DDZLayout.QuickInput.Touch * 2 + DDZLayout.Control.Compact * 2 +
                 DDZSpacing.screenPadding * 2 + DDZSpacing.itemGap * 5 + DDZLayout.QuickInput.CellMarker * 2
-            val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
-                .coerceAtLeast(DDZLayout.QuickInput.Touch)
+            val selectedText = cells.any {
+                it.cellId == selectedId && it.dataType == TableCellDataType.TEXT
+            }
+            val hasFavoritesUi = selectedText && (
+                textFavoritesModel.favorites.isNotEmpty() || textFavoritesModel.lastChange != null
+            )
+            val favoriteHeaderBudget = if (hasFavoritesUi) DDZLayout.QuickInput.Touch else 0.dp
+            val favoriteChipsBudget = if (
+                selectedText && textFavoritesModel.favorites.isNotEmpty() &&
+                (!imeVisible || compactFavoritesExpanded)
+            ) DDZLayout.QuickInput.Touch else 0.dp
+            val inputBudget = (
+                maxHeight - fixedChrome - favoriteHeaderBudget - favoriteChipsBudget -
+                    DDZLayout.QuickInput.MinPreviewHeight
+            ).coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
             // Keep the naming preview, table preview and editor in one IME-safe viewport.
             // The table owns the flexible space, so the keyboard shrinks only the table
@@ -472,7 +500,7 @@ internal fun CameraQuickValueSheet(
                                         BasicTextField(value = value, onValueChange = ::change, singleLine = number, readOnly = switching,
                                             modifier = Modifier.fillMaxWidth().height(if (expanded && !number) expandedHeight else DDZLayout.QuickInput.Touch)
                                                 .focusRequester(requester).onFocusChanged { focused = it.isFocused }
-                                                .padding(start = DDZSpacing.itemGap, end = DDZLayout.QuickInput.Touch, top = DDZSpacing.controlGap, bottom = DDZSpacing.itemGap),
+                                                .padding(start = DDZSpacing.itemGap, end = if (number) DDZLayout.QuickInput.Touch else DDZLayout.QuickInput.Touch * 2, top = DDZSpacing.controlGap, bottom = DDZSpacing.itemGap),
                                             textStyle = DDZTypography.Body.copy(color = DDZColor.TextPrimary), cursorBrush = SolidColor(DDZColor.SelectionEmphasis),
                                             keyboardOptions = KeyboardOptions(keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text,
                                                 imeAction = if (number) ImeAction.Done else ImeAction.Default),
@@ -481,19 +509,38 @@ internal fun CameraQuickValueSheet(
                                                 if (value.text.isEmpty()) Text("값 입력", style = DDZTypography.Body, color = DDZColor.TextMuted)
                                                 field()
                                             } })
-                                        IconButton(enabled = !switching, onClick = {
-                                            if (number) {
-                                                val text = if (value.text.startsWith("-")) value.text.drop(1) else "-${value.text}"
-                                                change(TextFieldValue(text, TextRange(text.length)))
-                                            } else expanded = !expanded
-                                        }, modifier = Modifier.align(Alignment.BottomEnd).size(DDZLayout.QuickInput.Touch)) {
-                                            if (number) Text("±", style = DDZTypography.SettingLabel)
-                                            else Icon(if (expanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
-                                                if (expanded) "입력창 축소" else "입력창 확대", Modifier.size(DDZLayout.QuickInput.Icon))
+                                        Row(Modifier.align(Alignment.BottomEnd), verticalAlignment = Alignment.CenterVertically) {
+                                            if (!number) TableEditorTextFavoriteStar(
+                                                text = value.text,
+                                                model = textFavoritesModel,
+                                                enabled = !switching && !readOnlyGuide,
+                                            )
+                                            IconButton(enabled = !switching, onClick = {
+                                                if (number) {
+                                                    val text = if (value.text.startsWith("-")) value.text.drop(1) else "-${value.text}"
+                                                    change(TextFieldValue(text, TextRange(text.length)))
+                                                } else expanded = !expanded
+                                            }, modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+                                                if (number) Text("±", style = DDZTypography.SettingLabel)
+                                                else Icon(if (expanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                                                    if (expanded) "입력창 축소" else "입력창 확대", Modifier.size(DDZLayout.QuickInput.Icon))
+                                            }
                                         }
                                     }
                                 }
                                 TextButton(enabled = !switching, onClick = ::inputDone, modifier = Modifier.height(DDZLayout.QuickInput.Touch)) { Text("입력", color = DDZColor.SelectionEmphasis) }
+                            }
+                            if (!number) {
+                                TableEditorTextFavoritesRow(
+                                    model = textFavoritesModel,
+                                    enabled = !switching && !readOnlyGuide,
+                                    compact = imeVisible,
+                                    compactExpanded = compactFavoritesExpanded,
+                                    onCompactExpandedChange = { compactFavoritesExpanded = it },
+                                    onApply = { text ->
+                                        change(TextFieldValue(text, TextRange(text.length)))
+                                    },
+                                )
                             }
                             }
                         }

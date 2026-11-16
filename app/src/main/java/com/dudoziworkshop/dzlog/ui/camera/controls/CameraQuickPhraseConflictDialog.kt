@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodConflict
 import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -54,7 +55,7 @@ internal fun CameraQuickPhraseConflictDialog(
         val set = sets[cell.phraseSetId] ?: return@mapNotNull null
         val index = indices[conflict.cellId] ?: return@mapNotNull null
         if (index !in set.items.indices) return@mapNotNull null
-        val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+        val every = CellPhraseProgressPolicy.everyFor(cell, set, index)
         val count = counts[conflict.cellId]?.toIntOrNull() ?: return@mapNotNull null
         if (count !in 0 until every) return@mapNotNull null
         conflict.cellId to CellPhraseProgress(index, count)
@@ -72,7 +73,7 @@ internal fun CameraQuickPhraseConflictDialog(
                     val cell = cells[conflict.cellId] ?: return@forEach
                     val set = sets[cell.phraseSetId] ?: return@forEach
                     val index = indices[conflict.cellId] ?: conflict.phraseIndex
-                    val currentEvery = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+                    val currentEvery = CellPhraseProgressPolicy.everyFor(cell, set, index)
                     Text("${conflict.row}행 ${conflict.column}열 · ${set.items[index]}",
                         style = DDZTypography.Body, color = DDZColor.TextPrimary)
                     Text("기존 ${conflict.completed}장 · 변경 주기 ${conflict.newEvery}장",

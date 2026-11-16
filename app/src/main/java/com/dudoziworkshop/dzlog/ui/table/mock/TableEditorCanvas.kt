@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
@@ -109,6 +110,23 @@ internal fun ColumnScope.MockTableCanvas(
     var activeColumn by remember { mutableStateOf<Int?>(null) }
     var activeRow by remember { mutableStateOf<Int?>(null) }
     val previewScroll = rememberScrollState()
+    val previewDragged by previewScroll.interactionSource.collectIsDraggedAsState()
+    var manuallyScrolledCell by remember { mutableStateOf<String?>(null) }
+    var lastAutoSelectedCell by remember { mutableStateOf<String?>(null) }
+    var wasPreviewDragged by remember { mutableStateOf(false) }
+    var retainedManualScrollPx by remember { mutableStateOf(0) }
+    LaunchedEffect(previewDragged, selectedCellId, layoutMode) {
+        if (previewDragged) {
+            manuallyScrolledCell = selectedCellId
+            wasPreviewDragged = true
+        } else {
+            // Store the user's actual position before a shorter viewport clamps
+            // ScrollState to zero. Preserve it through Structure/Style/Save tabs.
+            if (wasPreviewDragged && !layoutMode) retainedManualScrollPx = previewScroll.value
+            wasPreviewDragged = false
+            if (!layoutMode && manuallyScrolledCell != selectedCellId) manuallyScrolledCell = null
+        }
+    }
     val background = Color.Transparent
     // A selection highlight is UI-only; it must not change the camera's bold text.
     val renderedValues = remember(cells, rows, cols) { editorRenderCells(cells, rows, cols) }
@@ -170,21 +188,64 @@ internal fun ColumnScope.MockTableCanvas(
         val frameHeight = stableTableHeight + gutter * 2
         val contentHeight = maxOf(viewportHeight, frameHeight)
         val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
-        // Only viewport/selection changes move the view. Typing never recentres it.
-        LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols) {
-            if (!preserveInputScale || selected == null) {
-                previewScroll.scrollTo(0)
-            } else {
+        // Do not reset scroll on keyboard close/tab switch. A newly selected
+        // cell may reveal itself and the next cell; an already visible selection
+        // and a user's manual scroll keep their current viewport position.
+        LaunchedEffect(preserveInputScale, selectedCellId, viewportHeight, rows, cols, resolvedRowWeights) {
+            if (preserveInputScale && selected != null && !previewDragged) {
+                if (manuallyScrolledCell == selectedCellId) {
+                    // On IME reopen restore the manually chosen region instead of
+                    // jumping back to the selected cell or the top of the table.
+                    withFrameNanos { }
+                    if (previewDragged) return@LaunchedEffect
+                    val saved = retainedManualScrollPx.coerceIn(0, previewScroll.maxValue)
+                    if (kotlin.math.abs(saved - previewScroll.value) > 1) {
+                        previewScroll.scrollTo(saved)
+                    }
+                    return@LaunchedEffect
+                }
+                val nextId = editorCellNeighbours(cells, selectedCellId).next
+                val next = cells.firstOrNull { it.domainCellId == nextId && !it.isCovered }
                 val sum = resolvedRowWeights.sum().coerceAtLeast(0.0001f)
-                val start = selected.rowIndex.coerceIn(0, rows)
-                val end = (start + selected.rowSpan).coerceIn(start, rows)
-                val top = (contentHeight - frameHeight) / 2 + gutter +
-                    stableTableHeight * (resolvedRowWeights.take(start).sum() / sum)
-                val bottom = top + stableTableHeight * (resolvedRowWeights.subList(start, end).sum() / sum)
-                val target = editorPreviewSelectionScroll(top.value, bottom.value,
-                    viewportHeight.value, contentHeight.value)
+                val frameTop = ((contentHeight - frameHeight) / 2 + gutter).value
+                fun rowTop(row: Int): Float = frameTop + stableTableHeight.value *
+                    (resolvedRowWeights.take(row.coerceIn(0, rows)).sum() / sum)
+                val currentTop = rowTop(selected.rowIndex)
+                val currentBottom = rowTop(selected.rowIndex + selected.rowSpan)
+                val nextTop = next?.let { rowTop(it.rowIndex) }
+                val nextBottom = next?.let { rowTop(it.rowIndex + it.rowSpan) }
                 withFrameNanos { }
-                previewScroll.scrollTo(with(density) { target.dp.roundToPx() })
+                if (previewDragged || manuallyScrolledCell == selectedCellId) return@LaunchedEffect
+                val currentScroll = with(density) { previewScroll.value.toDp().value }
+                if (!editorPreviewShouldReveal(
+                        isScrollable = true,
+                        selectedId = selectedCellId,
+                        previouslyRevealedId = lastAutoSelectedCell,
+                        selectedTop = currentTop,
+                        selectedBottom = currentBottom,
+                        viewportHeight = viewportHeight.value,
+                        currentScroll = currentScroll,
+                        manuallyScrolledSelected = false,
+                    )) return@LaunchedEffect
+                val target = editorPreviewCurrentNextScroll(
+                    selectedTop = currentTop,
+                    selectedBottom = currentBottom,
+                    nextTop = nextTop,
+                    nextBottom = nextBottom,
+                    viewportHeight = viewportHeight.value,
+                    contentHeight = contentHeight.value,
+                    currentScroll = currentScroll,
+                    margin = 8f,
+                )
+                val targetPx = with(density) { target.dp.roundToPx() }
+                    .coerceIn(0, previewScroll.maxValue)
+                val cellChanged = lastAutoSelectedCell != selectedCellId
+                lastAutoSelectedCell = selectedCellId
+                if (kotlin.math.abs(targetPx - previewScroll.value) > 1) {
+                    if (cellChanged) previewScroll.animateScrollTo(
+                        targetPx, animationSpec = tween(durationMillis = 160),
+                    ) else previewScroll.scrollTo(targetPx)
+                }
             }
         }
 

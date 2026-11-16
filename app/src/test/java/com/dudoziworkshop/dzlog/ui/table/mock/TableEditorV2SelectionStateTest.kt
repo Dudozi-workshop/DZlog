@@ -15,12 +15,60 @@ class TableEditorV2SelectionStateTest {
         ),
     )
 
-    @Test fun structureCellSelectionCarriesIntoContentTab() {
+    @Test fun structureCellSelectionCarriesIntoContentWhenNoEarlierEditSelection() {
         val state = TableEditorV2SelectionState()
+        state.restoreLayoutSelection(template)
         state.selectLayoutCell(template, "right")
         assertEquals("right", state.selectedCellId)
-        state.clearLayoutSelection() // navigate to Content
+        state.restoreEditSelection(template)
         assertEquals("right", state.selectedCellId)
+    }
+
+    @Test fun switchingTabsRestoresSeparateSelections() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        state.restoreEditSelection(template)
+        assertEquals("left", state.selectedCellId)
+        state.restoreLayoutSelection(template)
+        assertEquals("right", state.selectedCellId)
+        assertEquals(setOf("right"), state.layoutSelection.selectedCellIds)
+    }
+
+    @Test fun unavailableSelectionsAreClearedWithoutChangingValidContentSelection() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        val reduced = template.copy(cells = template.cells.take(1))
+        state.restoreLayoutSelection(reduced)
+        assertNull(state.selectedCellId)
+        assertEquals(emptySet<String>(), state.layoutSelection.selectedCellIds)
+        state.restoreEditSelection(reduced)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun deletedContentSelectionDoesNotFallBackToStructureCell() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "left")
+        val reduced = template.copy(cells = template.cells.take(1))
+        state.restoreEditSelection(reduced)
+        assertNull(state.selectedCellId)
+        state.restoreLayoutSelection(reduced)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun explicitlyClearedContentSelectionStaysClearedOnTabReturn() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.clearEditSelection()
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        state.restoreEditSelection(template)
+        assertNull(state.selectedCellId)
     }
 
     @Test fun selectedCellSurvivesStyleTabAndValidStructure() {
@@ -30,6 +78,37 @@ class TableEditorV2SelectionStateTest {
         assertEquals("left", state.selectedCellId)
         state.reconcileEditSelection(template)
         assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun coveredContentCellIsNotRestoredAfterMerge() {
+        val merged = template.copy(cells = listOf(
+            template.cells[0].copy(colSpan = 2),
+            template.cells[1],
+        ))
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        // The covered cell still exists in the stored template but cannot be edited.
+        state.restoreEditSelection(merged)
+        assertNull(state.selectedCellId)
+
+        // A root remains selectable; never replace the covered cell with a
+        // different root without an explicit selection.
+        state.selectEditCell("left")
+        state.restoreEditSelection(merged)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun coveredContentCellIsClearedWhenReconcilingStyleOrSaveTabs() {
+        val merged = template.copy(cells = listOf(
+            template.cells[0].copy(colSpan = 2),
+            template.cells[1],
+        ))
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        state.reconcileEditSelection(merged)
+        assertNull(state.selectedCellId)
+        state.restoreEditSelection(merged)
+        assertNull(state.selectedCellId)
     }
 
     @Test fun removedSelectedCellIsClearedSafely() {

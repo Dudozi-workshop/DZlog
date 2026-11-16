@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -52,7 +53,7 @@ internal fun CameraQuickPhraseProgressDialog(
         rowHeight * set.items.size.coerceAtMost(5),
         LocalConfiguration.current.screenHeightDp.dp * 0.36f,
     )
-    val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+    val every = CellPhraseProgressPolicy.everyFor(cell, set, index)
     val validCount = count.toIntOrNull()?.takeIf { it in 0 until every }
 
     LaunchedEffect(cell.cellId, set.id) {
@@ -111,7 +112,7 @@ internal fun CameraQuickPhraseProgressDialog(
                     itemsIndexed(set.items, key = { i, _ -> i }) { i, phrase ->
                         if (i > 0) HorizontalDivider(color = DDZColor.Border)
                         val chosen = i == index
-                        val period = (cell.everyOverride ?: set.everyForItem(i)).coerceAtLeast(1)
+                        val period = CellPhraseProgressPolicy.everyFor(cell, set, i)
                         Surface(
                             onClick = {
                                 if (!chosen) {

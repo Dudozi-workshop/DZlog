@@ -5,8 +5,14 @@ import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 
-/** Set mode edits the shared default; cell mode stores a local fixed interval. */
+/** Overall edits the shared default; individual edits only the selected phrase interval.
+ * Existing cell-wide overrides are retained for unrelated phrases. An explicit
+ * phrase override has priority over a legacy cell-wide period during capture.
+ * Returning the selected phrase to overall also clears that cell's legacy period.
+ */
 internal data class QuickPhrasePeriodEdit(
     val cellId: String,
     val useSetDefault: Boolean,
@@ -23,7 +29,7 @@ internal data class QuickPhrasePeriodConflict(
 )
 
 private fun currentEvery(cell: TableCellState, set: RotatingPhraseSet): Int =
-    (cell.everyOverride ?: set.everyForItem(cell.phraseIndex)).coerceAtLeast(1)
+    CellPhraseProgressPolicy.everyFor(cell, set, cell.phraseIndex)
 
 /** Build the proposed state without resetting progress; canceling never touches the draft. */
 internal fun previewQuickPhrasePeriodEdit(
@@ -36,12 +42,22 @@ internal fun previewQuickPhrasePeriodEdit(
     } ?: return null
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }
         ?: return null
-    val changedSets = if (edit.useSetDefault) template.phraseSets.map {
-        if (it.id == set.id) it.copy(defaultEvery = edit.every) else it
-    } else template.phraseSets
+    val phraseIndex = cell.phraseIndex.coerceIn(0, set.items.lastIndex)
+    val changedSets = template.phraseSets.map { phraseSet ->
+        if (phraseSet.id != set.id) phraseSet
+        else if (edit.useSetDefault) {
+            RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, null)
+                .copy(defaultEvery = edit.every)
+        } else {
+            RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, edit.every)
+        }
+    }
+    // Keep an existing cell-wide interval when setting a single phrase, otherwise
+    // all other phrases in that cell could change unexpectedly. "전체" explicitly
+    // opts the selected cell out of its legacy local interval.
     val changedCells = template.cells.map {
-        if (it.cellId == edit.cellId) {
-            it.copy(everyOverride = if (edit.useSetDefault) null else edit.every)
+        if (edit.useSetDefault && it.cellId == edit.cellId && it.everyOverride != null) {
+            it.copy(everyOverride = null)
         } else it
     }
     return template.copy(phraseSets = changedSets, cells = changedCells)
@@ -83,7 +99,7 @@ internal fun applyQuickPhrasePeriodEdit(
     return applyPhrasePeriodResolutions(proposed, quickPhrasePeriodConflicts(original, proposed), resolutions)
 }
 
-/** Applies explicit per-cell choices to either a set edit or a cell-local edit. */
+/** Applies explicit per-cell progress choices after a shared-set or phrase-specific interval edit. */
 internal fun applyPhrasePeriodResolutions(
     proposed: TableTemplateState,
     conflicts: List<QuickPhrasePeriodConflict>,
@@ -97,7 +113,7 @@ internal fun applyPhrasePeriodResolutions(
         if (cell.cellId !in conflictIds) return null
         val set = sets[cell.phraseSetId] ?: return null
         if (choice.index !in set.items.indices) return null
-        val cycle = (cell.everyOverride ?: set.everyForItem(choice.index)).coerceAtLeast(1)
+        val cycle = CellPhraseProgressPolicy.everyFor(cell, set, choice.index)
         if (choice.completedShots !in 0 until cycle) return null
         cell.copy(phraseIndex = choice.index, phraseCompletedShots = choice.completedShots)
     }
@@ -116,7 +132,7 @@ internal fun updateQuickPhraseProgress(
     } ?: return template
     val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId } ?: return template
     if (index !in set.items.indices) return template
-    val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+    val every = CellPhraseProgressPolicy.everyFor(cell, set, index)
     if (completed !in 0 until every) return template
     if (cell.phraseIndex == index && cell.phraseCompletedShots == completed) return template
     return template.copy(cells = template.cells.map {

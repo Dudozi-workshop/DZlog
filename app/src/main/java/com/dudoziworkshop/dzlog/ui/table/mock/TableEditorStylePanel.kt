@@ -16,8 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -52,21 +54,56 @@ internal fun TableEditorStylePanel(
                 onValueChange = { onDraftChange(draft.copy(valueScale = it.roundToInt())) })
             StylePercent(draft.valueScale)
         }
-        CompactStyleRow("정렬") {
-            StyleChoices(listOf("왼쪽", "가운데", "오른쪽"), draft.textAlign) {
-                onDraftChange(draft.copy(textAlign = it))
-            }
-        }
-        CompactStyleRow("테두리") {
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.size(48.dp).toggleable(value = draft.gridEnabled, role = Role.Switch,
-                onValueChange = { onDraftChange(draft.copy(gridEnabled = it)) }), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(width = 32.dp, height = 18.dp)
-                    .background(if (draft.gridEnabled) DDZColor.Selected else DDZColor.SurfaceSoft, CircleShape)
-                    .border(1.dp, if (draft.gridEnabled) DDZColor.Selected else DDZColor.Border, CircleShape)) {
-                    Box(Modifier.align(if (draft.gridEnabled) Alignment.CenterEnd else Alignment.CenterStart)
-                        .padding(horizontal = 2.dp).size(14.dp)
-                        .background(if (draft.gridEnabled) DDZColor.Surface else DDZColor.TextSecondary, CircleShape))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // On compact screens, drop redundant labels rather than shrinking 48dp controls.
+            val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+            val narrow = maxWidth < (300f * fontScale).dp
+            val veryNarrow = maxWidth < (268f * fontScale).dp
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = styleRowHeight(fontScale)),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    Modifier.weight(1f).tutorialTarget("table.style.정렬"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (!narrow) {
+                        Text("정렬", modifier = Modifier.width(36.dp),
+                            style = DDZTypography.Caption, color = DDZColor.TextPrimary)
+                    }
+                    StyleChoices(
+                        labels = if (narrow) listOf("좌", "중", "우") else listOf("왼쪽", "가운데", "오른쪽"),
+                        current = draft.textAlign,
+                        modifier = Modifier.weight(1f),
+                        accessibleLabels = listOf("왼쪽", "가운데", "오른쪽"),
+                        onSelect = { onDraftChange(draft.copy(textAlign = it)) },
+                    )
+                }
+                Row(
+                    Modifier.tutorialTarget("table.style.테두리"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (!veryNarrow) {
+                        Text("테두리", style = DDZTypography.Caption, color = DDZColor.TextPrimary)
+                    }
+                    Box(
+                        Modifier.size(48.dp)
+                            .toggleable(value = draft.gridEnabled, role = Role.Switch,
+                                onValueChange = { onDraftChange(draft.copy(gridEnabled = it)) })
+                            .semantics { contentDescription = "테두리" },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.size(width = 32.dp, height = 18.dp)
+                            .background(if (draft.gridEnabled) DDZColor.Selected else DDZColor.SurfaceSoft, CircleShape)
+                            .border(1.dp, if (draft.gridEnabled) DDZColor.Selected else DDZColor.Border, CircleShape)) {
+                            Box(Modifier.align(if (draft.gridEnabled) Alignment.CenterEnd else Alignment.CenterStart)
+                                .padding(horizontal = 2.dp).size(14.dp)
+                                .background(if (draft.gridEnabled) DDZColor.Surface else DDZColor.TextSecondary, CircleShape))
+                        }
+                    }
                 }
             }
         }
@@ -75,7 +112,7 @@ internal fun TableEditorStylePanel(
 
 @Composable
 private fun CompactStyleRow(label: String, content: @Composable RowScope.() -> Unit) {
-    Row(Modifier.fillMaxWidth().tutorialTarget("table.style.$label").heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.fillMaxWidth().tutorialTarget("table.style.$label").heightIn(min = styleRowHeight(LocalDensity.current.fontScale)), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, modifier = Modifier.width(80.dp), style = DDZTypography.Caption, color = DDZColor.TextPrimary)
         content()
@@ -83,10 +120,19 @@ private fun CompactStyleRow(label: String, content: @Composable RowScope.() -> U
 }
 
 @Composable
-private fun StyleChoices(labels: List<String>, current: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun StyleChoices(
+    labels: List<String>,
+    current: Int,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    accessibleLabels: List<String> = labels,
+    onSelect: (Int) -> Unit,
+) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         labels.forEachIndexed { index, label ->
-            Box(Modifier.weight(1f).height(48.dp).semantics { selected = index == current }
+            Box(Modifier.weight(1f).height(48.dp).semantics {
+                    selected = index == current
+                    contentDescription = accessibleLabels[index]
+                }
                 .clickable(role = Role.RadioButton) { onSelect(index) }, contentAlignment = Alignment.Center) {
                 Box(Modifier.fillMaxWidth().height(32.dp)
                     .background(if (index == current) DDZColor.SelectedSoft else DDZColor.SurfaceSoft, RoundedCornerShape(10.dp)),
@@ -103,3 +149,8 @@ private fun StyleChoices(labels: List<String>, current: Int, onSelect: (Int) -> 
 private fun StylePercent(value: Int) {
     Text("$value%", modifier = Modifier.width(42.dp), style = DDZTypography.Caption, color = DDZColor.TextSecondary)
 }
+
+// Four controls with opacity; selecting a fully transparent background hides the opacity row.
+internal fun styleRowHeight(fontScale: Float) = (48f * fontScale.coerceAtLeast(1f)).dp
+internal fun stylePanelHeight(fontScale: Float, showOpacity: Boolean) =
+    styleRowHeight(fontScale) * (if (showOpacity) 4 else 3) + 16.dp

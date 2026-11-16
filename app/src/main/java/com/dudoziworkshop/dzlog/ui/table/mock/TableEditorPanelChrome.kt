@@ -1,13 +1,17 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
@@ -16,7 +20,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -24,6 +33,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickCellLinks
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
@@ -53,6 +63,26 @@ internal fun TableEditorWorkPanel(modifier: Modifier = Modifier, content: @Compo
     )
 }
 
+/**
+ * The selected cell panel has two non-scrollable controls: the input (56dp)
+ * and its navigation/info row (44dp). Reserve vertical padding and divider,
+ * even on short landscape viewports, before allocating space to the preview.
+ */
+internal fun editorContentPanelMaxHeight(availableHeight: Dp, bottomTabHeight: Dp): Dp {
+    val minimumForFixedControls =
+        DDZLayout.QuickInput.RowHeight + DDZLayout.QuickInput.Touch + 24.dp
+    val proportional = (availableHeight + bottomTabHeight) * 0.35f - bottomTabHeight
+    return maxOf(minimumForFixedControls, proportional).coerceAtMost(availableHeight)
+}
+
+/** Stable domain identity: row/column changes can renumber temporary UI indexes. */
+internal fun editorCellStateKey(cell: TableEditorCellUiModel): String =
+    cell.domainCellId ?: "ui:${cell.id}"
+
+/** Only text and numeric editors can accept a continued IME session. */
+internal fun editorCanKeepKeyboard(type: TableEditorCellType?): Boolean =
+    type == TableEditorCellType.TEXT || type == TableEditorCellType.NUMBER
+
 internal data class EditorCellNeighbours(val previous: String?, val next: String?)
 
 /** Detail editing includes every kind; merged covered cells never become stops. */
@@ -71,35 +101,96 @@ internal fun TableEditorCellInfoRow(
     neighbours: EditorCellNeighbours,
     enabled: Boolean,
     onMove: (String) -> Unit,
+    onTypeChange: (TableEditorCellType) -> Unit,
+    onClose: () -> Unit,
+    compactInput: Boolean = false,
+    onInputDone: () -> Unit = {},
 ) {
     val colors = LocalDDZColor.current
-    val spacing = LocalDDZSpacing.current
     val typography = LocalDDZTypography.current
     val context = LocalContext.current
+    var showTypePicker by remember(cell.id) { mutableStateOf(false) }
+
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = spacing.screenPadding),
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("${cell.rowIndex + 1}행 ${cell.colIndex + 1}열", Modifier.weight(1f),
-            style = typography.Caption, color = colors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (links.count > 0) IconButton(
-            onClick = { Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show() },
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        Row(
+            Modifier.weight(1f)
+                .heightIn(min = DDZLayout.QuickInput.Touch)
+                .clickable(enabled = links.count > 0) {
+                    Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show()
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                if (links.fileName) Icon(Icons.Filled.Description, links.description,
-                    Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis)
-                if (links.path) Icon(Icons.Filled.Folder, if (links.fileName) null else links.description,
-                    Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis)
+            Text(
+                "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열",
+                style = typography.Caption,
+                color = colors.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (links.fileName) Icon(
+                Icons.Filled.Description, links.description,
+                Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+            )
+            if (links.path) Icon(
+                Icons.Filled.Folder, if (links.fileName) null else links.description,
+                Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+            )
+        }
+
+        if (!compactInput) Surface(
+            onClick = { showTypePicker = true },
+            enabled = enabled,
+            shape = RoundedCornerShape(8.dp),
+            color = colors.Surface,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Icon(cell.type.choiceIcon(), contentDescription = null, Modifier.size(16.dp))
+                Text(cell.type.label, style = typography.Caption, maxLines = 1)
+                Icon(Icons.Filled.ArrowDropDown, "셀 종류 변경", Modifier.size(18.dp))
             }
         }
-        IconButton(onClick = { neighbours.previous?.let(onMove) }, enabled = enabled && neighbours.previous != null,
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+
+        IconButton(
+            onClick = { neighbours.previous?.let(onMove) },
+            enabled = enabled && neighbours.previous != null,
+            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        ) {
             Icon(Icons.Filled.ChevronLeft, "이전 셀", Modifier.size(DDZLayout.QuickInput.Icon))
         }
-        IconButton(onClick = { neighbours.next?.let(onMove) }, enabled = enabled && neighbours.next != null,
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+        IconButton(
+            onClick = { neighbours.next?.let(onMove) },
+            enabled = enabled && neighbours.next != null,
+            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        ) {
             Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
         }
+        if (compactInput) {
+            TextButton(onClick = onInputDone, enabled = enabled) { Text("완료") }
+        } else {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+            ) {
+                Icon(Icons.Filled.Close, "셀 편집 닫기", Modifier.size(DDZLayout.QuickInput.Icon))
+            }
+        }
+    }
+    if (showTypePicker) {
+        TableEditorCellTypeSheet(
+            selectedType = cell.type,
+            onSelect = {
+                onTypeChange(it)
+                showTypePicker = false
+            },
+            onDismiss = { showTypePicker = false },
+        )
     }
 }

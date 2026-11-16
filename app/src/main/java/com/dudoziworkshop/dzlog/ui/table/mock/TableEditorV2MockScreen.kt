@@ -61,6 +61,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -69,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +81,7 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import java.util.Date
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -87,6 +90,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodEdit
 import com.dudoziworkshop.dzlog.feature.table.policy.previewQuickPhrasePeriodEdit
 import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
+import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickPhraseProgress
 import com.dudoziworkshop.dzlog.feature.table.policy.applyPhrasePeriodResolutions
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickPhraseConflictDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -241,12 +245,16 @@ fun TableEditorV2Screen(
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val textFavoritesViewModel: TableEditorTextFavoritesViewModel = viewModel()
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
+    var pendingInputFocusCellId by remember { mutableStateOf<String?>(null) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
+    var compactFavoritesExpanded by remember { mutableStateOf(false) }
+    var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
         if (imeVisible || imeBottom > 0) {
@@ -264,6 +272,10 @@ fun TableEditorV2Screen(
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
+    val textCellSelected = cells.any { it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT }
+    LaunchedEffect(imeVisible, textCellSelected) {
+        if (!imeVisible || !textCellSelected) compactFavoritesExpanded = false
+    }
 
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
@@ -272,7 +284,10 @@ fun TableEditorV2Screen(
         else -> MockBottomTab.CONTENT
     }
     LaunchedEffect(activeTab) {
-        if (activeTab != MockBottomTab.CONTENT) inputExpanded = false
+        if (activeTab != MockBottomTab.CONTENT) {
+            inputExpanded = false
+            pendingInputFocusCellId = null
+        }
     }
 
     fun requestBack() {
@@ -322,7 +337,7 @@ fun TableEditorV2Screen(
                         onClick = {
                             if (mode == MockMode.LAYOUT) {
                                 mode = MockMode.EDIT
-                                selectionState.clearLayoutSelection()
+                                selectionState.restoreEditSelection(draftTemplateState)
                             } else {
                                 saveScope.launch {
                                     if (saveCoordinator.save(session, onSave)) onBack()
@@ -334,26 +349,33 @@ fun TableEditorV2Screen(
             )
         },
         bottomBar = {
-            if (!imeVisible) Column(Modifier.tutorialTarget("table.tabs")) {
+            if (!imeVisible) Column(
+                Modifier.tutorialTarget("table.tabs").onSizeChanged { bottomTabHeightPx = it.height }
+            ) {
                 HorizontalDivider(color = DDZColor.BorderStrong)
                 MockBottomBar(
                     active = activeTab,
                     onContent = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
-                        selectionState.reconcileEditSelection(draftTemplateState)
-                        selectionState.clearLayoutSelection()
+                        selectionState.restoreEditSelection(draftTemplateState)
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                     },
                     onLayout = {
-                        selectionState.reconcileEditSelection(draftTemplateState)
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         showStyle = false
                         showSaveRules = false
                         saveDetailTrail = emptyList()
                         mode = MockMode.LAYOUT
+                        selectionState.restoreLayoutSelection(draftTemplateState)
                     },
                     onStyle = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
                         selectionState.reconcileEditSelection(draftTemplateState)
                         showSaveRules = false
@@ -361,8 +383,10 @@ fun TableEditorV2Screen(
                         showStyle = true
                     },
                     onSaveRules = {
+                        focusManager.clearFocus()
+                        keyboard?.hide()
                         mode = MockMode.EDIT
-                        selectionState.clearLayoutSelection()
+                        selectionState.reconcileEditSelection(draftTemplateState)
                         showStyle = false
                         saveDetailTrail = emptyList()
                         showSaveRules = true
@@ -374,13 +398,34 @@ fun TableEditorV2Screen(
         BoxWithConstraints(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
         ) {
-            // Every normal tab owns the same band, including an unselected Content tab.
-            // IME mode wraps the compact input instead of preserving an empty band.
-            val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
-            val expandedInputHeight = minOf(DDZLayout.QuickInput.ExpandedHeight,
-                (maxHeight * 0.4f).coerceAtLeast(DDZLayout.QuickInput.RowHeight))
+            val cellPanelVisible = activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT &&
+                cells.any { it.domainCellId == selectedCellId && !it.isCovered }
+            // Content wraps its controls, with a cap; the other tabs retain their existing size.
+            val bottomTabHeight = with(LocalDensity.current) { bottomTabHeightPx.toDp() }
+            val cellPanelMaxHeight = editorContentPanelMaxHeight(
+                availableHeight = maxHeight,
+                bottomTabHeight = bottomTabHeight,
+            )
+            val panelHeight = (
+                when (activeTab) {
+                    MockBottomTab.STRUCTURE -> structurePanelHeight(LocalDensity.current.fontScale)
+                    MockBottomTab.STYLE -> stylePanelHeight(
+                        LocalDensity.current.fontScale,
+                        showOpacity = draftStyleState.bgStyle != 2,
+                    )
+                    MockBottomTab.SAVE -> saveMenuPanelHeight(LocalDensity.current.fontScale)
+                    else -> settingsPanelHeight(LocalDensity.current.fontScale)
+                }
+            ).coerceAtMost(maxHeight * 0.55f)
+            val expandedInputHeight = minOf(
+                DDZLayout.QuickInput.ExpandedHeight,
+                (
+                    if (imeVisible) maxHeight * 0.4f
+                    else cellPanelMaxHeight - 64.dp
+                ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
+            )
             val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) maxHeight * 0.55f else panelHeight
+                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
@@ -466,7 +511,17 @@ fun TableEditorV2Screen(
                                         tappedDomainCellId = domainCellId,
                                     )
                                 } else {
+                                    // Preview taps and Previous/Next use the same IME handoff rule.
+                                    val target = cells.firstOrNull {
+                                        it.domainCellId == domainCellId && !it.isCovered
+                                    }
+                                    val editable = editorCanKeepKeyboard(target?.type)
+                                    pendingInputFocusCellId = if (imeVisible && editable) domainCellId else null
                                     selectionState.selectEditCell(domainCellId)
+                                    if (imeVisible && !editable) {
+                                        focusManager.clearFocus()
+                                        keyboard?.hide()
+                                    }
                                 }
                             },
                             onCellRangeDrag = { startId, endId ->
@@ -485,24 +540,17 @@ fun TableEditorV2Screen(
                     }
                 }
 
-                if (!imeVisible) Text(
-                    text = when {
-                        showStyle -> "스타일을 조절한 뒤 상단 저장을 눌러주세요."
-                        showSaveRules -> "저장설정을 선택해 편집하세요."
-                        mode == MockMode.EDIT -> "셀을 선택해 내용을 편집하세요."
-                        else -> "표 바깥 ↔ · ↕ 를 드래그해 크기를 조절하세요."
-                    },
-                    color = DDZColor.TextMuted,
-                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp, vertical = 8.dp),
-                    maxLines = 2,
-                )
-
+                // Without a selected content cell, no empty editor band is reserved.
+                if (activeTab != MockBottomTab.CONTENT || cellPanelVisible) {
                 TableEditorWorkPanel(
                     Modifier.fillMaxWidth().tutorialTarget("table.panel")
-                        .then(if (imeVisible) Modifier else Modifier.height(panelHeight)),
+                        .then(
+                            if (cellPanelVisible && !imeVisible) Modifier.heightIn(max = cellPanelMaxHeight)
+                            else if (imeVisible) Modifier else Modifier.height(panelHeight)
+                        ),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
-                        Box(Modifier.fillMaxWidth().weight(1f, fill = !imeVisible)) {
+                        Box(Modifier.fillMaxWidth().weight(1f, fill = !imeVisible && !cellPanelVisible)) {
                             if (showSaveRules) {
                                 TableEditorSaveSettingsPanel(
                                     draft = saveRulesDraft,
@@ -527,6 +575,7 @@ fun TableEditorV2Screen(
                                     TableEditorCellUiModelEditor(
                                         cell = selected,
                                         phraseSets = draftTemplateState.phraseSets,
+                                        textFavoritesModel = textFavoritesViewModel,
                                         onValueChange = { nextValue ->
                                             selected.domainCellId?.let { cellId ->
                                                 session.commitTemplateChange(
@@ -534,18 +583,6 @@ fun TableEditorV2Screen(
                                                         templateState = draftTemplateState,
                                                         domainCellId = cellId,
                                                         nextValue = nextValue,
-                                                    )
-                                                )
-                                            }
-                                        },
-                                        onTypeChange = { nextType ->
-                                            inputExpanded = false
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(
-                                                    applyTableEditorCellType(
-                                                        templateState = draftTemplateState,
-                                                        domainCellId = cellId,
-                                                        nextType = nextType,
                                                     )
                                                 )
                                             }
@@ -584,13 +621,11 @@ fun TableEditorV2Screen(
                                         },
                                         onPhraseProgressChange = { index, completed ->
                                             selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(draftTemplateState.copy(
-                                                    cells = draftTemplateState.cells.map { cell ->
-                                                        if (cell.cellId == cellId) cell.copy(
-                                                            phraseIndex = index, phraseCompletedShots = completed
-                                                        ) else cell
-                                                    }
-                                                ))
+                                                session.commitTemplateChange(
+                                                    updateQuickPhraseProgress(
+                                                        draftTemplateState, cellId, index, completed,
+                                                    )
+                                                )
                                             }
                                         },
                                         onPhraseEveryChange = { every ->
@@ -655,15 +690,16 @@ fun TableEditorV2Screen(
                                                 )
                                             )
                                         },
-                                        onClose = {
-                                            keyboard?.hide()
-                                            selectionState.clearEditSelection()
-                                        },
                                         compactInput = imeVisible,
+                                        compactFavoritesExpanded = compactFavoritesExpanded,
+                                        onCompactFavoritesExpandedChange = { compactFavoritesExpanded = it },
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
                                         onInputFocus = { keyboardPreviewLocked = true },
+                                        requestInputFocus = selected.domainCellId != null &&
+                                            selected.domainCellId == pendingInputFocusCellId,
+                                        onInputFocusHandled = { pendingInputFocusCellId = null },
                                         modifier = editorPanelModifier.tutorialTarget("table.cell-input"),
                                     )
                                 }
@@ -729,7 +765,7 @@ fun TableEditorV2Screen(
                                 )
                             }
                         }
-                        if (activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT) {
+                        if (cellPanelVisible) {
                             val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
                             selected?.domainCellId?.let { id ->
                                 HorizontalDivider(
@@ -743,13 +779,44 @@ fun TableEditorV2Screen(
                                     neighbours = editorCellNeighbours(cells, id),
                                     enabled = !saveCoordinator.isSaving,
                                     onMove = { nextId ->
-                                        focusManager.clearFocus()
+                                        // Transfer input focus only when the keyboard is already open.
+                                        val next = cells.firstOrNull { it.domainCellId == nextId }
+                                        val nextEditable = editorCanKeepKeyboard(next?.type)
+                                        pendingInputFocusCellId = if (imeVisible && nextEditable) nextId else null
                                         selectionState.selectEditCell(nextId)
+                                        if (imeVisible && !nextEditable) {
+                                            focusManager.clearFocus()
+                                            keyboard?.hide()
+                                        }
+                                    },
+                                    onTypeChange = { nextType ->
+                                        inputExpanded = false
+                                        selected.domainCellId?.let { cellId ->
+                                            session.commitTemplateChange(
+                                                applyTableEditorCellType(
+                                                    templateState = draftTemplateState,
+                                                    domainCellId = cellId,
+                                                    nextType = nextType,
+                                                )
+                                            )
+                                        }
+                                    },
+                                    onClose = {
+                                        pendingInputFocusCellId = null
+                                        keyboard?.hide()
+                                        selectionState.clearEditSelection()
+                                    },
+                                    compactInput = imeVisible,
+                                    onInputDone = {
+                                        pendingInputFocusCellId = null
+                                        focusManager.clearFocus()
+                                        keyboard?.hide()
                                     },
                                 )
                             }
                         }
                     }
+                }
                 }
             }
         }
