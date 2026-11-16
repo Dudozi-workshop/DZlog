@@ -55,7 +55,7 @@ jobs:
             'https://mirrors.aliyun.com/gradle/distributions/v8.13.0/gradle-8.13-bin.zip' \
             'https://services.gradle.org/distributions/gradle-8.13-bin.zip'; do
             sed -i '/^distributionUrl=/d' gradle/wrapper/gradle-wrapper.properties
-            printf 'distributionUrl=%s\\n' "$url" >> gradle/wrapper/gradle-wrapper.properties
+            printf 'distributionUrl=%s\n' "$url" >> gradle/wrapper/gradle-wrapper.properties
             if bash ./gradlew --version; then
               break
             fi
