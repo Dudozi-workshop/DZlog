@@ -7,7 +7,7 @@ import platform.Foundation.create
 import platform.CoreGraphics.CGRectMake
 import platform.UIKit.*
 
-/** Only rendering uses this raster. ORIGINAL keeps the camera's exact encoded bytes/metadata. */
+/** Normalizes EXIF orientation for result rendering and ratio crops that must rewrite pixels. */
 internal fun uprightIosImage(bytes: ByteArray): ByteArray {
     require(bytes.isNotEmpty()) { "사진 데이터가 없습니다." }
     val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }

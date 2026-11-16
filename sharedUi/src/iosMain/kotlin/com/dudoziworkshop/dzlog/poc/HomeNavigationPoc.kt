@@ -142,11 +142,13 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     }
     if (showCaptureSettings) {
         IosCaptureSettingsScreen(savedDocument, workspace.settings.continuousPreviewMode,
-            workspace.settings.captureHapticEnabled, onBack = { showCaptureSettings = false },
-            onApply = { updated, previewMode, hapticEnabled ->
+            workspace.settings.captureHapticEnabled, workspace.settings.captureAspectMode,
+            onBack = { showCaptureSettings = false },
+            onApply = { updated, previewMode, hapticEnabled, aspectMode ->
             if (persist(workspace.save(updated).copy(settings = workspace.settings.copy(
                     continuousPreviewMode = previewMode,
-                    captureHapticEnabled = hapticEnabled)))) showCaptureSettings = false
+                    captureHapticEnabled = hapticEnabled,
+                    captureAspectMode = aspectMode)))) showCaptureSettings = false
         })
     } else if (showGallery) {
         IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })

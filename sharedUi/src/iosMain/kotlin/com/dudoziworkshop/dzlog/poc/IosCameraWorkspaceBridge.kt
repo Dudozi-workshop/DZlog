@@ -54,6 +54,9 @@ internal class IosCameraCaptureSession(
     val cameraFlashMode get() = workspace.settings.cameraFlashMode
     val continuousPreviewMode get() = workspace.settings.continuousPreviewMode
     val captureHapticEnabled get() = workspace.settings.captureHapticEnabled
+    val captureAspect get() = com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(
+        workspace.settings.captureAspectMode,
+    )
 
     fun setShowCameraGrid(enabled: Boolean): Boolean = saveCameraPreferences(
         workspace.settings.copy(showCameraGrid = enabled),
@@ -161,18 +164,21 @@ internal class IosCameraCaptureSession(
         document: com.dudoziworkshop.dzlog.data.template.EditorDocument,
         continuousPreviewMode: Int,
         captureHapticEnabled: Boolean,
+        captureAspectMode: Int,
     ): Boolean {
-        if (continuousPreviewMode !in 0..2 || hasPending() ||
+        if (continuousPreviewMode !in 0..2 || captureAspectMode !in 0..2 || hasPending() ||
             document.template.id != workspace.activeTemplateId) return false
         if (store.load(document.template) != workspace) return false
         val updated = workspace.save(document).copy(settings = workspace.settings.copy(
             continuousPreviewMode = continuousPreviewMode,
-            captureHapticEnabled = captureHapticEnabled))
+            captureHapticEnabled = captureHapticEnabled,
+            captureAspectMode = captureAspectMode))
         if (!store.save(updated)) return false
         workspace = store.load(document.template)
         sessionCaptures.clear()
         return workspace.active == document && workspace.settings.continuousPreviewMode == continuousPreviewMode &&
-            workspace.settings.captureHapticEnabled == captureHapticEnabled
+            workspace.settings.captureHapticEnabled == captureHapticEnabled &&
+            workspace.settings.captureAspectMode == captureAspectMode
     }
 
     fun previewInfo() = com.dudoziworkshop.dzlog.domain.preview.buildPreview(
@@ -288,9 +294,10 @@ internal class IosCameraCaptureSession(
     /** One camera entry point for all modes, using only this document's saved placement. */
     suspend fun saveConfiguredJpeg(jpeg: ByteArray): Boolean {
         val doc = checkNotNull(workspace.active)
-        if (doc.saveMode == SaveMode.ORIGINAL_ONLY) return saveJpeg(jpeg)
+        val croppedJpeg = cropIosCaptureJpeg(jpeg, captureAspect)
+        if (doc.saveMode == SaveMode.ORIGINAL_ONLY) return saveJpeg(croppedJpeg)
         val placement = checkNotNull(tablePlacement) { "촬영 전 표 배치를 저장해 주세요." }
-        return saveAndroidPlacedJpeg(jpeg, placement.anchor, placement.offsetXPercent,
+        return saveAndroidPlacedJpeg(croppedJpeg, placement.anchor, placement.offsetXPercent,
             placement.offsetYPercent, placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
     }
 

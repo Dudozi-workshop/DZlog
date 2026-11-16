@@ -192,9 +192,9 @@ internal fun IosCameraCapturePoc(
 
     if (showSettings && session != null) {
         IosCaptureSettingsScreen(session.selectedDocument, session.continuousPreviewMode,
-            session.captureHapticEnabled, onBack = { showSettings = false }) {
-                document, previewMode, hapticEnabled ->
-            if (session.saveCaptureSettings(document, previewMode, hapticEnabled)) {
+            session.captureHapticEnabled, session.captureAspect.v, onBack = { showSettings = false }) {
+                document, previewMode, hapticEnabled, aspectMode ->
+            if (session.saveCaptureSettings(document, previewMode, hapticEnabled, aspectMode)) {
                 settingsRevision += 1
                 showSettings = false
             }
@@ -317,6 +317,7 @@ internal fun IosCameraCapturePoc(
             contentAlignment = Alignment.Center) {
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
+                captureAspect = session.captureAspect.ratioF.toDouble(),
                 enabled = !busy && !session.hasPending() && !showTools,
                 showGrid = showGrid,
                 showTable = showTable,

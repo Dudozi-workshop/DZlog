@@ -66,9 +66,11 @@ internal fun IosConfiguredCaptureFixture() {
     }
     if (settings) {
         IosCaptureSettingsScreen(checkNotNull(workspace.active), workspace.settings.continuousPreviewMode,
-            workspace.settings.captureHapticEnabled, { settings = false }) { document, previewMode, hapticEnabled ->
+            workspace.settings.captureHapticEnabled, workspace.settings.captureAspectMode,
+            { settings = false }) { document, previewMode, hapticEnabled, aspectMode ->
             check(store.save(workspace.save(document).copy(settings = workspace.settings.copy(
-                continuousPreviewMode = previewMode, captureHapticEnabled = hapticEnabled))))
+                continuousPreviewMode = previewMode, captureHapticEnabled = hapticEnabled,
+                captureAspectMode = aspectMode))))
             workspace = store.load(seed)
             check(workspace.active == document)
             settings = false
@@ -91,6 +93,7 @@ internal fun IosConfiguredCaptureFixture() {
         Text("배치: ${doc.capturePlacement?.anchor?.name ?: "없음"}")
         Text("촬영 확인: ${workspace.settings.continuousPreviewMode}")
         Text("촬영 진동: ${workspace.settings.captureHapticEnabled}")
+        Text("촬영 비율: ${com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(workspace.settings.captureAspectMode).label}")
         Text("대기 기록: ${IosCameraCaptureSession.hasPending()}")
         Button(onClick = { settings = true }, enabled = !busy && !IosCameraCaptureSession.hasPending()) { Text("촬영 설정 열기") }
         for (interrupt in listOf(false, true)) {
@@ -100,7 +103,7 @@ internal fun IosConfiguredCaptureFixture() {
                     try {
                         check(IosCameraWorkspaceBridge.prepare(editorKey, workspace) == null)
                         val known = media.listSavedAssets().map { it.captureId }.toSet()
-                        val surface = Surface.makeRasterN32Premul(160, 240)
+                        val surface = Surface.makeRasterN32Premul(180, 240)
                         surface.canvas.clear(0xFF4B805A.toInt())
                         val jpeg = checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.JPEG, 88)).bytes
                         val session = if (interrupt) IosCameraCaptureSession(editorKey, workspace,
@@ -119,7 +122,9 @@ internal fun IosConfiguredCaptureFixture() {
                             check(entry.availability == CaptureMediaAvailability.PRESENT)
                             val restored = checkNotNull(media.readAsset(entry.asset.assetId))
                             val image = Image.makeFromEncoded(restored)
-                            check(image.width == 160 && image.height == 240)
+                            val expectedSize = com.dudoziworkshop.dzlog.domain.model.CaptureAspect
+                                .from(workspace.settings.captureAspectMode).centerCropSize(180, 240)
+                            check(image.width == expectedSize.first && image.height == expectedSize.second)
                             if (entry.asset.target.role == CaptureMediaRole.RESULT) check(!restored.contentEquals(jpeg))
                         }
                         workspace = store.load(seed)
@@ -151,6 +156,10 @@ internal fun IosConfiguredCaptureFixture() {
             status = runCatching { checkIosExifRaster(); "사진 방향 검증 완료" }
                 .getOrElse { "실패: ${it.message}" }
         }) { Text("사진 방향 검증") }
+        Button(enabled = !busy, onClick = {
+            status = runCatching { checkIosCaptureAspectRaster(); "촬영 비율 검증 완료" }
+                .getOrElse { "실패: ${it.message}" }
+        }) { Text("촬영 비율 검증") }
         Button(enabled = !busy, onClick = {
             status = runCatching { checkIosMergedCaptureRaster(); "병합 픽셀·오류 차단 검증 완료" }
                 .getOrElse { "실패: ${it.message}" }

@@ -19,8 +19,9 @@ internal fun IosCaptureSettingsScreen(
     document: EditorDocument,
     continuousPreviewMode: Int,
     captureHapticEnabled: Boolean,
+    captureAspectMode: Int,
     onBack: () -> Unit,
-    onApply: (EditorDocument, Int, Boolean) -> Unit,
+    onApply: (EditorDocument, Int, Boolean, Int) -> Unit,
 ) {
     var mode by remember(document) { mutableStateOf(document.saveMode) }
     // Draft suggestions only: Cancel never writes these values to the document.
@@ -29,6 +30,9 @@ internal fun IosCaptureSettingsScreen(
     var number by remember(document) { mutableStateOf((document.nextCounter ?: 1).toString()) }
     var previewMode by remember(continuousPreviewMode) { mutableIntStateOf(continuousPreviewMode) }
     var hapticEnabled by remember(captureHapticEnabled) { mutableStateOf(captureHapticEnabled) }
+    var captureAspect by remember(captureAspectMode) {
+        mutableStateOf(com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(captureAspectMode))
+    }
     val next = number.toIntOrNull()?.takeIf { it > 0 && it < Int.MAX_VALUE }
     val layoutError = runCatching { iosCaptureCellRects(document.template.templateState) }.exceptionOrNull()?.message
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding()
@@ -42,8 +46,15 @@ internal fun IosCaptureSettingsScreen(
                 onApply(document.copy(saveMode = mode, nextCounter = next,
                     usesAutoNext = if (next != document.nextCounter) false else document.usesAutoNext,
                     capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement),
-                    previewMode, hapticEnabled)
+                    previewMode, hapticEnabled, captureAspect.v)
             }) { Text("설정 저장") }
+        }
+        Text("촬영 비율")
+        for (value in com.dudoziworkshop.dzlog.domain.model.CaptureAspect.entries) {
+            Row {
+                RadioButton(selected = captureAspect == value, onClick = { captureAspect = value })
+                TextButton(onClick = { captureAspect = value }) { Text(value.label) }
+            }
         }
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Switch(checked = hapticEnabled, onCheckedChange = { hapticEnabled = it })

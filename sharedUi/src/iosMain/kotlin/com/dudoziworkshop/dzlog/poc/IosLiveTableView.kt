@@ -21,6 +21,7 @@ internal fun IosLiveTablePreview(
     session: IosCameraCaptureSession,
     previewLayer: AVCaptureVideoPreviewLayer? = null,
     fixtureAspect: Double? = null,
+    captureAspect: Double? = null,
     enabled: Boolean,
     showGrid: Boolean = false,
     showTable: Boolean = true,
@@ -43,7 +44,9 @@ internal fun IosLiveTablePreview(
     onSaved: () -> Unit,
     onError: (String) -> Unit,
 ) {
-    val view = remember(session, previewLayer, fixtureAspect) { IosLiveTableView(previewLayer, fixtureAspect) }
+    val view = remember(session, previewLayer, fixtureAspect, captureAspect) {
+        IosLiveTableView(previewLayer, fixtureAspect, captureAspect)
+    }
     val placement = if (session.selectedDocument.saveMode == com.dudoziworkshop.dzlog.domain.model.SaveMode.ORIGINAL_ONLY)
         null else session.tablePlacement
     DisposableEffect(view) { onDispose { view.release() } }
@@ -72,6 +75,7 @@ internal fun IosLiveTablePreview(
 internal class IosLiveTableView(
     private val preview: AVCaptureVideoPreviewLayer?,
     private val fixtureAspect: Double?,
+    private val captureAspect: Double?,
 ) : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
     private val image = UIImageView()
     private val gridLines = List(4) { UIView() }
@@ -230,8 +234,14 @@ internal class IosLiveTableView(
 
     override fun layoutSubviews() {
         super.layoutSubviews()
-        preview?.frame = bounds
-        val rect = preview?.rectForMetadataOutputRectOfInterest(CGRectMake(0.0, 0.0, 1.0, 1.0)) ?: fixtureRect()
+        val requestedAspect = captureAspect ?: fixtureAspect
+        val captureRect = requestedAspect?.let(::centeredAspectRect) ?: bounds
+        preview?.apply {
+            videoGravity = AVLayerVideoGravityResizeAspectFill
+            frame = captureRect
+        }
+        val rect = if (requestedAspect != null) captureRect
+            else preview?.rectForMetadataOutputRectOfInterest(CGRectMake(0.0, 0.0, 1.0, 1.0)) ?: fixtureRect()
         val frame = rect.useContents { IosTableBounds(origin.x.toFloat(), origin.y.toFloat(),
             size.width.toFloat(), size.height.toFloat(), 0f, 0f) }
         if (frame.width < 1 || frame.height < 1) return
@@ -438,6 +448,11 @@ internal class IosLiveTableView(
 
     private fun fixtureRect(): CValue<CGRect> {
         val aspect = checkNotNull(fixtureAspect) { "카메라 사진 비율이 없습니다." }
+        return centeredAspectRect(aspect)
+    }
+
+    private fun centeredAspectRect(aspect: Double): CValue<CGRect> {
+        require(aspect > 0.0 && aspect.isFinite())
         return bounds.useContents {
             val w = minOf(size.width, size.height * aspect)
             val h = w / aspect

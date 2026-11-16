@@ -313,6 +313,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("촬영 설정 열기")
         tapButton("원본만")
+        tapButton("1:1")
         tapButton("유지")
         tapButton("촬영 진동 끄기")
         tapButton("설정 저장")
@@ -333,6 +334,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 12").exists)
         XCTAssertTrue(text("촬영 확인: 2").exists)
         XCTAssertTrue(text("촬영 진동: false").exists)
+        XCTAssertTrue(text("촬영 비율: 1:1").exists)
         app.terminate()
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
@@ -340,6 +342,9 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
         XCTAssertTrue(text("촬영 확인: 2").exists)
         XCTAssertTrue(text("촬영 진동: false").exists)
+        XCTAssertTrue(text("촬영 비율: 1:1").exists)
+        tapButton("촬영 비율 검증")
+        XCTAssertTrue(text("상태: 촬영 비율 검증 완료").waitForExistence(timeout: 20))
     }
 
     func testCameraOverlayToolsPersistThroughNativeReturn() {
