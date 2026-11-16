@@ -14,6 +14,30 @@ internal fun editorPreviewDragScale(fitScale: Float, gestureScale: Float?): Floa
 internal fun editorPreviewInputScale(fitScale: Float, unobscuredScale: Float?, locked: Boolean): Float =
     if (locked) unobscuredScale ?: fitScale else fitScale
 
+/** Preserve manual/visible preview position across keyboard and tab transitions.
+ * Reveal is needed on a newly selected cell or if the current cell is clipped.
+ * A manual scroll for the same selection must never be overridden automatically.
+ */
+internal fun editorPreviewShouldReveal(
+    isScrollable: Boolean,
+    selectedId: String?,
+    previouslyRevealedId: String?,
+    selectedTop: Float,
+    selectedBottom: Float,
+    viewportHeight: Float,
+    currentScroll: Float,
+    manuallyScrolledSelected: Boolean,
+    margin: Float = 8f,
+): Boolean {
+    if (!isScrollable || selectedId == null || manuallyScrolledSelected) return false
+    if (selectedId != previouslyRevealedId) return true
+    val viewport = viewportHeight.coerceAtLeast(1f)
+    val inset = margin.coerceIn(0f, viewport / 4f)
+    val top = minOf(selectedTop, selectedBottom)
+    val bottom = maxOf(selectedTop, selectedBottom)
+    return top < currentScroll + inset || bottom > currentScroll + viewport - inset
+}
+
 internal fun editorPreviewSelectionScroll(top: Float, bottom: Float,
     viewportHeight: Float, contentHeight: Float): Float =
     ((top + bottom - viewportHeight) / 2f)
