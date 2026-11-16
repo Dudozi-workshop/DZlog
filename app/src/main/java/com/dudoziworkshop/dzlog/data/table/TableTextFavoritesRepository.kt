@@ -23,7 +23,7 @@ class TableTextFavoritesRepository(context: Context) {
     fun save(items: List<String>) {
         val array = JSONArray()
         items.filter { it.isNotBlank() }.distinct().take(MAX_ITEMS)
-            .forEach(array::put)
+            .forEach { array.put(it) }
         preferences.edit().putString(KEY, array.toString()).apply()
     }
 
