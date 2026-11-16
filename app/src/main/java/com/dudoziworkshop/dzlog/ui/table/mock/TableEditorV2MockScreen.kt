@@ -90,6 +90,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodEdit
 import com.dudoziworkshop.dzlog.feature.table.policy.previewQuickPhrasePeriodEdit
 import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
+import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickPhraseProgress
 import com.dudoziworkshop.dzlog.feature.table.policy.applyPhrasePeriodResolutions
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickPhraseConflictDialog
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
@@ -605,13 +606,11 @@ fun TableEditorV2Screen(
                                         },
                                         onPhraseProgressChange = { index, completed ->
                                             selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(draftTemplateState.copy(
-                                                    cells = draftTemplateState.cells.map { cell ->
-                                                        if (cell.cellId == cellId) cell.copy(
-                                                            phraseIndex = index, phraseCompletedShots = completed
-                                                        ) else cell
-                                                    }
-                                                ))
+                                                session.commitTemplateChange(
+                                                    updateQuickPhraseProgress(
+                                                        draftTemplateState, cellId, index, completed,
+                                                    )
+                                                )
                                             }
                                         },
                                         onPhraseEveryChange = { every ->
