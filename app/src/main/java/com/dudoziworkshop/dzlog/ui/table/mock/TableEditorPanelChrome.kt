@@ -62,6 +62,10 @@ internal fun TableEditorWorkPanel(modifier: Modifier = Modifier, content: @Compo
     )
 }
 
+/** Stable domain identity: row/column changes can renumber temporary UI indexes. */
+internal fun editorCellStateKey(cell: TableEditorCellUiModel): String =
+    cell.domainCellId ?: "ui:${cell.id}"
+
 /** Only text and numeric editors can accept a continued IME session. */
 internal fun editorCanKeepKeyboard(type: TableEditorCellType?): Boolean =
     type == TableEditorCellType.TEXT || type == TableEditorCellType.NUMBER
