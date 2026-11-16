@@ -26,4 +26,14 @@ class TableEditorCellNavigationTest {
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(cells, "covered"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(emptyList(), null))
     }
+    @Test
+    fun keyboard_handoff_is_allowed_only_for_text_and_number_cells() {
+        assertEquals(true, editorCanKeepKeyboard(TableEditorCellType.TEXT))
+        assertEquals(true, editorCanKeepKeyboard(TableEditorCellType.NUMBER))
+        TableEditorCellType.entries
+            .filterNot { it == TableEditorCellType.TEXT || it == TableEditorCellType.NUMBER }
+            .forEach { assertEquals(false, editorCanKeepKeyboard(it)) }
+        assertEquals(false, editorCanKeepKeyboard(null))
+    }
+
 }
