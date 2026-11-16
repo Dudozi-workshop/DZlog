@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.feature.help.ui.LocalTutorialReadOnly
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -70,6 +71,7 @@ internal fun TableEditorCellUiModelEditor(
     onInputFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val favoriteActionsEnabled = !LocalTutorialReadOnly.current
     var showDatePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
@@ -121,7 +123,7 @@ internal fun TableEditorCellUiModelEditor(
                                     modifier = Modifier.align(Alignment.BottomEnd),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    TableEditorTextFavoriteStar(cell.value, textFavoritesModel)
+                                    TableEditorTextFavoriteStar(cell.value, textFavoritesModel, enabled = favoriteActionsEnabled)
                                     IconButton(
                                         onClick = onToggleInputExpanded,
                                         modifier = Modifier.size(DDZLayout.QuickInput.Touch),
@@ -195,6 +197,7 @@ internal fun TableEditorCellUiModelEditor(
                     TableEditorCellType.TEXT -> TableEditorTextFavoritesRow(
                         model = textFavoritesModel,
                         onApply = onValueChange,
+                        enabled = favoriteActionsEnabled,
                         compact = compactInput,
                     )
                     TableEditorCellType.COUNTER -> Text(
