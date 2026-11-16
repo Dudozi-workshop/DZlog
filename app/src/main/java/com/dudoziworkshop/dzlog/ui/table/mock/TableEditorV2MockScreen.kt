@@ -61,6 +61,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -79,6 +80,7 @@ import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import java.util.Date
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -241,6 +243,7 @@ fun TableEditorV2Screen(
     val saveCoordinator = remember { TableEditorV2SaveCoordinator() }
     val saveScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val textFavoritesViewModel: TableEditorTextFavoritesViewModel = viewModel()
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
@@ -524,6 +527,9 @@ fun TableEditorV2Screen(
                                     TableEditorCellUiModelEditor(
                                         cell = selected,
                                         phraseSets = draftTemplateState.phraseSets,
+                                        textFavorites = textFavoritesViewModel.favorites,
+                                        onFavoriteAdd = textFavoritesViewModel::add,
+                                        onFavoriteRemove = textFavoritesViewModel::remove,
                                         onValueChange = { nextValue ->
                                             selected.domainCellId?.let { cellId ->
                                                 session.commitTemplateChange(
