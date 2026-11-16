@@ -305,8 +305,21 @@ internal fun CameraQuickValueSheet(
             // Reserve a table viewport even with the keyboard and manual input expansion.
             val fixedChrome = DDZLayout.QuickInput.Touch * 2 + DDZLayout.Control.Compact * 2 +
                 DDZSpacing.screenPadding * 2 + DDZSpacing.itemGap * 5 + DDZLayout.QuickInput.CellMarker * 2
-            val inputBudget = (maxHeight - fixedChrome - DDZLayout.QuickInput.MinPreviewHeight)
-                .coerceAtLeast(DDZLayout.QuickInput.Touch)
+            val selectedText = cells.any {
+                it.cellId == selectedId && it.dataType == TableCellDataType.TEXT
+            }
+            val hasFavoritesUi = selectedText && (
+                textFavoritesModel.favorites.isNotEmpty() || textFavoritesModel.lastChange != null
+            )
+            val favoriteHeaderBudget = if (hasFavoritesUi) DDZLayout.QuickInput.Touch else 0.dp
+            val favoriteChipsBudget = if (
+                selectedText && textFavoritesModel.favorites.isNotEmpty() &&
+                (!imeVisible || compactFavoritesExpanded)
+            ) DDZLayout.QuickInput.Touch else 0.dp
+            val inputBudget = (
+                maxHeight - fixedChrome - favoriteHeaderBudget - favoriteChipsBudget -
+                    DDZLayout.QuickInput.MinPreviewHeight
+            ).coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
             // Keep the naming preview, table preview and editor in one IME-safe viewport.
             // The table owns the flexible space, so the keyboard shrinks only the table
