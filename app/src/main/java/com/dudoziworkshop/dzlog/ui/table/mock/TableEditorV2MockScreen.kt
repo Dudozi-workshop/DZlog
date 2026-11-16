@@ -402,9 +402,10 @@ fun TableEditorV2Screen(
                 cells.any { it.domainCellId == selectedCellId && !it.isCovered }
             // Content wraps its controls, with a cap; the other tabs retain their existing size.
             val bottomTabHeight = with(LocalDensity.current) { bottomTabHeightPx.toDp() }
-            val cellPanelMaxHeight = (
-                (maxHeight + bottomTabHeight) * 0.35f - bottomTabHeight
-            ).coerceAtLeast(DDZLayout.QuickInput.Touch + 16.dp)
+            val cellPanelMaxHeight = editorContentPanelMaxHeight(
+                availableHeight = maxHeight,
+                bottomTabHeight = bottomTabHeight,
+            )
             val panelHeight = (
                 when (activeTab) {
                     MockBottomTab.STRUCTURE -> structurePanelHeight(LocalDensity.current.fontScale)
