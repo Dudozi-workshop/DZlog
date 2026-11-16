@@ -103,7 +103,9 @@ internal fun CameraQuickPhrasePeriodControl(
     val isSet = cell.everyOverride == null
     val currentIndex = cell.phraseIndex.coerceIn(0, set.items.lastIndex)
     // Keep the last local value while temporarily following the set in this editor.
-    var rememberedIndividual by remember(cell.cellId, set.id) {
+    // Changing the active phrase must refresh its inherited period, while a
+    // temporary switch from cell-specific to set mode keeps the prior local value.
+    var rememberedIndividual by remember(cell.cellId, set.id, currentIndex) {
         mutableStateOf(cell.everyOverride ?: set.everyForItem(currentIndex))
     }
     LaunchedEffect(cell.everyOverride) {
