@@ -12,10 +12,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     private var awaitingWorkspaceImport = false
     private var exportedTemporaryURL: URL?
     private var testWorkspaceArchive: String?
+    private var activePhotoShareDirectory: URL?
 
     private static let openCamera = Notification.Name("dzlog.openCamera")
     private static let closeCamera = Notification.Name("dzlog.dismissCamera")
     private static let sharePhoto = Notification.Name("dzlog.sharePhoto")
+    private static let sharePhotoFinished = Notification.Name("dzlog.sharePhotoFinished")
     private static let openSystemSettings = Notification.Name("dzlog.openSystemSettings")
     private static let permissionStatusRequest = Notification.Name("dzlog.permissionStatusRequest")
     private static let permissionStatusUpdated = Notification.Name("dzlog.permissionStatusUpdated")
@@ -105,18 +107,116 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     }
 
     @objc private func sharePhotoFromGallery(_ notification: Notification) {
-        guard let data = notification.object as? NSData,
-              let image = UIImage(data: data as Data),
-              var presenter = window?.rootViewController else { return }
-        while let presented = presenter.presentedViewController { presenter = presented }
-        guard !(presenter is UIActivityViewController) else { return }
-        let activity = UIActivityViewController(activityItems: [image], applicationActivities: nil)
-        if let popover = activity.popoverPresentationController {
-            popover.sourceView = presenter.view
-            popover.sourceRect = CGRect(x: presenter.view.bounds.midX,
-                                        y: presenter.view.bounds.midY, width: 1, height: 1)
+        // Kotlin posts on the UI thread, but keep UIKit and the in-flight guard
+        // serialized even if a later caller posts from a background queue.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.sharePhotoFromGallery(notification) }
+            return
         }
-        presenter.present(activity, animated: true)
+        guard activePhotoShareDirectory == nil else {
+            reportPhotoShare("이미 사진 공유가 진행 중입니다.")
+            return
+        }
+        let payloads: [[String: Any]]
+        if let batch = notification.object as? [[String: Any]] {
+            payloads = batch
+        } else if let single = notification.object as? [String: Any] {
+            payloads = [single] // Backwards-compatible single-photo callers.
+        } else {
+            reportPhotoShare("공유할 사진 데이터를 읽을 수 없습니다.")
+            return
+        }
+        guard !payloads.isEmpty, payloads.count <= 50 else {
+            reportPhotoShare("한 번에 1~50장의 사진을 공유할 수 있습니다.")
+            return
+        }
+        // Validate the entire request before creating files or presenting a sheet.
+        let byteLimit = 64 * 1024 * 1024
+        var totalBytes = 0
+        var filesToWrite: [(data: Data, name: String)] = []
+        for payload in payloads {
+            guard let data = payload["data"] as? Data, !data.isEmpty else {
+                reportPhotoShare("선택한 사진 중 읽을 수 없는 데이터가 있습니다.")
+                return
+            }
+            guard data.count <= byteLimit - totalBytes else {
+                reportPhotoShare("공유할 사진의 합계가 64MiB를 넘습니다. 사진을 나눠 선택해 주세요.")
+                return
+            }
+            totalBytes += data.count
+            let requestedName = payload["filename"] as? String ?? ""
+            let leaf = (requestedName as NSString).lastPathComponent
+            let safeName = !leaf.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                leaf == requestedName && leaf != "." && leaf != ".." &&
+                !leaf.contains("/") && !leaf.contains("\\") &&
+                leaf.rangeOfCharacter(from: .controlCharacters) == nil && leaf.utf8.count <= 255
+                ? leaf : "photo.jpg"
+            filesToWrite.append((data, safeName))
+        }
+        guard var presenter = window?.rootViewController else {
+            reportPhotoShare("공유 화면을 열 수 없습니다.")
+            return
+        }
+        while let presented = presenter.presentedViewController { presenter = presented }
+        guard !(presenter is UIActivityViewController),
+              !presenter.isBeingPresented, !presenter.isBeingDismissed,
+              presenter.viewIfLoaded?.window != nil else {
+            reportPhotoShare("현재 화면에서는 사진 공유를 열 수 없습니다. 잠시 후 다시 시도해 주세요.")
+            return
+        }
+
+        // Share the original resource bytes and filename, as Android shares its
+        // selected URI. A UIImage activity item would re-encode the resource.
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dzlog-photo-share-\(UUID().uuidString)", isDirectory: true)
+        activePhotoShareDirectory = directory
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+            var files: [URL] = []
+            for (index, item) in filesToWrite.enumerated() {
+                // Original/result companions can share a filename. Separate child
+                // directories preserve both names and bytes without overwriting.
+                let itemDirectory = directory.appendingPathComponent(String(index), isDirectory: true)
+                try FileManager.default.createDirectory(at: itemDirectory, withIntermediateDirectories: false)
+                let file = itemDirectory.appendingPathComponent(item.name, isDirectory: false)
+                try item.data.write(to: file, options: .atomic)
+                files.append(file)
+            }
+            let activity = UIActivityViewController(activityItems: files, applicationActivities: nil)
+            activity.completionWithItemsHandler = { [weak self] _, completed, _, error in
+                DispatchQueue.main.async {
+                    let result = error.map { "사진 공유 실패: \($0.localizedDescription)" }
+                        ?? (completed ? "completed" : "cancelled")
+                    self?.finishPhotoShare(directory: directory, result: result)
+                }
+            }
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(x: presenter.view.bounds.midX,
+                                            y: presenter.view.bounds.midY, width: 1, height: 1)
+            }
+            presenter.present(activity, animated: true)
+            // UIKit can decline presentation without throwing. Do not leave the
+            // Kotlin gallery busy forever or leave this attempt's file behind.
+            DispatchQueue.main.async { [weak self, weak activity] in
+                guard activity?.presentingViewController == nil else { return }
+                self?.finishPhotoShare(directory: directory, result: "사진 공유 화면을 열지 못했습니다.")
+            }
+        } catch {
+            finishPhotoShare(directory: directory, result: "공유 파일 준비 실패: \(error.localizedDescription)")
+        }
+    }
+
+    private func reportPhotoShare(_ result: String) {
+        NotificationCenter.default.post(name: Self.sharePhotoFinished, object: result)
+    }
+
+    private func finishPhotoShare(directory: URL, result: String) {
+        // A late callback cannot finish or remove a newer operation's files.
+        guard activePhotoShareDirectory == directory else { return }
+        activePhotoShareDirectory = nil
+        try? FileManager.default.removeItem(at: directory)
+        reportPhotoShare(result)
     }
 
     @objc private func openSystemSettingsFromSettings(_ notification: Notification) {

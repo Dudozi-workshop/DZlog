@@ -32,12 +32,15 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.jetbrains.skia.Image as SkiaImage
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.create
 
 private const val GALLERY_ROOT = "Pictures/DZlog/"
@@ -60,10 +63,14 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var loadError by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
     var folder by remember { mutableStateOf<String?>(null) }
+    var recentView by remember { mutableStateOf(false) }
+    var defaultStorageView by remember { mutableStateOf(false) }
     var grid by remember { mutableStateOf(true) }
-    var gridColumns by remember { mutableStateOf(SavedGalleryGridPolicy.DEFAULT_COLUMNS) }
-    val gridState = key(folder, favoritesOnly) { rememberLazyGridState() }
-    val listState = key(folder, favoritesOnly) { rememberLazyListState() }
+    val galleryPreferences = remember { IosGalleryPreferences() }
+    var gridColumns by remember { mutableStateOf(galleryPreferences.gridColumns()) }
+    val gridState = key(folder, favoritesOnly, recentView, defaultStorageView) { rememberLazyGridState() }
+    val listState = key(folder, favoritesOnly, recentView, defaultStorageView) { rememberLazyListState() }
+    val headerScroll = key(folder, favoritesOnly, recentView, defaultStorageView) { rememberScrollState() }
     var pendingScrollAnchor by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var showPhotoInfo by remember { mutableStateOf(false) }
     var viewer by remember { mutableStateOf(false) }
@@ -76,12 +83,35 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var moveTarget by remember { mutableStateOf<Set<String>?>(null) }
     var destination by remember { mutableStateOf<String?>(null) }
     var operationMessage by remember { mutableStateOf<String?>(null) }
+    var sharing by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        val center = NSNotificationCenter.defaultCenter
+        val observer = center.addObserverForName("dzlog.sharePhotoFinished", null, NSOperationQueue.mainQueue) { notification ->
+            if (sharing) {
+                sharing = false
+                managing = false
+                val outcome = notification?.`object` as? String
+                operationMessage = when (outcome) {
+                    "completed" -> "사진 공유를 완료했습니다."
+                    "cancelled" -> "사진 공유를 취소했습니다."
+                    else -> "사진 공유 실패: ${outcome ?: "결과를 확인할 수 없습니다."}"
+                }
+            }
+        }
+        onDispose { center.removeObserver(observer) }
+    }
     var folderAction by remember { mutableStateOf<String?>(null) }
     var folderTarget by remember { mutableStateOf(GALLERY_ROOT) }
     var folderName by remember { mutableStateOf("") }
     var folderError by remember { mutableStateOf<String?>(null) }
     val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
-    val visible = photoSort.sorted(photos.filter { entry ->
+    val effectivePhotoSort = if (recentView) SavedGalleryPhotoSort.NEWEST else photoSort
+    val scopedPhotos = when {
+        recentView -> SavedGalleryEntryPolicy.recentAll(photos)
+        defaultStorageView -> SavedGalleryEntryPolicy.defaultPhotos(photos)
+        else -> photos
+    }
+    val visible = effectivePhotoSort.sorted(scopedPhotos.filter { entry ->
         (folder == null || entry.asset.target.relativePath == folder) &&
             (!favoritesOnly || entry.asset.assetId in favorites)
     })
@@ -95,6 +125,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         if (normalized == gridColumns || managing || refreshing) return
         pendingScrollAnchor = captureScrollAnchor()
         gridColumns = normalized
+        galleryPreferences.setGridColumns(normalized)
     }
     LaunchedEffect(grid, gridColumns, pendingScrollAnchor) {
         val anchor = pendingScrollAnchor ?: return@LaunchedEffect
@@ -106,7 +137,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         pendingScrollAnchor = null
     }
     // A new scope starts at its first photo, rather than carrying an unrelated offset.
-    LaunchedEffect(folder, favoritesOnly) {
+    LaunchedEffect(folder, favoritesOnly, recentView, defaultStorageView) {
         pendingScrollAnchor = null
     }
     val selectableIds = visible.filter { it.availability == CaptureMediaAvailability.PRESENT }
@@ -119,6 +150,33 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         if (selecting) {
             if (id in selectableIds) batchSelection = if (id in selectedBatch) selectedBatch - id else selectedBatch + id
         } else { selectedId = id; viewer = true }
+    }
+    fun shareSelection(ids: Set<String>) {
+        if (managing || sharing || refreshing) return
+        val targets = effectivePhotoSort.sorted(photos.filter { it.asset.assetId in ids })
+        if (targets.size != ids.size) { operationMessage = "선택한 사진을 다시 확인해 주세요."; return }
+        managing = true
+        scope.launch {
+            try {
+                SavedGalleryShareBudget.validateCount(targets.size)
+                var totalBytes = 0L
+                val files = targets.map { entry ->
+                    val bytes = repository.readAsset(entry.asset.assetId) ?: error("선택한 사진을 읽을 수 없습니다.")
+                    currentCoroutineContext().ensureActive()
+                    totalBytes = SavedGalleryShareBudget.appendBytes(totalBytes, bytes.size)
+                    bytes to entry.asset.target.displayName
+                }
+                operationMessage = "공유 화면 여는 중"
+                sharing = true
+                shareIosPhotos(files)
+            } catch (cancelled: CancellationException) {
+                sharing = false
+                throw cancelled
+            } catch (error: Throwable) {
+                sharing = false
+                operationMessage = "사진 공유 실패: ${error.message}"
+            } finally { if (!sharing) managing = false }
+        }
     }
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
     val destinations = buildSet {
@@ -219,6 +277,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         message = "사진 불러오는 중"
         try {
             val bytes = repository.readAsset(entry.asset.assetId)
+            // PhotoKit reads use a callback bridge that can finish after cancellation.
+            // Do not let an older same-asset retry overwrite the newer load state.
+            currentCoroutineContext().ensureActive()
             val restored = bytes?.takeIf { it.isNotEmpty() }?.let { SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }
             if (selectedId == entry.asset.assetId) {
                 image = restored
@@ -307,6 +368,8 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         repository.moveGalleryAssets(targetIds, path)
                         photos = repository.listSavedAssets().asReversed()
                         folders = repository.listGalleryFolders()
+                        recentView = false
+                        defaultStorageView = false
                         folder = path
                         selectedId = targetIds.first()
                         batchSelection = emptySet()
@@ -357,18 +420,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         }
                     }) { Text(if (selectedId in favorites) "★ 즐겨찾기" else "☆ 즐겨찾기") }
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
-                        onClick = {
-                            val id = selectedId ?: return@TextButton
-                            managing = true
-                            scope.launch {
-                                try {
-                                    val bytes = repository.readAsset(id) ?: error("사진을 읽을 수 없습니다.")
-                                    shareIosPhoto(bytes)
-                                    operationMessage = "공유 화면을 열었습니다."
-                                } catch (error: Throwable) { operationMessage = "사진 공유 실패: ${error.message}" }
-                                finally { managing = false }
-                            }
-                        }) { Text("사진 공유") }
+                        onClick = { selectedId?.let { shareSelection(setOf(it)) } }) { Text("사진 공유") }
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
                         onClick = { moveTarget = selectedId?.let { setOf(it) }; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
@@ -400,144 +452,182 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     onClick = { navigate(1) }) { Text("다음 사진") }
             }
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { if (selecting) { selecting = false; batchSelection = emptySet() } else onBack() }, enabled = !managing) { Text("뒤로가기") }
-                Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
-                if (grid && !selecting) GalleryChoiceMenu("그리드 ${gridColumns}열",
-                    (SavedGalleryGridPolicy.MIN_COLUMNS..SavedGalleryGridPolicy.MAX_COLUMNS).map { "${it}열" },
-                    enabled = !managing && !refreshing) { changeColumns(it + SavedGalleryGridPolicy.MIN_COLUMNS) }
-                else Text("갤러리")
-            }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(enabled = !managing && !refreshing, onClick = { folder = if (folder == null) GALLERY_ROOT else null }) {
-                    Text(if (folder == null) "폴더 보기" else "전체 사진")
-                }
-                TextButton(enabled = !managing && !refreshing, onClick = { pendingScrollAnchor = captureScrollAnchor(); grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
-                TextButton(enabled = !managing && !refreshing, onClick = { favoritesOnly = !favoritesOnly }) {
-                    Text(if (favoritesOnly) "전체 보기" else "즐겨찾기")
-                }
-                if (folder != null && folder != GALLERY_ROOT) TextButton(enabled = !managing && !refreshing, onClick = {
-                    folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
-                }) { Text("상위 폴더") }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("사진 ${visible.size}개")
-                if (!selecting) GalleryChoiceMenu("사진 정렬 · ${photoSort.label}", SavedGalleryPhotoSort.entries.map { it.label },
-                    enabled = !managing && !refreshing) { photoSort = SavedGalleryPhotoSort.entries[it] }
-                TextButton(enabled = !managing && !refreshing, onClick = {
-                    selecting = !selecting; batchSelection = emptySet()
-                }) { Text(if (selecting) "선택 취소" else "선택") }
-            }
-            if (selecting) {
-                Text("선택 ${selectedBatch.size}개")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(enabled = !managing && !refreshing && selectableIds.isNotEmpty(),
-                        onClick = { batchSelection = selectableIds }) { Text("전체 선택") }
-                    TextButton(enabled = !managing && selectedBatch.isNotEmpty(),
-                        onClick = { batchSelection = emptySet() }) { Text("선택 해제") }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(enabled = !managing && !refreshing && selectedBatch.isNotEmpty(), onClick = {
-                        moveTarget = selectedBatch.toSet(); destination = null
-                    }) { Text("선택 이동") }
-                    TextButton(enabled = !managing && !refreshing && selectedBatch.isNotEmpty(), onClick = {
-                        deleteTarget = selectedBatch.toSet()
-                    }) { Text("선택 삭제") }
-                }
-            }
-            currentFolder?.let { Text("폴더: $it") }
-            currentFolder?.takeUnless { selecting }?.let { path ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GalleryChoiceMenu("폴더 · ${folderFilter.label}", SavedGalleryFolderFilter.entries.map { it.label },
-                        enabled = !managing && !refreshing) { folderFilter = SavedGalleryFolderFilter.entries[it] }
-                    GalleryChoiceMenu("폴더순 · ${folderSort.label}", SavedGalleryFolderSort.entries.map { it.label },
-                        enabled = !managing && !refreshing) { folderSort = SavedGalleryFolderSort.entries[it] }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(enabled = !managing && !refreshing, onClick = {
-                        folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
-                    }) { Text("폴더 생성") }
-                    if (path != GALLERY_ROOT) {
-                        TextButton(enabled = !managing && !refreshing, onClick = {
-                            folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
-                        }) { Text("이름 변경") }
-                        TextButton(enabled = !managing && !refreshing, onClick = {
-                            folderTarget = path; folderError = null; folderAction = "delete"
-                        }) { Text("폴더 삭제") }
-                    }
-                }
-            }
-            loadError?.let { Text(it) }
-            operationMessage?.let { Text(it) }
-            if (!selecting && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
-                items(childFolders, key = { it.path }) { summary ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(enabled = !managing, onClick = { folder = summary.path }) {
-                            Text(summary.path.removePrefix(currentFolder.orEmpty()).trimEnd('/'))
+            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Leave at least a quarter of the available height for photos.
+                    // The controls scroll independently instead of starving the grid.
+                    Column(Modifier.fillMaxWidth().heightIn(max = (maxHeight * 0.75f - 8.dp).coerceAtLeast(0.dp))
+                        .verticalScroll(headerScroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Button(onClick = {
+                                when {
+                                    selecting -> { selecting = false; batchSelection = emptySet() }
+                                    recentView || defaultStorageView -> { recentView = false; defaultStorageView = false; folder = null }
+                                    else -> onBack()
+                                }
+                            }, enabled = !managing) { Text("뒤로가기") }
+                            Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
+                            if (grid && !selecting) GalleryChoiceMenu("그리드 ${gridColumns}열",
+                                (SavedGalleryGridPolicy.MIN_COLUMNS..SavedGalleryGridPolicy.MAX_COLUMNS).map { "${it}열" },
+                                enabled = !managing && !refreshing) { changeColumns(it + SavedGalleryGridPolicy.MIN_COLUMNS) }
+                            else Text("갤러리")
                         }
-                        Text("사진 기록 ${summary.photoCount}개 · 하위 포함")
-                    }
-                }
-            }
-            if (currentFolder != null && childFolders.isEmpty() && folderFilter != SavedGalleryFolderFilter.ALL) {
-                Text("조건에 맞는 하위 폴더가 없습니다.")
-            }
-            Text(message)
-            if (!selecting && selected != null && visible.any { it.asset.assetId == selectedId }) image?.let {
-                Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { viewer = true },
-                    contentScale = ContentScale.Fit)
-            }
-            if (grid) LazyVerticalGrid(GridCells.Fixed(gridColumns), state = gridState,
-                modifier = Modifier.weight(1f).iosGalleryGridPinch(gridColumns, !managing && !refreshing && !selecting, ::changeColumns),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                gridItems(visible, key = { it.asset.assetId }) { entry ->
-                    val thumbnail by produceState<ImageBitmap?>(
-                        if (entry.availability == CaptureMediaAvailability.PRESENT) thumbnails[entry.asset.assetId] else null,
-                        entry.asset.assetId, entry.availability) {
-                        if (entry.availability != CaptureMediaAvailability.PRESENT) {
-                            value = null
-                            thumbnails.remove(entry.asset.assetId)
-                        } else if (value == null) {
-                            value = runCatching { repository.readThumbnail(entry.asset.assetId)?.let {
-                                SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
-                            } }.getOrNull()
-                            value?.let {
-                                if (thumbnails.size >= 32) thumbnails.remove(thumbnails.keys.first())
-                                thumbnails[entry.asset.assetId] = it
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(enabled = !managing && !refreshing, onClick = {
+                                recentView = false; defaultStorageView = false
+                                folder = if (folder == null) GALLERY_ROOT else null
+                            }) {
+                                Text(if (folder == null) "폴더 보기" else "전체 사진")
+                            }
+                            TextButton(enabled = !managing && !refreshing, onClick = { pendingScrollAnchor = captureScrollAnchor(); grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
+                            TextButton(enabled = !managing && !refreshing, onClick = { favoritesOnly = !favoritesOnly }) {
+                                Text(if (favoritesOnly) "전체 보기" else "즐겨찾기")
+                            }
+                            if (folder != null && folder != GALLERY_ROOT) TextButton(enabled = !managing && !refreshing, onClick = {
+                                folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
+                            }) { Text("상위 폴더") }
+                        }
+                        if (folder == null && !recentView && !favoritesOnly && !selecting) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(enabled = !managing && !refreshing, onClick = {
+                                    recentView = true; defaultStorageView = false; batchSelection = emptySet()
+                                }) { Text("최근 촬영") }
+                                TextButton(enabled = !managing && !refreshing, onClick = {
+                                    defaultStorageView = true; recentView = false; folder = GALLERY_ROOT; batchSelection = emptySet()
+                                }) { Text("기본 저장") }
                             }
                         }
-                    }
-                    Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }) {
-                        if (selecting) Checkbox(modifier = Modifier.semantics {
-                            contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
-                        }, checked = entry.asset.assetId in selectedBatch,
-                            enabled = !managing && !refreshing && entry.asset.assetId in selectableIds,
-                            onCheckedChange = { selectEntry(entry) })
-                        Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface), contentAlignment = Alignment.Center) {
-                            if (thumbnail != null) Image(thumbnail!!, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                            else Text(if (entry.availability == CaptureMediaAvailability.PRESENT) "사진" else "접근 불가")
+                        if (recentView) Text("최근 촬영 · 전체 사진 최신순")
+                        if (defaultStorageView) {
+                            Text("기본 저장 · DZlog 바로 아래 사진")
+                            val originalCount = SavedGalleryEntryPolicy.rootOriginalPhotos(photos).size
+                            if (originalCount > 0 && !selecting) TextButton(enabled = !managing && !refreshing, onClick = {
+                                defaultStorageView = false; folder = GALLERY_ROOT + "original/"
+                            }) { Text("기본 저장 원본 ${originalCount}개") }
                         }
-                        Text((if (entry.asset.assetId in favorites) "★ " else "") +
-                            if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
-                        Text(entry.asset.target.displayName, maxLines = 1)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("사진 ${visible.size}개")
+                            if (!selecting && !recentView) GalleryChoiceMenu("사진 정렬 · ${photoSort.label}", SavedGalleryPhotoSort.entries.map { it.label },
+                                enabled = !managing && !refreshing) { photoSort = SavedGalleryPhotoSort.entries[it] }
+                            TextButton(enabled = !managing && !refreshing, onClick = {
+                                selecting = !selecting; batchSelection = emptySet()
+                            }) { Text(if (selecting) "선택 취소" else "선택") }
+                        }
+                        if (selecting) {
+                            Text("선택 ${selectedBatch.size}개")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(enabled = !managing && !refreshing && selectableIds.isNotEmpty(),
+                                    onClick = { batchSelection = selectableIds }) { Text("전체 선택") }
+                                TextButton(enabled = !managing && selectedBatch.isNotEmpty(),
+                                    onClick = { batchSelection = emptySet() }) { Text("선택 해제") }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(enabled = !managing && !refreshing && selectedBatch.isNotEmpty(), onClick = {
+                                    moveTarget = selectedBatch.toSet(); destination = null
+                                }) { Text("선택 이동") }
+                                TextButton(enabled = !managing && !refreshing && selectedBatch.isNotEmpty(), onClick = {
+                                    deleteTarget = selectedBatch.toSet()
+                                }) { Text("선택 삭제") }
+                                TextButton(enabled = !managing && !refreshing && selectedBatch.isNotEmpty(),
+                                    onClick = { shareSelection(selectedBatch.toSet()) }) { Text("선택 공유") }
+                            }
+                        }
+                        currentFolder?.let { Text("폴더: $it") }
+                        currentFolder?.takeUnless { selecting || defaultStorageView }?.let { path ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                GalleryChoiceMenu("폴더 · ${folderFilter.label}", SavedGalleryFolderFilter.entries.map { it.label },
+                                    enabled = !managing && !refreshing) { folderFilter = SavedGalleryFolderFilter.entries[it] }
+                                GalleryChoiceMenu("폴더순 · ${folderSort.label}", SavedGalleryFolderSort.entries.map { it.label },
+                                    enabled = !managing && !refreshing) { folderSort = SavedGalleryFolderSort.entries[it] }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(enabled = !managing && !refreshing, onClick = {
+                                    folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
+                                }) { Text("폴더 생성") }
+                                if (path != GALLERY_ROOT) {
+                                    TextButton(enabled = !managing && !refreshing, onClick = {
+                                        folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
+                                    }) { Text("이름 변경") }
+                                    TextButton(enabled = !managing && !refreshing, onClick = {
+                                        folderTarget = path; folderError = null; folderAction = "delete"
+                                    }) { Text("폴더 삭제") }
+                                }
+                            }
+                        }
+                        loadError?.let { Text(it) }
+                        operationMessage?.let { Text(it) }
+                        if (!selecting && !defaultStorageView && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
+                            items(childFolders, key = { it.path }) { summary ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(enabled = !managing, onClick = { folder = summary.path }) {
+                                        Text(summary.path.removePrefix(currentFolder.orEmpty()).trimEnd('/'))
+                                    }
+                                    Text("사진 기록 ${summary.photoCount}개 · 하위 포함")
+                                }
+                            }
+                        }
+                        if (!defaultStorageView && currentFolder != null && childFolders.isEmpty() && folderFilter != SavedGalleryFolderFilter.ALL) {
+                            Text("조건에 맞는 하위 폴더가 없습니다.")
+                        }
+                        Text(message)
+                        if (!selecting && selected != null && visible.any { it.asset.assetId == selectedId }) image?.let {
+                            Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { viewer = true },
+                                contentScale = ContentScale.Fit)
+                        }
                     }
-                }
-            } else LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(visible, key = { it.asset.assetId }) { entry ->
-                    Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }.padding(8.dp)) {
-                        if (selecting) Checkbox(modifier = Modifier.semantics {
-                            contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
-                        }, checked = entry.asset.assetId in selectedBatch,
-                            enabled = !managing && !refreshing && entry.asset.assetId in selectableIds,
-                            onCheckedChange = { selectEntry(entry) })
-                        Text((if (entry.asset.assetId in favorites) "★ " else "") +
-                            "${entry.asset.target.displayName} · " + if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
-                        Text(entry.asset.target.relativePath)
-                        Text(when (entry.availability) {
-                            CaptureMediaAvailability.PRESENT -> "사진 보관됨"
-                            CaptureMediaAvailability.INACCESSIBLE -> "사진 접근 불가"
-                            CaptureMediaAvailability.MISSING -> "사진 누락"
-                        })
+                    if (grid) LazyVerticalGrid(GridCells.Fixed(gridColumns), state = gridState,
+                        modifier = Modifier.weight(1f).iosGalleryGridPinch(gridColumns, !managing && !refreshing && !selecting, ::changeColumns),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        gridItems(visible, key = { it.asset.assetId }) { entry ->
+                            val thumbnail by produceState<ImageBitmap?>(
+                                if (entry.availability == CaptureMediaAvailability.PRESENT) thumbnails[entry.asset.assetId] else null,
+                                entry.asset.assetId, entry.availability) {
+                                if (entry.availability != CaptureMediaAvailability.PRESENT) {
+                                    value = null
+                                    thumbnails.remove(entry.asset.assetId)
+                                } else if (value == null) {
+                                    value = runCatching { repository.readThumbnail(entry.asset.assetId)?.let {
+                                        SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
+                                    } }.getOrNull()
+                                    value?.let {
+                                        if (thumbnails.size >= 32) thumbnails.remove(thumbnails.keys.first())
+                                        thumbnails[entry.asset.assetId] = it
+                                    }
+                                }
+                            }
+                            Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }) {
+                                if (selecting) Checkbox(modifier = Modifier.semantics {
+                                    contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
+                                }, checked = entry.asset.assetId in selectedBatch,
+                                    enabled = !managing && !refreshing && entry.asset.assetId in selectableIds,
+                                    onCheckedChange = { selectEntry(entry) })
+                                Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface), contentAlignment = Alignment.Center) {
+                                    if (thumbnail != null) Image(thumbnail!!, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    else Text(if (entry.availability == CaptureMediaAvailability.PRESENT) "사진" else "접근 불가")
+                                }
+                                Text((if (entry.asset.assetId in favorites) "★ " else "") +
+                                    if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
+                                Text(entry.asset.target.displayName, maxLines = 1)
+                            }
+                        }
+                    } else LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(visible, key = { it.asset.assetId }) { entry ->
+                            Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }.padding(8.dp)) {
+                                if (selecting) Checkbox(modifier = Modifier.semantics {
+                                    contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
+                                }, checked = entry.asset.assetId in selectedBatch,
+                                    enabled = !managing && !refreshing && entry.asset.assetId in selectableIds,
+                                    onCheckedChange = { selectEntry(entry) })
+                                Text((if (entry.asset.assetId in favorites) "★ " else "") +
+                                    "${entry.asset.target.displayName} · " + if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
+                                Text(entry.asset.target.relativePath)
+                                Text(when (entry.availability) {
+                                    CaptureMediaAvailability.PRESENT -> "사진 보관됨"
+                                    CaptureMediaAvailability.INACCESSIBLE -> "사진 접근 불가"
+                                    CaptureMediaAvailability.MISSING -> "사진 누락"
+                                })
+                            }
+                        }
                     }
                 }
             }
@@ -562,10 +652,13 @@ private fun GalleryChoiceMenu(label: String, options: List<String>, enabled: Boo
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun shareIosPhoto(bytes: ByteArray) {
-    require(bytes.isNotEmpty())
-    val data = bytes.usePinned { pinned ->
-        NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+private fun shareIosPhotos(files: List<Pair<ByteArray, String>>) {
+    val payload = files.map { (bytes, filename) ->
+        require(bytes.isNotEmpty())
+        val data = bytes.usePinned { pinned ->
+            NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+        }
+        mapOf("data" to data, "filename" to filename)
     }
-    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.sharePhoto", data)
+    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.sharePhoto", payload)
 }
