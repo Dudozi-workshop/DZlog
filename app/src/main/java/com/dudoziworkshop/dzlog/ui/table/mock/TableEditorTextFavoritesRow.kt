@@ -21,12 +21,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.table.TableTextFavoritesRepository
 import com.dudoziworkshop.dzlog.feature.table.editor.TableEditorTextFavoritesViewModel
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
-import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.delay
 
@@ -62,6 +63,8 @@ internal fun TableEditorTextFavoritesRow(
 ) {
     val favorites = model.favorites
     val change = model.lastChange
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(change?.serial) {
         if (change != null) {
             delay(4_500)
@@ -76,7 +79,11 @@ internal fun TableEditorTextFavoritesRow(
                     TextButton(onClick = model::undo, enabled = enabled) { Text("되돌리기") }
                 } else {
                     Text("자주 쓰는 텍스트", style = DDZTypography.Caption, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { model.openManagement() }, enabled = enabled) { Text("관리") }
+                    TextButton(onClick = {
+                        keyboard?.hide()
+                        focusManager.clearFocus()
+                        model.openManagement()
+                    }, enabled = enabled) { Text("관리") }
                 }
             }
             if (!compact && favorites.isNotEmpty()) {
