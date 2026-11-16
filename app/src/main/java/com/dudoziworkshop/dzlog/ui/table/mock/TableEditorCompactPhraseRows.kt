@@ -83,7 +83,7 @@ internal fun TableEditorPhrasePeriodRow(
         Column(modifier = Modifier.weight(1f)) {
             Text("변경 주기", style = DDZTypography.SettingLabel, color = DDZColor.TextPrimary)
             Text(
-                if (overridden) "셀 개별 설정" else "세트 적용",
+                if (overridden) "개별" else "전체",
                 style = DDZTypography.Caption, color = DDZColor.TextSecondary,
                 modifier = Modifier.clickable {
                     if (overridden) onFollowSet() else onEveryChange(every)
