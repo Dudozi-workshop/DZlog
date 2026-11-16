@@ -772,6 +772,20 @@ final class PreviewInteractionTests: XCTestCase {
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
     }
 
+    private func tapScrollablePanelText(_ label: String) {
+        for _ in 0..<5 {
+            let element = panelText(label)
+            if element.exists && !element.frame.isEmpty && app.frame.contains(element.frame) {
+                let frame = element.frame
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                return
+            }
+            app.swipeUp()
+        }
+        XCTFail("Missing scrollable panel label: \(label)")
+    }
+
     private func typeWithVisibleKeyboard(_ value: String) {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         // Fresh simulators may show iOS's sliding-keyboard introduction over the keys.
@@ -846,6 +860,32 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(button("iPhone 설정 열기").isEnabled)
         tapButton("상태 새로고침")
         XCTAssertTrue(text("카메라 권한").exists)
+    }
+
+    func testHelpAndCreditsSettingsRoutesAreReadableAndSafe() throws {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("설정")
+        tapScrollablePanelText("사용법 및 도움말")
+        XCTAssertTrue(text("DZlog의 주요 기능을 순서대로 살펴볼 수 있어요.").waitForExistence(timeout: 10))
+        tapPanelText("카메라 촬영")
+        XCTAssertTrue(text("촬영 화면 구성").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("단계 1/4").exists)
+        XCTAssertTrue(try screenContains("읽기 전용 안내입니다"))
+        tapButton("다음")
+        XCTAssertTrue(text("빠른 수정").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        tapPanelText("처음 사용법 다시 보기")
+        XCTAssertTrue(text("1 / 3").waitForExistence(timeout: 10))
+        XCTAssertTrue(try screenContains("찍고, 기록하고"))
+        tapButton("뒤로가기")
+        tapButton("뒤로가기")
+        tapScrollablePanelText("도움 주신 분들")
+        XCTAssertTrue(text("함께해 주셔서 감사합니다").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("특별한 감사").exists)
+        XCTAssertTrue(text("루루").exists)
+        XCTAssertTrue(text("채채").exists)
+        XCTAssertTrue(text("작은박").exists)
     }
 
     func testHomeCatalogSettingsAndRelaunch() throws {

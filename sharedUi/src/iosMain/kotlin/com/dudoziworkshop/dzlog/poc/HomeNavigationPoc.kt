@@ -91,6 +91,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var showSettings by remember { mutableStateOf(false) }
     var showCaptureFeedback by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
+    var showCredits by remember { mutableStateOf(false) }
     var qualityExpanded by remember { mutableStateOf(false) }
     var showSaveInfo by remember { mutableStateOf(false) }
     var editorFromList by remember { mutableStateOf(false) }
@@ -180,6 +182,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 initialNextCounter = document.nextCounter, initialUsesAutoNext = document.usesAutoNext,
             )
         }
+    } else if (showHelp) {
+        IosHelpSettingsScreen(onBack = { showHelp = false })
+    } else if (showCredits) {
+        IosCreditsSettingsScreen(onBack = { showCredits = false })
     } else if (showPermissions) {
         IosPermissionsSettingsScreen(onBack = { showPermissions = false })
     } else if (showCaptureFeedback) {
@@ -204,7 +210,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             onChangeUndoWarning = { persist(workspace.copy(settings = workspace.settings.copy(undoSavePathWarningEnabled = it))) },
             onOpenPermissions = { showPermissions = true },
             onOpenCaptureFeedback = { showCaptureFeedback = true },
-            onOpenCredits = ::unavailable, onOpenGuide = ::unavailable,
+            onOpenCredits = { showCredits = true }, onOpenGuide = { showHelp = true },
             onOpenExport = ::unavailable, onOpenImport = ::unavailable,
         )
     } else if (showList) {
