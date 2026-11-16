@@ -118,6 +118,25 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(1, applied.cells[1].phraseCompletedShots)
     }
 
+    @Test fun `one phrase interval is shared but each cell keeps independent capture progress`() {
+        val abc = RotatingPhraseSet("abc", "ABC", listOf("A", "B", "C"), defaultEvery = 5)
+        val first = c1.copy(phraseSetId = "abc", phraseIndex = 1, phraseCompletedShots = 1)
+        val second = c2.copy(phraseSetId = "abc", phraseIndex = 1, phraseCompletedShots = 2)
+        val working = TableTemplateState(1, 2, cells = listOf(first, second), phraseSets = listOf(abc))
+
+        val edited = applyQuickPhrasePeriodEdit(working, QuickPhrasePeriodEdit("c1", false, 3))!!
+        val editedSet = edited.phraseSets.single()
+        val progressPolicy = com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+
+        assertEquals(5, editedSet.defaultEvery)
+        assertEquals(listOf(5, 3, 5), editedSet.items.indices.map(editedSet::everyForItem))
+        assertEquals(working.cells, edited.cells)
+        assertEquals(3, progressPolicy.everyFor(edited.cells[0], editedSet, 1))
+        assertEquals(3, progressPolicy.everyFor(edited.cells[1], editedSet, 1))
+        assertEquals(CellPhraseProgress(1, 2), progressPolicy.afterSuccessfulCapture(edited.cells[0], editedSet))
+        assertEquals(CellPhraseProgress(2, 0), progressPolicy.afterSuccessfulCapture(edited.cells[1], editedSet))
+    }
+
     @Test fun `only set mode changes shared default while preserving per item override`() {
         val inherited = applyQuickPhrasePeriodEdit(
             template, QuickPhrasePeriodEdit("c1", true, 7),
