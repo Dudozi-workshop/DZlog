@@ -49,7 +49,7 @@ internal fun CameraQuickPhraseProgressCard(
 ) {
     var open by remember(cell.cellId) { mutableStateOf(false) }
     val progress = CellPhraseProgressPolicy.current(cell, set)
-    val every = (cell.everyOverride ?: set.everyForItem(progress.index)).coerceAtLeast(1)
+    val every = CellPhraseProgressPolicy.everyFor(cell, set, progress.index)
     val phrase = set.items[progress.index]
     val next = set.items[(progress.index + 1) % set.items.size]
     Surface(
@@ -113,7 +113,7 @@ internal fun CameraQuickPhrasePeriodControl(
     }
     val individualValue = phraseOverride ?: cell.everyOverride ?: rememberedIndividual
     val activeValue = if (isSet) set.defaultEvery else individualValue
-    val effectiveEvery = cell.everyOverride ?: set.everyForItem(currentIndex)
+    val effectiveEvery = CellPhraseProgressPolicy.everyFor(cell, set, currentIndex)
 
     Surface(color = DDZColor.Surface, border = BorderStroke(1.dp, DDZColor.Border),
         shape = RoundedCornerShape(10.dp)) {
