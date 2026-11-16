@@ -2,6 +2,9 @@ package com.dudoziworkshop.dzlog.ui.table.mock
 
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -96,31 +99,52 @@ internal fun TableEditorCellUiModelEditor(
                         TableEditorCellType.TEXT,
                         TableEditorCellType.NUMBER -> {
                             val isText = cell.type == TableEditorCellType.TEXT
+                            var textDraft by remember(cell.id) {
+                                mutableStateOf(TextFieldValue(cell.value, TextRange(cell.value.length)))
+                            }
+                            LaunchedEffect(cell.id, cell.value) {
+                                if (isText && textDraft.text != cell.value) {
+                                    textDraft = TextFieldValue(cell.value, TextRange(cell.value.length))
+                                }
+                            }
                             Box(Modifier.fillMaxWidth()) {
-                                DDZTextField(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .then(if (isText) Modifier.height(
-                                            if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight
-                                        ) else Modifier)
-                                        .onFocusChanged { if (it.isFocused) onInputFocus() },
-                                    value = cell.value,
-                                    onValueChange = { input ->
-                                        onValueChange(if (cell.type == TableEditorCellType.NUMBER) decimalInputOrPrevious(input, cell.value) else input)
-                                    },
-                                    label = "값",
-                                    singleLine = !isText,
-                                    keyboardOptions = KeyboardOptions(
-                                        keyboardType = if (cell.type == TableEditorCellType.NUMBER) KeyboardType.Decimal else KeyboardType.Text,
-                                    ),
-                                    trailingIcon = if (cell.type == TableEditorCellType.NUMBER) {
-                                        { androidx.compose.material3.TextButton(onClick = {
-                                            onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
-                                        }) { Text("±") } }
-                                    } else {
-                                        // Reserve the same text inset in both modes for the overlay button.
-                                        { androidx.compose.foundation.layout.Spacer(Modifier.width(DDZLayout.QuickInput.Touch * 2)) }
-                                    },
-                                )
+                                if (isText) {
+                                    DDZTextField(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .height(if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight)
+                                            .onFocusChanged { if (it.isFocused) onInputFocus() },
+                                        value = textDraft,
+                                        onValueChange = { next ->
+                                            textDraft = next
+                                            onValueChange(next.text)
+                                        },
+                                        label = "값",
+                                        singleLine = false,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                                        trailingIcon = {
+                                            androidx.compose.foundation.layout.Spacer(
+                                                Modifier.width(DDZLayout.QuickInput.Touch * 2)
+                                            )
+                                        },
+                                    )
+                                } else {
+                                    DDZTextField(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .onFocusChanged { if (it.isFocused) onInputFocus() },
+                                        value = cell.value,
+                                        onValueChange = { next ->
+                                            onValueChange(decimalInputOrPrevious(next, cell.value))
+                                        },
+                                        label = "값",
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        trailingIcon = {
+                                            androidx.compose.material3.TextButton(onClick = {
+                                                onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
+                                            }) { Text("±") }
+                                        },
+                                    )
+                                }
                                 if (isText) Row(
                                     modifier = Modifier.align(Alignment.BottomEnd),
                                     verticalAlignment = Alignment.CenterVertically,
