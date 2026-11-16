@@ -13,7 +13,7 @@ class EditorWorkspaceTest {
         val value = EditorWorkspace(listOf(document("a"), document("b").copy(nextCounter = 72)), "b",
             WorkspaceSettings(2, true, false, showCameraGrid = true, showCameraTable = false,
                 assistShutterXRatio = 0.31f, assistShutterYRatio = 0.74f,
-                cameraZoomTenths = 27, cameraFlashMode = 2))
+                cameraZoomTenths = 27, cameraFlashMode = 2, continuousPreviewMode = 2))
         assertEquals(value, EditorWorkspaceCodec.decode(EditorWorkspaceCodec.encode(value)))
         val legacy = document("legacy")
         assertEquals(listOf(legacy), editorWorkspaceFromLegacy(legacy, document("seed").template).documents)
@@ -28,6 +28,7 @@ class EditorWorkspaceTest {
             .replace(",\"assistY10000\":6200", "")
             .replace(",\"cameraZoomTenths\":10", "")
             .replace(",\"cameraFlashMode\":0", "")
+            .replace(",\"continuousPreviewMode\":0", "")
         val settings = EditorWorkspaceCodec.decode(json).settings
         assertFalse(settings.showCameraGrid)
         assertTrue(settings.showCameraTable)
@@ -35,6 +36,7 @@ class EditorWorkspaceTest {
         assertEquals(0.62f, settings.assistShutterYRatio)
         assertEquals(10, settings.cameraZoomTenths)
         assertEquals(0, settings.cameraFlashMode)
+        assertEquals(0, settings.continuousPreviewMode)
     }
     @Test fun rejectsDamageDuplicatesAndMissingActiveWithoutDroppingDocuments() {
         val json = EditorWorkspaceCodec.encode(EditorWorkspace(listOf(document("a")), "a"))

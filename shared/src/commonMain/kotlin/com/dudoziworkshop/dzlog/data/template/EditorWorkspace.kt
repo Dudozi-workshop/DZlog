@@ -15,6 +15,7 @@ data class WorkspaceSettings(
     val assistShutterYRatio: Float = 0.62f,
     val cameraZoomTenths: Int = 10,
     val cameraFlashMode: Int = 0,
+    val continuousPreviewMode: Int = 0,
 ) {
     init {
         require(qualityMode in 0..2)
@@ -22,6 +23,7 @@ data class WorkspaceSettings(
         require(assistShutterYRatio.isFinite() && assistShutterYRatio in 0f..1f)
         require(cameraZoomTenths in 10..100)
         require(cameraFlashMode in 0..2)
+        require(continuousPreviewMode in 0..2)
     }
 }
 
@@ -59,7 +61,8 @@ object EditorWorkspaceCodec {
             .put("assistX10000", (value.settings.assistShutterXRatio * 10_000).roundToInt())
             .put("assistY10000", (value.settings.assistShutterYRatio * 10_000).roundToInt())
             .put("cameraZoomTenths", value.settings.cameraZoomTenths)
-            .put("cameraFlashMode", value.settings.cameraFlashMode).toString()
+            .put("cameraFlashMode", value.settings.cameraFlashMode)
+            .put("continuousPreviewMode", value.settings.continuousPreviewMode).toString()
     }
     fun decode(json: String): EditorWorkspace {
         val root = CompatJsonObject(json)
@@ -79,6 +82,7 @@ object EditorWorkspaceCodec {
             assistShutterYRatio = root.optInt("assistY10000", 6_200).coerceIn(0, 10_000) / 10_000f,
             cameraZoomTenths = root.optInt("cameraZoomTenths", 10).coerceIn(10, 100),
             cameraFlashMode = root.optInt("cameraFlashMode", 0).coerceIn(0, 2),
+            continuousPreviewMode = root.optInt("continuousPreviewMode", 0).coerceIn(0, 2),
         ))
     }
 }

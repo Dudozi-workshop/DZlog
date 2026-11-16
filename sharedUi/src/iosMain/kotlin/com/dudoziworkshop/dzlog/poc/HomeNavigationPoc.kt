@@ -141,8 +141,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             savedDocument.saveMode, savedDocument.nextCounter, 0))
     }
     if (showCaptureSettings) {
-        IosCaptureSettingsScreen(savedDocument, onBack = { showCaptureSettings = false }, onApply = { updated ->
-            if (persist(workspace.save(updated))) showCaptureSettings = false
+        IosCaptureSettingsScreen(savedDocument, workspace.settings.continuousPreviewMode,
+            onBack = { showCaptureSettings = false }, onApply = { updated, previewMode ->
+            if (persist(workspace.save(updated).copy(settings = workspace.settings.copy(
+                    continuousPreviewMode = previewMode)))) showCaptureSettings = false
         })
     } else if (showGallery) {
         IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })

@@ -65,8 +65,10 @@ internal fun IosConfiguredCaptureFixture() {
         }
     }
     if (settings) {
-        IosCaptureSettingsScreen(checkNotNull(workspace.active), { settings = false }) { document ->
-            check(store.save(workspace.save(document)))
+        IosCaptureSettingsScreen(checkNotNull(workspace.active), workspace.settings.continuousPreviewMode,
+            { settings = false }) { document, previewMode ->
+            check(store.save(workspace.save(document).copy(settings = workspace.settings.copy(
+                continuousPreviewMode = previewMode))))
             workspace = store.load(seed)
             check(workspace.active == document)
             settings = false
@@ -87,6 +89,7 @@ internal fun IosConfiguredCaptureFixture() {
         if (merged) Text("병합 표 사용 중")
         Text("다음 번호: ${doc.nextCounter}")
         Text("배치: ${doc.capturePlacement?.anchor?.name ?: "없음"}")
+        Text("촬영 확인: ${workspace.settings.continuousPreviewMode}")
         Text("대기 기록: ${IosCameraCaptureSession.hasPending()}")
         Button(onClick = { settings = true }, enabled = !busy && !IosCameraCaptureSession.hasPending()) { Text("촬영 설정 열기") }
         for (interrupt in listOf(false, true)) {

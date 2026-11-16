@@ -313,6 +313,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("촬영 설정 열기")
         tapButton("원본만")
+        tapButton("유지")
         tapButton("설정 저장")
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
@@ -329,18 +330,20 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
         XCTAssertTrue(text("다음 번호: 12").exists)
+        XCTAssertTrue(text("촬영 확인: 2").exists)
         app.terminate()
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
         XCTAssertTrue(text("배치: BOTTOM_RIGHT").exists)
+        XCTAssertTrue(text("촬영 확인: 2").exists)
     }
 
     func testCameraOverlayToolsPersistThroughNativeReturn() {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
         app.launch()
         tapButton("카메라 열기")
-        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 도구")
         tapButton("격자 표시")
         tapButton("표 숨기기")
@@ -413,7 +416,10 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("갤러리 열기")
         tapButton("즐겨찾기")
-        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
+        )).firstMatch
+        XCTAssertTrue(favoriteThumbnail.waitForExistence(timeout: 30), app.debugDescription)
         tapButton("폴더 보기")
         tapButton("폴더 생성")
         tapPanelText("폴더 이름")

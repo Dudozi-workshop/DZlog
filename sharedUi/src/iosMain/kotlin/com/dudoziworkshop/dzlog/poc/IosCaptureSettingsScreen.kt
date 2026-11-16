@@ -17,14 +17,16 @@ import kotlin.math.roundToInt
 @Composable
 internal fun IosCaptureSettingsScreen(
     document: EditorDocument,
+    continuousPreviewMode: Int,
     onBack: () -> Unit,
-    onApply: (EditorDocument) -> Unit,
+    onApply: (EditorDocument, Int) -> Unit,
 ) {
     var mode by remember(document) { mutableStateOf(document.saveMode) }
     // Draft suggestions only: Cancel never writes these values to the document.
     var placement by remember(document) { mutableStateOf(document.capturePlacement ?:
         EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)) }
     var number by remember(document) { mutableStateOf((document.nextCounter ?: 1).toString()) }
+    var previewMode by remember(continuousPreviewMode) { mutableIntStateOf(continuousPreviewMode) }
     val next = number.toIntOrNull()?.takeIf { it > 0 && it < Int.MAX_VALUE }
     val layoutError = runCatching { iosCaptureCellRects(document.template.templateState) }.exceptionOrNull()?.message
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding()
@@ -37,8 +39,15 @@ internal fun IosCaptureSettingsScreen(
             Button(enabled = next != null && (mode == SaveMode.ORIGINAL_ONLY || layoutError == null), onClick = {
                 onApply(document.copy(saveMode = mode, nextCounter = next,
                     usesAutoNext = if (next != document.nextCounter) false else document.usesAutoNext,
-                    capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement))
+                    capturePlacement = if (mode == SaveMode.ORIGINAL_ONLY) document.capturePlacement else placement), previewMode)
             }) { Text("설정 저장") }
+        }
+        Text("촬영 후 확인")
+        for ((value, label) in listOf(0 to "안 함", 1 to "잠깐", 2 to "유지")) {
+            Row {
+                RadioButton(selected = previewMode == value, onClick = { previewMode = value })
+                TextButton(onClick = { previewMode = value }) { Text(label) }
+            }
         }
         Text("저장 모드")
         for ((value, label) in listOf(SaveMode.ORIGINAL_ONLY to "원본만",

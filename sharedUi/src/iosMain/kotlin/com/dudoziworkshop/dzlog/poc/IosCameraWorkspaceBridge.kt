@@ -52,6 +52,7 @@ internal class IosCameraCaptureSession(
     val assistShutterYRatio get() = workspace.settings.assistShutterYRatio
     val cameraZoom get() = workspace.settings.cameraZoomTenths / 10f
     val cameraFlashMode get() = workspace.settings.cameraFlashMode
+    val continuousPreviewMode get() = workspace.settings.continuousPreviewMode
 
     fun setShowCameraGrid(enabled: Boolean): Boolean = saveCameraPreferences(
         workspace.settings.copy(showCameraGrid = enabled),
@@ -153,6 +154,21 @@ internal class IosCameraCaptureSession(
         workspace = store.load(document.template)
         sessionCaptures.clear()
         return true
+    }
+
+    fun saveCaptureSettings(
+        document: com.dudoziworkshop.dzlog.data.template.EditorDocument,
+        continuousPreviewMode: Int,
+    ): Boolean {
+        if (continuousPreviewMode !in 0..2 || hasPending() ||
+            document.template.id != workspace.activeTemplateId) return false
+        if (store.load(document.template) != workspace) return false
+        val updated = workspace.save(document).copy(settings = workspace.settings.copy(
+            continuousPreviewMode = continuousPreviewMode))
+        if (!store.save(updated)) return false
+        workspace = store.load(document.template)
+        sessionCaptures.clear()
+        return workspace.active == document && workspace.settings.continuousPreviewMode == continuousPreviewMode
     }
 
     fun previewInfo() = com.dudoziworkshop.dzlog.domain.preview.buildPreview(

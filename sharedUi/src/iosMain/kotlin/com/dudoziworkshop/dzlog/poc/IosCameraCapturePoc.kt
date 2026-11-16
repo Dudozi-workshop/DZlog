@@ -2,6 +2,8 @@
 package com.dudoziworkshop.dzlog.poc
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
@@ -12,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.domain.counter.CounterScope
@@ -102,6 +105,7 @@ internal fun IosCameraCapturePoc(
     var overlayEditing by remember { mutableStateOf(false) }
     var focusInteractionToken by remember { mutableIntStateOf(0) }
     var focusCollapseToken by remember { mutableIntStateOf(0) }
+    var reviewVisible by remember { mutableStateOf(false) }
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
@@ -117,6 +121,13 @@ internal fun IosCameraCapturePoc(
         focusCollapseToken += 1
     }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
+    val continuousPreviewMode = session?.continuousPreviewMode ?: 0
+    LaunchedEffect(reviewVisible, successfulSaves, continuousPreviewMode) {
+        if (reviewVisible && continuousPreviewMode == 1) {
+            delay(1_500)
+            reviewVisible = false
+        } else if (continuousPreviewMode == 0) reviewVisible = false
+    }
 
     // Keep the visible filename and live overlay on the same persisted counter
     // that saveJpeg will verify again immediately before writing Photos.
@@ -179,8 +190,12 @@ internal fun IosCameraCapturePoc(
     }
 
     if (showSettings && session != null) {
-        IosCaptureSettingsScreen(session.selectedDocument, onBack = { showSettings = false }) { document ->
-            if (session.saveSettings(document)) { settingsRevision += 1; showSettings = false }
+        IosCaptureSettingsScreen(session.selectedDocument, session.continuousPreviewMode,
+            onBack = { showSettings = false }) { document, previewMode ->
+            if (session.saveCaptureSettings(document, previewMode)) {
+                settingsRevision += 1
+                showSettings = false
+            }
             else settingsFailure = "촬영 설정을 저장하지 못했습니다. 다시 시도해 주세요."
         }
         settingsFailure?.let { message ->
@@ -200,6 +215,7 @@ internal fun IosCameraCapturePoc(
     val latestSessionCaptureId = session?.latestSessionCaptureId
     val recentThumbnail by produceState<ImageBitmap?>(initialValue = null,
         latestSessionCaptureId, successfulSaves) {
+        value = null
         value = session?.readLatestSessionThumbnail()?.let { bytes ->
             runCatching { SkiaImage.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
         }
@@ -210,7 +226,7 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; showSettings = true },
         onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
     )
-    val captureEnabled = ready && !busy && !overlayEditing && !counterSyncing && counterSyncReady &&
+    val captureEnabled = ready && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
     val triggerCapture: () -> Unit = {
@@ -232,6 +248,7 @@ internal fun IosCameraCapturePoc(
                         }
                         if (committed) {
                             successfulSaves += 1
+                            reviewVisible = continuousPreviewMode != 0
                             status = "사진 저장 완료"
                         } else {
                             status = "사진 저장됨 · 촬영 기록 복구 필요"
@@ -275,9 +292,9 @@ internal fun IosCameraCapturePoc(
     ) {
         IosCameraTopBar(
             displayName = info?.previewNaming?.displayName ?: "DZlog 촬영",
-            infoEnabled = info != null && !busy && !overlayEditing && !counterSyncing && counterSyncReady,
-            settingsEnabled = !busy && !overlayEditing && session != null && !session.hasPending(),
-            backEnabled = onBack != null && !busy && !overlayEditing,
+            infoEnabled = info != null && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady,
+            settingsEnabled = !busy && !reviewVisible && !overlayEditing && session != null && !session.hasPending(),
+            backEnabled = onBack != null && !busy && !reviewVisible && !overlayEditing,
             onBack = {
                 if (showTools) showTools = false else onBack?.invoke()
             },
@@ -395,13 +412,30 @@ internal fun IosCameraCapturePoc(
                 onCapture = triggerCapture,
                 modifier = Modifier.fillMaxSize(),
             )
+            if (reviewVisible && continuousPreviewMode != 0) Box(
+                Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.55f))
+                    .clickable { reviewVisible = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (recentThumbnail != null) Image(
+                        bitmap = recentThumbnail!!,
+                        contentDescription = "촬영 결과 미리보기",
+                        modifier = Modifier.fillMaxWidth(0.76f).fillMaxHeight(0.72f),
+                        contentScale = ContentScale.Fit,
+                    ) else Text("사진 불러오는 중", color = androidx.compose.ui.graphics.Color.White)
+                    Text(if (continuousPreviewMode == 2) "화면을 터치하면 닫힙니다" else "저장 완료",
+                        color = androidx.compose.ui.graphics.Color.White)
+                }
+            }
         }
         IosCameraBottomBar(
             captureEnabled = captureEnabled,
-            controlsEnabled = !busy && !overlayEditing,
+            controlsEnabled = !busy && !reviewVisible && !overlayEditing,
             toolsSelected = showTools,
-            quickValuesEnabled = session != null && !busy && !overlayEditing && !session.hasPending(),
-            undoEnabled = session?.canUndoLatestCapture == true && !busy && !overlayEditing,
+            quickValuesEnabled = session != null && !busy && !reviewVisible && !overlayEditing && !session.hasPending(),
+            undoEnabled = session?.canUndoLatestCapture == true && !busy && !reviewVisible && !overlayEditing,
             recentThumbnail = recentThumbnail,
             onOpenGallery = { showTools = false; showGallery = true },
             onToggleTools = { showTools = !showTools },
