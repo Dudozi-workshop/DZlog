@@ -73,6 +73,20 @@ class TableEditorPhraseSettingsTest {
         assertEquals(counter, updated.cells[3])
     }
 
+    @Test fun editingOnePhraseCycleNeverChangesTheSetDefaultOrOtherPhrases() {
+        val changed = updateMockPhraseSet(template, set.id) {
+            com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy.setEveryForItems(
+                it, listOf(2), 3,
+            )
+        }
+        val updatedSet = changed.phraseSets.single()
+        assertEquals(12, updatedSet.defaultEvery)
+        assertEquals(listOf(12, 12, 3, 12), updatedSet.items.indices.map(updatedSet::everyForItem))
+        assertEquals(listOf(null, null, 3, null), updatedSet.itemEveryOverrides)
+        assertEquals(cell, changed.cells.single())
+        assertEquals(12, template.phraseSets.single().defaultEvery)
+    }
+
     @Test fun perItemPeriodUpdatesPreserveProgressUntilConflictIsResolved() {
         val inheritedCurrent = cell.copy(cellId = "inherited-current", colIndex = 0,
             phraseIndex = 2, phraseCompletedShots = 5, everyOverride = null)
