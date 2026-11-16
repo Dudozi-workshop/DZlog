@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -250,6 +251,7 @@ fun TableEditorV2Screen(
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
+    var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
         if (imeVisible || imeBottom > 0) {
@@ -337,7 +339,9 @@ fun TableEditorV2Screen(
             )
         },
         bottomBar = {
-            if (!imeVisible) Column(Modifier.tutorialTarget("table.tabs")) {
+            if (!imeVisible) Column(
+                Modifier.tutorialTarget("table.tabs").onSizeChanged { bottomTabHeightPx = it.height }
+            ) {
                 HorizontalDivider(color = DDZColor.BorderStrong)
                 MockBottomBar(
                     active = activeTab,
@@ -380,7 +384,10 @@ fun TableEditorV2Screen(
             val cellPanelVisible = activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT &&
                 cells.any { it.domainCellId == selectedCellId && !it.isCovered }
             // Content wraps its controls, with a cap; the other tabs retain their existing size.
-            val cellPanelMaxHeight = maxHeight * 0.35f
+            val bottomTabHeight = with(LocalDensity.current) { bottomTabHeightPx.toDp() }
+            val cellPanelMaxHeight = (
+                (maxHeight + bottomTabHeight) * 0.35f - bottomTabHeight
+            ).coerceAtLeast(DDZLayout.QuickInput.Touch + 16.dp)
             val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
             val expandedInputHeight = minOf(
                 DDZLayout.QuickInput.ExpandedHeight,
