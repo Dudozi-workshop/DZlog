@@ -47,7 +47,7 @@ internal fun TableEditorPhraseProgressDialog(
     var index by remember(cell.domainCellId, set.id) {
         mutableStateOf(cell.phraseIndex.coerceIn(0, set.items.lastIndex))
     }
-    val every = (cell.everyOverride ?: set.everyForItem(index)).coerceAtLeast(1)
+    val every = (set.itemEveryOverrides.getOrNull(index) ?: cell.everyOverride ?: set.defaultEvery).coerceAtLeast(1)
     var completedText by remember(cell.domainCellId, set.id) {
         mutableStateOf(cell.phraseCompletedShots.coerceIn(0, every - 1).toString())
     }
