@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,8 @@ internal fun TableEditorCellInfoRow(
     onMove: (String) -> Unit,
     onTypeChange: (TableEditorCellType) -> Unit,
     onClose: () -> Unit,
+    compactInput: Boolean = false,
+    onInputDone: () -> Unit = {},
 ) {
     val colors = LocalDDZColor.current
     val typography = LocalDDZTypography.current
@@ -117,7 +120,7 @@ internal fun TableEditorCellInfoRow(
             )
         }
 
-        Surface(
+        if (!compactInput) Surface(
             onClick = { showTypePicker = true },
             enabled = enabled,
             shape = RoundedCornerShape(8.dp),
@@ -148,11 +151,15 @@ internal fun TableEditorCellInfoRow(
         ) {
             Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
         }
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
-        ) {
-            Icon(Icons.Filled.Close, "셀 편집 닫기", Modifier.size(DDZLayout.QuickInput.Icon))
+        if (compactInput) {
+            TextButton(onClick = onInputDone, enabled = enabled) { Text("완료") }
+        } else {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+            ) {
+                Icon(Icons.Filled.Close, "셀 편집 닫기", Modifier.size(DDZLayout.QuickInput.Icon))
+            }
         }
     }
     if (showTypePicker) {
