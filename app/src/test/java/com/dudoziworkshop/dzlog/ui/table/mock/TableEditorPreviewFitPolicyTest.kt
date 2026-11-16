@@ -26,6 +26,66 @@ class TableEditorPreviewFitPolicyTest {
     }
 
     @Test
+    fun selected_and_next_visible_does_not_scroll_unnecessarily() {
+        assertEquals(
+            20f,
+            editorPreviewCurrentNextScroll(35f, 55f, 70f, 90f, 120f, 400f, 20f),
+            0.001f,
+        )
+        // Two columns within the same row also keep their shared vertical position.
+        assertEquals(
+            30f,
+            editorPreviewCurrentNextScroll(52f, 78f, 52f, 78f, 120f, 400f, 30f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun next_cell_outside_view_moves_only_as_far_as_needed() {
+        assertEquals(
+            48f,
+            editorPreviewCurrentNextScroll(70f, 90f, 130f, 160f, 120f, 400f, 20f),
+            0.001f,
+        )
+        // Scrolling upward keeps the selected and next cell visible.
+        assertEquals(
+            22f,
+            editorPreviewCurrentNextScroll(30f, 40f, 50f, 60f, 120f, 400f, 90f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun oversized_next_cell_preserves_selection_and_peeks_when_possible() {
+        // Whole range cannot fit; the selected cell must remain visible.
+        assertEquals(
+            22f,
+            editorPreviewCurrentNextScroll(30f, 50f, 95f, 160f, 100f, 300f, 0f),
+            0.001f,
+        )
+        // A very tall selected cell prioritizes its beginning rather than forcing zoom.
+        assertEquals(
+            22f,
+            editorPreviewCurrentNextScroll(30f, 180f, 190f, 220f, 100f, 320f, 100f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun last_cell_and_short_content_clamp_to_available_scroll() {
+        assertEquals(
+            180f,
+            editorPreviewCurrentNextScroll(280f, 300f, null, null, 120f, 300f, 60f),
+            0.001f,
+        )
+        assertEquals(
+            0f,
+            editorPreviewCurrentNextScroll(20f, 40f, 50f, 70f, 500f, 300f, 0f),
+            0.001f,
+        )
+    }
+
+    @Test
     fun shrinking_keeps_gesture_zoom_then_refits_the_same_aspect_on_release() {
         val initial = editorPreviewFitScale(80f, 20f, 400f, 300f)
         assertEquals(5f, initial, 0.0001f)
