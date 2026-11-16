@@ -888,6 +888,34 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("작은박").exists)
     }
 
+    func testWorkspaceExportImportPreviewsAndAddsWithoutReplacing() throws {
+        app.launchArguments = [
+            "--navigation-flow", "--reset-navigation-fixture", "--workspace-backup-ui-test"
+        ]
+        app.launch()
+        tapButton("설정")
+        tapScrollablePanelText("작업 환경 내보내기")
+        XCTAssertTrue(text("파일에 포함돼요").waitForExistence(timeout: 10))
+        XCTAssertTrue(try screenContains("현재 자동번호"))
+        tapButton("백업 파일 내보내기")
+        XCTAssertTrue(text("백업 파일을 내보냈습니다.").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        tapScrollablePanelText("작업 환경 가져오기")
+        XCTAssertTrue(text("기존 템플릿은 유지돼요").waitForExistence(timeout: 10))
+        tapButton("백업 파일 선택")
+        XCTAssertTrue(text("선택한 DZlog 백업").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("1개 유지").exists)
+        XCTAssertTrue(text("1개 추가").exists)
+        XCTAssertTrue(text("1개 자동 구분").exists)
+        tapButton("가져오기")
+        XCTAssertTrue(text("1개 템플릿을 추가했습니다.").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        tapButton("뒤로가기")
+        openHomeTemplates()
+        XCTAssertTrue(app.buttons["표 확대 보기 · 현장 기록"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["표 확대 보기 · 현장 기록 (가져옴)"].exists)
+    }
+
     func testHomeCatalogSettingsAndRelaunch() throws {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()

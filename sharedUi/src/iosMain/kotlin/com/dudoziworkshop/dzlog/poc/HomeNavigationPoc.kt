@@ -14,6 +14,7 @@ import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
+import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackupMerge
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsRootContent
 import com.dudoziworkshop.dzlog.domain.time.formatCaptureTime
@@ -93,6 +94,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var showPermissions by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
     var showCredits by remember { mutableStateOf(false) }
+    var backupMode by remember { mutableStateOf<IosWorkspaceBackupMode?>(null) }
     var qualityExpanded by remember { mutableStateOf(false) }
     var showSaveInfo by remember { mutableStateOf(false) }
     var editorFromList by remember { mutableStateOf(false) }
@@ -136,7 +138,6 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             capturePlacement = null)
         openEditor(item.id, true)
     }
-    fun unavailable() { notice = "이 기능은 아직 사용할 수 없습니다." }
     val savedDocument = workspace.active ?: workspace.documents.firstOrNull() ?: EditorDocument(template)
     val savedPreview = remember(savedDocument) {
         buildPreview(PreviewInput(savedDocument.template.templateState, tableEditorNow(), savedDocument.counterPadding,
@@ -182,6 +183,30 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 initialNextCounter = document.nextCounter, initialUsesAutoNext = document.usesAutoNext,
             )
         }
+    } else if (backupMode != null) {
+        IosWorkspaceBackupScreen(
+            mode = requireNotNull(backupMode),
+            workspace = workspace,
+            onBack = { backupMode = null },
+            onImportConfirmed = { archive ->
+                val disk = runCatching { store.load(template) }.getOrNull()
+                if (disk != workspace || IosCameraCaptureSession.hasPending()) {
+                    null
+                } else {
+                    val result = LocalTemplateBackupMerge.merge(
+                        workspace.documents.map { it.template }, workspace.activeTemplateId, archive,
+                    )
+                    val existing = workspace.documents.associateBy { it.template.id }
+                    val imported = workspace.copy(
+                        documents = result.templates.map { item ->
+                            existing[item.id]?.copy(template = item) ?: EditorDocument(item)
+                        },
+                        activeTemplateId = result.activeTemplateId,
+                    )
+                    if (persist(imported)) result else null
+                }
+            },
+        )
     } else if (showHelp) {
         IosHelpSettingsScreen(onBack = { showHelp = false })
     } else if (showCredits) {
@@ -211,7 +236,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             onOpenPermissions = { showPermissions = true },
             onOpenCaptureFeedback = { showCaptureFeedback = true },
             onOpenCredits = { showCredits = true }, onOpenGuide = { showHelp = true },
-            onOpenExport = ::unavailable, onOpenImport = ::unavailable,
+            onOpenExport = { backupMode = IosWorkspaceBackupMode.EXPORT },
+            onOpenImport = { backupMode = IosWorkspaceBackupMode.IMPORT },
         )
     } else if (showList) {
         TableTemplateListContent(
