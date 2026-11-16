@@ -251,6 +251,7 @@ fun TableEditorV2Screen(
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
+    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
@@ -269,6 +270,10 @@ fun TableEditorV2Screen(
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
+    val textCellSelected = cells.any { it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT }
+    LaunchedEffect(imeVisible, textCellSelected) {
+        if (!imeVisible || !textCellSelected) compactFavoritesExpanded = false
+    }
 
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
@@ -655,6 +660,8 @@ fun TableEditorV2Screen(
                                             )
                                         },
                                         compactInput = imeVisible,
+                                        compactFavoritesExpanded = compactFavoritesExpanded,
+                                        onCompactFavoritesExpandedChange = { compactFavoritesExpanded = it },
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
