@@ -6,6 +6,8 @@ on:
       - feature/table-compact-cell-panel-261116
     paths:
       - '.github/workflows/dzlog-pr117-integration-once.yml'
+      - 'app/src/main/java/com/dudoziworkshop/dzlog/ui/camera/controls/CameraQuickValueSheet.kt'
+      - 'app/src/test/**'
   workflow_dispatch:
 
 permissions:
