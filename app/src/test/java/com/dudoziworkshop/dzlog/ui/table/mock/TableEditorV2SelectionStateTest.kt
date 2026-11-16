@@ -15,12 +15,38 @@ class TableEditorV2SelectionStateTest {
         ),
     )
 
-    @Test fun structureCellSelectionCarriesIntoContentTab() {
+    @Test fun structureCellSelectionCarriesIntoContentWhenNoEarlierEditSelection() {
         val state = TableEditorV2SelectionState()
+        state.restoreLayoutSelection(template)
         state.selectLayoutCell(template, "right")
         assertEquals("right", state.selectedCellId)
-        state.clearLayoutSelection() // navigate to Content
+        state.restoreEditSelection(template)
         assertEquals("right", state.selectedCellId)
+    }
+
+    @Test fun switchingTabsRestoresSeparateSelections() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        state.restoreEditSelection(template)
+        assertEquals("left", state.selectedCellId)
+        state.restoreLayoutSelection(template)
+        assertEquals("right", state.selectedCellId)
+        assertEquals(setOf("right"), state.layoutSelection.selectedCellIds)
+    }
+
+    @Test fun unavailableSelectionsAreClearedWithoutChangingValidContentSelection() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        val reduced = template.copy(cells = template.cells.take(1))
+        state.restoreLayoutSelection(reduced)
+        assertNull(state.selectedCellId)
+        assertEquals(emptySet<String>(), state.layoutSelection.selectedCellIds)
+        state.restoreEditSelection(reduced)
+        assertEquals("left", state.selectedCellId)
     }
 
     @Test fun selectedCellSurvivesStyleTabAndValidStructure() {
