@@ -27,6 +27,19 @@ class TableEditorCellNavigationTest {
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(emptyList(), null))
     }
     @Test
+    fun editor_state_follows_domain_identity_when_display_indices_change() {
+        val original = TableEditorCellUiModel(0, "alpha", domainCellId = "persist-A")
+        val moved = original.copy(id = 7, rowIndex = 3, colIndex = 1)
+        val replacement = original.copy(domainCellId = "persist-B")
+        assertEquals("persist-A", editorCellStateKey(original))
+        assertEquals(editorCellStateKey(original), editorCellStateKey(moved))
+        assertEquals(false, editorCellStateKey(original) == editorCellStateKey(replacement))
+
+        val unlinked = TableEditorCellUiModel(4, "", domainCellId = null)
+        assertEquals("ui:4", editorCellStateKey(unlinked))
+    }
+
+    @Test
     fun keyboard_handoff_is_allowed_only_for_text_and_number_cells() {
         assertEquals(true, editorCanKeepKeyboard(TableEditorCellType.TEXT))
         assertEquals(true, editorCanKeepKeyboard(TableEditorCellType.NUMBER))
