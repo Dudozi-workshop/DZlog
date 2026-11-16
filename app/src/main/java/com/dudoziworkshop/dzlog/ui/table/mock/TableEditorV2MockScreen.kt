@@ -251,6 +251,7 @@ fun TableEditorV2Screen(
     val imeVisible = WindowInsets.isImeVisible
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
+    var pendingInputFocusCellId by remember { mutableStateOf<String?>(null) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
     var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var bottomTabHeightPx by remember { mutableStateOf(0) }
@@ -283,7 +284,10 @@ fun TableEditorV2Screen(
         else -> MockBottomTab.CONTENT
     }
     LaunchedEffect(activeTab) {
-        if (activeTab != MockBottomTab.CONTENT) inputExpanded = false
+        if (activeTab != MockBottomTab.CONTENT) {
+            inputExpanded = false
+            pendingInputFocusCellId = null
+        }
     }
 
     fun requestBack() {
@@ -506,6 +510,7 @@ fun TableEditorV2Screen(
                                         tappedDomainCellId = domainCellId,
                                     )
                                 } else {
+                                    pendingInputFocusCellId = null
                                     selectionState.selectEditCell(domainCellId)
                                 }
                             },
@@ -682,6 +687,9 @@ fun TableEditorV2Screen(
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
                                         onInputFocus = { keyboardPreviewLocked = true },
+                                        requestInputFocus = selected.domainCellId != null &&
+                                            selected.domainCellId == pendingInputFocusCellId,
+                                        onInputFocusHandled = { pendingInputFocusCellId = null },
                                         modifier = editorPanelModifier.tutorialTarget("table.cell-input"),
                                     )
                                 }
@@ -761,11 +769,13 @@ fun TableEditorV2Screen(
                                     neighbours = editorCellNeighbours(cells, id),
                                     enabled = !saveCoordinator.isSaving,
                                     onMove = { nextId ->
-                                        // Keep the active IME when navigating between editable cells.
-                                        selectionState.selectEditCell(nextId)
+                                        // Transfer input focus only when the keyboard is already open.
                                         val next = cells.firstOrNull { it.domainCellId == nextId }
-                                        if (imeVisible && next?.type != TableEditorCellType.TEXT &&
-                                            next?.type != TableEditorCellType.NUMBER) {
+                                        val nextEditable = next?.type == TableEditorCellType.TEXT ||
+                                            next?.type == TableEditorCellType.NUMBER
+                                        pendingInputFocusCellId = if (imeVisible && nextEditable) nextId else null
+                                        selectionState.selectEditCell(nextId)
+                                        if (imeVisible && !nextEditable) {
                                             focusManager.clearFocus()
                                             keyboard?.hide()
                                         }
@@ -783,11 +793,13 @@ fun TableEditorV2Screen(
                                         }
                                     },
                                     onClose = {
+                                        pendingInputFocusCellId = null
                                         keyboard?.hide()
                                         selectionState.clearEditSelection()
                                     },
                                     compactInput = imeVisible,
                                     onInputDone = {
+                                        pendingInputFocusCellId = null
                                         focusManager.clearFocus()
                                         keyboard?.hide()
                                     },
