@@ -82,6 +82,7 @@ private class QuickValueDraft(initial: TableTemplateState) {
 }
 
 /** Table-first quick editing. Input finishes typing; Complete returns to the camera. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CameraQuickValueSheet(
     template: TableTemplateState,
