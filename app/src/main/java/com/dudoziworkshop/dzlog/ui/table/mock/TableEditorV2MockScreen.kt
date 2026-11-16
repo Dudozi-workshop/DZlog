@@ -537,9 +537,7 @@ fun TableEditorV2Screen(
                                     TableEditorCellUiModelEditor(
                                         cell = selected,
                                         phraseSets = draftTemplateState.phraseSets,
-                                        textFavorites = textFavoritesViewModel.favorites,
-                                        onFavoriteAdd = textFavoritesViewModel::add,
-                                        onFavoriteRemove = textFavoritesViewModel::remove,
+                                        textFavoritesModel = textFavoritesViewModel,
                                         onValueChange = { nextValue ->
                                             selected.domainCellId?.let { cellId ->
                                                 session.commitTemplateChange(
