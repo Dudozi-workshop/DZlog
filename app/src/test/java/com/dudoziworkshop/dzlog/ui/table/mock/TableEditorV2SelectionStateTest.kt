@@ -49,6 +49,28 @@ class TableEditorV2SelectionStateTest {
         assertEquals("left", state.selectedCellId)
     }
 
+    @Test fun deletedContentSelectionDoesNotFallBackToStructureCell() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("right")
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "left")
+        val reduced = template.copy(cells = template.cells.take(1))
+        state.restoreEditSelection(reduced)
+        assertNull(state.selectedCellId)
+        state.restoreLayoutSelection(reduced)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun explicitlyClearedContentSelectionStaysClearedOnTabReturn() {
+        val state = TableEditorV2SelectionState()
+        state.selectEditCell("left")
+        state.clearEditSelection()
+        state.restoreLayoutSelection(template)
+        state.selectLayoutCell(template, "right")
+        state.restoreEditSelection(template)
+        assertNull(state.selectedCellId)
+    }
+
     @Test fun selectedCellSurvivesStyleTabAndValidStructure() {
         val state = TableEditorV2SelectionState()
         state.selectEditCell("left")
