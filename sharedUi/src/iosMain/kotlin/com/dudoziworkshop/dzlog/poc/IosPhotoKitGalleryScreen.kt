@@ -67,6 +67,8 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var pendingScrollAnchor by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var showPhotoInfo by remember { mutableStateOf(false) }
     var viewer by remember { mutableStateOf(false) }
+    var viewerControls by remember { mutableStateOf(true) }
+    LaunchedEffect(viewer) { if (viewer) viewerControls = true }
     var managing by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
     var batchSelection by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -320,66 +322,82 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (viewer) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
-                TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
-                TextButton(enabled = !managing && selected != null, onClick = { showPhotoInfo = true }) { Text("사진 정보") }
+            // Every navigation entry point shares the active filtered order.
+            val entries = visible
+            val index = entries.indexOfFirst { it.asset.assetId == selectedId }
+            fun navigate(delta: Int) {
+                if (!managing && !refreshing && index >= 0 && index + delta in entries.indices) {
+                    selectedId = entries[index + delta].asset.assetId
+                }
             }
-            loadError?.let { Text(it) }
-            Text(selected?.asset?.target?.displayName.orEmpty())
-            Text(message)
-            operationMessage?.let { Text(it) }
-            if (managing) Text("사진 처리 중")
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(enabled = !managing && selected != null, onClick = {
-                    val id = selectedId ?: return@TextButton
-                    managing = true
-                    scope.launch {
-                        try {
-                            val favorite = id !in favorites
-                            repository.setGalleryFavorite(id, favorite)
-                            favorites = repository.favoriteGalleryAssetIds()
-                            operationMessage = if (favorite) "즐겨찾기에 추가했습니다." else "즐겨찾기에서 해제했습니다."
-                        } catch (error: Throwable) { operationMessage = "즐겨찾기 변경 실패: ${error.message}" }
-                        finally { managing = false }
-                    }
-                }) { Text(if (selectedId in favorites) "★ 즐겨찾기" else "☆ 즐겨찾기") }
-                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
-                    onClick = {
+            if (viewerControls) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
+                    TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
+                    TextButton(enabled = !managing && selected != null, onClick = { showPhotoInfo = true }) { Text("사진 정보") }
+                }
+                loadError?.let { Text(it) }
+                Text(selected?.asset?.target?.displayName.orEmpty())
+                Text(message)
+                operationMessage?.let { Text(it) }
+                if (managing) Text("사진 처리 중")
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(enabled = !managing && !refreshing, onClick = { viewerControls = false }) { Text("조작부 숨김") }
+                    TextButton(enabled = !managing && selected != null, onClick = {
                         val id = selectedId ?: return@TextButton
                         managing = true
                         scope.launch {
                             try {
-                                val bytes = repository.readAsset(id) ?: error("사진을 읽을 수 없습니다.")
-                                shareIosPhoto(bytes)
-                                operationMessage = "공유 화면을 열었습니다."
-                            } catch (error: Throwable) { operationMessage = "사진 공유 실패: ${error.message}" }
+                                val favorite = id !in favorites
+                                repository.setGalleryFavorite(id, favorite)
+                                favorites = repository.favoriteGalleryAssetIds()
+                                operationMessage = if (favorite) "즐겨찾기에 추가했습니다." else "즐겨찾기에서 해제했습니다."
+                            } catch (error: Throwable) { operationMessage = "즐겨찾기 변경 실패: ${error.message}" }
                             finally { managing = false }
                         }
-                    }) { Text("사진 공유") }
-                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
-                    onClick = { moveTarget = selectedId?.let { setOf(it) }; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
-                TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
-                    onClick = { deleteTarget = selectedId?.let { setOf(it) } }) { Text("사진 삭제") }
+                    }) { Text(if (selectedId in favorites) "★ 즐겨찾기" else "☆ 즐겨찾기") }
+                    TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                        onClick = {
+                            val id = selectedId ?: return@TextButton
+                            managing = true
+                            scope.launch {
+                                try {
+                                    val bytes = repository.readAsset(id) ?: error("사진을 읽을 수 없습니다.")
+                                    shareIosPhoto(bytes)
+                                    operationMessage = "공유 화면을 열었습니다."
+                                } catch (error: Throwable) { operationMessage = "사진 공유 실패: ${error.message}" }
+                                finally { managing = false }
+                            }
+                        }) { Text("사진 공유") }
+                    TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                        onClick = { moveTarget = selectedId?.let { setOf(it) }; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
+                    TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
+                        onClick = { deleteTarget = selectedId?.let { setOf(it) } }) { Text("사진 삭제") }
+                }
+            } else {
+                // Always reachable even when the image is unavailable or gestures are inaccessible.
+                TextButton(onClick = { viewerControls = true }) { Text("조작부 표시") }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 key(selectedId, image) {
-                    image?.let { IosGalleryImageViewer(it, enabled = !managing && !refreshing) }
+                    image?.let { IosGalleryImageViewer(it, enabled = !managing && !refreshing,
+                        showControls = viewerControls,
+                        onToggleControls = { viewerControls = !viewerControls },
+                        onPrevious = { navigate(-1) }, onNext = { navigate(1) },
+                        onShowInfo = { if (selected != null) showPhotoInfo = true }) }
                 }
             }
             // A companion may live outside the active folder/favorites filter.
             // Do not silently expand previous/next navigation to the entire library.
-            val entries = visible
-            val index = entries.indexOfFirst { it.asset.assetId == selectedId }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index > 0, onClick = { selectedId = entries[index - 1].asset.assetId }) { Text("이전 사진") }
+            if (viewerControls) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
                 val companion = photos.firstOrNull { it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
                 if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing, onClick = { selectedId = companion.asset.assetId }) {
                     Text(if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기" else "결과 보기")
                 }
                 Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index >= 0 && index < entries.lastIndex,
-                    onClick = { selectedId = entries[index + 1].asset.assetId }) { Text("다음 사진") }
+                    onClick = { navigate(1) }) { Text("다음 사진") }
             }
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
