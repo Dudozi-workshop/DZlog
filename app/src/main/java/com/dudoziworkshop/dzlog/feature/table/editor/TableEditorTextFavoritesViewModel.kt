@@ -38,11 +38,12 @@ class TableEditorTextFavoritesViewModel(application: Application) : AndroidViewM
         if (text.isBlank()) return false
         val before = favorites
         val stored = text in before
-        if (!stored && before.size >= TableTextFavoritesRepository.MAX_ITEMS) {
-            limitReached = true
+        val after = TextFavoriteListPolicy.toggle(
+            before, text, TableTextFavoritesRepository.MAX_ITEMS,
+        ) ?: run {
+            if (text.isNotBlank() && !stored) limitReached = true
             return false
         }
-        val after = if (stored) before.filterNot { it == text } else listOf(text) + before
         repository.save(after)
         lastChange = TextFavoriteUndo(
             before, after,
@@ -65,24 +66,24 @@ class TableEditorTextFavoritesViewModel(application: Application) : AndroidViewM
     fun dismissLimit() { limitReached = false }
 
     fun remove(text: String) {
-        repository.save(favorites.filterNot { it == text })
+        val after = TextFavoriteListPolicy.toggle(favorites, text, TableTextFavoritesRepository.MAX_ITEMS)
+            ?: return
+        if (text !in favorites) return
+        repository.save(after)
         lastChange = null
     }
 
     fun rename(old: String, next: String): Boolean {
-        if (next.isBlank() || (next != old && next in favorites)) return false
-        repository.save(favorites.map { if (it == old) next else it })
+        val updated = TextFavoriteListPolicy.rename(favorites, old, next) ?: return false
+        repository.save(updated)
         lastChange = null
         return true
     }
 
     fun move(text: String, direction: Int) {
-        val items = favorites.toMutableList()
-        val from = items.indexOf(text)
-        val to = from + direction
-        if (from < 0 || to !in items.indices) return
-        items[from] = items[to].also { items[to] = items[from] }
-        repository.save(items)
+        val next = TextFavoriteListPolicy.move(favorites, text, direction)
+        if (next == favorites) return
+        repository.save(next)
         lastChange = null
     }
 }
