@@ -65,6 +65,8 @@ internal fun TableEditorCellUiModelEditor(
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     compactInput: Boolean = false,
+    compactFavoritesExpanded: Boolean = false,
+    onCompactFavoritesExpandedChange: (Boolean) -> Unit = {},
     inputExpanded: Boolean,
     expandedInputHeight: Dp,
     onToggleInputExpanded: () -> Unit,
@@ -199,6 +201,8 @@ internal fun TableEditorCellUiModelEditor(
                         onApply = onValueChange,
                         enabled = favoriteActionsEnabled,
                         compact = compactInput,
+                        compactExpanded = compactFavoritesExpanded,
+                        onCompactExpandedChange = onCompactFavoritesExpandedChange,
                     )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
