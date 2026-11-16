@@ -155,6 +155,28 @@ class QuickPhrasePeriodEditPolicyTest {
             mapOf("c1" to CellPhraseProgress(0, 4))))
     }
 
+    @Test fun `table detail and quick edit reject completed counts outside selected phrase period`() {
+        val abc = RotatingPhraseSet(
+            "abc", "ABC", listOf("A", "B", "C"), defaultEvery = 5,
+            itemEveryOverrides = listOf(null, 3, null),
+        )
+        val selected = c1.copy(phraseSetId = "abc", phraseIndex = 1, phraseCompletedShots = 2)
+        val companion = c2.copy(phraseSetId = "abc", phraseIndex = 0, phraseCompletedShots = 1)
+        val working = TableTemplateState(
+            1, 2, cells = listOf(selected, companion), phraseSets = listOf(abc),
+        )
+
+        // Both entry points must use the same policy: a 3-shot B rejects 3 completed.
+        assertSame(working, updateQuickPhraseProgress(working, "c1", 1, 3))
+        assertSame(working, updateQuickPhraseProgress(working, "c1", 1, -1))
+        assertSame(working, updateQuickPhraseProgress(working, "c1", 9, 0))
+        assertSame(working, updateQuickPhraseProgress(working, "missing", 1, 0))
+        val changed = updateQuickPhraseProgress(working, "c1", 1, 1)
+        assertEquals(1, changed.cells.first().phraseCompletedShots)
+        assertEquals(companion, changed.cells[1])
+        assertEquals(abc, changed.phraseSets.single())
+    }
+
     @Test fun `atomic progress editing honors per-phrase periods`() {
         val result = updateQuickPhraseProgress(template, "c1", 1, 1)
         assertEquals(1, result.cells.first().phraseIndex)
