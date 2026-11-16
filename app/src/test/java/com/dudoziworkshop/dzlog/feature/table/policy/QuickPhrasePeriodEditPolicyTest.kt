@@ -47,6 +47,29 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(set, result.phraseSets.first())
     }
 
+    @Test fun `individual camera quick period stays local and never updates set default`() {
+        val individual = applyQuickPhrasePeriodEdit(
+            template, QuickPhrasePeriodEdit("c1", false, 6),
+        )!!
+        assertEquals(5, individual.phraseSets.single().defaultEvery)
+        assertEquals(listOf(null, 2), individual.phraseSets.single().itemEveryOverrides)
+        assertEquals(6, individual.cells.first().everyOverride)
+        assertNull(individual.cells[1].everyOverride)
+        assertNull(individual.cells[2].everyOverride)
+        assertEquals(5, individual.phraseSets.single().everyForItem(0))
+        assertEquals(2, individual.phraseSets.single().everyForItem(1))
+    }
+
+    @Test fun `only set mode changes shared default while preserving per item override`() {
+        val inherited = applyQuickPhrasePeriodEdit(
+            template, QuickPhrasePeriodEdit("c1", true, 7),
+        )!!
+        assertEquals(7, inherited.phraseSets.single().defaultEvery)
+        assertEquals(2, inherited.phraseSets.single().everyForItem(1))
+        assertTrue(inherited.cells.all { it.everyOverride == null })
+        assertEquals(5, template.phraseSets.single().defaultEvery)
+    }
+
     @Test fun `switching to inherited set requires resolution if previously larger local period`() {
         val original = template.copy(cells = listOf(c1.copy(everyOverride = 7, phraseCompletedShots = 6), c2, c3))
         val edit = QuickPhrasePeriodEdit("c1", true, 5)
