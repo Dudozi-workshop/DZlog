@@ -5,8 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -31,6 +34,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.skia.Image as SkiaImage
 import platform.Foundation.NSData
+import platform.Foundation.NSDate
+import platform.Foundation.NSDateFormatter
+import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.create
 
@@ -55,6 +61,11 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var refreshing by remember { mutableStateOf(false) }
     var folder by remember { mutableStateOf<String?>(null) }
     var grid by remember { mutableStateOf(true) }
+    var gridColumns by remember { mutableStateOf(SavedGalleryGridPolicy.DEFAULT_COLUMNS) }
+    val gridState = key(folder, favoritesOnly) { rememberLazyGridState() }
+    val listState = key(folder, favoritesOnly) { rememberLazyListState() }
+    var pendingScrollAnchor by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    var showPhotoInfo by remember { mutableStateOf(false) }
     var viewer by remember { mutableStateOf(false) }
     var managing by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
@@ -72,6 +83,30 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         (folder == null || entry.asset.target.relativePath == folder) &&
             (!favoritesOnly || entry.asset.assetId in favorites)
     })
+    fun captureScrollAnchor(): Pair<String, Int>? {
+        val index = if (grid) gridState.firstVisibleItemIndex else listState.firstVisibleItemIndex
+        val offset = if (grid) gridState.firstVisibleItemScrollOffset else listState.firstVisibleItemScrollOffset
+        return visible.getOrNull(index)?.asset?.assetId?.let { it to offset }
+    }
+    fun changeColumns(next: Int) {
+        val normalized = SavedGalleryGridPolicy.normalize(next)
+        if (normalized == gridColumns || managing || refreshing) return
+        pendingScrollAnchor = captureScrollAnchor()
+        gridColumns = normalized
+    }
+    LaunchedEffect(grid, gridColumns, pendingScrollAnchor) {
+        val anchor = pendingScrollAnchor ?: return@LaunchedEffect
+        val index = visible.indexOfFirst { it.asset.assetId == anchor.first }
+        if (index >= 0) {
+            if (grid) gridState.scrollToItem(index, anchor.second)
+            else listState.scrollToItem(index, anchor.second)
+        }
+        pendingScrollAnchor = null
+    }
+    // A new scope starts at its first photo, rather than carrying an unrelated offset.
+    LaunchedEffect(folder, favoritesOnly) {
+        pendingScrollAnchor = null
+    }
     val selectableIds = visible.filter { it.availability == CaptureMediaAvailability.PRESENT }
         .map { it.asset.assetId }.toSet()
     val selectedBatch = batchSelection.intersect(selectableIds)
@@ -192,6 +227,24 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         } catch (error: Throwable) { if (selectedId == entry.asset.assetId) message = "사진 조회 실패: ${error.message}" }
     }
 
+    if (showPhotoInfo) {
+        val entry = selected
+        val created = entry?.createdAtMillis?.let { millis ->
+            NSDateFormatter().apply { dateFormat = "yyyy-MM-dd HH:mm:ss" }
+                .stringFromDate(NSDate.dateWithTimeIntervalSince1970(millis / 1000.0))
+        } ?: "확인 불가"
+        AlertDialog(onDismissRequest = { showPhotoInfo = false }, title = { Text("사진 정보") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("파일명: ${entry?.asset?.target?.displayName.orEmpty()}")
+                    Text("폴더: ${entry?.asset?.target?.relativePath.orEmpty()}")
+                    Text("사진 종류: ${if (entry?.asset?.target?.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"}")
+                    Text("사진 생성 시간: $created")
+                    Text(image?.let { "표시 이미지 크기: ${it.width} × ${it.height}px" } ?: "표시 이미지 크기: 확인 불가")
+                }
+            }, confirmButton = { TextButton(onClick = { showPhotoInfo = false }) { Text("닫기") } })
+    }
+
     deleteTarget?.let { targetIds ->
         AlertDialog(onDismissRequest = { deleteTarget = null },
             title = { Text("사진 삭제") },
@@ -270,7 +323,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
                 TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
-                Text("사진 보기")
+                TextButton(enabled = !managing && selected != null, onClick = { showPhotoInfo = true }) { Text("사진 정보") }
             }
             loadError?.let { Text(it) }
             Text(selected?.asset?.target?.displayName.orEmpty())
@@ -332,13 +385,16 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { if (selecting) { selecting = false; batchSelection = emptySet() } else onBack() }, enabled = !managing) { Text("뒤로가기") }
                 Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
-                Text("갤러리")
+                if (grid && !selecting) GalleryChoiceMenu("그리드 ${gridColumns}열",
+                    (SavedGalleryGridPolicy.MIN_COLUMNS..SavedGalleryGridPolicy.MAX_COLUMNS).map { "${it}열" },
+                    enabled = !managing && !refreshing) { changeColumns(it + SavedGalleryGridPolicy.MIN_COLUMNS) }
+                else Text("갤러리")
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(enabled = !managing && !refreshing, onClick = { folder = if (folder == null) GALLERY_ROOT else null }) {
                     Text(if (folder == null) "폴더 보기" else "전체 사진")
                 }
-                TextButton(enabled = !managing && !refreshing, onClick = { grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
+                TextButton(enabled = !managing && !refreshing, onClick = { pendingScrollAnchor = captureScrollAnchor(); grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
                 TextButton(enabled = !managing && !refreshing, onClick = { favoritesOnly = !favoritesOnly }) {
                     Text(if (favoritesOnly) "전체 보기" else "즐겨찾기")
                 }
@@ -413,7 +469,8 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { viewer = true },
                     contentScale = ContentScale.Fit)
             }
-            if (grid) LazyVerticalGrid(GridCells.Fixed(3), modifier = Modifier.weight(1f),
+            if (grid) LazyVerticalGrid(GridCells.Fixed(gridColumns), state = gridState,
+                modifier = Modifier.weight(1f).iosGalleryGridPinch(gridColumns, !managing && !refreshing && !selecting, ::changeColumns),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 gridItems(visible, key = { it.asset.assetId }) { entry ->
                     val thumbnail by produceState<ImageBitmap?>(
@@ -447,7 +504,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         Text(entry.asset.target.displayName, maxLines = 1)
                     }
                 }
-            } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            } else LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.asset.assetId }) { entry ->
                     Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }.padding(8.dp)) {
                         if (selecting) Checkbox(modifier = Modifier.semantics {
