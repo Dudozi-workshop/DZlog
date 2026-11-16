@@ -1,9 +1,11 @@
 package com.dudoziworkshop.dzlog.ui.table.mock
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -89,7 +91,15 @@ internal fun TableEditorCellInfoRow(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.weight(1f)
+                .heightIn(min = DDZLayout.QuickInput.Touch)
+                .clickable(enabled = links.count > 0) {
+                    Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show()
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열",
                 style = typography.Caption,
@@ -97,21 +107,14 @@ internal fun TableEditorCellInfoRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (links.count > 0) IconButton(
-                onClick = { Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show() },
-                modifier = Modifier.size(DDZLayout.QuickInput.Touch),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (links.fileName) Icon(
-                        Icons.Filled.Description, links.description,
-                        Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
-                    )
-                    if (links.path) Icon(
-                        Icons.Filled.Folder, if (links.fileName) null else links.description,
-                        Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
-                    )
-                }
-            }
+            if (links.fileName) Icon(
+                Icons.Filled.Description, links.description,
+                Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+            )
+            if (links.path) Icon(
+                Icons.Filled.Folder, if (links.fileName) null else links.description,
+                Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+            )
         }
 
         Surface(
@@ -121,7 +124,7 @@ internal fun TableEditorCellInfoRow(
             color = colors.Surface,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 13.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
