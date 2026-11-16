@@ -62,6 +62,10 @@ internal fun TableEditorWorkPanel(modifier: Modifier = Modifier, content: @Compo
     )
 }
 
+/** Only text and numeric editors can accept a continued IME session. */
+internal fun editorCanKeepKeyboard(type: TableEditorCellType?): Boolean =
+    type == TableEditorCellType.TEXT || type == TableEditorCellType.NUMBER
+
 internal data class EditorCellNeighbours(val previous: String?, val next: String?)
 
 /** Detail editing includes every kind; merged covered cells never become stops. */
