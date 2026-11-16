@@ -90,6 +90,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
     var showList by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showCaptureFeedback by remember { mutableStateOf(false) }
+    var showPermissions by remember { mutableStateOf(false) }
     var qualityExpanded by remember { mutableStateOf(false) }
     var showSaveInfo by remember { mutableStateOf(false) }
     var editorFromList by remember { mutableStateOf(false) }
@@ -179,6 +180,8 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
                 initialNextCounter = document.nextCounter, initialUsesAutoNext = document.usesAutoNext,
             )
         }
+    } else if (showPermissions) {
+        IosPermissionsSettingsScreen(onBack = { showPermissions = false })
     } else if (showCaptureFeedback) {
         IosCaptureFeedbackSettingsScreen(
             hapticEnabled = workspace.settings.captureHapticEnabled,
@@ -199,7 +202,7 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             },
             onChangeAssistShutter = { persist(workspace.copy(settings = workspace.settings.copy(assistShutterEnabled = it))) },
             onChangeUndoWarning = { persist(workspace.copy(settings = workspace.settings.copy(undoSavePathWarningEnabled = it))) },
-            onOpenPermissions = ::unavailable,
+            onOpenPermissions = { showPermissions = true },
             onOpenCaptureFeedback = { showCaptureFeedback = true },
             onOpenCredits = ::unavailable, onOpenGuide = ::unavailable,
             onOpenExport = ::unavailable, onOpenImport = ::unavailable,

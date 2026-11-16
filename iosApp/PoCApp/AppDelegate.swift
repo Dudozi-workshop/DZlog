@@ -12,6 +12,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     private static let openCamera = Notification.Name("dzlog.openCamera")
     private static let closeCamera = Notification.Name("dzlog.dismissCamera")
     private static let sharePhoto = Notification.Name("dzlog.sharePhoto")
+    private static let openSystemSettings = Notification.Name("dzlog.openSystemSettings")
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
@@ -28,6 +29,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         NotificationCenter.default.addObserver(
             self, selector: #selector(sharePhotoFromGallery(_:)),
             name: Self.sharePhoto, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(openSystemSettingsFromSettings(_:)),
+            name: Self.openSystemSettings, object: nil
         )
         if CommandLine.arguments.contains("--camera-flow") {
             // Keep the camera disconnected while the asynchronous prompt is unresolved.
@@ -88,6 +93,11 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
                                         y: presenter.view.bounds.midY, width: 1, height: 1)
         }
         presenter.present(activity, animated: true)
+    }
+
+    @objc private func openSystemSettingsFromSettings(_ notification: Notification) {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 
     private func resolveCameraPermission(completion: @escaping (Bool) -> Void) {

@@ -834,6 +834,20 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("촬영 진동: 꺼짐").waitForExistence(timeout: 10))
     }
 
+    func testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute() throws {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("설정")
+        tapPanelText("권한 관리")
+        XCTAssertTrue(text("카메라 권한").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("사진 권한").exists)
+        XCTAssertTrue(try screenContains("권한 요청은 카메라 또는 사진 기능을 처음 사용할 때"))
+        XCTAssertTrue(button("상태 새로고침").isEnabled)
+        XCTAssertTrue(button("iPhone 설정 열기").isEnabled)
+        tapButton("상태 새로고침")
+        XCTAssertTrue(text("카메라 권한").exists)
+    }
+
     func testHomeCatalogSettingsAndRelaunch() throws {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()
