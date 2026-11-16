@@ -440,6 +440,17 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("☆ 즐겨찾기")
         XCTAssertTrue(button("★ 즐겨찾기").waitForExistence(timeout: 10))
 
+        // Leave the non-favorite companion selected, then filter the list.
+        // The preview must select the remaining favorite rather than disappear.
+        tapButton(button("원본 보기").exists ? "원본 보기" : "결과 보기")
+        XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
+        tapButton("사진 목록")
+        tapButton("즐겨찾기")
+        XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
+        tapPanelText("갤러리 사진 미리보기")
+        XCTAssertTrue(button("★ 즐겨찾기").waitForExistence(timeout: 10))
+
         app.terminate()
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
@@ -466,6 +477,13 @@ final class PreviewInteractionTests: XCTestCase {
         allPhotosFavoriteThumbnail.tap()
         tapButton("★ 즐겨찾기")
         XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
+        tapButton("사진 목록")
+        XCTAssertTrue(text("사진 0개").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("즐겨찾기 사진이 없습니다.").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("갤러리 사진 미리보기").exists)
+        tapButton("전체 보기")
+        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
     }
 
     func testMergedRasterPixelsAndMalformedSpans() {

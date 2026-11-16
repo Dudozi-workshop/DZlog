@@ -128,7 +128,10 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
     LaunchedEffect(Unit) { refresh() }
-    LaunchedEffect(photos, folder) {
+    LaunchedEffect(photos, folder, favoritesOnly, favorites, viewer) {
+        // A viewer can intentionally show the other capture companion outside
+        // the filter. Reconcile the list preview when returning to the list.
+        if (viewer) return@LaunchedEffect
         if (visible.none { it.asset.assetId == selectedId }) {
             val latestCapture = visible.firstOrNull()?.captureId
             selectedId = (visible.firstOrNull {
@@ -138,11 +141,15 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 ?: visible.firstOrNull())?.asset?.assetId
         }
     }
-    LaunchedEffect(selectedId, photos) {
+    LaunchedEffect(selectedId, photos, folder, favoritesOnly) {
         image = null
         val entry = photos.firstOrNull { it.asset.assetId == selectedId }
         if (entry == null) {
-            message = if (photos.isEmpty()) "저장된 사진이 없습니다." else "폴더 안의 사진을 선택해 주세요."
+            message = when {
+                photos.isEmpty() -> "저장된 사진이 없습니다."
+                favoritesOnly && visible.isEmpty() -> "즐겨찾기 사진이 없습니다."
+                else -> "폴더 안의 사진을 선택해 주세요."
+            }
             return@LaunchedEffect
         }
         if (entry.availability != CaptureMediaAvailability.PRESENT) {
