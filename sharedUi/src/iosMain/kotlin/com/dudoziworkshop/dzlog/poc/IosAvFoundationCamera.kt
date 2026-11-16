@@ -189,14 +189,23 @@ internal class IosAvFoundationCamera {
         check(configured && session.running) { "카메라가 실행 중이지 않습니다." }
         check(onPhoto == null) { "이미 촬영 중입니다." }
         onPhoto = callback
-        val settings = AVCapturePhotoSettings.photoSettingsWithFormat(
-            format = mapOf(
-                platform.AVFoundation.AVVideoCodecKey to platform.AVFoundation.AVVideoCodecTypeJPEG,
-            ),
-        )
-        if (flashAvailable) settings.flashMode = flashMode
-        photoOutput.capturePhotoWithSettings(settings, delegate = photoDelegate)
-        onCaptureStarted()
+        try {
+            val settings = AVCapturePhotoSettings.photoSettingsWithFormat(
+                format = mapOf(
+                    platform.AVFoundation.AVVideoCodecKey to platform.AVFoundation.AVVideoCodecTypeJPEG,
+                ),
+            )
+            if (flashAvailable) settings.flashMode = flashMode
+            photoOutput.capturePhotoWithSettings(settings, delegate = photoDelegate)
+        } catch (failure: Throwable) {
+            // A synchronous submission failure must not leave the next shutter
+            // permanently blocked by a callback that will never arrive.
+            onPhoto = null
+            throw failure
+        }
+        // Haptic/UI feedback is best-effort after submission. Its failure must
+        // not report capture failure while the native photo is still in flight.
+        runCatching(onCaptureStarted)
     }
 }
 

@@ -231,7 +231,11 @@ internal fun IosCameraCapturePoc(
     val captureEnabled = ready && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
-    val triggerCapture: () -> Unit = {
+    val triggerCapture: () -> Unit = capture@{
+        // Both shutter surfaces can deliver a tap before recomposition disables
+        // them. Re-read mutable busy state here so a duplicate request cannot
+        // fail in AVFoundation and clear the first capture's saving indicator.
+        if (busy || !captureEnabled) return@capture
         focusCollapseToken += 1
         busy = true
         showTools = false
@@ -318,10 +322,10 @@ internal fun IosCameraCapturePoc(
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 captureAspect = session.captureAspect.ratioF.toDouble(),
-                enabled = !busy && !session.hasPending() && !showTools,
+                enabled = !busy && !reviewVisible && !session.hasPending() && !showTools,
                 showGrid = showGrid,
                 showTable = showTable,
-                focusEnabled = ready && !busy && !overlayEditing,
+                focusEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing,
                 focusCollapseToken = focusCollapseToken,
                 minimumExposureBias = camera.minimumExposureBias,
                 maximumExposureBias = camera.maximumExposureBias,
@@ -329,7 +333,7 @@ internal fun IosCameraCapturePoc(
                 onExposureLock = camera::setExposureLocked,
                 onExposureBias = camera::setExposureBias,
                 onFocusInteraction = { focusInteractionToken += 1 },
-                zoomEnabled = ready && !busy && !overlayEditing,
+                zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing,
                 currentZoom = zoom,
                 maximumZoom = camera.maximumZoom,
                 onZoomChange = { next ->
@@ -355,7 +359,7 @@ internal fun IosCameraCapturePoc(
                 },
             )
             if (showTools) IosCameraToolPanel(
-                ready = ready && !busy,
+                ready = ready && !busy && !reviewVisible,
                 flashAvailable = camera.flashAvailable,
                 flashLabel = listOf("꺼짐", "자동", "켜짐")[flash],
                 zoom = zoom,
@@ -400,12 +404,12 @@ internal fun IosCameraCapturePoc(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             ) else IosCameraZoomChip(
                 zoom = zoom,
-                enabled = ready && !busy && camera.maximumZoom > 1f,
+                enabled = ready && !busy && !reviewVisible && camera.maximumZoom > 1f,
                 onClick = { showTools = true },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             )
             IosFloatingAssistShutter(
-                visible = assistShutterEnabled && !showTools && !overlayEditing,
+                visible = assistShutterEnabled && !busy && !reviewVisible && !showTools && !overlayEditing,
                 captureEnabled = captureEnabled,
                 xRatio = assistShutterXRatio,
                 yRatio = assistShutterYRatio,
