@@ -42,6 +42,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var folders by remember { mutableStateOf<List<String>>(listOf(GALLERY_ROOT)) }
     var favorites by remember { mutableStateOf<Set<String>>(emptySet()) }
     var favoritesOnly by remember { mutableStateOf(false) }
+    var photoSort by remember { mutableStateOf(SavedGalleryPhotoSort.NEWEST) }
+    var folderFilter by remember { mutableStateOf(SavedGalleryFolderFilter.ALL) }
+    var folderSort by remember { mutableStateOf(SavedGalleryFolderSort.NAME) }
     var selectedId by remember { mutableStateOf<String?>(null) }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var imageLoadRevision by remember { mutableStateOf(0) }
@@ -61,10 +64,10 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var folderName by remember { mutableStateOf("") }
     var folderError by remember { mutableStateOf<String?>(null) }
     val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
-    val visible = photos.filter { entry ->
+    val visible = photoSort.sorted(photos.filter { entry ->
         (folder == null || entry.asset.target.relativePath == folder) &&
             (!favoritesOnly || entry.asset.assetId in favorites)
-    }
+    })
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
     val destinations = buildSet {
         add(GALLERY_ROOT)
@@ -78,10 +81,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         }
     }.sorted()
     val currentFolder = folder
-    val childFolders = if (currentFolder == null) emptyList() else destinations.mapNotNull { path ->
-        if (!path.startsWith(currentFolder) || path == currentFolder) null
-        else currentFolder + path.removePrefix(currentFolder).substringBefore('/') + "/"
-    }.distinct().sorted()
+    val childFolders = currentFolder?.let {
+        savedGalleryChildFolders(it, destinations, photos, folderFilter, folderSort)
+    }.orEmpty()
 
     fun refresh() {
         if (refreshing || managing) return
@@ -133,7 +135,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
     LaunchedEffect(Unit) { refresh() }
-    LaunchedEffect(photos, folder, favoritesOnly, favorites, viewer) {
+    LaunchedEffect(photos, folder, favoritesOnly, favorites, viewer, photoSort) {
         // A viewer can intentionally show the other capture companion outside
         // the filter. Reconcile the list preview when returning to the list.
         if (viewer) return@LaunchedEffect
@@ -320,9 +322,19 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
                 }) { Text("상위 폴더") }
             }
-            Text("사진 ${visible.size}개")
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("사진 ${visible.size}개")
+                GalleryChoiceMenu("사진 정렬 · ${photoSort.label}", SavedGalleryPhotoSort.entries.map { it.label },
+                    enabled = !managing && !refreshing) { photoSort = SavedGalleryPhotoSort.entries[it] }
+            }
             currentFolder?.let { Text("폴더: $it") }
             currentFolder?.let { path ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GalleryChoiceMenu("폴더 · ${folderFilter.label}", SavedGalleryFolderFilter.entries.map { it.label },
+                        enabled = !managing && !refreshing) { folderFilter = SavedGalleryFolderFilter.entries[it] }
+                    GalleryChoiceMenu("폴더순 · ${folderSort.label}", SavedGalleryFolderSort.entries.map { it.label },
+                        enabled = !managing && !refreshing) { folderSort = SavedGalleryFolderSort.entries[it] }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(enabled = !managing && !refreshing, onClick = {
                         folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
@@ -339,12 +351,22 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             }
             loadError?.let { Text(it) }
             operationMessage?.let { Text(it) }
-            if (childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 160.dp)) {
-                items(childFolders) { path -> TextButton(onClick = { folder = path }) { Text(path.removePrefix(currentFolder.orEmpty()).trimEnd('/')) } }
+            if (childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
+                items(childFolders, key = { it.path }) { summary ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(enabled = !managing, onClick = { folder = summary.path }) {
+                            Text(summary.path.removePrefix(currentFolder.orEmpty()).trimEnd('/'))
+                        }
+                        Text("사진 기록 ${summary.photoCount}개 · 하위 포함")
+                    }
+                }
+            }
+            if (currentFolder != null && childFolders.isEmpty() && folderFilter != SavedGalleryFolderFilter.ALL) {
+                Text("조건에 맞는 하위 폴더가 없습니다.")
             }
             Text(message)
             if (selected != null && visible.any { it.asset.assetId == selectedId }) image?.let {
-                Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(160.dp).clickable { viewer = true },
+                Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { viewer = true },
                     contentScale = ContentScale.Fit)
             }
             if (grid) LazyVerticalGrid(GridCells.Fixed(3), modifier = Modifier.weight(1f),
@@ -389,6 +411,22 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         })
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GalleryChoiceMenu(label: String, options: List<String>, enabled: Boolean, onSelected: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(enabled = enabled, onClick = { expanded = true }) { Text(label) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEachIndexed { index, option ->
+                DropdownMenuItem(text = { Text(option) }, enabled = enabled, onClick = {
+                    onSelected(index)
+                    expanded = false
+                })
             }
         }
     }
