@@ -438,11 +438,11 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("삭제")
         XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
         tapButton("전체 사진")
-        let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
+        let allPhotosFavoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
         )).firstMatch
-        XCTAssertTrue(favoriteThumbnail.waitForExistence(timeout: 30))
-        favoriteThumbnail.tap()
+        XCTAssertTrue(allPhotosFavoriteThumbnail.waitForExistence(timeout: 30))
+        allPhotosFavoriteThumbnail.tap()
         tapButton("★ 즐겨찾기")
         XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
     }
