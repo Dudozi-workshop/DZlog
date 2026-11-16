@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.ViewStream
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,15 +63,14 @@ internal fun MockLayoutPanel(
             StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 삭제",
                 operation = "−", enabled = selectedCount > 0 && cols > 1, danger = true, onClick = onDeleteColumns)
         }
-        StructureActionButton(Modifier.fillMaxWidth().tutorialTarget("table.structure.merge"), Icons.Filled.GridView,
-            if (mergedSelection) "병합 해제" else "병합", enabled = selectedCount > 1 || mergedSelection,
-            onClick = onMergeSelection)
-        HorizontalDivider(color = DDZColor.Border)
-        Row(Modifier.fillMaxWidth().tutorialTarget("table.structure.equal"), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 높이 균등",
-                enabled = rows > 1, onClick = onEqualizeRows)
-            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 너비 균등",
-                enabled = cols > 1, onClick = onEqualizeColumns)
+        Row(Modifier.fillMaxWidth().tutorialTarget("table.structure.equal"), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            StructureActionButton(Modifier.weight(1f).tutorialTarget("table.structure.merge"), Icons.Filled.GridView,
+                if (mergedSelection) "병합 해제" else "병합", enabled = selectedCount > 1 || mergedSelection,
+                compact = true, onClick = onMergeSelection)
+            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewStream, "행 균등",
+                enabled = rows > 1, compact = true, onClick = onEqualizeRows)
+            StructureActionButton(Modifier.weight(1f), Icons.Filled.ViewColumn, "열 균등",
+                enabled = cols > 1, compact = true, onClick = onEqualizeColumns)
         }
 
     }
@@ -86,6 +84,7 @@ private fun StructureActionButton(
     operation: String? = null,
     enabled: Boolean = true,
     danger: Boolean = false,
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
     val tint = when {
@@ -95,17 +94,22 @@ private fun StructureActionButton(
     }
     Row(modifier.heightIn(min = structureActionHeight(LocalDensity.current.fontScale))
         .background(if (enabled) DDZColor.Card.copy(alpha = 0.72f) else DDZColor.Card.copy(alpha = 0.36f), RoundedCornerShape(12.dp))
-        .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
+        .clickable(enabled = enabled, onClick = onClick).padding(horizontal = if (compact) 4.dp else 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
-        if (operation != null) {
-            Spacer(Modifier.width(2.dp))
-            Text(operation, color = tint, style = DDZTypography.Caption)
+        if (!compact) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            if (operation != null) {
+                Spacer(Modifier.width(2.dp))
+                Text(operation, color = tint, style = DDZTypography.Caption)
+            }
+            Spacer(Modifier.width(8.dp))
         }
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = tint, style = DDZTypography.Caption, maxLines = 1)
+        Text(label, color = tint, style = DDZTypography.Caption, maxLines = if (compact) 2 else 1)
     }
 }
-// Four action rows, four 4dp gaps, one divider and 8dp top/bottom padding.
+// Three action rows, two 4dp gaps and 8dp top/bottom padding.
 internal fun structureActionHeight(fontScale: Float) = (44f * fontScale.coerceAtLeast(1f)).dp
-internal fun structurePanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 4 + 33.dp
+internal fun structurePanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 3 + 24.dp
+
+// Style and save settings retain their previous panel height until their own UX is approved.
+internal fun settingsPanelHeight(fontScale: Float) = structureActionHeight(fontScale) * 4 + 33.dp
