@@ -25,6 +25,12 @@ class TableEditorTextFavoritesViewModel(application: Application) : AndroidViewM
     var limitReached by mutableStateOf(false)
         private set
 
+    var managementOpen by mutableStateOf(false)
+        private set
+
+    fun openManagement() { managementOpen = true }
+    fun closeManagement() { managementOpen = false }
+
     private var serial = 0
 
     /** Returns false when a new favorite cannot be added at the configured limit. */
