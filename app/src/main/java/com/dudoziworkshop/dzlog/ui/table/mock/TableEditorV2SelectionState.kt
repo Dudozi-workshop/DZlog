@@ -13,8 +13,32 @@ internal class TableEditorV2SelectionState {
     var layoutSelection by mutableStateOf(MockLayoutSelection())
         private set
 
+    // Selection in Content must not be overwritten by selection in Structure.
+    private var lastEditCellId: String? = null
+
     fun selectEditCell(cellId: String) {
         selectedCellId = cellId
+        lastEditCellId = cellId
+    }
+
+    fun restoreEditSelection(templateState: TableTemplateState) {
+        val valid = templateState.cells.map { it.cellId }.toSet()
+        val restored = lastEditCellId?.takeIf { it in valid }
+            ?: selectedCellId?.takeIf { it in valid }
+        selectedCellId = restored
+        lastEditCellId = restored
+    }
+
+    fun restoreLayoutSelection(templateState: TableTemplateState) {
+        val valid = templateState.cells.map { it.cellId }.toSet()
+        val stored = layoutSelection
+        if (stored.selectedCellIds.isNotEmpty()) {
+            layoutSelection = if (stored.range != null &&
+                stored.selectedCellIds.all { it in valid }) {
+                normalizeMockLayoutSelection(templateState, stored.range)
+            } else MockLayoutSelection()
+        }
+        syncFocusedCellFromLayout()
     }
 
     fun selectLayoutCell(
@@ -62,13 +86,14 @@ internal class TableEditorV2SelectionState {
     }
 
     fun reconcileEditSelection(templateState: TableTemplateState) {
-        if (selectedCellId != null && templateState.cells.none { it.cellId == selectedCellId }) {
-            selectedCellId = null
-        }
+        val valid = templateState.cells.map { it.cellId }.toSet()
+        if (selectedCellId !in valid) selectedCellId = null
+        if (lastEditCellId !in valid) lastEditCellId = null
     }
 
     fun clearEditSelection() {
         selectedCellId = null
+        lastEditCellId = null
     }
 
     fun clearLayoutSelection() {
