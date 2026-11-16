@@ -400,6 +400,7 @@ fun TableEditorV2Screen(
                         LocalDensity.current.fontScale,
                         showOpacity = draftStyleState.bgStyle != 2,
                     )
+                    MockBottomTab.SAVE -> saveMenuPanelHeight(LocalDensity.current.fontScale)
                     else -> settingsPanelHeight(LocalDensity.current.fontScale)
                 }
             ).coerceAtMost(maxHeight * 0.55f)
