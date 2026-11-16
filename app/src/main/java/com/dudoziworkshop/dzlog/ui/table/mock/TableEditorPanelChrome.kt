@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
@@ -17,6 +19,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -71,35 +77,89 @@ internal fun TableEditorCellInfoRow(
     neighbours: EditorCellNeighbours,
     enabled: Boolean,
     onMove: (String) -> Unit,
+    onTypeChange: (TableEditorCellType) -> Unit,
+    onClose: () -> Unit,
 ) {
     val colors = LocalDDZColor.current
-    val spacing = LocalDDZSpacing.current
     val typography = LocalDDZTypography.current
     val context = LocalContext.current
+    var showTypePicker by remember(cell.id) { mutableStateOf(false) }
+
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = spacing.screenPadding),
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("${cell.rowIndex + 1}행 ${cell.colIndex + 1}열", Modifier.weight(1f),
-            style = typography.Caption, color = colors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (links.count > 0) IconButton(
-            onClick = { Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show() },
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                if (links.fileName) Icon(Icons.Filled.Description, links.description,
-                    Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis)
-                if (links.path) Icon(Icons.Filled.Folder, if (links.fileName) null else links.description,
-                    Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis)
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열",
+                style = typography.Caption,
+                color = colors.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (links.count > 0) IconButton(
+                onClick = { Toast.makeText(context, links.description, Toast.LENGTH_SHORT).show() },
+                modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (links.fileName) Icon(
+                        Icons.Filled.Description, links.description,
+                        Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+                    )
+                    if (links.path) Icon(
+                        Icons.Filled.Folder, if (links.fileName) null else links.description,
+                        Modifier.size(DDZLayout.QuickInput.CellMarker), tint = colors.SelectionEmphasis,
+                    )
+                }
             }
         }
-        IconButton(onClick = { neighbours.previous?.let(onMove) }, enabled = enabled && neighbours.previous != null,
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+
+        Surface(
+            onClick = { showTypePicker = true },
+            enabled = enabled,
+            shape = RoundedCornerShape(8.dp),
+            color = colors.Surface,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 2.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Icon(cell.type.choiceIcon(), contentDescription = null, Modifier.size(16.dp))
+                Text(cell.type.label, style = typography.Caption, maxLines = 1)
+                Icon(Icons.Filled.ArrowDropDown, "셀 종류 변경", Modifier.size(18.dp))
+            }
+        }
+
+        IconButton(
+            onClick = { neighbours.previous?.let(onMove) },
+            enabled = enabled && neighbours.previous != null,
+            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        ) {
             Icon(Icons.Filled.ChevronLeft, "이전 셀", Modifier.size(DDZLayout.QuickInput.Icon))
         }
-        IconButton(onClick = { neighbours.next?.let(onMove) }, enabled = enabled && neighbours.next != null,
-            modifier = Modifier.size(DDZLayout.QuickInput.Touch)) {
+        IconButton(
+            onClick = { neighbours.next?.let(onMove) },
+            enabled = enabled && neighbours.next != null,
+            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        ) {
             Icon(Icons.Filled.ChevronRight, "다음 셀", Modifier.size(DDZLayout.QuickInput.Icon))
         }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(DDZLayout.QuickInput.Touch),
+        ) {
+            Icon(Icons.Filled.Close, "셀 편집 닫기", Modifier.size(DDZLayout.QuickInput.Icon))
+        }
+    }
+    if (showTypePicker) {
+        TableEditorCellTypeSheet(
+            selectedType = cell.type,
+            onSelect = {
+                onTypeChange(it)
+                showTypePicker = false
+            },
+            onDismiss = { showTypePicker = false },
+        )
     }
 }
