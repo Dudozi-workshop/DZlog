@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -49,7 +48,7 @@ internal fun IosPermissionsSettingsScreen(onBack: () -> Unit) {
         val observer = center.addObserverForName(
             IOS_PERMISSION_STATUS_UPDATED, null, NSOperationQueue.mainQueue,
         ) { notification ->
-            cameraStatus = notification.`object` as? String ?: "확인 필요"
+            cameraStatus = notification?.`object` as? String ?: "확인 필요"
         }
         center.postNotificationName(IOS_PERMISSION_STATUS_REQUEST, null)
         onDispose { center.removeObserver(observer) }
