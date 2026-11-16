@@ -374,13 +374,17 @@ fun TableEditorV2Screen(
         BoxWithConstraints(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
         ) {
-            // Every normal tab owns the same band, including an unselected Content tab.
-            // IME mode wraps the compact input instead of preserving an empty band.
+            val cellPanelVisible = activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT &&
+                cells.any { it.domainCellId == selectedCellId && !it.isCovered }
+            // Content wraps its controls, with a cap; the other tabs retain their existing size.
+            val cellPanelMaxHeight = maxHeight * 0.35f
             val panelHeight = structurePanelHeight(LocalDensity.current.fontScale).coerceAtMost(maxHeight * 0.55f)
-            val expandedInputHeight = minOf(DDZLayout.QuickInput.ExpandedHeight,
-                (maxHeight * 0.4f).coerceAtLeast(DDZLayout.QuickInput.RowHeight))
+            val expandedInputHeight = minOf(
+                DDZLayout.QuickInput.ExpandedHeight,
+                (cellPanelMaxHeight - 64.dp).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
+            )
             val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) maxHeight * 0.55f else panelHeight
+                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
@@ -485,24 +489,17 @@ fun TableEditorV2Screen(
                     }
                 }
 
-                if (!imeVisible) Text(
-                    text = when {
-                        showStyle -> "스타일을 조절한 뒤 상단 저장을 눌러주세요."
-                        showSaveRules -> "저장설정을 선택해 편집하세요."
-                        mode == MockMode.EDIT -> "셀을 선택해 내용을 편집하세요."
-                        else -> "표 바깥 ↔ · ↕ 를 드래그해 크기를 조절하세요."
-                    },
-                    color = DDZColor.TextMuted,
-                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 20.dp, vertical = 8.dp),
-                    maxLines = 2,
-                )
-
+                // Without a selected content cell, no empty editor band is reserved.
+                if (activeTab != MockBottomTab.CONTENT || cellPanelVisible) {
                 TableEditorWorkPanel(
                     Modifier.fillMaxWidth().tutorialTarget("table.panel")
-                        .then(if (imeVisible) Modifier else Modifier.height(panelHeight)),
+                        .then(
+                            if (cellPanelVisible && !imeVisible) Modifier.heightIn(max = cellPanelMaxHeight)
+                            else if (imeVisible) Modifier else Modifier.height(panelHeight)
+                        ),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
-                        Box(Modifier.fillMaxWidth().weight(1f, fill = !imeVisible)) {
+                        Box(Modifier.fillMaxWidth().weight(1f, fill = !imeVisible && !cellPanelVisible)) {
                             if (showSaveRules) {
                                 TableEditorSaveSettingsPanel(
                                     draft = saveRulesDraft,
@@ -534,18 +531,6 @@ fun TableEditorV2Screen(
                                                         templateState = draftTemplateState,
                                                         domainCellId = cellId,
                                                         nextValue = nextValue,
-                                                    )
-                                                )
-                                            }
-                                        },
-                                        onTypeChange = { nextType ->
-                                            inputExpanded = false
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(
-                                                    applyTableEditorCellType(
-                                                        templateState = draftTemplateState,
-                                                        domainCellId = cellId,
-                                                        nextType = nextType,
                                                     )
                                                 )
                                             }
@@ -655,10 +640,6 @@ fun TableEditorV2Screen(
                                                 )
                                             )
                                         },
-                                        onClose = {
-                                            keyboard?.hide()
-                                            selectionState.clearEditSelection()
-                                        },
                                         compactInput = imeVisible,
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
@@ -729,7 +710,7 @@ fun TableEditorV2Screen(
                                 )
                             }
                         }
-                        if (activeTab == MockBottomTab.CONTENT && mode == MockMode.EDIT) {
+                        if (cellPanelVisible && !imeVisible) {
                             val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
                             selected?.domainCellId?.let { id ->
                                 HorizontalDivider(
@@ -746,10 +727,27 @@ fun TableEditorV2Screen(
                                         focusManager.clearFocus()
                                         selectionState.selectEditCell(nextId)
                                     },
+                                    onTypeChange = { nextType ->
+                                        inputExpanded = false
+                                        selected.domainCellId?.let { cellId ->
+                                            session.commitTemplateChange(
+                                                applyTableEditorCellType(
+                                                    templateState = draftTemplateState,
+                                                    domainCellId = cellId,
+                                                    nextType = nextType,
+                                                )
+                                            )
+                                        }
+                                    },
+                                    onClose = {
+                                        keyboard?.hide()
+                                        selectionState.clearEditSelection()
+                                    },
                                 )
                             }
                         }
                     }
+                }
                 }
             }
         }
