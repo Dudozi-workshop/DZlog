@@ -60,6 +60,8 @@ internal fun TableEditorTextFavoritesRow(
     onApply: (String) -> Unit,
     enabled: Boolean = true,
     compact: Boolean = false,
+    compactExpanded: Boolean = false,
+    onCompactExpandedChange: (Boolean) -> Unit = {},
 ) {
     val favorites = model.favorites
     val change = model.lastChange
@@ -71,12 +73,19 @@ internal fun TableEditorTextFavoritesRow(
             model.clearUndo(change.serial)
         }
     }
-    if ((!compact && favorites.isNotEmpty()) || change != null) {
+    val showChips = !compact || compactExpanded
+    if (favorites.isNotEmpty() || change != null) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (change != null) {
                     Text(change.label, style = DDZTypography.Caption, modifier = Modifier.weight(1f))
                     TextButton(onClick = model::undo, enabled = enabled) { Text("되돌리기") }
+                } else if (compact) {
+                    Text("자주 쓰는 텍스트", style = DDZTypography.Caption, modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = { onCompactExpandedChange(!compactExpanded) },
+                        enabled = enabled,
+                    ) { Text(if (compactExpanded) "접기" else "펼치기") }
                 } else {
                     Text("자주 쓰는 텍스트", style = DDZTypography.Caption, modifier = Modifier.weight(1f))
                     TextButton(onClick = {
@@ -86,7 +95,7 @@ internal fun TableEditorTextFavoritesRow(
                     }, enabled = enabled) { Text("관리") }
                 }
             }
-            if (!compact && favorites.isNotEmpty()) {
+            if (showChips && favorites.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
