@@ -208,7 +208,7 @@ internal class IosLiveTableView(
         exposureSlider.maximumValue = maxExposureBias
         focusTap.enabled = focusActive
         pinchZoom.enabled = zoomEnabled
-        if (!focusActive) clearFocusControls()
+        if (!focusActive) suspendFocusControls()
         if (focusCollapseToken != collapseToken) {
             focusCollapseToken = collapseToken
             collapseFocusControls()
@@ -401,6 +401,21 @@ internal class IosLiveTableView(
         awaitingLockedRefocusTap = false
         focusX = Float.NaN
         focusY = Float.NaN
+        focusRing.hidden = true
+        focusLock.hidden = true
+        exposureSlider.hidden = true
+    }
+
+    private fun suspendFocusControls() {
+        // Capture and table gestures temporarily disable input, not AVFoundation
+        // AE lock. Keep the locked state until the same camera view is usable
+        // again; otherwise the UI incorrectly reports automatic exposure.
+        if (!exposureLocked) {
+            clearFocusControls()
+            return
+        }
+        focusExpanded = false
+        awaitingLockedRefocusTap = false
         focusRing.hidden = true
         focusLock.hidden = true
         exposureSlider.hidden = true

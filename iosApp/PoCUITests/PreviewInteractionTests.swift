@@ -244,6 +244,23 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertEqual(biasLabel.label, retainedBias)
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
 
+        // Temporary input suspension must not forget the still-active camera lock.
+        tapButton("조작 잠금")
+        XCTAssertFalse(button("노출 잠금 해제").exists)
+        tapButton("조작 잠금 해제")
+        XCTAssertTrue(button("노출 잠금 해제").waitForExistence(timeout: 10))
+        XCTAssertEqual(biasLabel.label, retainedBias)
+        XCTAssertFalse(brightness.exists)
+
+        // Exercise real simulator PhotoKit save/recomposition, not just a timer.
+        tapButton("이 배치로 촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"))
+        XCTAssertTrue(button("노출 잠금 해제").waitForExistence(timeout: 10))
+        XCTAssertEqual(biasLabel.label, retainedBias)
+        tapLivePreview(0.10, 0.82)
+        XCTAssertTrue(brightness.waitForExistence(timeout: 10))
+        XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
+
         tapButton("노출 잠금 해제")
         tapLivePreview(0.08, 0.08)
         XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10))
