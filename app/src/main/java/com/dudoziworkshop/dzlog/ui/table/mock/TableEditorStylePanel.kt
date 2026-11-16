@@ -58,7 +58,7 @@ internal fun TableEditorStylePanel(
             // On compact screens, drop redundant labels rather than shrinking 48dp controls.
             val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
             val narrow = maxWidth < (300f * fontScale).dp
-            val veryNarrow = maxWidth < 268.dp
+            val veryNarrow = maxWidth < (268f * fontScale).dp
             Row(
                 Modifier.fillMaxWidth().heightIn(min = styleRowHeight(fontScale)),
                 verticalAlignment = Alignment.CenterVertically,
