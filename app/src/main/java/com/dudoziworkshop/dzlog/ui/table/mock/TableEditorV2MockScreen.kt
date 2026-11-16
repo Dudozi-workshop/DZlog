@@ -731,7 +731,7 @@ fun TableEditorV2Screen(
                                 )
                             }
                         }
-                        if (cellPanelVisible && !imeVisible) {
+                        if (cellPanelVisible) {
                             val selected = cells.firstOrNull { it.domainCellId == selectedCellId && !it.isCovered }
                             selected?.domainCellId?.let { id ->
                                 HorizontalDivider(
@@ -745,8 +745,14 @@ fun TableEditorV2Screen(
                                     neighbours = editorCellNeighbours(cells, id),
                                     enabled = !saveCoordinator.isSaving,
                                     onMove = { nextId ->
-                                        focusManager.clearFocus()
+                                        // Keep the active IME when navigating between editable cells.
                                         selectionState.selectEditCell(nextId)
+                                        val next = cells.firstOrNull { it.domainCellId == nextId }
+                                        if (imeVisible && next?.type != TableEditorCellType.TEXT &&
+                                            next?.type != TableEditorCellType.NUMBER) {
+                                            focusManager.clearFocus()
+                                            keyboard?.hide()
+                                        }
                                     },
                                     onTypeChange = { nextType ->
                                         inputExpanded = false
@@ -763,6 +769,11 @@ fun TableEditorV2Screen(
                                     onClose = {
                                         keyboard?.hide()
                                         selectionState.clearEditSelection()
+                                    },
+                                    compactInput = imeVisible,
+                                    onInputDone = {
+                                        focusManager.clearFocus()
+                                        keyboard?.hide()
                                     },
                                 )
                             }
