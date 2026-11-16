@@ -253,7 +253,7 @@ internal fun TableEditorCellUiModelEditor(
                             HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
                             val index = cell.phraseIndex.coerceIn(0, (selectedSet.items.size - 1).coerceAtLeast(0))
                             val phraseOverride = selectedSet.itemEveryOverrides.getOrNull(index)
-                            val everyValue = (cell.everyOverride ?: selectedSet.everyForItem(index))
+                            val everyValue = (phraseOverride ?: cell.everyOverride ?: selectedSet.defaultEvery)
                                 .coerceAtLeast(1)
                             TableEditorPhrasePeriodRow(
                                 every = everyValue,
