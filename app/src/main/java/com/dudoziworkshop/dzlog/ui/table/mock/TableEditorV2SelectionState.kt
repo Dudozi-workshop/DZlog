@@ -15,18 +15,24 @@ internal class TableEditorV2SelectionState {
 
     // Selection in Content must not be overwritten by selection in Structure.
     private var lastEditCellId: String? = null
+    private var hasEditSelectionHistory = false
 
     fun selectEditCell(cellId: String) {
         selectedCellId = cellId
         lastEditCellId = cellId
+        hasEditSelectionHistory = true
     }
 
     fun restoreEditSelection(templateState: TableTemplateState) {
         val valid = templateState.cells.map { it.cellId }.toSet()
-        val restored = lastEditCellId?.takeIf { it in valid }
-            ?: selectedCellId?.takeIf { it in valid }
+        val restored = if (hasEditSelectionHistory) {
+            lastEditCellId?.takeIf { it in valid }
+        } else {
+            selectedCellId?.takeIf { it in valid }
+        }
         selectedCellId = restored
         lastEditCellId = restored
+        hasEditSelectionHistory = true
     }
 
     fun restoreLayoutSelection(templateState: TableTemplateState) {
@@ -94,6 +100,7 @@ internal class TableEditorV2SelectionState {
     fun clearEditSelection() {
         selectedCellId = null
         lastEditCellId = null
+        hasEditSelectionHistory = true
     }
 
     fun clearLayoutSelection() {
@@ -102,6 +109,7 @@ internal class TableEditorV2SelectionState {
 
     fun clearAll() {
         clearEditSelection()
+        hasEditSelectionHistory = false
         clearLayoutSelection()
     }
 }
