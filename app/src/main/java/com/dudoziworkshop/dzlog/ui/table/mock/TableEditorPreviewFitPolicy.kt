@@ -18,3 +18,60 @@ internal fun editorPreviewSelectionScroll(top: Float, bottom: Float,
     viewportHeight: Float, contentHeight: Float): Float =
     ((top + bottom - viewportHeight) / 2f)
         .coerceIn(0f, (contentHeight - viewportHeight).coerceAtLeast(0f))
+
+/**
+ * Move only enough to expose the selected cell and its next editable cell.
+ * If both cells cannot fit at this scale, prioritize the selected cell and
+ * reveal the start of the next cell when doing so does not clip the selection.
+ *
+ * All positions are in the same coordinate system (dp or px).
+ */
+internal fun editorPreviewCurrentNextScroll(
+    selectedTop: Float,
+    selectedBottom: Float,
+    nextTop: Float?,
+    nextBottom: Float?,
+    viewportHeight: Float,
+    contentHeight: Float,
+    currentScroll: Float,
+    margin: Float = 8f,
+): Float {
+    val viewport = viewportHeight.coerceAtLeast(1f)
+    val limit = (contentHeight - viewport).coerceAtLeast(0f)
+    val position = currentScroll.coerceIn(0f, limit)
+    val inset = margin.coerceIn(0f, viewport / 4f)
+    val selectedStart = minOf(selectedTop, selectedBottom)
+    val selectedEnd = maxOf(selectedTop, selectedBottom)
+
+    fun nearestVisibleScroll(start: Float, end: Float, scroll: Float): Float {
+        val minimum = (end + inset - viewport).coerceIn(0f, limit)
+        val maximum = (start - inset).coerceIn(0f, limit)
+        return if (minimum <= maximum) scroll.coerceIn(minimum, maximum)
+        else maximum // A single oversized cell: prioritize its leading edge.
+    }
+
+    if (nextTop != null && nextBottom != null) {
+        val nextStart = minOf(nextTop, nextBottom)
+        val nextEnd = maxOf(nextTop, nextBottom)
+        val combinedStart = minOf(selectedStart, nextStart)
+        val combinedEnd = maxOf(selectedEnd, nextEnd)
+        if (combinedEnd - combinedStart <= viewport - 2f * inset) {
+            return nearestVisibleScroll(combinedStart, combinedEnd, position)
+        }
+
+        val selectedPosition = nearestVisibleScroll(selectedStart, selectedEnd, position)
+        if (nextStart >= selectedStart && selectedEnd - selectedStart <= viewport - 2f * inset) {
+            // At least a glimpse of the next cell, without moving the selected
+            // cell out of view. Never zoom out solely to make another cell fit.
+            val peek = minOf(nextEnd - nextStart, maxOf(8f, viewport * 0.12f))
+            val desired = (nextStart + peek + inset - viewport).coerceIn(0f, limit)
+            val selectedMaximum = (selectedStart - inset).coerceIn(0f, limit)
+            if (desired <= selectedMaximum) {
+                return maxOf(selectedPosition, desired).coerceAtMost(selectedMaximum)
+            }
+        }
+        return selectedPosition
+    }
+
+    return nearestVisibleScroll(selectedStart, selectedEnd, position)
+}
