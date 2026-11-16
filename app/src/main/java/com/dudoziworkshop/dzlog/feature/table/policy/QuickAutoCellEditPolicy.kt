@@ -31,19 +31,28 @@ internal fun selectQuickPhraseItem(
     })
 }
 
-/** A fixed cell value keeps progress; overflow requires the caller's adjustment dialog. */
+/** Legacy cell-wide override helper, retained for existing template compatibility.
+ * New "개별" UI controls use QuickPhrasePeriodEdit and change one phrase instead.
+ */
 internal fun updateQuickPhraseEvery(
     template: TableTemplateState,
     cellId: String,
     every: Int,
 ): TableTemplateState {
-    val updated = applyQuickPhrasePeriodEdit(
-        template, QuickPhrasePeriodEdit(cellId, false, every),
-    ) ?: return template
-    return if (updated == template) template else updated
+    if (every !in 1..RotatingPhraseSet.MAX_EVERY) return template
+    val cell = template.cells.firstOrNull {
+        it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
+    } ?: return template
+    if (template.phraseSets.none { it.id == cell.phraseSetId && it.items.isNotEmpty() }) return template
+    val candidate = template.copy(cells = template.cells.map {
+        if (it.cellId == cellId) it.copy(everyOverride = every) else it
+    })
+    return applyPhrasePeriodResolutions(
+        candidate, quickPhrasePeriodConflicts(template, candidate), emptyMap(),
+    ) ?: template
 }
 
-/** Return this cell to the set's default/per-item periods, without clearing its count. */
+/** Legacy helper to clear only the cell-wide override without changing the shared set. */
 internal fun followQuickPhraseSetPeriods(
     template: TableTemplateState,
     cellId: String,
@@ -52,12 +61,13 @@ internal fun followQuickPhraseSetPeriods(
         it.cellId == cellId && it.dataType == TableCellDataType.ROTATING_TEXT
     } ?: return template
     if (cell.everyOverride == null) return template
-    val set = template.phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }
-        ?: return template
-    val updated = applyQuickPhrasePeriodEdit(
-        template, QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
-    ) ?: return template
-    return if (updated == template) template else updated
+    if (template.phraseSets.none { it.id == cell.phraseSetId && it.items.isNotEmpty() }) return template
+    val candidate = template.copy(cells = template.cells.map {
+        if (it.cellId == cellId) it.copy(everyOverride = null) else it
+    })
+    return applyPhrasePeriodResolutions(
+        candidate, quickPhrasePeriodConflicts(template, candidate), emptyMap(),
+    ) ?: template
 }
 
 /** Completed captures must remain below the effective cycle length. */
