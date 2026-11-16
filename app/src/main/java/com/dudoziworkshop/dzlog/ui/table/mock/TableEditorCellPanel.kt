@@ -36,6 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -74,6 +77,8 @@ internal fun TableEditorCellUiModelEditor(
     expandedInputHeight: Dp,
     onToggleInputExpanded: () -> Unit,
     onInputFocus: () -> Unit,
+    requestInputFocus: Boolean = false,
+    onInputFocusHandled: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val favoriteActionsEnabled = !LocalTutorialReadOnly.current
@@ -81,6 +86,17 @@ internal fun TableEditorCellUiModelEditor(
     var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
     var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
+    val inputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    // A text field can be recreated when moving between TEXT and NUMBER.
+    LaunchedEffect(cell.domainCellId, cell.type, requestInputFocus) {
+        if (requestInputFocus && (cell.type == TableEditorCellType.TEXT ||
+                cell.type == TableEditorCellType.NUMBER)) {
+            inputFocusRequester.requestFocus()
+            keyboardController?.show()
+            onInputFocusHandled()
+        }
+    }
 
     CompositionLocalProvider(LocalTextStyle provides DDZTypography.Body) {
         Column(
@@ -112,6 +128,8 @@ internal fun TableEditorCellUiModelEditor(
                                     DDZTextField(
                                         modifier = Modifier.fillMaxWidth()
                                             .height(if (inputExpanded) expandedInputHeight else DDZLayout.QuickInput.RowHeight)
+                                            .focusRequester(inputFocusRequester)
+                                            .focusRequester(inputFocusRequester)
                                             .onFocusChanged { if (it.isFocused) onInputFocus() },
                                         value = textDraft,
                                         onValueChange = { next ->
