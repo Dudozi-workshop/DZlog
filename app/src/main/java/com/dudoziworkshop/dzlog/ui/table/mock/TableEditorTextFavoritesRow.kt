@@ -71,7 +71,7 @@ internal fun TableEditorTextFavoritesRow(
             model.clearUndo(change.serial)
         }
     }
-    if (favorites.isNotEmpty() || change != null) {
+    if ((!compact && favorites.isNotEmpty()) || change != null) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (change != null) {
