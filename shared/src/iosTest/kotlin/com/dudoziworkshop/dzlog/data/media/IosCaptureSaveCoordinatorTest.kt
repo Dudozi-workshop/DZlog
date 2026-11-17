@@ -10,6 +10,10 @@ import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
 import com.dudoziworkshop.dzlog.domain.media.PersistedCaptureAsset
 import com.dudoziworkshop.dzlog.domain.media.buildCaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.naming.buildCounterPath
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
@@ -57,6 +61,7 @@ class IosCaptureSaveCoordinatorTest {
                 { actual }, { next -> actual = next; true },
             ))
             assertEquals(13, actual.active?.nextCounter)
+            assertPhraseProgress(actual, advanced = true)
             assertFalse(coordinator.hasPendingCapture())
             assertFailsWith<IllegalStateException> {
                 runSynchronously {
@@ -80,8 +85,14 @@ class IosCaptureSaveCoordinatorTest {
             ))
             assertTrue(coordinator.hasPendingCapture())
             assertEquals(12, actual.active?.nextCounter)
-            assertTrue(coordinator.recoverPending({ actual }, { next -> actual = next; true }))
+            assertPhraseProgress(actual, advanced = false)
+            // Recreate the coordinator and journal as on process relaunch.
+            val reopened = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(store, "pending"))
+            assertTrue(reopened.recoverPending({ actual }, { next -> actual = next; true }))
             assertEquals(13, actual.active?.nextCounter)
+            assertPhraseProgress(actual, advanced = true)
+            assertTrue(reopened.recoverPending({ actual }, { error("Must not persist twice") }))
+            assertPhraseProgress(actual, advanced = true)
             assertFalse(coordinator.hasPendingCapture())
         }
     }
@@ -99,8 +110,10 @@ class IosCaptureSaveCoordinatorTest {
                 }
             }
             assertEquals(12, actual.active?.nextCounter)
+            assertPhraseProgress(actual, advanced = false)
             assertTrue(coordinator.hasPendingCapture())
             assertFalse(coordinator.recoverPending({ actual }, { next -> actual = next; true }))
+            assertEquals(before, actual)
         }
     }
 
@@ -116,10 +129,12 @@ class IosCaptureSaveCoordinatorTest {
             assertTrue(coordinator.hasPendingCapture())
             assertTrue(coordinator.recoverPending({ actual }, { actual = it; true }))
             assertEquals(13, actual.active?.nextCounter)
+            assertPhraseProgress(actual, advanced = true)
             assertEquals(mode, actual.active?.saveMode)
             assertEquals(before.active?.capturePlacement, actual.active?.capturePlacement)
             assertFalse(coordinator.hasPendingCapture())
             assertTrue(coordinator.recoverPending({ actual }, { error("Must not persist twice") }))
+            assertPhraseProgress(actual, advanced = true)
         }
     }
 
@@ -135,11 +150,24 @@ class IosCaptureSaveCoordinatorTest {
                 }
             }
             assertFalse(coordinator.hasPendingCapture())
+            assertPhraseProgress(before, advanced = false)
             var actual = before
             assertTrue(IosCaptureSaveCoordinator(FakeMedia(), journal).saveAndCommit(
                 before, checkNotNull(before.active), plan, payloads, { actual }, { actual = it; true }))
             assertEquals(13, actual.active?.nextCounter)
+            assertPhraseProgress(actual, advanced = true)
         }
+    }
+
+    private fun assertPhraseProgress(workspace: EditorWorkspace, advanced: Boolean) {
+        val cells = checkNotNull(workspace.active).template.templateState.cells.associateBy { it.cellId }
+        val rolling = cells.getValue("rolling")
+        assertEquals(if (advanced) 1 else 0, rolling.phraseIndex)
+        assertEquals(if (advanced) 0 else 1, rolling.phraseCompletedShots)
+        val accumulating = cells.getValue("accumulating")
+        assertEquals(0, accumulating.phraseIndex)
+        assertEquals(if (advanced) 2 else 1, accumulating.phraseCompletedShots)
+        assertEquals(3, accumulating.everyOverride)
     }
 
     private fun <T> runSynchronously(block: suspend () -> T): T {
@@ -162,14 +190,22 @@ class IosCaptureSaveCoordinatorTest {
         val suite = "dzlog.capture.coordinator.test.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)
         try {
-            val template = SavedTableTemplate("field", "현장 기록", TableTemplateState(1, 1, emptyList()),
+            val table = TableTemplateState(1, 2, listOf(
+                TableCellState(0, 0, cellId = "rolling", dataType = TableCellDataType.ROTATING_TEXT,
+                    phraseSetId = "set", phraseCompletedShots = 1),
+                TableCellState(0, 1, cellId = "accumulating", dataType = TableCellDataType.ROTATING_TEXT,
+                    phraseSetId = "set", everyOverride = 3, phraseCompletedShots = 1),
+            ), phraseSets = listOf(RotatingPhraseSet("set", "현장", listOf("A", "B"), defaultEvery = 2)))
+            val template = SavedTableTemplate("field", "현장 기록", table,
                 TableStyleState(), 0L)
             val document = EditorDocument(template, saveMode = mode, nextCounter = 12,
                 capturePlacement = com.dudoziworkshop.dzlog.data.template.EditorCapturePlacement(
                     com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor.CUSTOM, 25, 75, 40, 20, 90))
             val workspace = EditorWorkspace(listOf(document), "field")
             val path = "Pictures/DZlog/Field/"
-            val preview = FinalCapturePreview(emptyList(), TablePatch.EMPTY, "Field_0012.jpg", 12, 0,
+            val patch = TablePatch(emptyMap(), phraseProgressByCellId =
+                CellPhraseProgressPolicy.captureUpdates(table.cells, table.phraseSets))
+            val preview = FinalCapturePreview(emptyList(), patch, "Field_0012.jpg", 12, 0,
                 CounterScope(buildCounterPath(path, mode), "Field_", 12, false), path)
             block(defaults, workspace, buildCaptureMediaSavePlan(preview, mode, "shot-12"))
         } finally {
