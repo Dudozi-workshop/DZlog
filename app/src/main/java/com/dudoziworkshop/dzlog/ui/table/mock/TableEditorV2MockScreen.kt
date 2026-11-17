@@ -628,33 +628,16 @@ fun TableEditorV2Screen(
                                                 )
                                             }
                                         },
-                                        onPhraseEveryChange = { every ->
+                                        onPhrasePeriodChange = { useSet, every ->
                                             selected.domainCellId?.let { cellId ->
                                                 val candidate = previewQuickPhrasePeriodEdit(
                                                     draftTemplateState,
-                                                    QuickPhrasePeriodEdit(cellId, false, every),
+                                                    QuickPhrasePeriodEdit(cellId, useSet, every),
                                                 )
                                                 if (candidate != null) {
                                                     if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
                                                         session.commitTemplateChange(candidate)
                                                     } else pendingPhraseProposal = candidate
-                                                }
-                                            }
-                                        },
-                                        onPhraseFollowSet = {
-                                            selected.domainCellId?.let { cellId ->
-                                                val set = draftTemplateState.phraseSets
-                                                    .firstOrNull { it.id == selected.phraseSetId }
-                                                if (set != null) {
-                                                    val candidate = previewQuickPhrasePeriodEdit(
-                                                        draftTemplateState,
-                                                        QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
-                                                    )
-                                                    if (candidate != null) {
-                                                        if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
-                                                            session.commitTemplateChange(candidate)
-                                                        } else pendingPhraseProposal = candidate
-                                                    }
                                                 }
                                             }
                                         },
