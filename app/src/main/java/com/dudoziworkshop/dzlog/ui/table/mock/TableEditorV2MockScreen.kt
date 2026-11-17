@@ -415,19 +415,18 @@ fun TableEditorV2Screen(
                     else -> settingsPanelHeight(LocalDensity.current.fontScale)
                 }
             ).coerceAtMost(maxHeight * 0.55f)
+            val editorHeightBudget = if (imeVisible) {
+                if (textFavoritesVisible) maxOf(168.dp, maxHeight * 0.55f).coerceAtMost(maxHeight)
+                else maxHeight * 0.55f
+            } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+            // Expanded text must leave room for the always-visible chips and
+            // bottom navigation, including when the on-screen keyboard is open.
             val expandedInputHeight = minOf(
                 DDZLayout.QuickInput.ExpandedHeight,
-                (
-                    if (imeVisible) maxHeight * 0.4f
-                    else cellPanelMaxHeight - 64.dp
-                ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
+                (editorHeightBudget - if (textFavoritesVisible) 112.dp else 64.dp)
+                    .coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
-            val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) {
-                    if (textFavoritesVisible) maxOf(168.dp, maxHeight * 0.55f).coerceAtMost(maxHeight)
-                    else maxHeight * 0.55f
-                } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
-            )
+            val editorPanelModifier = Modifier.heightIn(max = editorHeightBudget)
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
