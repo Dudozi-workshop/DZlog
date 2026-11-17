@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.EditorDocument
 import com.dudoziworkshop.dzlog.domain.model.*
@@ -25,6 +26,7 @@ import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickCellValues
 import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 
 /** Match Android manual quick-edit eligibility without changing its production code. */
 internal fun iosQuickValueCells(document: EditorDocument): List<TableCellState> {
@@ -180,19 +182,6 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                         Button(onClick = {
                             expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
                         }, modifier = Modifier.fillMaxWidth()) { Text("날짜 형식 · $selected") }
-                        if (expandedAutomaticId == cell.cellId) quickDateFormats.forEach { pattern ->
-                            OutlinedButton(onClick = {
-                                dateFormats[cell.cellId] = pattern
-                                expandedAutomaticId = null
-                                failure = null
-                            }, modifier = Modifier.fillMaxWidth()) {
-                                Text(when (pattern) {
-                                    "yyMMdd" -> "$pattern · 짧은 연월일"
-                                    "MMdd" -> "$pattern · 월일"
-                                    else -> "$pattern · 연월일"
-                                })
-                            }
-                        }
                     }
                     TableCellDataType.TIME -> Text("촬영 시각으로 자동 입력돼요.")
                     TableCellDataType.ROTATING_TEXT -> {
@@ -204,13 +193,6 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                             Text("문구 세트 · ${selected?.name ?: "세트 선택"}")
                         }
                         if (sets.isEmpty()) Text("표 상세설정에서 문구를 먼저 등록해 주세요.")
-                        if (expandedAutomaticId == cell.cellId) sets.forEach { set ->
-                            OutlinedButton(onClick = {
-                                phraseSetIds[cell.cellId] = set.id
-                                expandedAutomaticId = null
-                                failure = null
-                            }, modifier = Modifier.fillMaxWidth()) { Text(set.name) }
-                        }
                     }
                     else -> Unit
                 }
@@ -220,6 +202,39 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             preview?.let {
                 Text("파일명: ${it.previewNaming.displayName}")
                 Text("저장경로: ${it.previewNaming.relativePath}")
+            }
+        }
+    }
+    automaticCells.firstOrNull { it.cellId == expandedAutomaticId }?.let { cell ->
+        val isDate = cell.dataType == TableCellDataType.DATE
+        val options = if (isDate) quickDateFormats.map { pattern ->
+            pattern to when (pattern) {
+                "yyMMdd" -> "$pattern · 짧은 연월일"
+                "MMdd" -> "$pattern · 월일"
+                else -> "$pattern · 연월일"
+            }
+        } else document.template.templateState.phraseSets.filter { it.items.isNotEmpty() }
+            .map { it.id to it.name }
+        val selectedId = if (isDate) dateFormats[cell.cellId] else phraseSetIds[cell.cellId]
+        DDZBottomSheet(
+            title = if (isDate) "날짜 형식 선택" else "순환문구 세트 선택",
+            onDismiss = { expandedAutomaticId = null },
+        ) {
+            Column(Modifier.fillMaxWidth().heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { (id, label) ->
+                    val active = id == selectedId
+                    OutlinedButton(
+                        onClick = {
+                            if (isDate) dateFormats[cell.cellId] = id else phraseSetIds[cell.cellId] = id
+                            expandedAutomaticId = null
+                            failure = null
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (active) DDZColor.SelectedSoft else DDZColor.Surface),
+                        modifier = Modifier.fillMaxWidth().semantics { selected = active },
+                    ) { Text(label) }
+                }
             }
         }
     }
