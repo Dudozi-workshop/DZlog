@@ -14,7 +14,7 @@ internal fun TableEditorPhraseProgressDialog(
     onDismiss: () -> Unit,
 ) {
     DDZCompactPhraseProgressSheet(
-        cellKey = cell.domainCellId ?: cell.id,
+        cellKey = cell.domainCellId ?: cell.id.toString(),
         set = set,
         phraseIndex = cell.phraseIndex,
         completedShots = cell.phraseCompletedShots,
