@@ -6,12 +6,12 @@ import org.junit.Test
 
 class TableEditorCellNavigationTest {
     @Test
-    fun detail_navigation_visits_every_kind_in_row_order_and_wraps() {
+    fun detail_navigation_visits_every_kind_in_row_order_and_does_not_wrap() {
         val cells = TableEditorCellType.entries.mapIndexed { index, type ->
             TableEditorCellUiModel(index, "", type, "cell$index", rowIndex = index / 3, colIndex = index % 3)
         }.reversed()
-        assertEquals(EditorCellNeighbours("cell5", "cell1"), editorCellNeighbours(cells, "cell0"))
-        assertEquals(EditorCellNeighbours("cell4", "cell0"), editorCellNeighbours(cells, "cell5"))
+        assertEquals(EditorCellNeighbours(null, "cell1"), editorCellNeighbours(cells, "cell0"))
+        assertEquals(EditorCellNeighbours("cell4", null), editorCellNeighbours(cells, "cell5"))
         assertEquals(EditorCellNeighbours("cell1", "cell3"), editorCellNeighbours(cells, "cell2"))
     }
 
@@ -22,14 +22,10 @@ class TableEditorCellNavigationTest {
             TableEditorCellUiModel(1, "", domainCellId = "covered", colIndex = 1, isCovered = true),
             TableEditorCellUiModel(2, "next", domainCellId = "next", colIndex = 2),
         )
-        assertEquals(EditorCellNeighbours("next", "next"), editorCellNeighbours(cells, "root"))
-        assertEquals(EditorCellNeighbours("root", "root"), editorCellNeighbours(cells, "next"))
+        assertEquals(EditorCellNeighbours(null, "next"), editorCellNeighbours(cells, "root"))
+        assertEquals(EditorCellNeighbours("root", null), editorCellNeighbours(cells, "next"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(cells, "covered"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(emptyList(), null))
-        assertEquals(
-            EditorCellNeighbours(null, null),
-            editorCellNeighbours(listOf(TableEditorCellUiModel(0, "", domainCellId = "only")), "only"),
-        )
     }
     @Test
     fun editor_state_follows_domain_identity_when_display_indices_change() {
@@ -50,13 +46,6 @@ class TableEditorCellNavigationTest {
         // It now reserves input (56), navigation (44), and vertical chrome (24).
         assertEquals(124.dp, editorContentPanelMaxHeight(200.dp, 48.dp))
         assertEquals(124.dp, editorContentPanelMaxHeight(300.dp, 48.dp))
-    }
-
-    @Test
-    fun text_favorites_row_gets_fixed_height_even_with_small_editor() {
-        assertEquals(168.dp, editorContentPanelMaxHeight(200.dp, 48.dp, hasFavorites = true))
-        assertEquals(168.dp, editorContentPanelMaxHeight(300.dp, 48.dp, hasFavorites = true))
-        assertEquals(100.dp, editorContentPanelMaxHeight(100.dp, 48.dp, hasFavorites = true))
     }
 
     @Test

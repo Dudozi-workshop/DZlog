@@ -253,6 +253,7 @@ fun TableEditorV2Screen(
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
     var pendingInputFocusCellId by remember { mutableStateOf<String?>(null) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
+    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
@@ -270,10 +271,12 @@ fun TableEditorV2Screen(
     val cells = remember(draftTemplateState, preview.plan.resolvedCells) {
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
-    val textFavoritesVisible = cells.any {
-        it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT && !it.isCovered
-    }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
+    val textCellSelected = cells.any { it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT }
+    LaunchedEffect(imeVisible, textCellSelected) {
+        if (!imeVisible || !textCellSelected) compactFavoritesExpanded = false
+    }
+
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
         showStyle -> MockBottomTab.STYLE
@@ -402,7 +405,6 @@ fun TableEditorV2Screen(
             val cellPanelMaxHeight = editorContentPanelMaxHeight(
                 availableHeight = maxHeight,
                 bottomTabHeight = bottomTabHeight,
-                hasFavorites = textFavoritesVisible,
             )
             val panelHeight = (
                 when (activeTab) {
@@ -415,18 +417,16 @@ fun TableEditorV2Screen(
                     else -> settingsPanelHeight(LocalDensity.current.fontScale)
                 }
             ).coerceAtMost(maxHeight * 0.55f)
-            val editorHeightBudget = if (imeVisible) {
-                if (textFavoritesVisible) maxOf(168.dp, maxHeight * 0.55f).coerceAtMost(maxHeight)
-                else maxHeight * 0.55f
-            } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
-            // Expanded text must leave room for the always-visible chips and
-            // bottom navigation, including when the on-screen keyboard is open.
             val expandedInputHeight = minOf(
                 DDZLayout.QuickInput.ExpandedHeight,
-                (editorHeightBudget - if (textFavoritesVisible) 112.dp else 64.dp)
-                    .coerceAtLeast(DDZLayout.QuickInput.RowHeight),
+                (
+                    if (imeVisible) maxHeight * 0.4f
+                    else cellPanelMaxHeight - 64.dp
+                ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
-            val editorPanelModifier = Modifier.heightIn(max = editorHeightBudget)
+            val editorPanelModifier = Modifier.heightIn(
+                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+            )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
@@ -674,6 +674,8 @@ fun TableEditorV2Screen(
                                             )
                                         },
                                         compactInput = imeVisible,
+                                        compactFavoritesExpanded = compactFavoritesExpanded,
+                                        onCompactFavoritesExpandedChange = { compactFavoritesExpanded = it },
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
