@@ -10,10 +10,12 @@ Source checkpoint: `5dd255dd9170010b50dfc8a446b3c6e95b5cddf0`.
 | --- | --- |
 | Unified CI | Success: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693377 |
 | Shared iOS core | Success via identical-input evidence reuse; native compile/test steps skipped in this run: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693391 |
-| iPhone unsigned build | In progress at snapshot: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693347 |
-| Complete iOS UI | In progress at snapshot: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693424 |
+| iPhone unsigned build | Success: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693347 |
+| Complete iOS UI | Cancelled after a subsequent documentation commit: https://github.com/Dudozi-workshop/DZlog/actions/runs/44078693424 . Not a passing UI result. |
 
-The previous gallery compilation failure was an implicit `maxHeight` receiver inside a nested layout. The checkpoint captures the height in `BoxWithConstraints` before entering `Column`. Final native/UI results are still required. Do not poll or wait for these jobs.
+The previous gallery compilation failure was an implicit `maxHeight` receiver inside a nested layout. The checkpoint captures the height in `BoxWithConstraints` before entering `Column`. The device build now succeeds; complete UI results are still required.
+
+PR path filters evaluate the accumulated PR diff, so even a docs-only follow-up can trigger these workflows and cancel the prior run. Also, the full-UI marker is read only from the current head commit message. Publish this checkpoint with `[ios-full-ui]`, then keep additional preparation local until the next result snapshot. Do not poll or wait, and do not repeatedly publish documentation-only updates while full UI validation is running.
 
 ## Source preparation completed
 
