@@ -6,6 +6,7 @@ framework_dir="$repo_root/sharedUi/build/bin/iosArm64/debugFramework"
 out_dir="$repo_root/build/ios-device-poc"
 app_dir="$out_dir/DZlogUiPoc.app"
 evidence_dir="$out_dir/evidence"
+asset_info="$out_dir/asset-info.plist"
 
 # The iOS device framework must be built separately from the simulator binary.
 test -d "$framework_dir/DZlogUi.framework" || {
@@ -23,6 +24,15 @@ xcrun --sdk iphoneos swiftc -parse-as-library \
 
 cp "$repo_root/iosApp/PoCApp/Info.plist" "$app_dir/Info.plist"
 cp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$app_dir/home_leaf_shadow_c.png"
+xcrun --sdk iphoneos actool "$repo_root/iosApp/PoCApp/Assets.xcassets" \
+  --compile "$app_dir" \
+  --platform iphoneos \
+  --minimum-deployment-target 15.0 \
+  --target-device iphone \
+  --target-device ipad \
+  --app-icon AppIcon \
+  --output-partial-info-plist "$asset_info"
+/usr/libexec/PlistBuddy -c "Merge $asset_info" "$app_dir/Info.plist"
 ditto "$framework_dir/DZlogUi.framework" "$app_dir/Frameworks/DZlogUi.framework"
 
 # arm64 alone does not distinguish an iPhone binary from an arm64 simulator binary.
