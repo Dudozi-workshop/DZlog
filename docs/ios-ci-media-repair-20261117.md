@@ -19,3 +19,13 @@ Home/media tests also handle first-launch onboarding through its actual skip act
 Local diff and scoped static/numeric checks passed. The attempted shared JVM regression could not download Gradle because network access was unavailable. No local Kotlin, Swift, simulator or device execution is claimed. The next CI run must confirm this repair; fixing setup failures only makes downstream gallery assertions reachable and does not prove them successful.
 
 No tests were skipped, capture safety guard relaxed, user data deleted, branch merged or app deployed.
+
+## Follow-up: `22f271a9`
+
+[UI run 44169119375](https://github.com/Dudozi-workshop/DZlog/actions/runs/44169119375) passed 17/25 selected tests. Home startup and live-placement failures cleared. Eight remain: seven capture-settings interactions and one deliberate exposure-control absence assertion. Shared core and iPhone compile passed. [Android run 44169119410](https://github.com/Dudozi-workshop/DZlog/actions/runs/44169119410) ran 607 tests with two failures.
+
+- The settings helper's one-second predicate deadline can discard its first synchronous accessibility evaluation. Scrolled Compose label frames also disagree with neighboring control frames. Use a fresh screenshot's unique exact rendered label (Vision, Korean/English) plus an enabled semantic button for the actual touch. Preserve bounded scrolling and all resulting state/persistence assertions. Missing or ambiguous rendered labels fail rather than guessing coordinates.
+- A negative visibility assertion called the positive `button()` helper, which itself requires existence. Query absence directly while also asserting that the interaction-unlock control is present. Preserve subsequent exposure-lock and brightness restoration assertions.
+- Android policy fixtures appended occupied slots after the new null padding, making six/seven-position test arrays. Fill the five-position fixture instead; preserve authorization and no-mutation assertions. Add a default-rollout regression proving five occupied slots, unlimited template actions and no purchase UI for absent/Free/Pro entitlement. Production `ALL_UNLOCKED` and entitlement policies are unchanged.
+
+Local focused Android execution again stopped at the Gradle download (`Network is unreachable`). Static checks do not replace the next native/JVM CI execution.

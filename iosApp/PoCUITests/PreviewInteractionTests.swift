@@ -248,7 +248,11 @@ final class PreviewInteractionTests: XCTestCase {
 
         // Temporary input suspension must not forget the still-active camera lock.
         tapButton("조작 잠금")
-        XCTAssertFalse(button("노출 잠금 해제").exists)
+        // button() requires existence and cannot be used to assert deliberate absence.
+        // Native focus controls are hidden while table interaction is suspended.
+        let exposureUnlock = app.buttons.matching(NSPredicate(format: "label == %@", "노출 잠금 해제")).firstMatch
+        XCTAssertTrue(button("조작 잠금 해제").exists)
+        XCTAssertFalse(exposureUnlock.exists)
         tapButton("조작 잠금 해제")
         XCTAssertTrue(button("노출 잠금 해제").waitForExistence(timeout: 10))
         XCTAssertEqual(biasLabel.label, retainedBias)
@@ -663,31 +667,55 @@ final class PreviewInteractionTests: XCTestCase {
     private func tapCaptureSettingsButton(_ label: String, searchDown: Bool) {
         XCTAssertTrue(text("촬영 설정").waitForExistence(timeout: 20), "Capture settings did not open")
         let matches = app.buttons.matching(NSPredicate(format: "label == %@", label))
-        func visibleMatch() -> XCUIElement? {
-            matches.allElementsBoundByIndex.first { element in
-                element.exists && !element.frame.isEmpty && app.frame.contains(element.frame)
+        func renderedLabelFrame() throws -> CGRect? {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesCPUOnly = true
+            request.recognitionLanguages = ["ko-KR", "en-US"]
+            request.usesLanguageCorrection = false
+            let image = try XCTUnwrap(app.screenshot().image.cgImage)
+            try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
+            func normalized(_ value: String) -> String {
+                value.components(separatedBy: .whitespacesAndNewlines).joined()
             }
+            let targets = (request.results ?? []).filter {
+                $0.topCandidates(1).first.map { normalized($0.string) == normalized(label) } ?? false
+            }
+            // An ambiguous or absent rendered label is not permission to guess a tap.
+            guard targets.count == 1, let target = targets.first else { return nil }
+            let box = target.boundingBox
+            let viewport = app.frame
+            let frame = CGRect(x: viewport.minX + box.minX * viewport.width,
+                               y: viewport.minY + (1 - box.maxY) * viewport.height,
+                               width: box.width * viewport.width, height: box.height * viewport.height)
+            guard !frame.isEmpty && viewport.contains(frame) else { return nil }
+            return frame
         }
-        // Try the expected direction first, then the reverse for a retained scroll
-        // position. Every touch requires fresh, nonempty, in-screen bounds.
+        // Avoid a one-second predicate waiter around synchronous AX queries: its
+        // first poll can occur at the deadline, discarding a valid result. Also,
+        // Compose can retain a stale AX frame after scrolling. Require the exact
+        // rendered label in the current screenshot, plus an enabled semantic button.
         for downward in [searchDown, !searchDown] {
             for attempt in 0...6 {
-                let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                    visibleMatch() != nil
-                }, object: nil)
-                if XCTWaiter.wait(for: [visible], timeout: 1) == .completed,
-                   let element = visibleMatch() {
-                    XCTAssertTrue(element.isEnabled, "Capture setting is disabled: \(label)")
-                    guard element.isEnabled else { return }
-                    let frame = element.frame
-                    XCTAssertFalse(frame.isEmpty, "Capture setting has no visible bounds: \(label)")
-                    XCTAssertTrue(app.frame.contains(frame), "Capture setting outside screen: \(label)")
-                    app.coordinate(withNormalizedOffset: .zero)
-                        .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                do {
+                    if let frame = try renderedLabelFrame() {
+                        let element = matches.firstMatch
+                        XCTAssertTrue(element.exists, "Rendered capture setting has no button: \(label)")
+                        XCTAssertTrue(element.isEnabled, "Capture setting is disabled: \(label)")
+                        guard element.exists && element.isEnabled else { return }
+                        XCTAssertFalse(frame.isEmpty, "Capture setting has no visible bounds: \(label)")
+                        XCTAssertTrue(app.frame.contains(frame), "Capture setting outside screen: \(label)")
+                        print("CAPTURE_SETTING_TOUCH: \(label) rendered=\(frame) ax=\(element.frame)")
+                        app.coordinate(withNormalizedOffset: .zero)
+                            .withOffset(CGVector(dx: frame.midX - app.frame.minX,
+                                                 dy: frame.midY - app.frame.minY)).tap()
+                        return
+                    }
+                } catch {
+                    XCTFail("Cannot verify rendered capture setting \(label): \(error)")
                     return
                 }
                 if attempt < 6 {
-                    // Drag inside the observed app viewport, not on status/home bars.
                     let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: downward ? 0.75 : 0.3))
                     let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: downward ? 0.3 : 0.75))
                     start.press(forDuration: 0.05, thenDragTo: end)

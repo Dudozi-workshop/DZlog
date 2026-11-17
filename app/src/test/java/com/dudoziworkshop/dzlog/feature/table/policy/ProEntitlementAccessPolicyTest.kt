@@ -79,7 +79,7 @@ class ProEntitlementAccessPolicyTest {
         val extra = com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft(
             kind = "MANUAL", label = "직접입력", manualText = "extra",
         )
-        val expanded = base.copy(fileNameSlotDrafts = base.fileNameSlotDrafts + extra)
+        val expanded = base.copy(fileNameSlotDrafts = base.fileNameSlotDrafts.take(3) + listOf(extra, null))
         val valid = ProEntitlementAccessPolicy.evaluate(
             ProPurchaseEvidence.Verified(verifiedAt), verifiedAt + days(29)
         )
@@ -88,6 +88,7 @@ class ProEntitlementAccessPolicyTest {
         )
         assertTrue(SaveRuleSlotAccessPolicy.evaluate(expanded, valid.tier).allowed)
         assertFalse(SaveRuleSlotAccessPolicy.evaluate(expanded, expired.tier).allowed)
-        assertEquals(4, expanded.fileNameSlotDrafts.size)
+        assertEquals(5, expanded.fileNameSlotDrafts.size)
+        assertEquals(4, expanded.fileNameSlotDrafts.count { it != null })
     }
 }
