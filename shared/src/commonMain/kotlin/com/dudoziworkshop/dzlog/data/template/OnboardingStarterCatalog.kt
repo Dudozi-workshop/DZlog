@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
@@ -125,7 +126,8 @@ object OnboardingStarterCatalog {
         }
         return TableTemplateState(
             rows = 2, cols = columns, cells = headers + inputs,
-            fileNameSlotDrafts = fileName,
+            // CaptureContext requires all positions, including unused slots.
+            fileNameSlotDrafts = fileName + List(FILE_NAME_SLOT_COUNT - fileName.size) { null },
             pathSlotDrafts = path,
         )
     }

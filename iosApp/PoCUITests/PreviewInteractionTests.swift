@@ -217,7 +217,9 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("상태: 노출 잠금").waitForExistence(timeout: 10))
         let brightness = app.sliders["밝기 조절"]
         brightness.adjust(toNormalizedSliderPosition: 0.75)
-        let biasLabel = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "밝기 보정:")).firstMatch
+        // Compose text is exposed as Other on some native accessibility bridges.
+        // Keep checking the observed bias, independent of its element type.
+        let biasLabel = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "밝기 보정:")).firstMatch
         XCTAssertTrue(biasLabel.waitForExistence(timeout: 10))
         let biasChanged = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", "밝기 보정: 0.0"), object: biasLabel)
         XCTAssertEqual(XCTWaiter.wait(for: [biasChanged], timeout: 5), .completed)
@@ -350,11 +352,11 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
         app.launch()
         tapButton("촬영 설정 열기")
-        tapButton("원본만")
-        tapButton("1:1")
-        tapButton("유지")
-        tapButton("촬영 진동 끄기")
-        tapButton("설정 저장")
+        tapCaptureSettingsButton("원본만", searchDown: true)
+        tapCaptureSettingsButton("1:1", searchDown: false)
+        tapCaptureSettingsButton("유지", searchDown: true)
+        tapCaptureSettingsButton("촬영 진동 끄기", searchDown: false)
+        tapCaptureSettingsButton("설정 저장", searchDown: false)
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("빠른 입력")
@@ -363,8 +365,8 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 설정")
-        tapButton("원본과 결과")
-        tapButton("설정 저장")
+        tapCaptureSettingsButton("원본과 결과", searchDown: true)
+        tapCaptureSettingsButton("설정 저장", searchDown: false)
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("뒤로가기")
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
@@ -650,9 +652,49 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         if merged { XCTAssertTrue(text("병합 표 사용 중").waitForExistence(timeout: 20)) }
         tapButton("촬영 설정 열기")
-        tapButton(modeLabel)
-        tapButton("설정 저장")
+        tapCaptureSettingsButton(modeLabel, searchDown: true)
+        tapCaptureSettingsButton("설정 저장", searchDown: false)
         XCTAssertTrue(text("상태: 설정 복원 완료").waitForExistence(timeout: 20))
+    }
+
+    // Capture settings has grown beyond one viewport. Exercise real scrolling
+    // instead of treating an offscreen Compose AX node (zero frame) as tappable.
+    // Save stays at the top, so callers search upward after choosing a lower row.
+    private func tapCaptureSettingsButton(_ label: String, searchDown: Bool) {
+        XCTAssertTrue(text("촬영 설정").waitForExistence(timeout: 20), "Capture settings did not open")
+        let matches = app.buttons.matching(NSPredicate(format: "label == %@", label))
+        func visibleMatch() -> XCUIElement? {
+            matches.allElementsBoundByIndex.first { element in
+                element.exists && !element.frame.isEmpty && app.frame.contains(element.frame)
+            }
+        }
+        // Try the expected direction first, then the reverse for a retained scroll
+        // position. Every touch requires fresh, nonempty, in-screen bounds.
+        for downward in [searchDown, !searchDown] {
+            for attempt in 0...6 {
+                let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                    visibleMatch() != nil
+                }, object: nil)
+                if XCTWaiter.wait(for: [visible], timeout: 1) == .completed,
+                   let element = visibleMatch() {
+                    XCTAssertTrue(element.isEnabled, "Capture setting is disabled: \(label)")
+                    guard element.isEnabled else { return }
+                    let frame = element.frame
+                    XCTAssertFalse(frame.isEmpty, "Capture setting has no visible bounds: \(label)")
+                    XCTAssertTrue(app.frame.contains(frame), "Capture setting outside screen: \(label)")
+                    app.coordinate(withNormalizedOffset: .zero)
+                        .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                    return
+                }
+                if attempt < 6 {
+                    // Drag inside the observed app viewport, not on status/home bars.
+                    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: downward ? 0.75 : 0.3))
+                    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: downward ? 0.3 : 0.75))
+                    start.press(forDuration: 0.05, thenDragTo: end)
+                }
+            }
+        }
+        XCTFail("Capture setting was not visible after bounded bidirectional scrolling: \(label)\n\(app.debugDescription)")
     }
 
     // Observe completion and the asynchronous system prompt together. A fixed
@@ -692,6 +734,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
         app.launch()
+        enterHomeAfterOptionalOnboarding()
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
             format: "label BEGINSWITH %@", "오늘 "
         )).firstMatch.waitForExistence(timeout: 20), app.debugDescription)
@@ -788,6 +831,7 @@ final class PreviewInteractionTests: XCTestCase {
     func testHomeCameraPermissionDeniedEntryAndReturn() {
         app.launchArguments = ["--home-navigation", "--deny-camera-permission-for-ui-test"]
         app.launch()
+        enterHomeAfterOptionalOnboarding()
         XCTAssertTrue(button("촬영 시작").isEnabled)
         tapButton("촬영 시작")
         XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
@@ -796,6 +840,18 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("뒤로가기")
         XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
         XCTAssertTrue(text("최근 촬영").exists) // Home content is restored; counter text is not an exposed AX node.
+    }
+
+    // These tests cover home/media behavior; complete first-launch onboarding via its real skip action.
+    private func enterHomeAfterOptionalOnboarding() {
+        let home = app.buttons.matching(NSPredicate(format: "label == %@", "촬영 시작")).firstMatch
+        let skip = app.buttons.matching(NSPredicate(format: "label == %@", "건너뛰기")).firstMatch
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            home.exists || skip.exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 20), .completed)
+        if skip.exists { tapButton("건너뛰기") }
+        XCTAssertTrue(home.waitForExistence(timeout: 20))
     }
 
     private func text(_ label: String) -> XCUIElement {

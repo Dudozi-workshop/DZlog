@@ -19,7 +19,8 @@ import kotlin.math.roundToInt
 
 private const val LIVE_TEST_KEY = "dzlog.ios.live-placement.uitest.v1"
 
-/** Explicit fixture: known 2:3 sensor raster; native gestures, persistence and PhotoKit are real. */
+/** Explicit fixture: known sensor raster cropped to the saved capture ratio; native gestures,
+ * persistence and PhotoKit are real. */
 @Composable
 internal fun IosLiveTableFixture() {
     val session = remember {
@@ -54,7 +55,8 @@ internal fun IosLiveTableFixture() {
         Text("회전: ${session.tablePlacement?.rotationCwDeg}")
         Text("배율: ${((cameraZoom * 10).roundToInt() / 10f)}")
         Text("밝기 보정: ${((cameraExposureBias * 10).roundToInt() / 10f)}")
-        IosLiveTablePreview(Modifier.fillMaxWidth().weight(1f), session, fixtureAspect = 2.0 / 3.0,
+        IosLiveTablePreview(Modifier.fillMaxWidth().weight(1f), session,
+            fixtureAspect = session.captureAspect.ratioF.toDouble(),
             enabled = !locked && !busy,
             focusEnabled = !locked && !busy,
             focusCollapseToken = focusCollapseToken,
@@ -96,12 +98,26 @@ internal fun IosLiveTableFixture() {
             scope.launch {
                 try {
                     checkIosLiveTableGeometry()
-                    session.renderLiveOverlay(720, 1080)
-                    session.checkLiveCaptureAspect(160, 240)
+                    val aspect = session.captureAspect
+                    session.renderLiveOverlay(aspect.w * 240, aspect.h * 240)
+                    val (captureWidth, captureHeight) = aspect.centerCropSize(160, 240)
+                    session.checkLiveCaptureAspect(captureWidth, captureHeight)
                     val counter = session.selectedDocument.nextCounter
                     val media = PhotoKitCaptureMediaRepository()
                     val assets = media.listSavedAssets().map { it.asset.assetId }
-                    check(runCatching { session.saveConfiguredJpeg(liveFixtureJpeg(240, 160)) }.isFailure)
+                    // Configured capture now crops the sensor raster intentionally. Test
+                    // the mismatch guard at the placed-raster boundary, before PhotoKit
+                    // writes, rather than expecting a valid configured crop to fail.
+                    val placement = checkNotNull(session.tablePlacement)
+                    val mismatch = runCatching {
+                        session.saveAndroidPlacedJpeg(liveFixtureJpeg(240, 160),
+                            placement.anchor, placement.offsetXPercent, placement.offsetYPercent,
+                            placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
+                    }.exceptionOrNull()
+                    check(mismatch is IllegalArgumentException &&
+                        mismatch.message.orEmpty().startsWith("사진과 미리보기 비율이 달라")) {
+                        "미리보기 비율 불일치가 저장 전에 차단되어야 합니다."
+                    }
                     check(session.selectedDocument.nextCounter == counter && !session.hasPending())
                     check(media.listSavedAssets().map { it.asset.assetId } == assets)
                     message = "배치 계산·비율 차단 검증 완료"
