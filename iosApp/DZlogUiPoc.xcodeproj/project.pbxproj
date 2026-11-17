@@ -155,7 +155,7 @@
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog";
 				"INFOPLIST_FILE" = "PoCApp/Info.plist";
 				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../sharedUi/build/bin/iosSimulatorArm64/debugFramework");
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
@@ -166,7 +166,7 @@
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc.uitests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.uitests";
 				"GENERATE_INFOPLIST_FILE" = "YES";
 				"TEST_TARGET_NAME" = "DZlogUiPoc";
 			};
