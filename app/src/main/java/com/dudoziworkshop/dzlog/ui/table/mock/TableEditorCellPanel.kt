@@ -70,8 +70,6 @@ internal fun TableEditorCellUiModelEditor(
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     compactInput: Boolean = false,
-    compactFavoritesExpanded: Boolean = false,
-    onCompactFavoritesExpandedChange: (Boolean) -> Unit = {},
     inputExpanded: Boolean,
     expandedInputHeight: Dp,
     onToggleInputExpanded: () -> Unit,
@@ -231,21 +229,21 @@ internal fun TableEditorCellUiModelEditor(
                 }
             }
 
-            // Common cell controls live in the fixed bottom row; only details scroll here.
-            if (!compactInput || cell.type == TableEditorCellType.TEXT) Column(
+            // Always pin favorites directly below the text field, including
+            // while the IME is visible; only other cell settings may scroll.
+            if (cell.type == TableEditorCellType.TEXT) {
+                TableEditorTextFavoritesRow(
+                    model = textFavoritesModel,
+                    onApply = onValueChange,
+                    enabled = favoriteActionsEnabled,
+                )
+            }
+            if (!compactInput && cell.type != TableEditorCellType.TEXT) Column(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 when (cell.type) {
-                    TableEditorCellType.TEXT -> TableEditorTextFavoritesRow(
-                        model = textFavoritesModel,
-                        onApply = onValueChange,
-                        enabled = favoriteActionsEnabled,
-                        compact = compactInput,
-                        compactExpanded = compactFavoritesExpanded,
-                        onCompactExpandedChange = onCompactFavoritesExpandedChange,
-                    )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
                         style = DDZTypography.Caption,
