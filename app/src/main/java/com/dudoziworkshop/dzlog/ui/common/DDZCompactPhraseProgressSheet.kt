@@ -64,8 +64,8 @@ fun DDZCompactPhraseProgressSheet(
     val override = set.itemEveryOverrides.getOrNull(index)
     val useSet = override == null && legacyEveryOverride == null
     val individualEvery = override
-        ?: set.itemEveryInactiveOverrides.getOrNull(index)
         ?: legacyEveryOverride
+        ?: set.itemEveryInactiveOverrides.getOrNull(index)
         ?: set.defaultEvery
     val currentEvery = (override ?: legacyEveryOverride ?: set.defaultEvery).coerceAtLeast(1)
     val currentShots = completedShots.coerceIn(0, currentEvery - 1)
