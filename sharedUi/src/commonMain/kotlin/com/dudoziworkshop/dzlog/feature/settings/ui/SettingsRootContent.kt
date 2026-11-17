@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -37,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -46,12 +48,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
+import com.dudoziworkshop.dzlog.ui.common.DDZAlertDialog
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -90,6 +94,27 @@ fun SettingsRootContent(
     onOpenImport: () -> Unit,
     proSection: @Composable () -> Unit = {},
 ) {
+    val uriHandler = LocalUriHandler.current
+    var unavailableLink by remember { mutableStateOf<String?>(null) }
+    fun openSupportLink(url: String) {
+        try {
+            uriHandler.openUri(url)
+        } catch (_: Exception) {
+            unavailableLink = url
+        }
+    }
+
+    unavailableLink?.let { url ->
+        DDZAlertDialog(
+            onDismissRequest = { unavailableLink = null },
+            title = { Text("페이지를 열 수 없어요") },
+            text = { Text("브라우저에서 아래 주소를 열어 주세요.\n$url\n\n문의: dudoziworkshop@gmail.com") },
+            confirmButton = {
+                TextButton(onClick = { unavailableLink = null }) { Text("확인") }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = DDZColor.Background,
         topBar = {
@@ -258,6 +283,22 @@ fun SettingsRootContent(
                             title = "사용법 및 도움말",
                             subtitle = "처음 사용법 · 기능별 튜토리얼",
                             onClick = onOpenGuide,
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.HelpOutline,
+                            title = "지원 및 문의",
+                            subtitle = "자주 묻는 질문 · 문의 이메일",
+                            onClick = { openSupportLink("https://dudozi-workshop.github.io/dzlog-privacy/support.html") },
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
+                        )
+                        SettingsDivider()
+                        SettingsActionRow(
+                            icon = Icons.Default.PrivacyTip,
+                            title = "개인정보처리방침",
+                            subtitle = "기기 권한 · 데이터 저장 및 삭제",
+                            onClick = { openSupportLink("https://dudozi-workshop.github.io/dzlog-privacy/") },
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
                         )
                         SettingsDivider()
