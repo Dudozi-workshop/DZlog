@@ -108,11 +108,6 @@ internal fun CameraQuickAutoValueEditor(
                         set = selectedSet,
                         enabled = enabled,
                         onProgressChange = onPhraseProgress,
-                    )
-                    CameraQuickPhrasePeriodControl(
-                        cell = cell,
-                        set = selectedSet,
-                        enabled = enabled,
                         onPeriodChange = onPhrasePeriodChange,
                     )
                 }
