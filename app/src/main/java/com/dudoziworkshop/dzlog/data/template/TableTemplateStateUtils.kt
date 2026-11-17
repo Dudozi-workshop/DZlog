@@ -77,6 +77,12 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                         // inherited periods must survive round-trip exactly.
                         if (periodsJson == null) emptyList() else values
                     }
+                    val inactiveJson = set.optJSONArray("itemEveryInactiveOverrides")
+                    val inactivePeriods = if (inactiveJson == null) emptyList() else validItemIndices.map { index ->
+                        if (index >= inactiveJson.length() || inactiveJson.isNull(index)) null
+                        else inactiveJson.optInt(index, 0)
+                            .takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
+                    }
 
                     add(
                         RotatingPhraseSet(
@@ -88,6 +94,7 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                                 RotatingCounterProgressMode.valueOf(set.optString("counterProgressMode"))
                             }.getOrDefault(RotatingCounterProgressMode.PER_PHRASE),
                             itemEveryOverrides = itemPeriods,
+                            itemEveryInactiveOverrides = inactivePeriods,
                         )
                     )
                 }
@@ -272,6 +279,13 @@ fun TableTemplateState.toJsonString(): String {
                     periodsJson.put(set.itemEveryOverrides.getOrNull(index) ?: JSONObject.NULL)
                 }
                 setJson.put("itemEveryOverrides", periodsJson)
+            }
+            if (set.itemEveryInactiveOverrides.isNotEmpty()) {
+                val rememberedJson = JSONArray()
+                set.items.indices.forEach { index ->
+                    rememberedJson.put(set.itemEveryInactiveOverrides.getOrNull(index) ?: JSONObject.NULL)
+                }
+                setJson.put("itemEveryInactiveOverrides", rememberedJson)
             }
 
             phraseSetsJson.put(setJson)
