@@ -228,6 +228,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (action == "delete") Text("이 폴더를 삭제합니다. 사진이나 하위 폴더가 있으면 먼저 이동하거나 정리해 주세요.")
                     else OutlinedTextField(value = folderName, onValueChange = { folderName = it; folderError = null },
+                        // Compose's iOS dialog bridge can expose an empty field as
+                        // an unlabeled button. Preserve its visible input label for VoiceOver.
+                        modifier = Modifier.semantics { contentDescription = "폴더 이름" },
                         enabled = !managing, singleLine = true, label = { Text("폴더 이름") })
                     folderError?.let { Text(it) }
                 }

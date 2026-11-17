@@ -20,6 +20,9 @@ import com.dudoziworkshop.dzlog.domain.preview.buildCapturePreview
 import com.dudoziworkshop.dzlog.domain.preview.buildScope
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import org.jetbrains.skia.Image
+import platform.Foundation.NSUserDefaults
+import com.dudoziworkshop.dzlog.data.media.IosCaptureWorkspaceJournal
+import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoJournal
 import platform.Foundation.NSUUID
 import kotlin.math.roundToInt
 
@@ -31,11 +34,13 @@ internal class IosCameraCaptureSession(
     private val editorKey: String,
     private var workspace: EditorWorkspace,
     private val persistWorkspace: ((EditorWorkspace) -> Boolean)? = null,
+    mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) {
     private val store = IosWorkspaceStore(editorKey)
-    private val media = PhotoKitCaptureMediaRepository()
-    private val coordinator = IosCaptureSaveCoordinator(media)
-    private val undoCoordinator = IosCaptureUndoCoordinator(media)
+    internal val mediaRepository = PhotoKitCaptureMediaRepository(mediaDefaults)
+    private val media get() = mediaRepository
+    private val coordinator = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults))
+    private val undoCoordinator = IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults))
     private val sessionCaptures = mutableListOf<IosCaptureUndoRequest>()
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture() || undoCoordinator.hasPendingUndo()
@@ -438,20 +443,21 @@ internal class IosCameraCaptureSession(
     }
 
     companion object {
-        fun hasPending(): Boolean =
-            PhotoKitCaptureMediaRepository().let { media ->
-                IosCaptureSaveCoordinator(media).hasPendingCapture() ||
-                    IosCaptureUndoCoordinator(media).hasPendingUndo()
+        fun hasPending(mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults): Boolean =
+            PhotoKitCaptureMediaRepository(mediaDefaults).let { media ->
+                IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults)).hasPendingCapture() ||
+                    IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults)).hasPendingUndo()
             }
 
-        suspend fun recover(store: IosWorkspaceStore, seed: SavedTableTemplate): Boolean {
-            val media = PhotoKitCaptureMediaRepository()
-            val captureRecovered = IosCaptureSaveCoordinator(media).recoverPending(
+        suspend fun recover(store: IosWorkspaceStore, seed: SavedTableTemplate,
+            mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults): Boolean {
+            val media = PhotoKitCaptureMediaRepository(mediaDefaults)
+            val captureRecovered = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults)).recoverPending(
                 loadWorkspace = { store.load(seed) },
                 persistWorkspace = { store.save(it) },
             )
             if (!captureRecovered) return false
-            return IosCaptureUndoCoordinator(media).recoverPending(
+            return IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults)).recoverPending(
                 loadWorkspace = { store.load(seed) },
                 persistWorkspace = { store.save(it) },
             )
@@ -464,7 +470,8 @@ internal object IosCameraWorkspaceBridge {
     var current: IosCameraCaptureSession? = null
         private set
 
-    fun prepare(editorKey: String, workspace: EditorWorkspace): String? {
+    fun prepare(editorKey: String, workspace: EditorWorkspace,
+        mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults): String? {
         current = null
         val document = workspace.active ?: return "촬영 전 템플릿을 선택해 주세요."
         if (document.saveMode != SaveMode.ORIGINAL_ONLY) {
@@ -478,10 +485,10 @@ internal object IosCameraWorkspaceBridge {
             }
         }
         if (document.nextCounter == null) return "먼저 촬영 번호를 확정해 주세요."
-        if (IosCameraCaptureSession.hasPending()) {
+        if (IosCameraCaptureSession.hasPending(mediaDefaults)) {
             return "이전 사진의 저장 기록을 복구하기 전에는 촬영할 수 없습니다."
         }
-        current = IosCameraCaptureSession(editorKey, workspace)
+        current = IosCameraCaptureSession(editorKey, workspace, mediaDefaults = mediaDefaults)
         return null
     }
 

@@ -29,3 +29,12 @@ No tests were skipped, capture safety guard relaxed, user data deleted, branch m
 - Android policy fixtures appended occupied slots after the new null padding, making six/seven-position test arrays. Fill the five-position fixture instead; preserve authorization and no-mutation assertions. Add a default-rollout regression proving five occupied slots, unlimited template actions and no purchase UI for absent/Free/Pro entitlement. Production `ALL_UNLOCKED` and entitlement policies are unchanged.
 
 Local focused Android execution again stopped at the Gradle download (`Network is unreachable`). Static checks do not replace the next native/JVM CI execution.
+
+## Follow-up: `33a1d0c6`
+
+[UI run 44179890177](https://github.com/Dudozi-workshop/DZlog/actions/runs/44179890177) passed 23/25 selected tests. Android, shared core and iPhone compile passed. The remaining two failures are separate:
+
+- Folder creation opened its dialog, but the empty text field had no accessible name. Add the existing visible label as the field's content description; keep the test's label-based input and add empty-name disabled / valid-name enabled save assertions.
+- Recent-gallery expected two photos but showed fifteen, because earlier tests shared the same app-private PhotoKit index. Give each XCTest invocation a UUID environment namespace, consumed only by the explicit configured-capture fixture. Inject its defaults suite into the real repository, capture/undo journals, pending checks and recovery; reuse the same suite through relaunch and camera return. Production defaults remain standard. Do not filter gallery results, weaken exact counts, erase the production index or delete Photos assets during setup.
+
+Native suite-isolation regression coverage accompanies the dependency injection. Simulator execution must still validate the complete UI path; local static checks alone cannot establish a pass.

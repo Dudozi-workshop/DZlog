@@ -13,6 +13,7 @@ import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.*
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSNotificationCenter
 
@@ -21,6 +22,7 @@ private const val CONFIGURED_TEST_KEY = "dzlog.ios.configured-capture.uitest.v1"
 /** Synthetic sensor input only. Settings, compositor, PhotoKit, recovery and gallery are real. */
 @Composable
 internal fun IosConfiguredCaptureFixture() {
+    val mediaDefaults = remember { configuredFixtureMediaDefaults() }
     val merged = NSProcessInfo.processInfo.arguments.contains("--merged-capture-fixture")
     val editorKey = if (merged) "$CONFIGURED_TEST_KEY.merged" else CONFIGURED_TEST_KEY
     val seed = remember(merged) {
@@ -38,7 +40,7 @@ internal fun IosConfiguredCaptureFixture() {
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
     var workspace by remember {
         if (NSProcessInfo.processInfo.arguments.contains("--reset-configured-fixture")) {
-            check(!IosCameraCaptureSession.hasPending()) { "미완료 촬영을 덮어쓸 수 없습니다." }
+            check(!IosCameraCaptureSession.hasPending(mediaDefaults)) { "미완료 촬영을 덮어쓸 수 없습니다." }
             check(store.save(EditorWorkspace(listOf(EditorDocument(seed, nextCounter = 12,
                 usesAutoNext = false)), seed.id)))
         }
@@ -49,14 +51,14 @@ internal fun IosConfiguredCaptureFixture() {
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("대기") }
     val scope = rememberCoroutineScope()
-    val media = remember { PhotoKitCaptureMediaRepository() }
+    val media = remember { PhotoKitCaptureMediaRepository(mediaDefaults) }
     val cameraReturn = IosCameraReturnSignal.revision
     LaunchedEffect(cameraReturn) {
         if (cameraReturn > 0) workspace = store.load(seed)
     }
     LaunchedEffect(Unit) {
-        if (IosCameraCaptureSession.hasPending()) {
-            val recovered = IosCameraCaptureSession.recover(store, seed)
+        if (IosCameraCaptureSession.hasPending(mediaDefaults)) {
+            val recovered = IosCameraCaptureSession.recover(store, seed, mediaDefaults)
             check(recovered) { "복구 실패" }
             workspace = store.load(seed)
             if (merged) check((workspace.active?.template?.templateState?.cells?.first { it.cellId == "counter" }
@@ -94,20 +96,20 @@ internal fun IosConfiguredCaptureFixture() {
         Text("촬영 확인: ${workspace.settings.continuousPreviewMode}")
         Text("촬영 진동: ${workspace.settings.captureHapticEnabled}")
         Text("촬영 비율: ${com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(workspace.settings.captureAspectMode).label}")
-        Text("대기 기록: ${IosCameraCaptureSession.hasPending()}")
-        Button(onClick = { settings = true }, enabled = !busy && !IosCameraCaptureSession.hasPending()) { Text("촬영 설정 열기") }
+        Text("대기 기록: ${IosCameraCaptureSession.hasPending(mediaDefaults)}")
+        Button(onClick = { settings = true }, enabled = !busy && !IosCameraCaptureSession.hasPending(mediaDefaults)) { Text("촬영 설정 열기") }
         for (interrupt in listOf(false, true)) {
-            Button(enabled = !busy && !IosCameraCaptureSession.hasPending(), onClick = {
+            Button(enabled = !busy && !IosCameraCaptureSession.hasPending(mediaDefaults), onClick = {
                 busy = true
                 scope.launch {
                     try {
-                        check(IosCameraWorkspaceBridge.prepare(editorKey, workspace) == null)
+                        check(IosCameraWorkspaceBridge.prepare(editorKey, workspace, mediaDefaults) == null)
                         val known = media.listSavedAssets().map { it.captureId }.toSet()
                         val surface = Surface.makeRasterN32Premul(180, 240)
                         surface.canvas.clear(0xFF4B805A.toInt())
                         val jpeg = checkNotNull(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.JPEG, 88)).bytes
                         val session = if (interrupt) IosCameraCaptureSession(editorKey, workspace,
-                            persistWorkspace = { false }) else checkNotNull(IosCameraWorkspaceBridge.current)
+                            persistWorkspace = { false }, mediaDefaults = mediaDefaults) else checkNotNull(IosCameraWorkspaceBridge.current)
                         val committed = session.saveConfiguredJpeg(jpeg)
                         check(committed != interrupt)
                         val added = media.listSavedAssets().filter { it.captureId !in known }
@@ -147,8 +149,8 @@ internal fun IosConfiguredCaptureFixture() {
             }) { Text(if (interrupt) "저장 후 복구 대기" else "촬영 저장") }
         }
         Button(onClick = { gallery = true }, enabled = !busy) { Text("갤러리 열기") }
-        Button(enabled = !busy && !IosCameraCaptureSession.hasPending(), onClick = {
-            val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
+        Button(enabled = !busy && !IosCameraCaptureSession.hasPending(mediaDefaults), onClick = {
+            val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace, mediaDefaults)
             if (issue == null) NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
             else status = issue
         }) { Text("카메라 열기") }
@@ -165,4 +167,17 @@ internal fun IosConfiguredCaptureFixture() {
                 .getOrElse { "실패: ${it.message}" }
         }) { Text("병합 렌더 검증") }
     }
+}
+
+/** Only this explicit test fixture opts into isolated, durable app-private metadata.
+ * The Photos assets themselves are real and are never cleared by test setup. */
+private fun configuredFixtureMediaDefaults(): NSUserDefaults {
+    val process = NSProcessInfo.processInfo
+    if (!process.arguments.contains("--configured-capture-flow")) return NSUserDefaults.standardUserDefaults
+    val namespace = process.environment["DZLOG_UI_TEST_MEDIA_NAMESPACE"] as? String
+        ?: return NSUserDefaults.standardUserDefaults
+    require(Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}").matches(namespace)) {
+        "UI test media namespace must be a UUID."
+    }
+    return NSUserDefaults(suiteName = "dzlog.ios.uitest.configured-media.$namespace")
 }

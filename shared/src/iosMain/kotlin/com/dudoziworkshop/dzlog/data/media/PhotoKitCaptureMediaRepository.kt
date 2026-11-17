@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.media
 
+import platform.Foundation.NSUserDefaults
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaSavePlan
 import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
@@ -13,9 +14,11 @@ import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
  * must serialize calls and commit the counter/table patch only after the receipt.
  * App-private logical paths are kept in the index, not mapped to Photos folders.
  */
-class PhotoKitCaptureMediaRepository : CaptureMediaRepository, IosCaptureDeletionStore {
+class PhotoKitCaptureMediaRepository(
+    defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
+) : CaptureMediaRepository, IosCaptureDeletionStore {
     private val photos = PhotoKitAssetAccess()
-    private val index = PhotoKitCaptureMediaIndex()
+    private val index = PhotoKitCaptureMediaIndex(defaults)
 
     /** Ask for Photos access before staging the irreversible workspace journal. */
     suspend fun ensureWritePermission() {

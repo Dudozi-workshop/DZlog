@@ -8,6 +8,9 @@ final class PreviewInteractionTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
+        // One durable metadata namespace per test, retained through terminate/launch.
+        // Only the explicit configured-capture fixture consumes this environment key.
+        app.launchEnvironment["DZLOG_UI_TEST_MEDIA_NAMESPACE"] = UUID().uuidString
         // PhotoKit may present its asynchronous prompt after the explicit wait.
         // Always handle it before XCTest's default handler selects Don't Allow.
         addUIInterruptionMonitor(withDescription: "Photo library access") { alert in
@@ -593,8 +596,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(favoriteThumbnail.waitForExistence(timeout: 30), app.debugDescription)
         tapButton("폴더 보기")
         tapButton("폴더 생성")
+        XCTAssertFalse(button("저장").isEnabled, "An empty folder name must not be saved")
         tapPanelText("폴더 이름")
         typeWithVisibleKeyboard("qa")
+        XCTAssertTrue(button("저장").isEnabled, "Typing a valid folder name must enable save")
         tapButton("저장")
         XCTAssertTrue(text("폴더: Pictures/DZlog/qa/").waitForExistence(timeout: 20), app.debugDescription)
         XCTAssertTrue(text("사진이 없습니다.").waitForExistence(timeout: 10))

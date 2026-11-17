@@ -71,7 +71,7 @@ internal fun IosCameraCapturePoc(
     session: IosCameraCaptureSession? = null,
 ) {
     val camera = remember { IosAvFoundationCamera() }
-    val repository = remember { PhotoKitCaptureMediaRepository() }
+    val repository = remember(session) { session?.mediaRepository ?: PhotoKitCaptureMediaRepository() }
     val captureFeedback = remember { IosCaptureFeedback() }
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf(false) }
