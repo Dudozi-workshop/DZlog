@@ -211,6 +211,28 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(abc, changed.phraseSets.single())
     }
 
+    @Test fun `switching overall then individual restores remembered phrase period`() {
+        val original = template.copy(cells = listOf(c3))
+        val inherited = applyQuickPhrasePeriodEdit(
+            original, QuickPhrasePeriodEdit("c3", true, 5),
+        )!!
+        val inheritedSet = inherited.phraseSets.single()
+        assertNull(inheritedSet.itemEveryOverrides[1])
+        assertEquals(2, inheritedSet.itemEveryInactiveOverrides[1])
+        assertEquals(5, inheritedSet.everyForItem(1))
+
+        val raisedDefault = applyQuickPhrasePeriodEdit(
+            inherited, QuickPhrasePeriodEdit("c3", true, 7),
+        )!!
+        assertEquals(2, raisedDefault.phraseSets.single().itemEveryInactiveOverrides[1])
+        val restored = applyQuickPhrasePeriodEdit(
+            raisedDefault, QuickPhrasePeriodEdit("c3", false, 2),
+        )!!
+        assertEquals(7, restored.phraseSets.single().defaultEvery)
+        assertEquals(2, restored.phraseSets.single().everyForItem(1))
+        assertEquals(c3, restored.cells.single())
+    }
+
     @Test fun `atomic progress editing honors per-phrase periods`() {
         val result = updateQuickPhraseProgress(template, "c1", 1, 1)
         assertEquals(1, result.cells.first().phraseIndex)
