@@ -11,8 +11,10 @@ object RotatingPhraseSetItemPolicy {
         if (index !in set.items.indices || (every != null && every !in 1..RotatingPhraseSet.MAX_EVERY)) return set
         val values = overrides(set)
         if (values[index] == every) return set
+        val remembered = inactiveOverrides(set)
+        remembered[index] = every ?: values[index] ?: remembered[index]
         values[index] = every
-        return set.copy(itemEveryOverrides = values)
+        return set.copy(itemEveryOverrides = values, itemEveryInactiveOverrides = remembered)
     }
 
     /** Apply one shared period to many selected rows without copying the full list per row. */
@@ -25,14 +27,18 @@ object RotatingPhraseSetItemPolicy {
         val indicesToChange = indices.filter { it in set.items.indices }.toSet()
         if (indicesToChange.isEmpty()) return set
         val values = overrides(set)
+        val remembered = inactiveOverrides(set)
         var changed = false
         indicesToChange.forEach { index ->
             if (values[index] != every) {
+                remembered[index] = every ?: values[index] ?: remembered[index]
                 values[index] = every
                 changed = true
             }
         }
-        return if (changed) set.copy(itemEveryOverrides = values) else set
+        return if (changed) set.copy(
+            itemEveryOverrides = values, itemEveryInactiveOverrides = remembered,
+        ) else set
     }
 
     fun renameItem(set: RotatingPhraseSet, index: Int, phrase: String): RotatingPhraseSet {
@@ -48,6 +54,7 @@ object RotatingPhraseSetItemPolicy {
         return set.copy(
             items = set.items + normalized,
             itemEveryOverrides = overrides(set) + listOf(null),
+            itemEveryInactiveOverrides = inactiveOverrides(set) + listOf(null),
         )
     }
 
@@ -56,6 +63,7 @@ object RotatingPhraseSetItemPolicy {
         return set.copy(
             items = set.items.filterIndexed { i, _ -> i != index },
             itemEveryOverrides = overrides(set).filterIndexed { i, _ -> i != index },
+            itemEveryInactiveOverrides = inactiveOverrides(set).filterIndexed { i, _ -> i != index },
         )
     }
 
@@ -63,13 +71,14 @@ object RotatingPhraseSetItemPolicy {
         if (from !in set.items.indices || to !in set.items.indices || from == to) return set
         val items = set.items.toMutableList().apply { add(to, removeAt(from)) }
         val values = overrides(set).apply { add(to, removeAt(from)) }
-        return set.copy(items = items, itemEveryOverrides = values)
+        val remembered = inactiveOverrides(set).apply { add(to, removeAt(from)) }
+        return set.copy(items = items, itemEveryOverrides = values, itemEveryInactiveOverrides = remembered)
     }
 
     fun replaceItems(set: RotatingPhraseSet, items: List<String>, periods: List<Int?>): RotatingPhraseSet {
         require(items.size <= RotatingPhraseSet.MAX_ITEMS && items.all(::validPhrase))
         require(periods.size == items.size && periods.all { it == null || it in 1..RotatingPhraseSet.MAX_EVERY })
-        return set.copy(items = items, itemEveryOverrides = periods)
+        return set.copy(items = items, itemEveryOverrides = periods, itemEveryInactiveOverrides = periods)
     }
 
     private fun validPhrase(text: String): Boolean =
@@ -78,4 +87,11 @@ object RotatingPhraseSetItemPolicy {
 
     fun overrides(set: RotatingPhraseSet): MutableList<Int?> =
         MutableList(set.items.size) { index -> set.itemEveryOverrides.getOrNull(index)?.takeIf { it >= 1 } }
+
+    /** Remembered values are not active while the item inherits the set default. */
+    fun inactiveOverrides(set: RotatingPhraseSet): MutableList<Int?> =
+        MutableList(set.items.size) { index ->
+            set.itemEveryInactiveOverrides.getOrNull(index)?.takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
+                ?: set.itemEveryOverrides.getOrNull(index)?.takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
+        }
 }
