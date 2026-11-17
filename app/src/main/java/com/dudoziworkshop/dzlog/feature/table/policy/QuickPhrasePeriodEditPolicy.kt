@@ -46,7 +46,14 @@ internal fun previewQuickPhrasePeriodEdit(
     val changedSets = template.phraseSets.map { phraseSet ->
         if (phraseSet.id != set.id) phraseSet
         else if (edit.useSetDefault) {
-            RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, null)
+            // Migrate the old cell-wide period into the remembered individual
+            // interval before clearing the legacy override on the active cell.
+            val rememberLegacy = phraseSet.itemEveryOverrides.getOrNull(phraseIndex) == null &&
+                phraseSet.itemEveryInactiveOverrides.getOrNull(phraseIndex) == null
+            val withMemory = if (rememberLegacy && cell.everyOverride != null) {
+                RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, cell.everyOverride)
+            } else phraseSet
+            RotatingPhraseSetItemPolicy.setEvery(withMemory, phraseIndex, null)
                 .copy(defaultEvery = edit.every)
         } else {
             RotatingPhraseSetItemPolicy.setEvery(phraseSet, phraseIndex, edit.every)
