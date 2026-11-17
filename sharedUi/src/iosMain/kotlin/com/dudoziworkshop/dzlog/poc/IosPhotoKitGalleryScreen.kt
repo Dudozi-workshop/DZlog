@@ -62,6 +62,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var message by remember { mutableStateOf("사진 확인 중") }
     var loadError by remember { mutableStateOf<String?>(null) }
     var refreshing by remember { mutableStateOf(false) }
+    var initialLoadFinished by remember { mutableStateOf(false) }
     var folder by remember { mutableStateOf<String?>(null) }
     var recentView by remember { mutableStateOf(false) }
     var defaultStorageView by remember { mutableStateOf(false) }
@@ -111,9 +112,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         defaultStorageView -> SavedGalleryEntryPolicy.defaultPhotos(photos)
         else -> photos
     }
-    val visible = effectivePhotoSort.sorted(scopedPhotos.filter { entry ->
-        (folder == null || entry.asset.target.relativePath == folder) &&
-            (!favoritesOnly || entry.asset.assetId in favorites)
+    val folderPhotos = scopedPhotos.filter { folder == null || it.asset.target.relativePath == folder }
+    val visible = effectivePhotoSort.sorted(folderPhotos.filter { entry ->
+        !favoritesOnly || entry.asset.assetId in favorites
     })
     fun captureScrollAnchor(): Pair<String, Int>? {
         val index = if (grid) gridState.firstVisibleItemIndex else listState.firstVisibleItemIndex
@@ -206,7 +207,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 imageLoadRevision += 1
                 loadError = null
             } catch (error: Throwable) { loadError = "갤러리 조회 실패: ${error.message}" }
-            finally { refreshing = false }
+            finally { refreshing = false; initialLoadFinished = true }
         }
     }
 
@@ -459,7 +460,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     // The controls scroll independently instead of starving the grid.
                     Column(Modifier.fillMaxWidth().heightIn(max = controlsMaxHeight)
                         .verticalScroll(headerScroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("갤러리", style = MaterialTheme.typography.titleLarge)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Button(onClick = {
                                 when {
                                     selecting -> { selecting = false; batchSelection = emptySet() }
@@ -471,7 +474,6 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                             if (grid && !selecting) GalleryChoiceMenu("그리드 ${gridColumns}열",
                                 (SavedGalleryGridPolicy.MIN_COLUMNS..SavedGalleryGridPolicy.MAX_COLUMNS).map { "${it}열" },
                                 enabled = !managing && !refreshing) { changeColumns(it + SavedGalleryGridPolicy.MIN_COLUMNS) }
-                            else Text("갤러리")
                         }
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(enabled = !managing && !refreshing, onClick = {
@@ -576,7 +578,21 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                                 contentScale = ContentScale.Fit)
                         }
                     }
-                    if (grid) LazyVerticalGrid(GridCells.Fixed(gridColumns), state = gridState,
+                    val emptyState = SavedGalleryEmptyStatePolicy.resolve(
+                        loading = refreshing || !initialLoadFinished,
+                        failed = loadError != null,
+                        scopeCount = folderPhotos.size,
+                        visibleCount = visible.size,
+                        favoritesOnly = favoritesOnly,
+                    )
+                    if (emptyState != null) {
+                        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                            Text(when (emptyState) {
+                                SavedGalleryEmptyState.NO_PHOTOS -> "사진이 없습니다."
+                                SavedGalleryEmptyState.NO_FAVORITES -> "즐겨찾기한 사진이 없습니다."
+                            })
+                        }
+                    } else if (grid) LazyVerticalGrid(GridCells.Fixed(gridColumns), state = gridState,
                         modifier = Modifier.weight(1f).iosGalleryGridPinch(gridColumns, !managing && !refreshing && !selecting, ::changeColumns),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         gridItems(visible, key = { it.asset.assetId }) { entry ->
