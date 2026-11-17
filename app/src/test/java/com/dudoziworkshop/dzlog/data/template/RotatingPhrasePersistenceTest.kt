@@ -45,4 +45,34 @@ class RotatingPhrasePersistenceTest {
         assertEquals(0, restored.phraseCompletedShots)
     }
 
+    @Test
+    fun inactive_individual_period_survives_serialization_and_reordering() {
+        val set = RotatingPhraseSet(
+            "s", "세트", listOf("A", "B", "C"), defaultEvery = 5,
+            itemEveryOverrides = listOf(null, null, 2),
+            itemEveryInactiveOverrides = listOf(null, 3, 2),
+        )
+        val template = newBlankTableTemplateState(1, 1).copy(phraseSets = listOf(set))
+        val restored = requireNotNull(tableTemplateStateFromJson(template.toJsonString()))
+        assertEquals(template, restored)
+
+        val reordered = com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
+            .moveItem(restored.phraseSets.single(), 1, 0)
+        assertEquals(listOf("B", "A", "C"), reordered.items)
+        assertEquals(listOf(3, null, 2), reordered.itemEveryInactiveOverrides)
+        assertEquals(listOf(null, null, 2), reordered.itemEveryOverrides)
+    }
+
+    @Test
+    fun missing_inactive_periods_remain_compatible_with_old_templates() {
+        val set = RotatingPhraseSet(
+            "s", "세트", listOf("A", "B"), defaultEvery = 4,
+            itemEveryOverrides = listOf(null, 2),
+        )
+        val template = newBlankTableTemplateState(1, 1).copy(phraseSets = listOf(set))
+        val json = JSONObject(template.toJsonString())
+        json.getJSONArray("phraseSets").getJSONObject(0).remove("itemEveryInactiveOverrides")
+        assertEquals(template, tableTemplateStateFromJson(json.toString()))
+    }
+
 }
