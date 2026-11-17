@@ -10,7 +10,9 @@
         "000000000000000000000022" = { "isa" = "PBXCopyFilesBuildPhase"; "buildActionMask" = 2147483647; "dstPath" = ""; "dstSubfolderSpec" = 7; "name" = "Copy original shared PNG"; "files" = ("000000000000000000000021"); "runOnlyForDeploymentPostprocessing" = 0; };
 		"000000000000000000000023" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "folder.assetcatalog"; "path" = "PoCApp/Assets.xcassets"; "sourceTree" = "<group>"; };
 		"000000000000000000000024" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000023"; };
-		"000000000000000000000025" = { "isa" = "PBXResourcesBuildPhase"; "buildActionMask" = 2147483647; "files" = ("000000000000000000000024"); "runOnlyForDeploymentPostprocessing" = 0; };
+		"000000000000000000000025" = { "isa" = "PBXResourcesBuildPhase"; "buildActionMask" = 2147483647; "files" = ("000000000000000000000024", "000000000000000000000027"); "runOnlyForDeploymentPostprocessing" = 0; };
+		"000000000000000000000026" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "text.plist.xml"; "path" = "PoCApp/PrivacyInfo.xcprivacy"; "sourceTree" = "<group>"; };
+		"000000000000000000000027" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000026"; };
 		"000000000000000000000001" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -62,7 +64,7 @@
 		};
 		"00000000000000000000000A" = {
 			"isa" = "PBXGroup";
-			"children" = ("000000000000000000000023", "000000000000000000000020", "000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
+			"children" = ("000000000000000000000026", "000000000000000000000023", "000000000000000000000020", "000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
 			"sourceTree" = "<group>";
 		};
 		"00000000000000000000000B" = {

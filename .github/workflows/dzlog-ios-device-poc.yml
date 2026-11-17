@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/dzlog-ios-device-poc.yml'
       - 'scripts/ios/build-device-poc.sh'
+      - 'scripts/ios/validate-release-metadata.sh'
       - 'iosApp/PoCApp/**'
       - 'sharedUi/build.gradle.kts'
       - 'sharedUi/src/iosMain/**'
@@ -31,6 +32,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Validate production identity and privacy metadata
+        run: bash scripts/ios/validate-release-metadata.sh
       - name: Build actual iPhone arm64 framework (not simulator)
         run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:linkDebugFrameworkIosArm64 --stacktrace
       - name: Compile unsigned device host and verify platform

@@ -12,6 +12,7 @@ xcrun --sdk iphonesimulator swiftc -parse-as-library \
   -Xlinker -rpath -Xlinker @executable_path/Frameworks \
   "$repo_root/iosApp/PoCApp/AppDelegate.swift" -o "$app_dir/DZlogUiPoc"
 cp "$repo_root/iosApp/PoCApp/Info.plist" "$app_dir/Info.plist"
+cp "$repo_root/iosApp/PoCApp/PrivacyInfo.xcprivacy" "$app_dir/PrivacyInfo.xcprivacy"
 cp "$repo_root/iosApp/PoCApp/home_leaf_shadow_c.png" "$app_dir/home_leaf_shadow_c.png"
 xcrun --sdk iphonesimulator actool "$repo_root/iosApp/PoCApp/Assets.xcassets" \
   --compile "$app_dir" \
