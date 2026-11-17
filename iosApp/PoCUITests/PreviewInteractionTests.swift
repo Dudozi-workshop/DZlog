@@ -438,6 +438,12 @@ final class PreviewInteractionTests: XCTestCase {
             format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
         )).firstMatch
         XCTAssertTrue(thumbnail.waitForExistence(timeout: 30), app.debugDescription)
+        // Android atlas A-17: a long press enters selection without opening the viewer.
+        thumbnail.press(forDuration: 1.2)
+        XCTAssertTrue(text("선택 1개").waitForExistence(timeout: 10))
+        XCTAssertTrue(button("선택 취소").exists)
+        XCTAssertFalse(text("사진 확대 보기").exists)
+        tapButton("선택 취소")
         thumbnail.tap()
         XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
         // The first cell may be the original; restore the result selection
@@ -541,6 +547,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
+        XCTAssertTrue(text("갤러리").waitForExistence(timeout: 10))
         let thumbnail = app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
         )).firstMatch
@@ -584,6 +591,8 @@ final class PreviewInteractionTests: XCTestCase {
         typeWithVisibleKeyboard("qa")
         tapButton("저장")
         XCTAssertTrue(text("폴더: Pictures/DZlog/qa/").waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertTrue(text("사진이 없습니다.").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("즐겨찾기한 사진이 없습니다.").exists)
         tapButton("전체 사진")
         tapButton("폴더 보기")
         tapButton("폴더 · 전체")
@@ -611,9 +620,13 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("사진 목록")
         XCTAssertTrue(text("사진 0개").waitForExistence(timeout: 10))
         XCTAssertTrue(text("즐겨찾기 사진이 없습니다.").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("즐겨찾기한 사진이 없습니다.").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("사진이 없습니다.").exists)
         XCTAssertFalse(text("갤러리 사진 미리보기").exists)
         tapButton("전체 보기")
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10))
+        XCTAssertFalse(text("즐겨찾기한 사진이 없습니다.").exists)
+        XCTAssertFalse(text("사진이 없습니다.").exists)
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
     }
 

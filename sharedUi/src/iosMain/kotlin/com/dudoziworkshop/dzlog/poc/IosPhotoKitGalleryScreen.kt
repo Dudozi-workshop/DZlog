@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.poc
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +48,7 @@ import platform.Foundation.create
 private const val GALLERY_ROOT = "Pictures/DZlog/"
 
 /** Browses the app's indexed Photos assets; logical folders never rename Photos resources. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -151,6 +154,13 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         if (selecting) {
             if (id in selectableIds) batchSelection = if (id in selectedBatch) selectedBatch - id else selectedBatch + id
         } else { selectedId = id; viewer = true }
+    }
+    fun enterSelection(entry: SavedCaptureMedia) {
+        val next = SavedGallerySelectionPolicy.onLongPress(
+            selectedBatch, entry.asset.assetId, selectableIds, managing || refreshing,
+        ) ?: return
+        batchSelection = next
+        selecting = true
     }
     fun shareSelection(ids: Set<String>) {
         if (managing || sharing || refreshing) return
@@ -443,13 +453,15 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             // A companion may live outside the active folder/favorites filter.
             // Do not silently expand previous/next navigation to the entire library.
             if (viewerControls) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
                 val companion = photos.firstOrNull { it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
-                if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing, onClick = { selectedId = companion.asset.assetId }) {
+                if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing, onClick = {
+                    if (!managing && !refreshing) selectedId = companion.asset.assetId
+                }) {
                     Text(if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기" else "결과 보기")
                 }
-                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && index >= 0 && index < entries.lastIndex,
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && index >= 0 && index < entries.lastIndex,
                     onClick = { navigate(1) }) { Text("다음 사진") }
             }
         } else {
@@ -612,7 +624,11 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                                     }
                                 }
                             }
-                            Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }) {
+                            Column(Modifier.fillMaxWidth().combinedClickable(
+                                enabled = !managing && !refreshing,
+                                onClick = { selectEntry(entry) },
+                                onLongClick = { enterSelection(entry) },
+                            )) {
                                 if (selecting) Checkbox(modifier = Modifier.semantics {
                                     contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
                                 }, checked = entry.asset.assetId in selectedBatch,
@@ -629,7 +645,11 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                         }
                     } else LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(visible, key = { it.asset.assetId }) { entry ->
-                            Column(Modifier.fillMaxWidth().clickable(enabled = !managing && !refreshing) { selectEntry(entry) }.padding(8.dp)) {
+                            Column(Modifier.fillMaxWidth().combinedClickable(
+                                enabled = !managing && !refreshing,
+                                onClick = { selectEntry(entry) },
+                                onLongClick = { enterSelection(entry) },
+                            ).padding(8.dp)) {
                                 if (selecting) Checkbox(modifier = Modifier.semantics {
                                     contentDescription = "사진 선택 · ${if (entry.asset.target.role == CaptureMediaRole.ORIGINAL) "원본" else "결과"} · ${entry.asset.target.displayName}"
                                 }, checked = entry.asset.assetId in selectedBatch,
