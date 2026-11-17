@@ -453,10 +453,11 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             }
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                val controlsMaxHeight = (maxHeight * 0.75f - 8.dp).coerceAtLeast(0.dp)
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // Leave at least a quarter of the available height for photos.
                     // The controls scroll independently instead of starving the grid.
-                    Column(Modifier.fillMaxWidth().heightIn(max = (maxHeight * 0.75f - 8.dp).coerceAtLeast(0.dp))
+                    Column(Modifier.fillMaxWidth().heightIn(max = controlsMaxHeight)
                         .verticalScroll(headerScroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Button(onClick = {
