@@ -147,6 +147,20 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(5, template.phraseSets.single().defaultEvery)
     }
 
+    @Test fun `switching from legacy cell interval remembers its individual value`() {
+        val legacy = c1.copy(everyOverride = 7, phraseCompletedShots = 3)
+        val source = template.copy(cells = listOf(legacy))
+        val switched = applyQuickPhrasePeriodEdit(
+            source, QuickPhrasePeriodEdit("c1", true, 5),
+        )!!
+        assertNull(switched.cells.single().everyOverride)
+        assertEquals(7, switched.phraseSets.single().itemEveryInactiveOverrides[0])
+        val restored = applyQuickPhrasePeriodEdit(
+            switched, QuickPhrasePeriodEdit("c1", false, 7),
+        )!!
+        assertEquals(7, restored.phraseSets.single().everyForItem(0))
+    }
+
     @Test fun `switching to inherited set requires resolution if previously larger local period`() {
         val original = template.copy(cells = listOf(c1.copy(everyOverride = 7, phraseCompletedShots = 6), c2, c3))
         val edit = QuickPhrasePeriodEdit("c1", true, 5)
