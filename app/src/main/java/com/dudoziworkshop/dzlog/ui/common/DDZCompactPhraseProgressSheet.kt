@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Slider
@@ -28,8 +29,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,6 +78,19 @@ fun DDZCompactPhraseProgressSheet(
     // The number itself is editable; changing it never opens another dialog.
     var periodText by remember(cellKey, set.id, index, useSet, editEvery) {
         mutableStateOf(editEvery.toString())
+    }
+    var periodFocused by remember(cellKey, set.id, index, useSet) { mutableStateOf(false) }
+    var inputInvalid by remember(cellKey, set.id, index, useSet) { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    fun commitPeriodInput() {
+        val typed = periodText.toIntOrNull()
+        if (typed == null || typed !in 1..RotatingPhraseSet.MAX_EVERY) {
+            periodText = editEvery.toString()
+            inputInvalid = true
+        } else {
+            inputInvalid = false
+            if (typed != editEvery) onPeriodChange(useSet, typed)
+        }
     }
     val maxRows = minOf(5, set.items.size)
     val listHeight = minOf(40.dp * maxRows, LocalConfiguration.current.screenHeightDp.dp * 0.35f)
@@ -174,21 +191,29 @@ fun DDZCompactPhraseProgressSheet(
                     symbol = "−", enabled = editEvery > 1,
                     onClick = { onPeriodChange(useSet, (editEvery - 1).coerceAtLeast(1)) },
                 )
-                Box(modifier = Modifier.width(42.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.width(52.dp), contentAlignment = Alignment.Center) {
                     BasicTextField(
                         value = periodText,
                         onValueChange = { text ->
                             if (text.length <= 6 && text.all(Char::isDigit)) {
                                 periodText = text
-                                text.toIntOrNull()
-                                    ?.takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
-                                    ?.let { onPeriodChange(useSet, it) }
+                                inputInvalid = false
                             }
                         },
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { focus ->
+                            if (periodFocused && !focus.isFocused) commitPeriodInput()
+                            periodFocused = focus.isFocused
+                        },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number, imeAction = ImeAction.Done,
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            commitPeriodInput()
+                            focusManager.clearFocus()
+                        }),
                         textStyle = DDZTypography.Body.copy(
-                            color = DDZColor.TextPrimary,
+                            color = if (inputInvalid) DDZColor.Destructive else DDZColor.TextPrimary,
                             textAlign = TextAlign.Center,
                         ),
                     )
