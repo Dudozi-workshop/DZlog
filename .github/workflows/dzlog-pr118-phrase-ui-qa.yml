@@ -1,0 +1,96 @@
+name: PR118 Phrase Progress UI Verification
+
+on:
+  push:
+    branches:
+      - feature/table-editor-device-ux-261117
+    paths:
+      - 'app/**'
+      - '.github/workflows/dzlog-pr118-phrase-ui-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dzlog-pr118-phrase-ui
+  cancel-in-progress: true
+
+jobs:
+  compile-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout PR118
+        uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Android SDK 36
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Checksum verified Gradle 8.13 fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/^networkTimeout=.*/networkTimeout=120000/' gradle/wrapper/gradle-wrapper.properties
+          grep -q '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties || \
+            echo 'distributionSha256Sum=20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78' \
+            >> gradle/wrapper/gradle-wrapper.properties
+          for url in \
+            'https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip' \
+            'https://mirrors.aliyun.com/gradle/distributions/v8.13.0/gradle-8.13-bin.zip' \
+            'https://services.gradle.org/distributions/gradle-8.13-bin.zip'; do
+            sed -i '/^distributionUrl=/d' gradle/wrapper/gradle-wrapper.properties
+            printf 'distributionUrl=%s\n' "$url" >> gradle/wrapper/gradle-wrapper.properties
+            if bash ./gradlew --version; then
+              break
+            fi
+          done
+          bash ./gradlew --version
+
+      - name: Compile Android Kotlin
+        run: bash ./gradlew :app:compileDebugKotlin --stacktrace
+
+      - name: Full debug unit regression
+        run: bash ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Build isolated QA APK
+        run: |
+          bash ./gradlew :app:assembleDebug \
+            -PdzlogStandaloneQa=true \
+            -PdzlogQaInstanceTag=pr118 \
+            -PdzlogDebugVersionCode=1000118 --stacktrace
+
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr118-phrase-ui-test-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/tests/testDebugUnitTest/**
+          if-no-files-found: ignore
+
+      - name: Upload separate-install QA APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzlog-pr118-phrase-ui-qa-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: error
