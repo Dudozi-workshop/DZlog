@@ -10,7 +10,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
 import androidx.compose.ui.platform.AccessibilitySyncOptions
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
-import com.dudoziworkshop.dzlog.data.template.OnboardingStarterCatalog
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateReadOnlyPreviewDialog
@@ -70,9 +69,10 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-editor-fixture"))
         } else if (NSProcessInfo.processInfo.arguments.contains("--production-home-flow")) {
             HomeNavigationPoc(
-                template = remember { productionStarterTemplate() },
+                template = remember { iosProductionStarterTemplate() },
                 editorKey = IOS_PRODUCTION_STARTUP_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-production-home-fixture"),
+                enableOnboarding = true,
             )
         } else if (NSProcessInfo.processInfo.arguments.contains("--table-structure")) {
             TableStructurePoc()
@@ -81,7 +81,7 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
         } else if (!NSProcessInfo.processInfo.arguments.contains("--preview-dialog") &&
             !NSProcessInfo.processInfo.arguments.contains("--large-table") &&
             !NSProcessInfo.processInfo.arguments.contains("--template-navigation")) {
-            HomeNavigationPoc(remember { productionStarterTemplate() })
+            HomeNavigationPoc(remember { iosProductionStarterTemplate() }, enableOnboarding = true)
         } else {
         val template = remember {
             if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()
@@ -154,18 +154,6 @@ private fun previewFixture(): SavedTableTemplate {
         templateState = TableTemplateState(3, 3, cells,
             rowWeights = listOf(0.8f, 1f, 1f), colWeights = listOf(1.2f, 1f, 1f),
             phraseSets = listOf(RotatingPhraseSet("poc-phrases", "처리", listOf("처리 A", "처리 B")))),
-        styleState = TableStyleState(),
-    )
-}
-
-/** First-launch seed only. Existing v1/v2 workspaces always take precedence in IosWorkspaceStore. */
-private fun productionStarterTemplate(): SavedTableTemplate {
-    val starter = requireNotNull(OnboardingStarterCatalog.find(OnboardingStarterCatalog.DEFAULT_ID))
-    return SavedTableTemplate(
-        id = "ios-default-template",
-        name = starter.title,
-        modifiedAt = 0,
-        templateState = requireNotNull(OnboardingStarterCatalog.buildState(starter.id)),
         styleState = TableStyleState(),
     )
 }

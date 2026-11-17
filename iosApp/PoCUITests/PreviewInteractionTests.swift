@@ -1151,19 +1151,20 @@ final class PreviewInteractionTests: XCTestCase {
         add(image)
     }
 
-    func testProductionFirstLaunchUsesBlankStarterInsteadOfBlueberryFixture() throws {
+    func testProductionOnboardingSelectsStarterAndPersistsWorkspace() throws {
         app.launchArguments = ["--production-home-flow", "--reset-production-home-fixture"]
         app.launch()
 
+        XCTAssertTrue(try screenContains("찍고, 기록하고"))
+        tapButton("시작하기")
+        XCTAssertTrue(try screenContains("사진 한 장으로"))
+        tapButton("다음")
+        XCTAssertTrue(text("어떤 기록을 시작할까요?").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
+        tapButton("이 양식으로 시작")
         XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
         XCTAssertFalse(text("현장 기록").exists)
         XCTAssertFalse(text("블루베리 관찰 기록").exists)
-        tapButton("촬영 시작")
-        XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["표 확대 보기 · 기본 촬영"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.buttons["표 확대 보기 · 현장 기록"].exists)
-        tapButton("표 확대 보기 · 기본 촬영")
-        tapButton("이 템플릿 선택")
         tapButton("설정")
         tapPanelText("사진 품질")
         tapPanelText("화질 우선")
@@ -1171,6 +1172,8 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--production-home-flow"]
         app.launch()
+        XCTAssertFalse(try screenContains("찍고, 기록하고"),
+                       "Completed onboarding must not reopen after relaunch")
         tapButton("설정")
         XCTAssertTrue(panelText("화질 우선").waitForExistence(timeout: 10))
         tapButton("뒤로가기")

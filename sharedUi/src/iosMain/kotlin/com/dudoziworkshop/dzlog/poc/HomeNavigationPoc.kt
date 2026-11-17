@@ -35,7 +35,12 @@ import platform.Foundation.*
 
 /** The existing home/list/editor/settings UI with an iOS persistence adapter. */
 @Composable
-internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String = IOS_EDITOR_KEY, resetTestFixture: Boolean = false) {
+internal fun HomeNavigationPoc(
+    template: SavedTableTemplate,
+    editorKey: String = IOS_EDITOR_KEY,
+    resetTestFixture: Boolean = false,
+    enableOnboarding: Boolean = false,
+) {
     val appVersionLabel = remember { iosAppVersionLabel() }
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
     val initial = remember(store) {
@@ -43,6 +48,10 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
         runCatching { store.load(template) }
     }
     var workspace by remember { mutableStateOf(initial.getOrNull() ?: EditorWorkspace(listOf(EditorDocument(template)), null)) }
+    var showOnboarding by remember(store, enableOnboarding) {
+        mutableStateOf(enableOnboarding && store.shouldOfferOnboarding())
+    }
+    var onboardingBusy by remember { mutableStateOf(false) }
     val loadFailed = initial.isFailure
     var notice by remember { mutableStateOf(if (loadFailed) "기존 편집 문서를 읽지 못했습니다. 덮어쓰지 않도록 편집을 잠갔습니다." else null) }
     val editorPlatform = remember { IosTableEditorPlatform { notice = it } }
@@ -151,7 +160,24 @@ internal fun HomeNavigationPoc(template: SavedTableTemplate, editorKey: String =
             NamingFormatDefaults.FILE_NAME_DELIMITER, savedDocument.includePathInScope, savedDocument.includeFilenameInScope,
             savedDocument.saveMode, savedDocument.nextCounter, 0))
     }
-    if (showCaptureSettings) {
+    if (showOnboarding) {
+        IosOnboardingScreen(
+            busy = onboardingBusy,
+            onChoose = { starterId ->
+                onboardingBusy = true
+                val starter = iosProductionStarterTemplate(starterId)
+                val next = EditorWorkspace(listOf(EditorDocument(starter)), starter.id)
+                if (store.save(next)) {
+                    store.markOnboardingCompleted()
+                    workspace = next
+                    showOnboarding = false
+                } else {
+                    notice = "시작 양식을 저장하지 못했습니다. 다시 시도해 주세요."
+                }
+                onboardingBusy = false
+            },
+        )
+    } else if (showCaptureSettings) {
         IosCaptureSettingsScreen(savedDocument, workspace.settings.continuousPreviewMode,
             workspace.settings.captureHapticEnabled, workspace.settings.captureAspectMode,
             onBack = { showCaptureSettings = false },

@@ -143,6 +143,15 @@ private class IosDraftCounterActions : TableEditorCounterActions {
 /** New collection key; the validated v1 editor value remains untouched as a recovery source. */
 internal class IosWorkspaceStore(private val legacyKey: String) {
     private val workspaceKey = "$legacyKey.workspace.v2"
+    private val onboardingKey = "$legacyKey.onboarding.completed.v1"
+    fun shouldOfferOnboarding(): Boolean =
+        NSUserDefaults.standardUserDefaults.stringForKey(workspaceKey) == null &&
+            NSUserDefaults.standardUserDefaults.stringForKey(legacyKey) == null &&
+            !NSUserDefaults.standardUserDefaults.boolForKey(onboardingKey)
+    fun markOnboardingCompleted() {
+        NSUserDefaults.standardUserDefaults.setBool(true, forKey = onboardingKey)
+        NSUserDefaults.standardUserDefaults.synchronize()
+    }
     fun load(seed: com.dudoziworkshop.dzlog.data.template.SavedTableTemplate): com.dudoziworkshop.dzlog.data.template.EditorWorkspace {
         NSUserDefaults.standardUserDefaults.stringForKey(workspaceKey)?.let {
             return com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.decode(it)
@@ -169,6 +178,7 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
             legacyKey == IOS_PRODUCTION_STARTUP_TEST_KEY)
         NSUserDefaults.standardUserDefaults.removeObjectForKey(workspaceKey)
         NSUserDefaults.standardUserDefaults.removeObjectForKey(legacyKey)
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(onboardingKey)
         NSUserDefaults.standardUserDefaults.synchronize()
     }
 }
