@@ -270,6 +270,9 @@ fun TableEditorV2Screen(
     val cells = remember(draftTemplateState, preview.plan.resolvedCells) {
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
+    val textFavoritesVisible = cells.any {
+        it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT && !it.isCovered
+    }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
@@ -399,6 +402,7 @@ fun TableEditorV2Screen(
             val cellPanelMaxHeight = editorContentPanelMaxHeight(
                 availableHeight = maxHeight,
                 bottomTabHeight = bottomTabHeight,
+                hasFavorites = textFavoritesVisible,
             )
             val panelHeight = (
                 when (activeTab) {
@@ -419,7 +423,10 @@ fun TableEditorV2Screen(
                 ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
             val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+                max = if (imeVisible) {
+                    if (textFavoritesVisible) maxOf(168.dp, maxHeight * 0.55f).coerceAtMost(maxHeight)
+                    else maxHeight * 0.55f
+                } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
