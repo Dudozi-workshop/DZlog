@@ -19,6 +19,7 @@ assert info["CFBundleIdentifier"] == "com.dudoziworkshop.dzlog"
 assert info["CFBundleDisplayName"] == "DZlog"
 assert info["CFBundleShortVersionString"] == "1.0.0"
 assert info["CFBundleVersion"] == "3"
+assert info["ITSAppUsesNonExemptEncryption"] is False
 assert info["NSCameraUsageDescription"].strip()
 assert info["NSPhotoLibraryUsageDescription"].strip()
 assert info["NSPhotoLibraryAddUsageDescription"].strip()

@@ -8,6 +8,7 @@
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>3</string>
 <key>CFBundleShortVersionString</key><string>1.0.0</string>
+<key>ITSAppUsesNonExemptEncryption</key><false/>
 <key>MinimumOSVersion</key><string>15.0</string>
 <key>NSCameraUsageDescription</key><string>촬영 기록을 만들기 위해 카메라 접근이 필요합니다.</string>
 <key>NSPhotoLibraryUsageDescription</key><string>촬영한 원본과 기록 사진을 저장하고 DZlog 갤러리에서 확인하기 위해 사진 접근이 필요합니다.</string>
