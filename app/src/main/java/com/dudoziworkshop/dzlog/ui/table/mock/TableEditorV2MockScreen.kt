@@ -195,7 +195,9 @@ fun TableEditorV2Screen(
 
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
-    val selectionState = remember { TableEditorV2SelectionState() }
+    val selectionState = remember { TableEditorV2SelectionState().apply {
+        selectFirstEditableCellOnEntry(draftTemplateState)
+    } }
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
