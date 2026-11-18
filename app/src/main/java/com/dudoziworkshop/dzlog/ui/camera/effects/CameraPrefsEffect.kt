@@ -14,6 +14,9 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CAPTURE_ASPECT
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_COUNTER_DIGITS
