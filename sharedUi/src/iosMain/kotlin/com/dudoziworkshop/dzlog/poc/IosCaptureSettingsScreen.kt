@@ -17,6 +17,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -125,36 +128,12 @@ internal fun IosCaptureSettingsScreen(
                     maxLines = 1,
                 )
 
-                IosCompactSettingsRow("비율") {
-                    IosRowSegments(CaptureAspect.entries.map { value ->
-                        DDZSegmentedControlOption(value.label, captureAspect == value) { captureAspect = value }
-                    })
-                }
-                IosCompactSettingsRow("저장") {
-                    IosRowSegments(listOf(
-                        DDZSegmentedControlOption("원본", mode == SaveMode.ORIGINAL_ONLY) { mode = SaveMode.ORIGINAL_ONLY },
-                        DDZSegmentedControlOption("표 합성", mode == SaveMode.WATERMARK_ONLY) { mode = SaveMode.WATERMARK_ONLY },
-                        DDZSegmentedControlOption("둘 다", mode == SaveMode.BOTH) { mode = SaveMode.BOTH },
-                    ))
-                }
-                IosCompactSettingsRow("촬영 확인") {
-                    IosRowSegments(listOf(
-                        DDZSegmentedControlOption("안 함", previewMode == 0) { previewMode = 0 },
-                        DDZSegmentedControlOption("잠깐", previewMode == 1) { previewMode = 1 },
-                        DDZSegmentedControlOption("유지", previewMode == 2) { previewMode = 2 },
-                    ))
-                }
-                IosCompactSettingsRow("피드백") {
-                    IosFeedbackChip("소리·시스템", selected = true, enabled = false, onClick = {},
-                        modifier = Modifier.weight(1f))
-                    IosFeedbackChip("진동", selected = hapticEnabled, enabled = true,
-                        onClick = { hapticEnabled = !hapticEnabled }, modifier = Modifier.weight(1f))
-                }
-                Text(
-                    text = "촬영음은 iPhone 시스템 설정과 지역 정책을 따릅니다.",
-                    modifier = Modifier.fillMaxWidth().padding(start = 61.dp, end = 4.dp, bottom = 4.dp),
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextMuted,
+                IosCaptureSettingsOptions(
+                    captureAspect, mode, previewMode, hapticEnabled,
+                    onAspectChange = { captureAspect = it },
+                    onModeChange = { mode = it },
+                    onPreviewChange = { previewMode = it },
+                    onHapticChange = { hapticEnabled = it },
                 )
 
                 HorizontalDivider(color = DDZColor.Border)
@@ -230,6 +209,107 @@ internal fun IosCaptureSettingsScreen(
     }
 }
 
+/** Keeps the live camera mounted while the common options update the session. */
+@Composable
+internal fun IosCaptureSettingsOverlay(
+    captureAspect: CaptureAspect,
+    mode: SaveMode,
+    previewMode: Int,
+    hapticEnabled: Boolean,
+    error: String?,
+    onAspectChange: (CaptureAspect) -> Unit,
+    onModeChange: (SaveMode) -> Unit,
+    onPreviewChange: (Int) -> Unit,
+    onHapticChange: (Boolean) -> Unit,
+    onOpenDetails: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier.matchParentSize().background(DDZColor.PrimaryDark.copy(alpha = 0.20f))
+                    .clickable(interactionSource = null, indication = null, onClick = onDismiss)
+            )
+            BoxWithConstraints(
+                Modifier.align(Alignment.TopEnd).safeDrawingPadding()
+            ) {
+                val panelWidth = (maxWidth * 0.72f).coerceIn(minOf(240.dp, maxWidth), 320.dp)
+                Surface(
+                    modifier = Modifier.width(panelWidth).heightIn(max = 440.dp),
+                    shape = IosCameraSettingsShape,
+                    color = DDZColor.Card,
+                    shadowElevation = 6.dp,
+                ) {
+                    Column(
+                        Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Box(Modifier.fillMaxWidth().heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
+                            Text("촬영 설정", style = DDZTypography.OverlayTitleCompact, color = DDZColor.Primary)
+                            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
+                                Text("닫기")
+                            }
+                        }
+                        HorizontalDivider(color = DDZColor.Border)
+                        IosCaptureSettingsOptions(
+                            captureAspect, mode, previewMode, hapticEnabled,
+                            onAspectChange, onModeChange, onPreviewChange, onHapticChange,
+                        )
+                        error?.let { Text(it, style = DDZTypography.Caption, color = DDZColor.Destructive) }
+                        TextButton(onClick = onOpenDetails, modifier = Modifier.align(Alignment.End)) {
+                            Text("표·번호 설정")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IosCaptureSettingsOptions(
+    captureAspect: CaptureAspect,
+    mode: SaveMode,
+    previewMode: Int,
+    hapticEnabled: Boolean,
+    onAspectChange: (CaptureAspect) -> Unit,
+    onModeChange: (SaveMode) -> Unit,
+    onPreviewChange: (Int) -> Unit,
+    onHapticChange: (Boolean) -> Unit,
+) {
+    IosCompactSettingsRow("비율") {
+        IosRowSegments(listOf(CaptureAspect.R1_1, CaptureAspect.R3_4, CaptureAspect.R9_16).map { value ->
+            DDZSegmentedControlOption(value.label, captureAspect == value) { onAspectChange(value) }
+        })
+    }
+    IosCompactSettingsRow("저장") {
+        IosRowSegments(listOf(
+            DDZSegmentedControlOption("원본", mode == SaveMode.ORIGINAL_ONLY) { onModeChange(SaveMode.ORIGINAL_ONLY) },
+            DDZSegmentedControlOption("표 합성", mode == SaveMode.WATERMARK_ONLY) { onModeChange(SaveMode.WATERMARK_ONLY) },
+            DDZSegmentedControlOption("둘 다", mode == SaveMode.BOTH) { onModeChange(SaveMode.BOTH) },
+        ))
+    }
+    IosCompactSettingsRow("촬영 확인") {
+        IosRowSegments(listOf(
+            DDZSegmentedControlOption("안 함", previewMode == 0) { onPreviewChange(0) },
+            DDZSegmentedControlOption("잠깐", previewMode == 1) { onPreviewChange(1) },
+            DDZSegmentedControlOption("유지", previewMode == 2) { onPreviewChange(2) },
+        ))
+    }
+    IosCompactSettingsRow("피드백") {
+        IosFeedbackChip("소리·시스템", selected = true, enabled = false, onClick = {},
+            modifier = Modifier.weight(1f))
+        IosFeedbackChip("진동", selected = hapticEnabled, enabled = true,
+            onClick = { onHapticChange(!hapticEnabled) }, modifier = Modifier.weight(1f))
+    }
+    Text(
+        text = "촬영음은 iPhone 시스템 설정과 지역 정책을 따릅니다.",
+        modifier = Modifier.fillMaxWidth().padding(start = 61.dp, end = 4.dp, bottom = 4.dp),
+        style = DDZTypography.Caption,
+        color = DDZColor.TextMuted,
+    )
+}
+
 @Composable
 private fun IosCompactSettingsRow(label: String, content: @Composable RowScope.() -> Unit) {
     Row(
@@ -268,7 +348,7 @@ private fun IosFeedbackChip(
         modifier = modifier.height(40.dp)
             .background(if (selected) DDZColor.SageLight else DDZColor.Surface, shape)
             .border(BorderStroke(1.dp, if (selected) DDZColor.SageBorder else DDZColor.Border), shape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, style = DDZTypography.Caption.copy(fontSize = 11.sp),

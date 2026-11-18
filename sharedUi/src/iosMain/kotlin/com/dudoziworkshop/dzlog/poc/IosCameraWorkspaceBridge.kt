@@ -165,6 +165,21 @@ internal class IosCameraCaptureSession(
         return true
     }
 
+    fun applyCameraPanelSettings(
+        mode: SaveMode = selectedDocument.saveMode,
+        previewMode: Int = continuousPreviewMode,
+        hapticEnabled: Boolean = captureHapticEnabled,
+        aspect: com.dudoziworkshop.dzlog.domain.model.CaptureAspect = captureAspect,
+    ): Boolean {
+        val document = selectedDocument
+        if (mode == document.saveMode && previewMode == continuousPreviewMode &&
+            hapticEnabled == captureHapticEnabled && aspect == captureAspect) return true
+        if (mode != document.saveMode && mode != SaveMode.ORIGINAL_ONLY &&
+            (document.capturePlacement == null ||
+                runCatching { iosCaptureCellRects(document.template.templateState) }.isFailure)) return false
+        return saveCaptureSettings(document.copy(saveMode = mode), previewMode, hapticEnabled, aspect.v)
+    }
+
     fun saveCaptureSettings(
         document: com.dudoziworkshop.dzlog.data.template.EditorDocument,
         continuousPreviewMode: Int,

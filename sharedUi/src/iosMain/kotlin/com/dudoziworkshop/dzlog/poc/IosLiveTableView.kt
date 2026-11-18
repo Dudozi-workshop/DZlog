@@ -44,7 +44,7 @@ internal fun IosLiveTablePreview(
     onSaved: () -> Unit,
     onError: (String) -> Unit,
 ) {
-    val view = remember(session, previewLayer, fixtureAspect, captureAspect) {
+    val view = remember(session, previewLayer, fixtureAspect) {
         IosLiveTableView(previewLayer, fixtureAspect, captureAspect)
     }
     val placement = if (session.selectedDocument.saveMode == com.dudoziworkshop.dzlog.domain.model.SaveMode.ORIGINAL_ONLY)
@@ -63,6 +63,7 @@ internal fun IosLiveTablePreview(
         properties = UIKitInteropProperties(interactionMode = UIKitInteropInteractionMode.NonCooperative,
             isNativeAccessibilityEnabled = true),
         update = {
+            it.updateCaptureAspect(captureAspect)
             it.bind(placement, enabled, showGrid, showTable, focusEnabled,
                 focusCollapseToken, minimumExposureBias, maximumExposureBias,
                 onFocusAt, onExposureLock, onExposureBias, onFocusInteraction, revision,
@@ -75,7 +76,7 @@ internal fun IosLiveTablePreview(
 internal class IosLiveTableView(
     private val preview: AVCaptureVideoPreviewLayer?,
     private val fixtureAspect: Double?,
-    private val captureAspect: Double?,
+    private var captureAspect: Double?,
 ) : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
     private val image = UIImageView()
     private val gridLines = List(4) { UIView() }
@@ -177,6 +178,15 @@ internal class IosLiveTableView(
         addGestureRecognizer(pinchZoom)
         focusLock.addTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.addTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
+    }
+
+    fun updateCaptureAspect(aspect: Double?) {
+        if (captureAspect == aspect) return
+        captureAspect = aspect
+        previewReady = false
+        ready?.invoke(false)
+        dirty = true
+        setNeedsLayout()
     }
 
     fun bind(p: IosCaptureTablePlacement?, active: Boolean, gridVisible: Boolean,

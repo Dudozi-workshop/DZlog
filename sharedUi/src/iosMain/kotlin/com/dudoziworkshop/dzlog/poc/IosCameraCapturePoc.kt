@@ -79,6 +79,7 @@ internal fun IosCameraCapturePoc(
     var status by remember { mutableStateOf("카메라 확인 중") }
     var successfulSaves by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
+    var showSettingsDetails by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showQuickValues by remember { mutableStateOf(false) }
@@ -110,8 +111,8 @@ internal fun IosCameraCapturePoc(
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
-    LaunchedEffect(ready, busy, overlayEditing, showSettings, showGallery, showQuickValues, liveHasClock) {
-        if (liveHasClock && ready && !busy && !overlayEditing && !showSettings && !showGallery && !showQuickValues) {
+    LaunchedEffect(ready, busy, overlayEditing, showSettingsDetails, showGallery, showQuickValues, liveHasClock) {
+        if (liveHasClock && ready && !busy && !overlayEditing && !showSettingsDetails && !showGallery && !showQuickValues) {
             while (true) { delay(1000); liveTick += 1 }
         }
     }
@@ -148,10 +149,10 @@ internal fun IosCameraCapturePoc(
         }
     }
 
-    LaunchedEffect(camera, showSettings, showGallery, showQuickValues) {
+    LaunchedEffect(camera, showSettingsDetails, showGallery, showQuickValues) {
         try {
             ready = false
-            if (showSettings || showGallery || showQuickValues) {
+            if (showSettingsDetails || showGallery || showQuickValues) {
                 withContext(Dispatchers.Default) { camera.stop() }
             } else if (!permissionGranted) {
                 status = "카메라 권한이 없습니다."
@@ -190,13 +191,13 @@ internal fun IosCameraCapturePoc(
         return
     }
 
-    if (showSettings && session != null) {
+    if (showSettingsDetails && session != null) {
         IosCaptureSettingsScreen(session.selectedDocument, session.continuousPreviewMode,
-            session.captureHapticEnabled, session.captureAspect.v, onBack = { showSettings = false }) {
+            session.captureHapticEnabled, session.captureAspect.v, onBack = { showSettingsDetails = false }) {
                 document, previewMode, hapticEnabled, aspectMode ->
             if (session.saveCaptureSettings(document, previewMode, hapticEnabled, aspectMode)) {
                 settingsRevision += 1
-                showSettings = false
+                showSettingsDetails = false
             }
             else settingsFailure = "촬영 설정을 저장하지 못했습니다. 다시 시도해 주세요."
         }
@@ -225,17 +226,17 @@ internal fun IosCameraCapturePoc(
     if (showInfo && session != null && info != null) HomeSaveInfoSheet(
         fileName = info.previewNaming.displayName,
         relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
-        onOpenSaveSettings = { showInfo = false; showSettings = true },
+        onOpenSaveSettings = { showInfo = false; showSettingsDetails = true },
         onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
     )
-    val captureEnabled = ready && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady &&
+    val captureEnabled = ready && !showSettings && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
     val triggerCapture: () -> Unit = capture@{
         // Both shutter surfaces can deliver a tap before recomposition disables
         // them. Re-read mutable busy state here so a duplicate request cannot
         // fail in AVFoundation and clear the first capture's saving indicator.
-        if (busy || !captureEnabled) return@capture
+        if (busy || showSettings || !captureEnabled) return@capture
         focusCollapseToken += 1
         busy = true
         showTools = false
@@ -275,7 +276,7 @@ internal fun IosCameraCapturePoc(
         }
     }
     val triggerUndo: () -> Unit = {
-        if (session != null && session.canUndoLatestCapture && !busy) {
+        if (session != null && session.canUndoLatestCapture && !busy && !showSettings) {
             busy = true
             showTools = false
             status = "직전 촬영 삭제 중"
@@ -322,10 +323,10 @@ internal fun IosCameraCapturePoc(
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 captureAspect = session.captureAspect.ratioF.toDouble(),
-                enabled = !busy && !reviewVisible && !session.hasPending() && !showTools,
+                enabled = !busy && !reviewVisible && !session.hasPending() && !showTools && !showSettings,
                 showGrid = showGrid,
                 showTable = showTable,
-                focusEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing,
+                focusEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing && !showSettings,
                 focusCollapseToken = focusCollapseToken,
                 minimumExposureBias = camera.minimumExposureBias,
                 maximumExposureBias = camera.maximumExposureBias,
@@ -333,7 +334,7 @@ internal fun IosCameraCapturePoc(
                 onExposureLock = camera::setExposureLocked,
                 onExposureBias = camera::setExposureBias,
                 onFocusInteraction = { focusInteractionToken += 1 },
-                zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing,
+                zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing && !showSettings,
                 currentZoom = zoom,
                 maximumZoom = camera.maximumZoom,
                 onZoomChange = { next ->
@@ -452,6 +453,48 @@ internal fun IosCameraCapturePoc(
             onCapture = triggerCapture,
             onOpenQuickValues = { showTools = false; showQuickValues = true },
             onUndo = triggerUndo,
+        )
+    }
+    if (showSettings && session != null) {
+        fun applySetting(change: () -> Boolean, failure: String = "촬영 설정을 저장하지 못했습니다.") {
+            if (runCatching(change).getOrDefault(false)) {
+                settingsFailure = null
+                settingsRevision += 1
+            } else {
+                settingsFailure = failure
+            }
+        }
+        IosCaptureSettingsOverlay(
+            captureAspect = session.captureAspect,
+            mode = session.selectedDocument.saveMode,
+            previewMode = continuousPreviewMode,
+            hapticEnabled = session.captureHapticEnabled,
+            error = settingsFailure,
+            onAspectChange = { value ->
+                if (value != session.captureAspect) applySetting({ session.applyCameraPanelSettings(aspect = value) })
+            },
+            onModeChange = { value ->
+                if (value != session.selectedDocument.saveMode) {
+                    if (value != SaveMode.ORIGINAL_ONLY && session.tablePlacement == null) {
+                        settingsFailure = "표·번호 설정에서 표 위치를 먼저 저장해 주세요."
+                    } else {
+                        applySetting({ session.applyCameraPanelSettings(mode = value) })
+                    }
+                }
+            },
+            onPreviewChange = { value ->
+                if (value != continuousPreviewMode) applySetting({ session.applyCameraPanelSettings(previewMode = value) })
+            },
+            onHapticChange = { value -> applySetting({ session.applyCameraPanelSettings(hapticEnabled = value) }) },
+            onOpenDetails = {
+                settingsFailure = null
+                showSettings = false
+                showSettingsDetails = true
+            },
+            onDismiss = {
+                settingsFailure = null
+                showSettings = false
+            },
         )
     }
 }

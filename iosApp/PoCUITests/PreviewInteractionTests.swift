@@ -396,7 +396,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 설정")
         tapCaptureSettingsButton("둘 다", searchDown: true)
-        tapCaptureSettingsButton("저장", searchDown: false)
+        XCTAssertTrue(text("표·번호 설정").waitForExistence(timeout: 10),
+                      "Applying an option must leave the camera panel open")
+        tapCaptureSettingsButton("닫기", searchDown: false)
+        XCTAssertTrue(text("표·번호 설정").waitForNonExistence(timeout: 10))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("뒤로가기")
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
@@ -1504,5 +1507,3 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("선택한 템플릿 · 스크롤 검증").waitForExistence(timeout: 10))
     }
 }
-
-
