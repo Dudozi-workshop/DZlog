@@ -980,6 +980,10 @@ fun CameraPreview(
                     },
                     onSync = {
                         manualStepOffset = 0
+                        // A real resynchronization must allow a lower saved
+                        // number after file deletion, not preserve the last UI seed.
+                        ui.counter.scopeNextCounter = null
+                        ui.counter.syncedRequest = null
                         cameraViewModel.bumpResumeResyncTick()
                     },
                     onNext = {
