@@ -147,6 +147,20 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(5, template.phraseSets.single().defaultEvery)
     }
 
+    @Test fun `switching from legacy cell interval remembers its individual value`() {
+        val legacy = c1.copy(everyOverride = 7, phraseCompletedShots = 3)
+        val source = template.copy(cells = listOf(legacy))
+        val switched = applyQuickPhrasePeriodEdit(
+            source, QuickPhrasePeriodEdit("c1", true, 5),
+        )!!
+        assertNull(switched.cells.single().everyOverride)
+        assertEquals(7, switched.phraseSets.single().itemEveryInactiveOverrides[0])
+        val restored = applyQuickPhrasePeriodEdit(
+            switched, QuickPhrasePeriodEdit("c1", false, 7),
+        )!!
+        assertEquals(7, restored.phraseSets.single().everyForItem(0))
+    }
+
     @Test fun `switching to inherited set requires resolution if previously larger local period`() {
         val original = template.copy(cells = listOf(c1.copy(everyOverride = 7, phraseCompletedShots = 6), c2, c3))
         val edit = QuickPhrasePeriodEdit("c1", true, 5)
@@ -209,6 +223,28 @@ class QuickPhrasePeriodEditPolicyTest {
         assertEquals(1, changed.cells.first().phraseCompletedShots)
         assertEquals(companion, changed.cells[1])
         assertEquals(abc, changed.phraseSets.single())
+    }
+
+    @Test fun `switching overall then individual restores remembered phrase period`() {
+        val original = template.copy(cells = listOf(c3))
+        val inherited = applyQuickPhrasePeriodEdit(
+            original, QuickPhrasePeriodEdit("c3", true, 5),
+        )!!
+        val inheritedSet = inherited.phraseSets.single()
+        assertNull(inheritedSet.itemEveryOverrides[1])
+        assertEquals(2, inheritedSet.itemEveryInactiveOverrides[1])
+        assertEquals(5, inheritedSet.everyForItem(1))
+
+        val raisedDefault = applyQuickPhrasePeriodEdit(
+            inherited, QuickPhrasePeriodEdit("c3", true, 7),
+        )!!
+        assertEquals(2, raisedDefault.phraseSets.single().itemEveryInactiveOverrides[1])
+        val restored = applyQuickPhrasePeriodEdit(
+            raisedDefault, QuickPhrasePeriodEdit("c3", false, 2),
+        )!!
+        assertEquals(7, restored.phraseSets.single().defaultEvery)
+        assertEquals(2, restored.phraseSets.single().everyForItem(1))
+        assertEquals(c3, restored.cells.single())
     }
 
     @Test fun `atomic progress editing honors per-phrase periods`() {

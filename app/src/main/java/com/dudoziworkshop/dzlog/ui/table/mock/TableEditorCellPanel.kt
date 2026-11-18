@@ -64,15 +64,12 @@ internal fun TableEditorCellUiModelEditor(
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
-    onPhraseEveryChange: (Int) -> Unit,
-    onPhraseFollowSet: () -> Unit,
+    onPhrasePeriodChange: (Boolean, Int) -> Unit,
     onPhraseProgressChange: (Int, Int) -> Unit,
     onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
     compactInput: Boolean = false,
-    compactFavoritesExpanded: Boolean = false,
-    onCompactFavoritesExpandedChange: (Boolean) -> Unit = {},
     inputExpanded: Boolean,
     expandedInputHeight: Dp,
     onToggleInputExpanded: () -> Unit,
@@ -243,9 +240,6 @@ internal fun TableEditorCellUiModelEditor(
                         model = textFavoritesModel,
                         onApply = onValueChange,
                         enabled = favoriteActionsEnabled,
-                        compact = compactInput,
-                        compactExpanded = compactFavoritesExpanded,
-                        onCompactExpandedChange = onCompactFavoritesExpandedChange,
                     )
                     TableEditorCellType.COUNTER -> Text(
                         "촬영 성공 후 다음 번호로 증가합니다.", color = DDZColor.TextMuted,
@@ -274,15 +268,8 @@ internal fun TableEditorCellUiModelEditor(
                             val phraseOverride = selectedSet.itemEveryOverrides.getOrNull(index)
                             val everyValue = (phraseOverride ?: cell.everyOverride ?: selectedSet.defaultEvery)
                                 .coerceAtLeast(1)
-                            TableEditorPhrasePeriodRow(
-                                every = everyValue,
-                                overridden = phraseOverride != null || cell.everyOverride != null,
-                                onEveryChange = onPhraseEveryChange,
-                                onFollowSet = onPhraseFollowSet,
-                            )
                             if (selectedSet.items.isNotEmpty()) {
                                 val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
-                                HorizontalDivider(thickness = 1.dp, color = DDZColor.Border)
                                 TableEditorCompactSettingRow(
                                     label = "문구 진행 상태",
                                     value = "${selectedSet.items[index]} · ${completed}/${everyValue}장",
@@ -301,7 +288,13 @@ internal fun TableEditorCellUiModelEditor(
 
     if (showPhraseProgress) {
         phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }?.let { set ->
-            TableEditorPhraseProgressDialog(cell, set, onPhraseProgressChange, { showPhraseProgress = false })
+            TableEditorPhraseProgressDialog(
+                cell = cell,
+                set = set,
+                onProgressChange = onPhraseProgressChange,
+                onPeriodChange = onPhrasePeriodChange,
+                onDismiss = { showPhraseProgress = false },
+            )
         }
     }
 

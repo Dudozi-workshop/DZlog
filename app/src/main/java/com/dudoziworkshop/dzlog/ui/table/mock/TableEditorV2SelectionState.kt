@@ -22,6 +22,17 @@ internal class TableEditorV2SelectionState {
     private fun editableCellIds(templateState: TableTemplateState): Set<String> =
         TableStructureRangeActions.rootCells(templateState.cells).mapTo(mutableSetOf()) { it.cellId }
 
+    /**
+     * Seed the initial Content selection once. Explicit close/clear and later
+     * tab switches must never silently reselect a cell.
+     */
+    fun selectFirstEditableCellOnEntry(templateState: TableTemplateState) {
+        if (hasEditSelectionHistory || selectedCellId != null) return
+        TableStructureRangeActions.rootCells(templateState.cells)
+            .minWithOrNull(compareBy({ it.rowIndex }, { it.colIndex }))
+            ?.cellId?.let(::selectEditCell)
+    }
+
     fun selectEditCell(cellId: String) {
         selectedCellId = cellId
         lastEditCellId = cellId

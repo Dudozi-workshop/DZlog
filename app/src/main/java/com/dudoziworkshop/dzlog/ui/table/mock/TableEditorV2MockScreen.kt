@@ -195,7 +195,9 @@ fun TableEditorV2Screen(
 
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
-    val selectionState = remember { TableEditorV2SelectionState() }
+    val selectionState = remember { TableEditorV2SelectionState().apply {
+        selectFirstEditableCellOnEntry(draftTemplateState)
+    } }
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
@@ -253,7 +255,6 @@ fun TableEditorV2Screen(
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
     var pendingInputFocusCellId by remember { mutableStateOf<String?>(null) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
-    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
@@ -272,11 +273,6 @@ fun TableEditorV2Screen(
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
-    val textCellSelected = cells.any { it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT }
-    LaunchedEffect(imeVisible, textCellSelected) {
-        if (!imeVisible || !textCellSelected) compactFavoritesExpanded = false
-    }
-
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
         showStyle -> MockBottomTab.STYLE
@@ -402,9 +398,13 @@ fun TableEditorV2Screen(
                 cells.any { it.domainCellId == selectedCellId && !it.isCovered }
             // Content wraps its controls, with a cap; the other tabs retain their existing size.
             val bottomTabHeight = with(LocalDensity.current) { bottomTabHeightPx.toDp() }
+            val hasFavoritesRow = cellPanelVisible && cells.any {
+                it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT
+            }
             val cellPanelMaxHeight = editorContentPanelMaxHeight(
                 availableHeight = maxHeight,
                 bottomTabHeight = bottomTabHeight,
+                hasFavoritesRow = hasFavoritesRow,
             )
             val panelHeight = (
                 when (activeTab) {
@@ -424,12 +424,42 @@ fun TableEditorV2Screen(
                     else cellPanelMaxHeight - 64.dp
                 ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
+            val minTextEditorHeight = DDZLayout.QuickInput.RowHeight +
+                DDZLayout.QuickInput.Touch + 24.dp +
+                if (hasFavoritesRow) DDZLayout.QuickInput.Touch else 0.dp
             val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+                max = if (imeVisible && cellPanelVisible) {
+                    minOf(maxHeight, maxOf(maxHeight * 0.55f, minTextEditorHeight))
+                } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+            )
+            val geometry = remember(
+                cells, rows, cols, draftTemplateState, draftStyleState.valueScale,
+                cameraTablePrefs,
+            ) {
+                computeEditorCameraTableGeometry(
+                    cells = editorRenderCells(cells, rows, cols),
+                    templateCells = draftTemplateState.cells,
+                    rows = rows,
+                    cols = cols,
+                    rowWeights = draftTemplateState.rowWeights,
+                    colWeights = draftTemplateState.colWeights,
+                    valueScale = draftStyleState.valueScale,
+                    tableWidthRatio = cameraTablePrefs.widthRatio,
+                    tableHeightRatio = cameraTablePrefs.heightRatio,
+                    captureAspect = cameraTablePrefs.captureAspect,
+                )
+            }
+            val previewCardHeight = editorPreviewCardHeight(
+                availableWidth = maxWidth,
+                availableHeight = maxHeight,
+                tableWidthToHeight = geometry.widthToHeight,
+                reservedEditorHeight = if (cellPanelVisible) cellPanelMaxHeight else panelHeight,
+                keyboardVisible = imeVisible,
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(previewCardHeight)
+                        .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
@@ -540,6 +570,21 @@ fun TableEditorV2Screen(
                     }
                 }
 
+                if (!imeVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "표의 셀을 선택하면 아래에서 내용을 수정할 수 있습니다.",
+                            style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption,
+                            color = DDZColor.TextMuted,
+                            maxLines = 2,
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
                 // Without a selected content cell, no empty editor band is reserved.
                 if (activeTab != MockBottomTab.CONTENT || cellPanelVisible) {
                 TableEditorWorkPanel(
@@ -628,33 +673,16 @@ fun TableEditorV2Screen(
                                                 )
                                             }
                                         },
-                                        onPhraseEveryChange = { every ->
+                                        onPhrasePeriodChange = { useSet, every ->
                                             selected.domainCellId?.let { cellId ->
                                                 val candidate = previewQuickPhrasePeriodEdit(
                                                     draftTemplateState,
-                                                    QuickPhrasePeriodEdit(cellId, false, every),
+                                                    QuickPhrasePeriodEdit(cellId, useSet, every),
                                                 )
                                                 if (candidate != null) {
                                                     if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
                                                         session.commitTemplateChange(candidate)
                                                     } else pendingPhraseProposal = candidate
-                                                }
-                                            }
-                                        },
-                                        onPhraseFollowSet = {
-                                            selected.domainCellId?.let { cellId ->
-                                                val set = draftTemplateState.phraseSets
-                                                    .firstOrNull { it.id == selected.phraseSetId }
-                                                if (set != null) {
-                                                    val candidate = previewQuickPhrasePeriodEdit(
-                                                        draftTemplateState,
-                                                        QuickPhrasePeriodEdit(cellId, true, set.defaultEvery),
-                                                    )
-                                                    if (candidate != null) {
-                                                        if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
-                                                            session.commitTemplateChange(candidate)
-                                                        } else pendingPhraseProposal = candidate
-                                                    }
                                                 }
                                             }
                                         },
@@ -691,8 +719,6 @@ fun TableEditorV2Screen(
                                             )
                                         },
                                         compactInput = imeVisible,
-                                        compactFavoritesExpanded = compactFavoritesExpanded,
-                                        onCompactFavoritesExpandedChange = { compactFavoritesExpanded = it },
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },

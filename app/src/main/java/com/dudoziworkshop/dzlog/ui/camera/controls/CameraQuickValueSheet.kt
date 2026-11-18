@@ -145,7 +145,6 @@ internal fun CameraQuickValueSheet(
         }
     }
     var expanded by remember { mutableStateOf(false) }
-    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     var switching by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -201,7 +200,6 @@ internal fun CameraQuickValueSheet(
     fun select(id: String) {
         val target = cells.firstOrNull { it.cellId == id } ?: return
         if (selectedId != id) expanded = false
-        if (target.dataType != TableCellDataType.TEXT) compactFavoritesExpanded = false
         selectedId?.let { oldId -> values[oldId]?.let { values[oldId] = it.copy(composition = null) } }
         values[id]?.let { values[id] = it.copy(
             selection = TextRange(it.text.length), composition = null,
@@ -220,9 +218,6 @@ internal fun CameraQuickValueSheet(
         val focus = LocalFocusManager.current
         val keyboard = LocalSoftwareKeyboardController.current
         val imeVisible = WindowInsets.isImeVisible
-        LaunchedEffect(imeVisible) {
-            if (!imeVisible) compactFavoritesExpanded = false
-        }
         val context = LocalContext.current
         val view = LocalView.current
         val density = LocalDensity.current
@@ -309,16 +304,9 @@ internal fun CameraQuickValueSheet(
             val selectedText = cells.any {
                 it.cellId == selectedId && it.dataType == TableCellDataType.TEXT
             }
-            val hasFavoritesUi = selectedText && (
-                textFavoritesModel.favorites.isNotEmpty() || textFavoritesModel.lastChange != null
-            )
-            val favoriteHeaderBudget = if (hasFavoritesUi) DDZLayout.QuickInput.Touch else 0.dp
-            val favoriteChipsBudget = if (
-                selectedText && textFavoritesModel.favorites.isNotEmpty() &&
-                (!imeVisible || compactFavoritesExpanded)
-            ) DDZLayout.QuickInput.Touch else 0.dp
+            val favoriteRowBudget = if (selectedText) DDZLayout.QuickInput.Touch else 0.dp
             val inputBudget = (
-                maxHeight - fixedChrome - favoriteHeaderBudget - favoriteChipsBudget -
+                maxHeight - fixedChrome - favoriteRowBudget -
                     DDZLayout.QuickInput.MinPreviewHeight
             ).coerceAtLeast(DDZLayout.QuickInput.Touch)
             val expandedHeight = minOf(DDZLayout.QuickInput.ExpandedHeight, inputBudget)
@@ -534,9 +522,6 @@ internal fun CameraQuickValueSheet(
                                 TableEditorTextFavoritesRow(
                                     model = textFavoritesModel,
                                     enabled = !switching && !readOnlyGuide,
-                                    compact = imeVisible,
-                                    compactExpanded = compactFavoritesExpanded,
-                                    onCompactExpandedChange = { compactFavoritesExpanded = it },
                                     onApply = { text ->
                                         change(TextFieldValue(text, TextRange(text.length)))
                                     },

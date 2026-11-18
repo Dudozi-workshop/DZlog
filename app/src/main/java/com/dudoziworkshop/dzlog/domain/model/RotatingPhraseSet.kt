@@ -17,6 +17,8 @@ data class RotatingPhraseSet(
      * Phrase insert/delete/reorder MUST transform this list together with items.
      */
     val itemEveryOverrides: List<Int?> = emptyList(),
+    /** Last individual periods, even while a phrase is using the shared default. */
+    val itemEveryInactiveOverrides: List<Int?> = emptyList(),
 ) {
     companion object {
         const val MAX_EVERY: Int = 999_999

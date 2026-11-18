@@ -6,12 +6,12 @@ import org.junit.Test
 
 class TableEditorCellNavigationTest {
     @Test
-    fun detail_navigation_visits_every_kind_in_row_order_and_does_not_wrap() {
+    fun detail_navigation_visits_every_kind_in_row_order_and_wraps() {
         val cells = TableEditorCellType.entries.mapIndexed { index, type ->
             TableEditorCellUiModel(index, "", type, "cell$index", rowIndex = index / 3, colIndex = index % 3)
         }.reversed()
-        assertEquals(EditorCellNeighbours(null, "cell1"), editorCellNeighbours(cells, "cell0"))
-        assertEquals(EditorCellNeighbours("cell4", null), editorCellNeighbours(cells, "cell5"))
+        assertEquals(EditorCellNeighbours("cell5", "cell1"), editorCellNeighbours(cells, "cell0"))
+        assertEquals(EditorCellNeighbours("cell4", "cell0"), editorCellNeighbours(cells, "cell5"))
         assertEquals(EditorCellNeighbours("cell1", "cell3"), editorCellNeighbours(cells, "cell2"))
     }
 
@@ -22,11 +22,24 @@ class TableEditorCellNavigationTest {
             TableEditorCellUiModel(1, "", domainCellId = "covered", colIndex = 1, isCovered = true),
             TableEditorCellUiModel(2, "next", domainCellId = "next", colIndex = 2),
         )
-        assertEquals(EditorCellNeighbours(null, "next"), editorCellNeighbours(cells, "root"))
-        assertEquals(EditorCellNeighbours("root", null), editorCellNeighbours(cells, "next"))
+        assertEquals(EditorCellNeighbours("next", "next"), editorCellNeighbours(cells, "root"))
+        assertEquals(EditorCellNeighbours("root", "root"), editorCellNeighbours(cells, "next"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(cells, "covered"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(emptyList(), null))
     }
+    @Test
+    fun one_visible_root_disables_navigation_and_duplicate_ids_are_not_extra_stops() {
+        val onlyRoot = listOf(
+            TableEditorCellUiModel(0, "merged", domainCellId = "root", rowSpan = 2, colSpan = 2),
+            TableEditorCellUiModel(1, "", domainCellId = "covered", isCovered = true),
+        )
+        assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(onlyRoot, "root"))
+        val repeatedRoot = onlyRoot + TableEditorCellUiModel(
+            2, "same", domainCellId = "root", rowIndex = 1, colIndex = 1,
+        )
+        assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(repeatedRoot, "root"))
+    }
+
     @Test
     fun editor_state_follows_domain_identity_when_display_indices_change() {
         val original = TableEditorCellUiModel(0, "alpha", domainCellId = "persist-A")
@@ -46,6 +59,22 @@ class TableEditorCellNavigationTest {
         // It now reserves input (56), navigation (44), and vertical chrome (24).
         assertEquals(124.dp, editorContentPanelMaxHeight(200.dp, 48.dp))
         assertEquals(124.dp, editorContentPanelMaxHeight(300.dp, 48.dp))
+    }
+
+    @Test
+    fun text_favorites_reserve_one_extra_row_on_short_viewports() {
+        assertEquals(
+            168.dp,
+            editorContentPanelMaxHeight(200.dp, 48.dp, hasFavoritesRow = true),
+        )
+        assertEquals(
+            100.dp,
+            editorContentPanelMaxHeight(100.dp, 48.dp, hasFavoritesRow = true),
+        )
+        assertEquals(
+            124.dp,
+            editorContentPanelMaxHeight(200.dp, 48.dp, hasFavoritesRow = false),
+        )
     }
 
     @Test

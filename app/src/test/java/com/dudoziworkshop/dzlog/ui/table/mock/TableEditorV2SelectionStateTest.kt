@@ -15,6 +15,42 @@ class TableEditorV2SelectionStateTest {
         ),
     )
 
+    @Test fun initialSelectionUsesFirstRowMajorVisibleRoot() {
+        val shuffled = template.copy(cells = template.cells.reversed())
+        val state = TableEditorV2SelectionState()
+        state.selectFirstEditableCellOnEntry(shuffled)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun initialSelectionSkipsCoveredMergedCells() {
+        val coveredFirst = template.copy(cells = listOf(
+            template.cells[0].copy(colSpan = 2),
+            template.cells[1],
+        ).reversed())
+        val state = TableEditorV2SelectionState()
+        state.selectFirstEditableCellOnEntry(coveredFirst)
+        assertEquals("left", state.selectedCellId)
+    }
+
+    @Test fun explicitCloseAndTabReturnDoNotReinitializeSelection() {
+        val state = TableEditorV2SelectionState()
+        state.selectFirstEditableCellOnEntry(template)
+        state.selectEditCell("right")
+        state.selectFirstEditableCellOnEntry(template)
+        assertEquals("right", state.selectedCellId)
+        state.clearEditSelection()
+        state.selectFirstEditableCellOnEntry(template)
+        assertNull(state.selectedCellId)
+        state.restoreEditSelection(template)
+        assertNull(state.selectedCellId)
+    }
+
+    @Test fun emptyTemplateLeavesSelectionEmpty() {
+        val state = TableEditorV2SelectionState()
+        state.selectFirstEditableCellOnEntry(template.copy(cells = emptyList()))
+        assertNull(state.selectedCellId)
+    }
+
     @Test fun structureCellSelectionCarriesIntoContentWhenNoEarlierEditSelection() {
         val state = TableEditorV2SelectionState()
         state.restoreLayoutSelection(template)
