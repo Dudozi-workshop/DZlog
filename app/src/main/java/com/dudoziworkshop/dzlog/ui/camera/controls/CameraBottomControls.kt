@@ -175,6 +175,8 @@ internal fun CameraBottomControls(
                     showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
                     showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
                     assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
+                    floatingCountEnabled = ui.prefs.floatingCountEnabled,
+                    onToggleFloatingCount = {},
                     onSelectTool = {},
                     onToggleGrid = {},
                     onToggleTable = {},
@@ -232,6 +234,12 @@ internal fun CameraBottomControls(
                 scope.launch { settingsWriter.setShowWmPreview(next) }
             },
             assistShutterEnabled = if (guidePage == "assist") guideOn else ui.prefs.assistShutterEnabled,
+            floatingCountEnabled = ui.prefs.floatingCountEnabled,
+            onToggleFloatingCount = {
+                val next = !ui.prefs.floatingCountEnabled
+                ui.prefs.floatingCountEnabled = next
+                scope.launch { settingsWriter.setFloatingCountEnabled(next) }
+            },
             onToggleAssistShutter = {
                 val next = !ui.prefs.assistShutterEnabled
                 ui.prefs.assistShutterEnabled = next
@@ -587,6 +595,8 @@ private fun BoxScope.CameraToolOverlayPanel(
     onToggleTable: () -> Unit,
     assistShutterEnabled: Boolean,
     onToggleAssistShutter: () -> Unit,
+    floatingCountEnabled: Boolean,
+    onToggleFloatingCount: () -> Unit,
     hapticEnabled: Boolean,
 ) {
     if (!showToolMenu && compactTool == null) return
@@ -606,6 +616,8 @@ private fun BoxScope.CameraToolOverlayPanel(
                 showGrid = showGrid,
                 showTable = showTable,
                 assistShutterEnabled = assistShutterEnabled,
+                floatingCountEnabled = floatingCountEnabled,
+                onToggleFloatingCount = onToggleFloatingCount,
                 onSelectTool = onSelectTool,
                 onToggleGrid = onToggleGrid,
                 onToggleTable = onToggleTable,
