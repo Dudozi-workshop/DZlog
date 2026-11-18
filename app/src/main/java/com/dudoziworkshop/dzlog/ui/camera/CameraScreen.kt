@@ -91,6 +91,7 @@ import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPol
 import androidx.compose.foundation.layout.fillMaxWidth
 import com.dudoziworkshop.dzlog.feature.capture.policy.UndoCapturePolicy
 import com.dudoziworkshop.dzlog.feature.counter.camera.CameraCounterController
+import com.dudoziworkshop.dzlog.feature.counter.core.CounterFacade
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraBottomControls
 import com.dudoziworkshop.dzlog.ui.camera.controls.CameraTableResizeBaseline
 import com.dudoziworkshop.dzlog.ui.camera.controls.resizeCameraTableKeepingCenter
@@ -979,12 +980,30 @@ fun CameraPreview(
                         }
                     },
                     onSync = {
+                        val previousRequest = ui.counter.syncedRequest
                         manualStepOffset = 0
-                        // A real resynchronization must allow a lower saved
-                        // number after file deletion, not preserve the last UI seed.
+                        // Clear any explicitly overridden next number too: sync
+                        // means the actual MediaStore-backed next value.
                         ui.counter.scopeNextCounter = null
                         ui.counter.syncedRequest = null
-                        cameraViewModel.bumpResumeResyncTick()
+                        scope.launch {
+                            try {
+                                if (previousRequest != null) withContext(Dispatchers.IO) {
+                                    CounterFacade(
+                                        context = context,
+                                        counterDigits = ui.prefs.counterDigits,
+                                        fnDelim = fnDelim,
+                                    ).clearManualNext(previousRequest)
+                                }
+                            } catch (error: Exception) {
+                                Toast.makeText(
+                                    context, "카운트 동기화를 완료하지 못했습니다. 다시 시도해주세요.",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } finally {
+                                cameraViewModel.bumpResumeResyncTick()
+                            }
+                        }
                     },
                     onNext = {
                         val baseline = baseDerivedState.displayCounter
