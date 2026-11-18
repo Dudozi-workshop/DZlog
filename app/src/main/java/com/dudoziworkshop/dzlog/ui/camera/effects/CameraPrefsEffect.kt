@@ -116,6 +116,9 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.assistShutterEnabled = prefs[KEY_ASSIST_SHUTTER_ENABLED] ?: false
         ui.prefs.assistShutterXRatio = (prefs[KEY_ASSIST_SHUTTER_X_RATIO] ?: 0.82f)
         ui.prefs.assistShutterYRatio = (prefs[KEY_ASSIST_SHUTTER_Y_RATIO] ?: 0.62f)
+        ui.prefs.floatingCountEnabled = prefs[KEY_FLOATING_COUNT_ENABLED] ?: false
+        ui.prefs.floatingCountXRatio = prefs[KEY_FLOATING_COUNT_X_RATIO] ?: 0.27f
+        ui.prefs.floatingCountYRatio = prefs[KEY_FLOATING_COUNT_Y_RATIO] ?: 0.52f
         // The zoom-state observer reports hardware zoom after restoration; do not show a requested value as actual.
         ui.capture.maxZoomTenths = maxOf(ui.capture.maxZoomTenths, 20)
     } catch (_: Exception) {
@@ -131,6 +134,9 @@ internal fun loadCameraPrefsIntoUi(prefs: Preferences, ui: CameraUiState) {
         ui.prefs.assistShutterEnabled = false
         ui.prefs.assistShutterXRatio = 0.82f
         ui.prefs.assistShutterYRatio = 0.62f
+        ui.prefs.floatingCountEnabled = false
+        ui.prefs.floatingCountXRatio = 0.27f
+        ui.prefs.floatingCountYRatio = 0.52f
         ui.capture.actualZoomTenths = 10
         ui.capture.maxZoomTenths = 20
         ui.prefs.wmTableAnchor = WatermarkTableAnchor.BOTTOM_RIGHT
