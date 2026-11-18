@@ -28,6 +28,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Keyed by asset by the caller, so zoom never leaks into the next photo. */
@@ -40,14 +41,19 @@ internal fun IosGalleryImageViewer(
     onPrevious: () -> Unit = {},
     onNext: () -> Unit = {},
     onShowInfo: () -> Unit = {},
+    pagerOwnsHorizontalSwipe: Boolean = false,
+    onZoomedStateChange: (Boolean) -> Unit = {},
 ) {
     val currentToggle by rememberUpdatedState(onToggleControls)
     val currentPrevious by rememberUpdatedState(onPrevious)
     val currentNext by rememberUpdatedState(onNext)
     val currentInfo by rememberUpdatedState(onShowInfo)
+    val currentZoomState by rememberUpdatedState(onZoomedStateChange)
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(scale) { currentZoomState(scale > 1f) }
+    DisposableEffect(Unit) { onDispose { currentZoomState(false) } }
 
     fun constrained(value: Offset, zoom: Float): Offset {
         if (viewport.width == 0 || viewport.height == 0) return Offset.Zero
@@ -114,7 +120,9 @@ internal fun IosGalleryImageViewer(
                                     tapJob?.cancel()
                                     previousTap = null
                                 }
-                                if (!cancelled && moved) {
+                                val pagerGesture = pagerOwnsHorizontalSwipe && !multiplePointers &&
+                                    startedScale <= 1f && abs(total.x) > abs(total.y)
+                                if (!cancelled && moved && !pagerGesture) {
                                     if (multiplePointers || startedScale > 1f) {
                                         val zoom = event.calculateZoom()
                                         val pan = event.calculatePan()
@@ -131,12 +139,15 @@ internal fun IosGalleryImageViewer(
                             } while (event.changes.any { it.pressed })
                             if (!cancelled) {
                                 if (moved) {
-                                    when (savedGallerySwipeAction(total.x, total.y, startedScale,
-                                        multiplePointers, 64.dp.toPx())) {
-                                        SavedGallerySwipeAction.PREVIOUS -> currentPrevious()
-                                        SavedGallerySwipeAction.NEXT -> currentNext()
-                                        SavedGallerySwipeAction.INFO -> currentInfo()
-                                        SavedGallerySwipeAction.NONE -> Unit
+                                    if (!(pagerOwnsHorizontalSwipe && !multiplePointers &&
+                                            startedScale <= 1f && abs(total.x) > abs(total.y))) {
+                                        when (savedGallerySwipeAction(total.x, total.y, startedScale,
+                                            multiplePointers, 64.dp.toPx())) {
+                                            SavedGallerySwipeAction.PREVIOUS -> currentPrevious()
+                                            SavedGallerySwipeAction.NEXT -> currentNext()
+                                            SavedGallerySwipeAction.INFO -> currentInfo()
+                                            SavedGallerySwipeAction.NONE -> Unit
+                                        }
                                     }
                                 } else if (endedAt - down.uptimeMillis <= viewConfiguration.longPressTimeoutMillis) {
                                     if (doubleTap) setZoom(if (scale > 1f) 1f else 2f)

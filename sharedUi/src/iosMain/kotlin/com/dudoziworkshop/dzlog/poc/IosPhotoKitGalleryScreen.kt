@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -45,6 +47,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collect
 import org.jetbrains.skia.Image as SkiaImage
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
@@ -454,11 +457,23 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 TextButton(onClick = { viewerControls = true }) { Text("조작부 표시") }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                key(selectedId, image) {
+                if (index >= 0 && entries.isNotEmpty()) IosGalleryAnimatedPager(
+                    repository = repository,
+                    entries = entries,
+                    selectedId = selectedId,
+                    selectedImage = image,
+                    imageLoadRevision = imageLoadRevision,
+                    enabled = !managing && !refreshing,
+                    showControls = viewerControls,
+                    onSelected = { selectedId = it },
+                    onToggleControls = { viewerControls = !viewerControls },
+                    onShowInfo = { if (selected != null) showPhotoInfo = true },
+                ) else key(selectedId, image) {
+                    // A paired original/result can live outside the active filter.
+                    // Keep it isolated instead of silently adding it to pager order.
                     image?.let { IosGalleryImageViewer(it, enabled = !managing && !refreshing,
                         showControls = viewerControls,
                         onToggleControls = { viewerControls = !viewerControls },
-                        onPrevious = { navigate(-1) }, onNext = { navigate(1) },
                         onShowInfo = { if (selected != null) showPhotoInfo = true }) }
                 }
             }
@@ -714,6 +729,87 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun IosGalleryAnimatedPager(
+    repository: PhotoKitCaptureMediaRepository,
+    entries: List<SavedCaptureMedia>,
+    selectedId: String?,
+    selectedImage: ImageBitmap?,
+    imageLoadRevision: Int,
+    enabled: Boolean,
+    showControls: Boolean,
+    onSelected: (String) -> Unit,
+    onToggleControls: () -> Unit,
+    onShowInfo: () -> Unit,
+) {
+    val initialPage = entries.indexOfFirst { it.asset.assetId == selectedId }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { entries.size })
+    var zoomedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val entryIds = entries.map { it.asset.assetId }
+
+    LaunchedEffect(entryIds) {
+        zoomedIds = zoomedIds.intersect(entryIds.toSet())
+        if (entries.isNotEmpty() && pagerState.currentPage > entries.lastIndex) {
+            pagerState.scrollToPage(entries.lastIndex)
+        }
+    }
+    LaunchedEffect(selectedId, entryIds) {
+        val target = entries.indexOfFirst { it.asset.assetId == selectedId }
+        if (target >= 0 && target != pagerState.currentPage) pagerState.animateScrollToPage(target)
+    }
+    LaunchedEffect(pagerState, entryIds, selectedId) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            entries.getOrNull(page)?.asset?.assetId?.let { id ->
+                if (id != selectedId) onSelected(id)
+            }
+        }
+    }
+
+    val currentId = entries.getOrNull(pagerState.currentPage)?.asset?.assetId
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+        key = { page -> entries[page].asset.assetId },
+        beyondViewportPageCount = 1,
+        userScrollEnabled = enabled && currentId !in zoomedIds,
+    ) { page ->
+        val entry = entries[page]
+        val id = entry.asset.assetId
+        val pageImage by produceState<ImageBitmap?>(
+            initialValue = selectedImage.takeIf { id == selectedId },
+            id,
+            entry.availability,
+            imageLoadRevision,
+        ) {
+            value = if (entry.availability != CaptureMediaAvailability.PRESENT) null else runCatching {
+                repository.readAsset(id)?.takeIf { it.isNotEmpty() }?.let {
+                    SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
+                }
+            }.getOrNull()
+        }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            pageImage?.let {
+                IosGalleryImageViewer(
+                    image = it,
+                    enabled = enabled,
+                    showControls = showControls,
+                    onToggleControls = onToggleControls,
+                    onShowInfo = onShowInfo,
+                    pagerOwnsHorizontalSwipe = true,
+                    onZoomedStateChange = { zoomed ->
+                        zoomedIds = if (zoomed) zoomedIds + id else zoomedIds - id
+                    },
+                )
+            } ?: Text(when (entry.availability) {
+                CaptureMediaAvailability.PRESENT -> "사진 불러오는 중"
+                CaptureMediaAvailability.INACCESSIBLE -> "사진 접근 권한이 없습니다."
+                CaptureMediaAvailability.MISSING -> "저장된 사진을 찾을 수 없습니다."
+            })
+        }
+    }
+}
+
 @Composable
 private fun GalleryChoiceMenu(label: String, options: List<String>, enabled: Boolean, onSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -741,4 +837,3 @@ private fun shareIosPhotos(files: List<Pair<ByteArray, String>>) {
     }
     NSNotificationCenter.defaultCenter.postNotificationName("dzlog.sharePhoto", payload)
 }
-
