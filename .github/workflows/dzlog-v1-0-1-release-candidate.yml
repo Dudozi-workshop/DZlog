@@ -1,0 +1,50 @@
+name: DZlog 1.0.1 Unsigned Release Candidate
+on:
+  push:
+    branches:
+      - release/dzlog-v1.0.1-20261115
+    paths:
+      - app/**
+      - .github/workflows/dzlog-v1-0-1-release-candidate.yml
+  pull_request:
+    branches:
+      - integration/dzlog-20261010
+    paths:
+      - app/**
+      - .github/workflows/dzlog-v1-0-1-release-candidate.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  unsigned-release-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Check preinstalled Android SDK 36
+        run: test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Validate 1.0.1 version and production package
+        run: |
+          grep -F 'applicationId = "com.dudoziworkshop.dzlog"' app/build.gradle.kts
+          grep -F 'versionName = "1.0.1"' app/build.gradle.kts
+          grep -F 'versionCode = 5' app/build.gradle.kts
+      - name: Compile release, run tests and bundle unsigned release candidate
+        run: bash ./gradlew :app:compileReleaseKotlin :app:testDebugUnitTest :app:bundleRelease --no-daemon --stacktrace
+      - name: Verify unsigned release candidate
+        run: |
+          test -s app/build/outputs/bundle/release/app-release.aab
+          echo "Release candidate created; it is NOT signed for Google Play."
+          echo "DO NOT upload this unsigned artifact to Play Console."
+      - name: Upload UNSIGNED candidate (DO NOT UPLOAD TO PLAY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: DZlog-1.0.1-vc5-UNSIGNED-DO-NOT-UPLOAD
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
