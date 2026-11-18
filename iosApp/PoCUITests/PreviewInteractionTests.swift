@@ -528,7 +528,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("선택 이동")
         XCTAssertTrue(text("사진 이동").waitForExistence(timeout: 10))
         tapButton("취소")
-        tapButton("즐겨찾기")
+        tapButton("좋아요만 보기")
         XCTAssertTrue(text("선택 0개").waitForExistence(timeout: 10), "Hidden selections must not survive a filter change")
         tapButton("전체 보기")
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10), "Cancelling batch dialogs must keep both Photos assets")
@@ -570,7 +570,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton(app.buttons.matching(NSPredicate(format: "label == %@", "원본 보기")).firstMatch.exists ? "원본 보기" : "결과 보기")
         XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
         tapButton("사진 목록")
-        tapButton("즐겨찾기")
+        tapButton("좋아요만 보기")
         XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapPanelText("갤러리 사진 미리보기")
@@ -589,7 +589,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
         tapButton("갤러리 열기")
-        tapButton("즐겨찾기")
+        tapButton("좋아요만 보기")
         let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
         )).firstMatch
@@ -854,7 +854,8 @@ final class PreviewInteractionTests: XCTestCase {
     func testCameraPermissionDeniedBlocksCapture() {
         app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
         app.launch()
-        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
+        // The aligned camera chrome no longer renders a redundant screen title.
+        XCTAssertTrue(app.buttons["촬영 도구"].waitForExistence(timeout: 20))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         XCTAssertTrue(text("이번 촬영: 0장").exists)
         XCTAssertFalse(button("촬영").isEnabled)
@@ -867,7 +868,8 @@ final class PreviewInteractionTests: XCTestCase {
         enterHomeAfterOptionalOnboarding()
         XCTAssertTrue(button("촬영 시작").isEnabled)
         tapButton("촬영 시작")
-        XCTAssertTrue(text("카메라").waitForExistence(timeout: 20))
+        // The aligned camera chrome no longer renders a redundant screen title.
+        XCTAssertTrue(app.buttons["촬영 도구"].waitForExistence(timeout: 20))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         XCTAssertFalse(button("촬영").isEnabled)
         tapButton("뒤로가기")

@@ -49,3 +49,11 @@ Native suite-isolation regression coverage accompanies the dependency injection.
 The native keyboard helper repair and larger finite job budget require a new CI result. Linux static inspection cannot validate native keyboard interaction. No merge, release, production data reset, or new UX is included.
 
 Keyboard setup now observes a fresh zero match count for the introduction together with a visible, hittable first input key, within a bounded transition check. It retains the completed final accessibility observation rather than discarding it if a synchronous query outlasts the waiter's deadline. Actual key touches, valid-name enabled-state and saved folder assertions are unchanged. Local verification: diff check, workflow YAML parse and all 15 CI-reuse Node tests passed; native Swift/XCTest was not run locally.
+
+## Follow-up: `a47da878`
+
+The preceding `6d95002c` media run `44206861073` passed all 25 selected tests, including both gallery tests. After camera/gallery parity changes, run `44214470955` at `a47da878` passed 21/25; Android, shared core and device compilation passed.
+
+The four failures are stale test targets, verified against source and failure accessibility trees. The gallery filter is now an actual button named `좋아요만 보기`, not `즐겨찾기`. Camera chrome intentionally removed the redundant `카메라` title; the denial screen still exposes `촬영 도구`, the denial message, zero capture count and disabled shutter. Update the exact filter target and use the camera tool control as the arrival marker. Retain all filter count, favorites persistence, selection clearing, disabled capture and home-return assertions. Do not revert the newer UI or loosen these behavioral checks.
+
+Local diff checks and 15 CI-reuse Node tests passed. Native XCTest remains unexecuted locally; the next CI run must validate this test-only alignment. No merge or release.
