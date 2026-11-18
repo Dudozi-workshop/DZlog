@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,11 @@ internal fun FloatingCountControl(
     if (!visible) return
     val density = LocalDensity.current
     val viewConfiguration = LocalViewConfiguration.current
+    // Pointer input handlers outlive recompositions: always dispatch latest callbacks.
+    val previousAction = rememberUpdatedState(onPrevious)
+    val syncAction = rememberUpdatedState(onSync)
+    val nextAction = rememberUpdatedState(onNext)
+    val savePosition = rememberUpdatedState(onPositionRatioChange)
     var containerWidth by remember { mutableFloatStateOf(0f) }
     var containerHeight by remember { mutableFloatStateOf(0f) }
     var centerX by remember { mutableFloatStateOf(Float.NaN) }
@@ -98,7 +104,11 @@ internal fun FloatingCountControl(
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(BUTTON_SPACING),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val actions = listOf(onPrevious, onSync, onNext)
+                    val actions = listOf(
+                        { previousAction.value() },
+                        { syncAction.value() },
+                        { nextAction.value() },
+                    )
                     val icons = listOf(Icons.Default.ChevronLeft, Icons.Default.Refresh, Icons.Default.ChevronRight)
                     val names = listOf("카운트 이전", "카운트 동기화", "카운트 다음")
                     actions.forEachIndexed { index, action ->
@@ -141,7 +151,7 @@ internal fun FloatingCountControl(
                                         }
                                         if (moved) {
                                             dragging = false
-                                            onPositionRatioChange(nextX / containerWidth, nextY / containerHeight)
+                                            savePosition.value(nextX / containerWidth, nextY / containerHeight)
                                         } else if (enabled) {
                                             action()
                                         }
