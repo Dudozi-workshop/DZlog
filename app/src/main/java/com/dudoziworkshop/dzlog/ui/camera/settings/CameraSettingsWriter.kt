@@ -91,6 +91,19 @@ internal class CameraSettingsWriter(
         }
     }
 
+    suspend fun setFloatingCountEnabled(enabled: Boolean) {
+        if (readOnly) return
+        context.dataStore.edit { it[KEY_FLOATING_COUNT_ENABLED] = enabled }
+    }
+
+    suspend fun setFloatingCountPositionRatio(xRatio: Float, yRatio: Float) {
+        if (readOnly) return
+        context.dataStore.edit {
+            it[KEY_FLOATING_COUNT_X_RATIO] = xRatio.coerceIn(0f, 1f)
+            it[KEY_FLOATING_COUNT_Y_RATIO] = yRatio.coerceIn(0f, 1f)
+        }
+    }
+
     suspend fun setWmTableSizeAndPosition(
         widthRatio: Int,
         heightRatio: Int,
