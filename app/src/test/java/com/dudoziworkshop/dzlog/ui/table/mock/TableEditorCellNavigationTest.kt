@@ -62,6 +62,22 @@ class TableEditorCellNavigationTest {
     }
 
     @Test
+    fun text_favorites_reserve_one_extra_row_on_short_viewports() {
+        assertEquals(
+            168.dp,
+            editorContentPanelMaxHeight(200.dp, 48.dp, hasFavoritesRow = true),
+        )
+        assertEquals(
+            100.dp,
+            editorContentPanelMaxHeight(100.dp, 48.dp, hasFavoritesRow = true),
+        )
+        assertEquals(
+            124.dp,
+            editorContentPanelMaxHeight(200.dp, 48.dp, hasFavoritesRow = false),
+        )
+    }
+
+    @Test
     fun tall_and_tiny_viewports_keep_panel_within_available_height() {
         val tall = editorContentPanelMaxHeight(600.dp, 48.dp)
         assertEquals((648f * 0.35f - 48f), tall.value, 0.001f)
