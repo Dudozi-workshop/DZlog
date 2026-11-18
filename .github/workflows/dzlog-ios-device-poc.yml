@@ -38,11 +38,11 @@ jobs:
         run: bash ./gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:linkDebugFrameworkIosArm64 --stacktrace
       - name: Compile unsigned device host and verify platform
         run: bash scripts/ios/build-device-poc.sh
-      - name: Preserve unsigned device build evidence
+      - name: Publish iPhone compile evidence and AltStore test IPA
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dzlog-m3a-iphone-unsigned-build
+          name: dzlog-iphone-altstore-free-test
           path: build/ios-device-poc/evidence/**
           if-no-files-found: warn
           retention-days: 7
