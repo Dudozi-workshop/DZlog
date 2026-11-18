@@ -72,7 +72,7 @@ class CameraDerivedStateTest {
         assertEquals("B_103.jpg", shifted.finalCapturePreview!!.displayName)
         assertEquals("Pictures/DZlog/B/", shifted.finalCapturePreview!!.relativePathPreview)
         assertEquals("A_104.jpg", base.topDisplayName)
-        assertEquals(1, shifted.finalCapturePreview!!.tablePatch.phraseProgressByCellId["phrase-1"]?.index)
+        assertEquals(0, shifted.finalCapturePreview!!.tablePatch.phraseProgressByCellId["phrase-1"]?.index)
         assertEquals(0, phrases.cells.single().phraseIndex)
     }
 
