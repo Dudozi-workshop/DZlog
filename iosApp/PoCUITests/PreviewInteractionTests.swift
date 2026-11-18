@@ -288,9 +288,9 @@ final class PreviewInteractionTests: XCTestCase {
     func testMergedConfiguredSaveModesAndGalleryAfterRelaunch() { verifyConfiguredModes(merged: true) }
 
     private func verifyConfiguredModes(merged: Bool) {
-        for (label, mode, placement) in [("원본만", "ORIGINAL_ONLY", "없음"),
-                                         ("결과만", "WATERMARK_ONLY", "BOTTOM_RIGHT"),
-                                         ("원본과 결과", "BOTH", "BOTTOM_RIGHT")] {
+        for (label, mode, placement) in [("원본", "ORIGINAL_ONLY", "없음"),
+                                         ("표 합성", "WATERMARK_ONLY", "BOTTOM_RIGHT"),
+                                         ("둘 다", "BOTH", "BOTTOM_RIGHT")] {
             configureCaptureFixture(label, merged: merged)
             XCTAssertTrue(text("모드: \(mode)").exists)
             XCTAssertTrue(text("배치: \(placement)").exists)
@@ -313,7 +313,7 @@ final class PreviewInteractionTests: XCTestCase {
     func testMergedConfiguredRecoveryAfterWorkspaceFailure() { verifyConfiguredRecovery(merged: true) }
 
     private func verifyConfiguredRecovery(merged: Bool) {
-        for label in ["원본만", "결과만", "원본과 결과"] {
+        for label in ["원본", "표 합성", "둘 다"] {
             configureCaptureFixture(label, merged: merged)
             tapButton("저장 후 복구 대기")
             XCTAssertTrue(waitForPhotoState("상태: PhotoKit 저장·워크스페이스 복구 대기"), app.debugDescription)
@@ -359,11 +359,11 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
         app.launch()
         tapButton("촬영 설정 열기")
-        tapCaptureSettingsButton("원본만", searchDown: true)
+        tapCaptureSettingsButton("원본", searchDown: true)
         tapCaptureSettingsButton("1:1", searchDown: false)
         tapCaptureSettingsButton("유지", searchDown: true)
-        tapCaptureSettingsButton("촬영 진동 끄기", searchDown: false)
-        tapCaptureSettingsButton("설정 저장", searchDown: false)
+        tapCaptureSettingsButton("진동", searchDown: false)
+        tapCaptureSettingsButton("저장", searchDown: false)
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("빠른 값 변경")
@@ -372,8 +372,8 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 설정")
-        tapCaptureSettingsButton("원본과 결과", searchDown: true)
-        tapCaptureSettingsButton("설정 저장", searchDown: false)
+        tapCaptureSettingsButton("둘 다", searchDown: true)
+        tapCaptureSettingsButton("저장", searchDown: false)
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("뒤로가기")
         XCTAssertTrue(text("모드: BOTH").waitForExistence(timeout: 20))
@@ -418,7 +418,7 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testGalleryFolderGridViewerAndOriginalResultSwitch() {
-        configureCaptureFixture("원본과 결과", merged: true)
+        configureCaptureFixture("둘 다", merged: true)
         tapButton("촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
@@ -552,7 +552,7 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testGalleryFavoriteAndEmptyFolderManagementPersist() {
-        configureCaptureFixture("원본과 결과", merged: true)
+        configureCaptureFixture("둘 다", merged: true)
         tapButton("촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
@@ -662,7 +662,7 @@ final class PreviewInteractionTests: XCTestCase {
         if merged { XCTAssertTrue(text("병합 표 사용 중").waitForExistence(timeout: 20)) }
         tapButton("촬영 설정 열기")
         tapCaptureSettingsButton(modeLabel, searchDown: true)
-        tapCaptureSettingsButton("설정 저장", searchDown: false)
+        tapCaptureSettingsButton("저장", searchDown: false)
         XCTAssertTrue(text("상태: 설정 복원 완료").waitForExistence(timeout: 20))
     }
 

@@ -29,6 +29,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
+/** Shared segmented-control contract used by Android and iOS surfaces. */
 data class DDZSegmentedControlOption(
     val label: String,
     val selected: Boolean,
