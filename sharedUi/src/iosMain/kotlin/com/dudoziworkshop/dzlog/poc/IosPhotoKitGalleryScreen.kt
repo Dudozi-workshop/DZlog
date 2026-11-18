@@ -461,7 +461,6 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     repository = repository,
                     entries = entries,
                     selectedId = selectedId,
-                    selectedImage = image,
                     imageLoadRevision = imageLoadRevision,
                     enabled = !managing && !refreshing,
                     showControls = viewerControls,
@@ -735,7 +734,6 @@ private fun IosGalleryAnimatedPager(
     repository: PhotoKitCaptureMediaRepository,
     entries: List<SavedCaptureMedia>,
     selectedId: String?,
-    selectedImage: ImageBitmap?,
     imageLoadRevision: Int,
     enabled: Boolean,
     showControls: Boolean,
@@ -747,6 +745,8 @@ private fun IosGalleryAnimatedPager(
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { entries.size })
     var zoomedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val entryIds = entries.map { it.asset.assetId }
+    val requestedId by rememberUpdatedState(selectedId)
+    val selectPhoto by rememberUpdatedState(onSelected)
 
     LaunchedEffect(entryIds) {
         zoomedIds = zoomedIds.intersect(entryIds.toSet())
@@ -758,11 +758,16 @@ private fun IosGalleryAnimatedPager(
         val target = entries.indexOfFirst { it.asset.assetId == selectedId }
         if (target >= 0 && target != pagerState.currentPage) pagerState.animateScrollToPage(target)
     }
-    LaunchedEffect(pagerState, entryIds, selectedId) {
+    LaunchedEffect(pagerState, entryIds) {
+        var previousId = entryIds.getOrNull(pagerState.settledPage)
         snapshotFlow { pagerState.settledPage }.collect { page ->
-            entries.getOrNull(page)?.asset?.assetId?.let { id ->
-                if (id != selectedId) onSelected(id)
+            val id = entryIds.getOrNull(page)
+            // A button can select a new asset before the pager moves. The
+            // outgoing page must never overwrite that explicit selection.
+            if (id != null && id != previousId && previousId == requestedId) {
+                selectPhoto(id)
             }
+            previousId = id
         }
     }
 
@@ -776,31 +781,47 @@ private fun IosGalleryAnimatedPager(
     ) { page ->
         val entry = entries[page]
         val id = entry.asset.assetId
+        val isCurrentPage = page == pagerState.settledPage
         val pageImage by produceState<ImageBitmap?>(
-            initialValue = selectedImage.takeIf { id == selectedId },
+            initialValue = null,
             id,
             entry.availability,
             imageLoadRevision,
         ) {
-            value = if (entry.availability != CaptureMediaAvailability.PRESENT) null else runCatching {
-                repository.readAsset(id)?.takeIf { it.isNotEmpty() }?.let {
-                    SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
+            value = null
+            if (entry.availability == CaptureMediaAvailability.PRESENT) {
+                try {
+                    val bytes = repository.readAsset(id)
+                    currentCoroutineContext().ensureActive()
+                    value = bytes?.takeIf { it.isNotEmpty() }?.let {
+                        SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // The active photo exposes the repository error and retry action.
                 }
-            }.getOrNull()
+            }
         }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             pageImage?.let {
-                IosGalleryImageViewer(
-                    image = it,
-                    enabled = enabled,
-                    showControls = showControls,
-                    onToggleControls = onToggleControls,
-                    onShowInfo = onShowInfo,
-                    pagerOwnsHorizontalSwipe = true,
-                    onZoomedStateChange = { zoomed ->
-                        zoomedIds = if (zoomed) zoomedIds + id else zoomedIds - id
-                    },
-                )
+                if (!isCurrentPage) {
+                    Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                } else {
+                    key(imageLoadRevision) {
+                        IosGalleryImageViewer(
+                            image = it,
+                            enabled = enabled,
+                            showControls = showControls,
+                            onToggleControls = onToggleControls,
+                            onShowInfo = onShowInfo,
+                            pagerOwnsHorizontalSwipe = true,
+                            onZoomedStateChange = { zoomed ->
+                                zoomedIds = if (zoomed) zoomedIds + id else zoomedIds - id
+                            },
+                        )
+                    }
+                }
             } ?: Text(when (entry.availability) {
                 CaptureMediaAvailability.PRESENT -> "사진 불러오는 중"
                 CaptureMediaAvailability.INACCESSIBLE -> "사진 접근 권한이 없습니다."

@@ -382,6 +382,10 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
         app.launch()
         tapButton("촬영 설정 열기")
+        tapCaptureSettingsButton("둘 다", searchDown: true)
+        tapCaptureSettingsButton("저장", searchDown: false)
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").waitForExistence(timeout: 20))
+        tapButton("촬영 설정 열기")
         tapCaptureSettingsButton("원본", searchDown: true)
         tapCaptureSettingsButton("1:1", searchDown: false)
         tapCaptureSettingsButton("유지", searchDown: true)
@@ -398,6 +402,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapCaptureSettingsButton("둘 다", searchDown: true)
         XCTAssertTrue(text("표·번호 설정").waitForExistence(timeout: 10),
                       "Applying an option must leave the camera panel open")
+        XCTAssertFalse(text("표·번호 설정에서 표 위치를 먼저 저장해 주세요.").exists)
         tapCaptureSettingsButton("닫기", searchDown: false)
         XCTAssertTrue(text("표·번호 설정").waitForNonExistence(timeout: 10))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
@@ -1373,9 +1378,9 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         tapButton("표 편집")
         XCTAssertTrue(text("표 편집").waitForExistence(timeout: 15))
-        tapPanelText("블루베리 관찰 기록")
         XCTAssertTrue(app.buttons["셀 편집 닫기"].waitForExistence(timeout: 10))
-        // Selecting the canvas cell opens its panel. Compose 1.7 exposes the unfocused
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        // The first cell opens its panel on entry. Compose 1.7 exposes the unfocused
         // field as a Button even while focused; touch the lower panel field first.
         let valueField = try XCTUnwrap(app.buttons.matching(NSPredicate(
             format: "label == %@", "블루베리 관찰 기록"

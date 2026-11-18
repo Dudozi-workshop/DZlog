@@ -168,7 +168,11 @@ fun TableEditorV2Content(
 
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
-    val selectionState = remember { TableEditorV2SelectionState() }
+    val selectionState = remember {
+        TableEditorV2SelectionState().apply {
+            selectFirstEditableCellOnEntry(draftTemplateState)
+        }
+    }
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
@@ -264,6 +268,7 @@ fun TableEditorV2Content(
                             if (mode == MockMode.LAYOUT) {
                                 mode = MockMode.EDIT
                                 selectionState.clearLayoutSelection()
+                                selectionState.reconcileEditSelection(draftTemplateState)
                             } else {
                                 saveScope.launch { saveCoordinator.save(session, onSave) }
                             }
