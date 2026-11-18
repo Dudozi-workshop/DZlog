@@ -253,7 +253,6 @@ fun TableEditorV2Screen(
     var keyboardPreviewLocked by remember { mutableStateOf(false) }
     var pendingInputFocusCellId by remember { mutableStateOf<String?>(null) }
     var inputExpanded by remember(selectedCellId) { mutableStateOf(false) }
-    var compactFavoritesExpanded by remember { mutableStateOf(false) }
     var bottomTabHeightPx by remember { mutableStateOf(0) }
     // Keep the scale through the closing animation too; release after the IME settles.
     LaunchedEffect(imeVisible, imeBottom) {
@@ -272,11 +271,6 @@ fun TableEditorV2Screen(
         mockCellsFromTemplate(draftTemplateState, preview.plan.resolvedCells.associate { it.id to it.resolvedText })
     }
     val cameraTablePrefs = rememberEditorCameraTablePrefs()
-    val textCellSelected = cells.any { it.domainCellId == selectedCellId && it.type == TableEditorCellType.TEXT }
-    LaunchedEffect(imeVisible, textCellSelected) {
-        if (!imeVisible || !textCellSelected) compactFavoritesExpanded = false
-    }
-
     val activeTab = when {
         mode == MockMode.LAYOUT -> MockBottomTab.STRUCTURE
         showStyle -> MockBottomTab.STYLE
@@ -424,8 +418,12 @@ fun TableEditorV2Screen(
                     else cellPanelMaxHeight - 64.dp
                 ).coerceAtLeast(DDZLayout.QuickInput.RowHeight),
             )
+            val minTextEditorHeight = DDZLayout.QuickInput.RowHeight +
+                DDZLayout.QuickInput.Touch * 2 + 24.dp
             val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible) maxHeight * 0.55f else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+                max = if (imeVisible && cellPanelVisible) {
+                    minOf(maxHeight, maxOf(maxHeight * 0.55f, minTextEditorHeight))
+                } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
@@ -674,8 +672,6 @@ fun TableEditorV2Screen(
                                             )
                                         },
                                         compactInput = imeVisible,
-                                        compactFavoritesExpanded = compactFavoritesExpanded,
-                                        onCompactFavoritesExpandedChange = { compactFavoritesExpanded = it },
                                         inputExpanded = inputExpanded,
                                         expandedInputHeight = expandedInputHeight,
                                         onToggleInputExpanded = { inputExpanded = !inputExpanded },
