@@ -32,8 +32,9 @@ final class PreviewInteractionTests: XCTestCase {
         image.name = name
         image.lifetime = .keepAlways
         add(image)
-        let hierarchy = XCTAttachment(string: app.debugDescription)
-        print("UI_HIERARCHY: \(app.debugDescription)")
+        let hierarchyDescription = app.debugDescription
+        let hierarchy = XCTAttachment(string: hierarchyDescription)
+        print("UI_HIERARCHY: \(hierarchyDescription)")
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
         app.terminate()
@@ -210,7 +211,22 @@ final class PreviewInteractionTests: XCTestCase {
 
     func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
         openLiveTable(reset: true)
-        tapLivePreview(0.08, 0.08)
+        func tapFocusPoint(_ x: CGFloat, _ y: CGFloat) {
+            // The overlay UIImageView is not an interactive UIKit view. Use its
+            // observed screen frame, not XCTest's element-relative hit-point routing.
+            let frame = livePreview().frame
+            XCTAssertFalse(frame.isEmpty)
+            XCTAssertTrue(app.frame.contains(frame))
+            let point = CGPoint(x: frame.minX + frame.width * x, y: frame.minY + frame.height * y)
+            for control in [text("표 이동"), text("표 크기 조절"),
+                            app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "노출 잠금")).firstMatch,
+                            app.sliders["밝기 조절"]] {
+                if control.exists { XCTAssertFalse(control.frame.contains(point), "Focus point overlaps a native control") }
+            }
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: point.x - app.frame.minX, dy: point.y - app.frame.minY)).tap()
+        }
+        tapFocusPoint(0.08, 0.08)
         XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10), app.debugDescription)
         XCTAssertTrue(text("카메라 초점").exists)
         XCTAssertTrue(button("노출 잠금").exists)
@@ -235,17 +251,24 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(app.sliders["밝기 조절"].exists)
 
         // Locked first tap only expands EV. It must not move the focus point.
-        tapLivePreview(0.10, 0.82)
+        let lockedFocusFrame = text("카메라 초점").frame
+        tapFocusPoint(0.10, 0.82)
         XCTAssertTrue(text("상태: 노출 잠금").exists)
         XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
         XCTAssertEqual(biasLabel.label, retainedBias)
+        let expandedFocusFrame = text("카메라 초점").frame
+        XCTAssertEqual(expandedFocusFrame.midX, lockedFocusFrame.midX, accuracy: 1)
+        XCTAssertEqual(expandedFocusFrame.midY, lockedFocusFrame.midY, accuracy: 1)
         // Explicit locked refocus preserves the native bias and slider, repeatedly.
-        tapLivePreview(0.88, 0.82)
+        tapFocusPoint(0.88, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
+        let refocusedFrame = text("카메라 초점").frame
+        XCTAssertGreaterThan(abs(refocusedFrame.midX - expandedFocusFrame.midX), 20)
+        XCTAssertGreaterThan(abs(refocusedFrame.midY - expandedFocusFrame.midY), 20)
         XCTAssertEqual(biasLabel.label, retainedBias)
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
-        tapLivePreview(0.10, 0.82)
-        tapLivePreview(0.88, 0.08)
+        tapFocusPoint(0.10, 0.82)
+        tapFocusPoint(0.88, 0.08)
         XCTAssertEqual(biasLabel.label, retainedBias)
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
 
@@ -266,12 +289,12 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"))
         XCTAssertTrue(button("노출 잠금 해제").waitForExistence(timeout: 10))
         XCTAssertEqual(biasLabel.label, retainedBias)
-        tapLivePreview(0.10, 0.82)
+        tapFocusPoint(0.10, 0.82)
         XCTAssertTrue(brightness.waitForExistence(timeout: 10))
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
 
         tapButton("노출 잠금 해제")
-        tapLivePreview(0.08, 0.08)
+        tapFocusPoint(0.08, 0.08)
         XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10))
         XCTAssertTrue(text("밝기 보정: 0.0").exists)
     }
@@ -683,8 +706,21 @@ final class PreviewInteractionTests: XCTestCase {
             func normalized(_ value: String) -> String {
                 value.components(separatedBy: .whitespacesAndNewlines).joined()
             }
-            let targets = (request.results ?? []).filter {
+            var targets = (request.results ?? []).filter {
                 $0.topCandidates(1).first.map { normalized($0.string) == normalized(label) } ?? false
+            }
+            // The compact panel contains both a Save action and a Save section title.
+            // Match the action only on the same rendered header row as the panel title;
+            // never pick an arbitrary OCR occurrence or trust a stale scrolled AX frame.
+            if label == "저장" {
+                let titles = (request.results ?? []).filter {
+                    $0.topCandidates(1).first.map { normalized($0.string) == "촬영설정" } ?? false
+                }
+                guard titles.count == 1, let title = titles.first else { return nil }
+                targets = targets.filter { target in
+                    abs(target.boundingBox.midY - title.boundingBox.midY)
+                        <= max(target.boundingBox.height, title.boundingBox.height)
+                }
             }
             // An ambiguous or absent rendered label is not permission to guess a tap.
             guard targets.count == 1, let target = targets.first else { return nil }

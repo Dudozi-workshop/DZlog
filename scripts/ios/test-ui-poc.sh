@@ -71,7 +71,7 @@ case "$test_scope" in
   quick-values) limit_seconds=600 ;;
   # Multi-mode save/recovery cases each relaunch three times; keep a finite
   # budget for the expanded native media bundle, including Photos prompts.
-  media) limit_seconds=1500 ;;
+  media) limit_seconds=1800 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
   full) limit_seconds=1800 ;;
