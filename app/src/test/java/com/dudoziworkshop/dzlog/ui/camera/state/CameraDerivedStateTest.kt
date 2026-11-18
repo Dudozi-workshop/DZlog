@@ -31,6 +31,51 @@ class CameraDerivedStateTest {
             pre.counterScope.streamPrefix, pre.scanPrefix, pathScope, nameScope)
     }
 
+    @Test fun floatingManualCountChangesPreviewWithoutMutatingStoredState() {
+        val base = state(request = request(), next = 104)
+        val previous = computeCameraManualStepPreview(
+            base = base, template = template, offset = -2, now = now,
+            counterDigits = 0, phraseProgressCounter = 1,
+            includePathInCounterScope = true, includeFilenameInCounterScope = true,
+            saveMode = SaveMode.BOTH, tableResolver = TableResolver(),
+        )
+        assertEquals(102, previous.displayCounter)
+        assertEquals("T1_102.jpg", previous.topDisplayName)
+        assertEquals(104, base.displayCounter)
+        assertEquals("T1_104.jpg", base.topDisplayName)
+        assertSame(base, computeCameraManualStepPreview(
+            base = base, template = template, offset = 0, now = now,
+            counterDigits = 0, phraseProgressCounter = 1,
+            includePathInCounterScope = true, includeFilenameInCounterScope = true,
+            saveMode = SaveMode.BOTH, tableResolver = TableResolver(),
+        ))
+    }
+
+    @Test fun floatingCountRecomputesPhraseBasedFolderAndFilenameInOneSnapshot() {
+        val cell = TableCellState(0, 0, cellId = "phrase-1",
+            dataType = TableCellDataType.ROTATING_TEXT, phraseSetId = "p")
+        val phrases = template.copy(
+            cells = listOf(cell),
+            phraseSets = listOf(RotatingPhraseSet("p", "시험", listOf("A", "B"), defaultEvery = 1)),
+            fileNameSlotDrafts = List(FILE_NAME_SLOT_COUNT) {
+                if (it == 0) TableEditorSlotDraft("CELL", "시료", cellId = cell.cellId) else null
+            },
+            pathSlotDrafts = listOf(TableEditorSlotDraft("CELL", "시료", cellId = cell.cellId)),
+        )
+        val base = state(phrases, request = request(phrases), next = 104)
+        val shifted = computeCameraManualStepPreview(
+            base = base, template = phrases, offset = -1, now = now,
+            counterDigits = 0, phraseProgressCounter = 1,
+            includePathInCounterScope = true, includeFilenameInCounterScope = true,
+            saveMode = SaveMode.BOTH, tableResolver = TableResolver(),
+        )
+        assertEquals("B_103.jpg", shifted.finalCapturePreview!!.displayName)
+        assertEquals("Pictures/DZlog/B/", shifted.finalCapturePreview!!.relativePathPreview)
+        assertEquals("A_104.jpg", base.topDisplayName)
+        assertEquals(1, shifted.finalCapturePreview!!.tablePatch.phraseProgressByCellId["phrase-1"]?.index)
+        assertEquals(0, phrases.cells.single().phraseIndex)
+    }
+
     @Test fun matchingReadEnablesFinalNameAndCounter() {
         val result = state(request = request())
         assertEquals(42, result.displayCounter)
