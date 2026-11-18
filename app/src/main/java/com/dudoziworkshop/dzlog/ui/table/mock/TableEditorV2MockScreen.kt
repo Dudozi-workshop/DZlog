@@ -432,9 +432,34 @@ fun TableEditorV2Screen(
                     minOf(maxHeight, maxOf(maxHeight * 0.55f, minTextEditorHeight))
                 } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
             )
+            val geometry = remember(
+                cells, rows, cols, draftTemplateState, draftStyleState.valueScale,
+                cameraTablePrefs,
+            ) {
+                computeEditorCameraTableGeometry(
+                    cells = editorRenderCells(cells, rows, cols),
+                    templateCells = draftTemplateState.cells,
+                    rows = rows,
+                    cols = cols,
+                    rowWeights = draftTemplateState.rowWeights,
+                    colWeights = draftTemplateState.colWeights,
+                    valueScale = draftStyleState.valueScale,
+                    tableWidthRatio = cameraTablePrefs.widthRatio,
+                    tableHeightRatio = cameraTablePrefs.heightRatio,
+                    captureAspect = cameraTablePrefs.captureAspect,
+                )
+            }
+            val previewCardHeight = editorPreviewCardHeight(
+                availableWidth = maxWidth,
+                availableHeight = maxHeight,
+                tableWidthToHeight = geometry.widthToHeight,
+                reservedEditorHeight = if (cellPanelVisible) cellPanelMaxHeight else panelHeight,
+                keyboardVisible = imeVisible,
+            )
             Column(modifier = Modifier.fillMaxSize()) {
                 DDZCard(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(previewCardHeight)
+                        .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(12.dp),
                 ) {
                     Column(Modifier.fillMaxSize()) {
@@ -545,6 +570,21 @@ fun TableEditorV2Screen(
                     }
                 }
 
+                if (!imeVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "표의 셀을 선택하면 아래에서 내용을 수정할 수 있습니다.",
+                            style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption,
+                            color = DDZColor.TextMuted,
+                            maxLines = 2,
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
                 // Without a selected content cell, no empty editor band is reserved.
                 if (activeTab != MockBottomTab.CONTENT || cellPanelVisible) {
                 TableEditorWorkPanel(
