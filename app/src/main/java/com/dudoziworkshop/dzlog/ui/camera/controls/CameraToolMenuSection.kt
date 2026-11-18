@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.ChevronsLeftRight
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.TableChart
@@ -136,7 +136,7 @@ internal fun CameraToolMenuSection(
             onClick = onToggleFloatingCount,
         ) {
             Icon(
-                imageVector = Icons.Default.ChevronsLeftRight,
+                imageVector = Icons.Default.SwapHoriz,
                 contentDescription = if (floatingCountEnabled) "카운트 조작부 끄기" else "카운트 조작부 켜기",
                 modifier = Modifier.size(16.dp),
             )
