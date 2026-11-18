@@ -1064,15 +1064,37 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     private func typeWithVisibleKeyboard(_ value: String) {
+        guard let firstCharacter = value.first else { return }
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 10))
         // Fresh simulators may show iOS's sliding-keyboard introduction over the keys.
-        let introduction = app.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."]
+        let introductionLabel = "Speed up your typing by sliding your finger across the letters to compose a word."
+        let introduction = app.staticTexts[introductionLabel]
         if introduction.waitForExistence(timeout: 2) {
             let next = app.buttons["Continue"]
             XCTAssertTrue(next.exists)
             next.tap()
-            let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: introduction)
-            XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+            // Native negative `exists` queries retry internally. A five-second
+            // predicate waiter can time out while its final AX query already sees
+            // dismissal. Observe fresh match counts AND the next usable key instead.
+            let introductionMatches = app.staticTexts.matching(NSPredicate(
+                format: "label == %@", introductionLabel
+            ))
+            func introductionDismissedAndKeyReady() -> Bool {
+                guard introductionMatches.count == 0 else { return false }
+                let firstKey = app.keyboards.firstMatch.keys[String(firstCharacter)]
+                guard firstKey.exists else { return false }
+                let frame = firstKey.frame
+                return !frame.isEmpty && app.frame.contains(frame) && firstKey.isHittable
+            }
+            let deadline = Date().addingTimeInterval(15)
+            var ready = introductionDismissedAndKeyReady()
+            while !ready && Date() < deadline {
+                ready = introductionDismissedAndKeyReady()
+            }
+            // Keep the completed final observation even if a slow AX query crosses
+            // the deadline; do not replace its result with a waiter's timeout code.
+            XCTAssertTrue(ready, "Keyboard introduction must disappear and the first input key must be usable")
+            guard ready else { return }
         }
         // Compose 1.7 does not publish native keyboard focus to XCTest's typeText.
         // Real touches on visible lowercase keys go through the platform input connection.

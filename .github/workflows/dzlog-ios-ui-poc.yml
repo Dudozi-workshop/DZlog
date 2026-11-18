@@ -31,7 +31,9 @@ jobs:
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
-    timeout-minutes: 40
+    # A cold native build used 22 minutes before the 25-test media bundle.
+    # Keep a finite budget for compilation plus the unchanged native assertions.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Select development or full UI scope

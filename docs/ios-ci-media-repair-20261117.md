@@ -38,3 +38,14 @@ Local focused Android execution again stopped at the Gradle download (`Network i
 - Recent-gallery expected two photos but showed fifteen, because earlier tests shared the same app-private PhotoKit index. Give each XCTest invocation a UUID environment namespace, consumed only by the explicit configured-capture fixture. Inject its defaults suite into the real repository, capture/undo journals, pending checks and recovery; reuse the same suite through relaunch and camera return. Production defaults remain standard. Do not filter gallery results, weaken exact counts, erase the production index or delete Photos assets during setup.
 
 Native suite-isolation regression coverage accompanies the dependency injection. Simulator execution must still validate the complete UI path; local static checks alone cannot establish a pass.
+
+## Follow-up: `9c7bb8bc`
+
+[UI run 44199737306](https://github.com/Dudozi-workshop/DZlog/actions/runs/44199737306) was cancelled, not successful. Its log contains 15 passed tests, one failed test and a seventeenth interrupted test; eight selected tests were not reached. Android unified CI, shared core and iPhone device compilation passed at this head.
+
+- The exact two-photo gallery/grid/viewer test now passes. The folder-management test passed its named-field lookup and reached native keyboard input, then failed while waiting for Apple's first-use typing introduction to disappear. The teardown accessibility tree already shows the ordinary letter keyboard and no introduction. This is a different failure from the previous missing folder label.
+- The job started at 23:29:03 UTC, reached test execution at 23:51, and was cancelled at 00:09:15, consistent with its 40-minute job limit. No newer PR head or PR-triggered retry was present at inspection. Allow 60 minutes for cold native compilation plus the unchanged selected tests; do not skip tests or reinterpret a cancellation as a pass.
+
+The native keyboard helper repair and larger finite job budget require a new CI result. Linux static inspection cannot validate native keyboard interaction. No merge, release, production data reset, or new UX is included.
+
+Keyboard setup now observes a fresh zero match count for the introduction together with a visible, hittable first input key, within a bounded transition check. It retains the completed final accessibility observation rather than discarding it if a synchronous query outlasts the waiter's deadline. Actual key touches, valid-name enabled-state and saved folder assertions are unchanged. Local verification: diff check, workflow YAML parse and all 15 CI-reuse Node tests passed; native Swift/XCTest was not run locally.
