@@ -1032,6 +1032,27 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("저장 정보")
         XCTAssertTrue(text("다음 촬영 저장 정보").waitForExistence(timeout: 10))
         XCTAssertTrue(text("템플릿을 선택해 주세요.").exists)
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+
+        openHomeTemplates()
+        tapButton("표 확대 보기 · 현장 기록")
+        tapButton("이 템플릿 선택")
+        tapButton("저장 정보")
+        tapButton("저장 설정 열기")
+        XCTAssertTrue(text("표 편집").waitForExistence(timeout: 10))
+        XCTAssertTrue(panelText("파일명").waitForExistence(timeout: 10),
+                      "Android parity requires Home save settings to open the editor Save tab")
+    }
+
+    func testHomeTableEditorRequiresActiveTemplate() {
+        app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
+        app.launch()
+        tapButton("표 편집")
+        XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10),
+                      "Without an active template, Android routes Home editing to template selection")
+        XCTAssertTrue(button("+ 새 템플릿").isEnabled)
+        tapButton("뒤로가기")
+        XCTAssertTrue(homeTemplateButton().exists)
     }
 
     private func panelText(_ label: String) -> XCUIElement {

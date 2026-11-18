@@ -138,7 +138,15 @@ internal fun HomeNavigationPoc(
     }
     fun openEditor(id: String?, fromList: Boolean, saveSettings: Boolean = false) {
         if (loadFailed) return
-        editingId = id
+        val targetId = id?.takeIf { candidate ->
+            pendingNew?.template?.id == candidate || workspace.documents.any { it.template.id == candidate }
+        }
+        if (targetId == null) {
+            showEditor = false
+            showList = true
+            return
+        }
+        editingId = targetId
         editorFromList = fromList
         openSaveSettings = saveSettings
         showEditor = true
@@ -323,7 +331,7 @@ internal fun HomeNavigationPoc(
                 }
             },
             onOpenTableEditor = {
-                if (workspace.documents.isEmpty()) showList = true else openEditor(workspace.activeTemplateId, false)
+                openEditor(workspace.activeTemplateId, false)
             }, onOpenSaveInfo = { showSaveInfo = true },
             modifier = Modifier.fillMaxSize().background(DDZColor.Background)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
@@ -362,7 +370,7 @@ internal fun HomeNavigationPoc(
                 savedPreview.previewNaming.relativePath, savedDocument.saveMode) else emptyList(),
             onOpenSaveSettings = {
                 showSaveInfo = false
-                if (workspace.documents.isEmpty()) showList = true else showCaptureSettings = true
+                openEditor(workspace.activeTemplateId, false, saveSettings = true)
             }, onDismiss = { showSaveInfo = false },
             settingsEnabled = !loadFailed && selected && !recoveryPending && !recovering,
         )
