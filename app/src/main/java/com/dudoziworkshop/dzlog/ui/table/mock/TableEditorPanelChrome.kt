@@ -85,13 +85,16 @@ internal fun editorCanKeepKeyboard(type: TableEditorCellType?): Boolean =
 
 internal data class EditorCellNeighbours(val previous: String?, val next: String?)
 
-/** Detail editing includes every kind; merged covered cells never become stops. */
+/** Navigate cyclically through visible roots in row order; covered merged cells are skipped. */
 internal fun editorCellNeighbours(cells: List<TableEditorCellUiModel>, selectedId: String?): EditorCellNeighbours {
     val ids = cells.filter { !it.isCovered && it.domainCellId != null }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex })).mapNotNull { it.domainCellId }.distinct()
     val index = ids.indexOf(selectedId)
-    return if (index < 0) EditorCellNeighbours(null, null)
-    else EditorCellNeighbours(ids.getOrNull(index - 1), ids.getOrNull(index + 1))
+    if (index < 0 || ids.size < 2) return EditorCellNeighbours(null, null)
+    return EditorCellNeighbours(
+        previous = ids[(index - 1 + ids.size) % ids.size],
+        next = ids[(index + 1) % ids.size],
+    )
 }
 
 @Composable
