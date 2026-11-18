@@ -5,6 +5,8 @@ import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
+import org.jetbrains.skia.FontMgr
+import org.jetbrains.skia.FontStyle
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
@@ -14,9 +16,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * First native overlay slice: resolved row-major text and weighted table geometry.
- * Caller resolves dynamic cell values before rendering. Translation and rotation
- * are supported, but Android camera placement parity is a separate integration gate.
+ * Native overlay renderer using Android's table geometry and text-layout rules.
+ * Caller resolves dynamic values once before both preview and final rendering.
  */
 /** iOS-local mirror of Android's five anchor options; no Android source dependency. */
 internal enum class IosTableAnchor {
@@ -98,40 +99,12 @@ internal object IosTableOverlayRenderer {
                     surface.canvas.drawRect(Rect.makeXYWH(originX, originY, tableW, tableH), bg)
                 }
             }
-            val textColor = if (style.textColorMode == 1) {
-                if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-            } else if (style.bgStyle == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-            Paint().use { textPaint ->
-                textPaint.color = textColor
-                textPaint.isAntiAlias = true
-                val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
-                    (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
-                Font(null, fontSize).use { font ->
-                    for (cell in rects) {
-                        val left = originX + xEdges[cell.col] * tableW
-                        val right = originX + xEdges[cell.col + cell.cols] * tableW
-                        val top = originY + yEdges[cell.row] * tableH
-                        val bottom = originY + yEdges[cell.row + cell.rows] * tableH
-                        val value = resolvedTexts[cell.row * cols + cell.col]
-                        val textW = font.measureTextWidth(value)
-                        val x = when (style.textAlign) {
-                            1 -> (left + right - textW) / 2f
-                            2 -> right - textW - 4f
-                            else -> left + 4f
-                        }
-                        val y = (top + bottom) / 2f + fontSize * 0.35f
-                        surface.canvas.save()
-                        surface.canvas.clipRect(Rect.makeLTRB(left, top, right, bottom))
-                        surface.canvas.drawString(value, x, y, font, textPaint)
-                        surface.canvas.restore()
-                    }
-                }
-            }
             if (style.gridEnabled) {
                 Paint().use { grid ->
                     grid.color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
                     grid.strokeWidth = 1.2f
-                    // Draw each shared boundary once; covered coordinates have no internal grid.
+                    // Android paints the grid before cell values. Draw each
+                    // shared boundary once; merged cells keep no internal line.
                     for (r in 0 until rows) for (c in 0..cols) {
                         if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
                             val x = originX + xEdges[c] * tableW
@@ -146,6 +119,47 @@ internal object IosTableOverlayRenderer {
                                 originX + xEdges[c + 1] * tableW, y, grid)
                         }
                     }
+                }
+            }
+            val textColor = if (style.textColorMode == 1) {
+                if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+            } else if (style.bgStyle == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+            Paint().use { textPaint ->
+                textPaint.color = textColor
+                textPaint.isAntiAlias = true
+                val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
+                    (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
+                val boldTypeface = FontMgr.default.matchFamilyStyle(null, FontStyle.BOLD)
+                try {
+                    Font(boldTypeface, fontSize).use { font ->
+                        // CoreText normally provides a real bold system face. Keep
+                        // a safe fallback for targets where the default match is absent.
+                        if (boldTypeface == null) font.isEmboldened = true
+                        font.isSubpixel = true
+                        val metrics = font.metrics
+                        val cellTextPadding = (tableH * 0.08f).coerceIn(8f, 20f)
+                        for (cell in rects) {
+                            val left = originX + xEdges[cell.col] * tableW
+                            val right = originX + xEdges[cell.col + cell.cols] * tableW
+                            val top = originY + yEdges[cell.row] * tableH
+                            val bottom = originY + yEdges[cell.row + cell.rows] * tableH
+                            val value = resolvedTexts[cell.row * cols + cell.col]
+                            val textW = font.measureTextWidth(value)
+                            val x = when (style.textAlign) {
+                                1 -> (left + right - textW) / 2f
+                                2 -> right - textW - cellTextPadding
+                                else -> left + cellTextPadding
+                            }
+                            // Match Android Paint.FontMetrics baseline centering.
+                            val y = (top + bottom) / 2f - (metrics.ascent + metrics.descent) / 2f
+                            surface.canvas.save()
+                            surface.canvas.clipRect(Rect.makeLTRB(left, top, right, bottom))
+                            surface.canvas.drawString(value, x, y, font, textPaint)
+                            surface.canvas.restore()
+                        }
+                    }
+                } finally {
+                    boldTypeface?.close()
                 }
             }
             surface.canvas.restore()
