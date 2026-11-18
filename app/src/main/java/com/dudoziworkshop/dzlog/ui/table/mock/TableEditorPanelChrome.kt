@@ -68,9 +68,14 @@ internal fun TableEditorWorkPanel(modifier: Modifier = Modifier, content: @Compo
  * and its navigation/info row (44dp). Reserve vertical padding and divider,
  * even on short landscape viewports, before allocating space to the preview.
  */
-internal fun editorContentPanelMaxHeight(availableHeight: Dp, bottomTabHeight: Dp): Dp {
+internal fun editorContentPanelMaxHeight(
+    availableHeight: Dp,
+    bottomTabHeight: Dp,
+    hasFavoritesRow: Boolean = false,
+): Dp {
     val minimumForFixedControls =
-        DDZLayout.QuickInput.RowHeight + DDZLayout.QuickInput.Touch + 24.dp
+        DDZLayout.QuickInput.RowHeight + DDZLayout.QuickInput.Touch + 24.dp +
+            if (hasFavoritesRow) DDZLayout.QuickInput.Touch else 0.dp
     val proportional = (availableHeight + bottomTabHeight) * 0.35f - bottomTabHeight
     return maxOf(minimumForFixedControls, proportional).coerceAtMost(availableHeight)
 }
