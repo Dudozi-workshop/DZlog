@@ -13,12 +13,14 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FlashAuto
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -40,6 +44,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 private val CameraChromeShape = RoundedCornerShape(DDZLayout.Radius.Small)
+private val CameraToolMenuShape = RoundedCornerShape(DDZLayout.Radius.Full)
 private val CounterAccent = Color(0xFF2E7D50)
 
 @Composable
@@ -61,7 +66,6 @@ internal fun IosCameraTopBar(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기",
                 tint = if (backEnabled) DDZColor.SageDarkStrong else DDZColor.IconMuted)
         }
-        Text("카메라", style = DDZTypography.SettingLabel, color = DDZColor.TextStrong)
         Box(
             Modifier.weight(1f).heightIn(min = 32.dp).clip(CameraChromeShape)
                 .background(DDZColor.Card.copy(alpha = 0.55f))
@@ -146,29 +150,27 @@ internal fun IosCameraToolPanel(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp),
-        color = DDZColor.OverlayScrim.copy(alpha = 0.9f),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.fillMaxWidth(0.90f),
+        color = DDZColor.Surface.copy(alpha = 0.94f),
+        shape = CameraToolMenuShape,
+        border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.SageBorder),
     ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                CameraToolAction("자동초점", Icons.Default.CenterFocusStrong, ready, onAutoFocus)
-                CameraToolAction("플래시 $flashLabel", Icons.Default.WbSunny,
-                    ready && flashAvailable, onCycleFlash)
-                CameraToolStatus("줌 ${formatIosZoom(zoom)}배", Icons.Default.Tune,
-                    ready && maximumZoom > 1f)
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                CameraToolAction(if (showGrid) "격자 숨기기" else "격자 표시", Icons.Default.GridOn,
-                    true, onToggleGrid, selected = showGrid)
-                CameraToolAction(if (showTable) "표 숨기기" else "표 표시", Icons.Default.TableChart,
-                    true, onToggleTable, selected = showTable)
-                CameraToolAction(
-                    if (assistShutterEnabled) "보조 셔터 끄기" else "보조 셔터 켜기",
+        Column(Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                CameraToolAction("초점", "자동초점", Icons.Default.CenterFocusStrong, ready, onAutoFocus)
+                CameraToolAction("플래시", "플래시 $flashLabel", when (flashLabel) {
+                    "자동" -> Icons.Default.FlashAuto
+                    "켜짐" -> Icons.Default.FlashOn
+                    else -> Icons.Default.FlashOff
+                }, ready && flashAvailable, onCycleFlash, selected = flashLabel != "꺼짐")
+                CameraToolAction("격자", if (showGrid) "격자 숨기기" else "격자 표시",
+                    Icons.Default.GridOn, true, onToggleGrid, selected = showGrid)
+                CameraToolAction("표", if (showTable) "표 숨기기" else "표 표시",
+                    Icons.Default.TableChart, true, onToggleTable, selected = showTable)
+                CameraToolAction("보조", if (assistShutterEnabled) "보조 셔터 끄기" else "보조 셔터 켜기",
                     Icons.Default.CameraAlt, true, onToggleAssistShutter,
-                    selected = assistShutterEnabled,
-                )
+                    selected = assistShutterEnabled)
             }
             Slider(
                 value = zoom.coerceIn(1f, maxOf(1.01f, maximumZoom)),
@@ -182,41 +184,29 @@ internal fun IosCameraToolPanel(
 }
 
 @Composable
-private fun RowScope.CameraToolStatus(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    enabled: Boolean,
-) {
-    Column(Modifier.weight(1f).padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        val tint = if (enabled) DDZColor.OverlayText else DDZColor.OverlayText.copy(alpha = 0.38f)
-        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = tint)
-        Text(label, style = DDZTypography.Caption, color = tint, maxLines = 1)
-    }
-}
-
-@Composable
 private fun RowScope.CameraToolAction(
     label: String,
+    contentDescription: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     enabled: Boolean,
     onClick: () -> Unit,
     selected: Boolean = false,
 ) {
-    TextButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.weight(1f),
-        colors = ButtonDefaults.textButtonColors(
-            contentColor = if (selected) DDZColor.SageLight else DDZColor.OverlayText,
-            disabledContentColor = DDZColor.OverlayText.copy(alpha = 0.38f),
-        ),
+    val background = if (selected) DDZColor.SageLight.copy(alpha = 0.74f) else Color.Transparent
+    val tint = if (selected) DDZColor.SageDarkStrong else DDZColor.SageDark
+    Box(
+        Modifier.weight(1f).heightIn(min = 48.dp).clip(CameraToolMenuShape)
+            .background(background).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { this.contentDescription = contentDescription; role = Role.Button }
+            .padding(horizontal = 2.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Text(label, style = DDZTypography.Caption, maxLines = 1)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp),
+                tint = if (enabled) tint else DDZColor.IconMuted.copy(alpha = 0.38f))
+            Text(label, style = DDZTypography.Caption,
+                color = if (enabled) tint else DDZColor.TextMuted.copy(alpha = 0.38f), maxLines = 1)
         }
     }
 }
@@ -268,7 +258,7 @@ internal fun IosCameraBottomBar(
             }
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
-            IosCameraChromeButton("빠른 입력", Icons.Default.Edit, quickValuesEnabled, onOpenQuickValues)
+            IosCameraChromeButton("빠른 값 변경", Icons.Default.Edit, quickValuesEnabled, onOpenQuickValues)
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraChromeButton("직전 촬영 삭제", Icons.AutoMirrored.Filled.Undo,

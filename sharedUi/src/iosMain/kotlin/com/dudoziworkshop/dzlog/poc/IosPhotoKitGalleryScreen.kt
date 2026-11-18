@@ -4,11 +4,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -17,18 +19,25 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -475,17 +484,50 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                     // The controls scroll independently instead of starving the grid.
                     Column(Modifier.fillMaxWidth().heightIn(max = controlsMaxHeight)
                         .verticalScroll(headerScroll), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("갤러리", style = MaterialTheme.typography.titleLarge)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
                                 when {
                                     selecting -> { selecting = false; batchSelection = emptySet() }
                                     recentView || defaultStorageView -> { recentView = false; defaultStorageView = false; folder = null }
                                     else -> onBack()
                                 }
-                            }, enabled = !managing) { Text("뒤로가기") }
-                            Button(onClick = ::refresh, enabled = !refreshing && !managing) { Text("새로고침") }
+                            }, enabled = !managing, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기",
+                                    tint = DDZColor.Primary, modifier = Modifier.size(20.dp))
+                            }
+                            Text(
+                                text = when {
+                                    selecting -> "${selectedBatch.size}개 선택"
+                                    recentView -> "최근 촬영"
+                                    defaultStorageView -> "기본 저장"
+                                    folder == null || folder == GALLERY_ROOT -> "갤러리"
+                                    else -> folder!!.trimEnd('/').substringAfterLast('/')
+                                },
+                                modifier = Modifier.weight(1f),
+                                style = DDZTypography.ScreenTitle,
+                                color = DDZColor.Primary,
+                                textAlign = TextAlign.Center,
+                            )
+                            Box(
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
+                                    .background(DDZColor.Card)
+                                    .border(1.dp, DDZColor.Border, RoundedCornerShape(14.dp))
+                                    .clickable(enabled = !managing && !refreshing) {
+                                        favoritesOnly = !favoritesOnly
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = if (favoritesOnly) Icons.Default.GridView else Icons.Default.FavoriteBorder,
+                                    contentDescription = if (favoritesOnly) "전체 보기" else "좋아요만 보기",
+                                    tint = DDZColor.Primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(enabled = !refreshing && !managing, onClick = ::refresh) { Text("새로고침") }
                             if (grid && !selecting) GalleryChoiceMenu("그리드 ${gridColumns}열",
                                 (SavedGalleryGridPolicy.MIN_COLUMNS..SavedGalleryGridPolicy.MAX_COLUMNS).map { "${it}열" },
                                 enabled = !managing && !refreshing) { changeColumns(it + SavedGalleryGridPolicy.MIN_COLUMNS) }
@@ -498,9 +540,6 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                                 Text(if (folder == null) "폴더 보기" else "전체 사진")
                             }
                             TextButton(enabled = !managing && !refreshing, onClick = { pendingScrollAnchor = captureScrollAnchor(); grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
-                            TextButton(enabled = !managing && !refreshing, onClick = { favoritesOnly = !favoritesOnly }) {
-                                Text(if (favoritesOnly) "전체 보기" else "즐겨찾기")
-                            }
                             if (folder != null && folder != GALLERY_ROOT) TextButton(enabled = !managing && !refreshing, onClick = {
                                 folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
                             }) { Text("상위 폴더") }
@@ -702,3 +741,4 @@ private fun shareIosPhotos(files: List<Pair<ByteArray, String>>) {
     }
     NSNotificationCenter.defaultCenter.postNotificationName("dzlog.sharePhoto", payload)
 }
+

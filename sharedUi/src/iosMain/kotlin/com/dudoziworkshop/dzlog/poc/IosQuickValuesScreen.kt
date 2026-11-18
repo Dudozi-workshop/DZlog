@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,6 +27,9 @@ import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickCellValues
 import com.dudoziworkshop.dzlog.ui.common.input.decimalInputOrPrevious
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
+import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
+import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 
 /** Match Android manual quick-edit eligibility without changing its production code. */
@@ -118,13 +122,15 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             it.saveMode, it.nextCounter, 0))
     }
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().imePadding()
-        .padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("빠른 입력")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onBack) { Text("입력 취소") }
+        .padding(horizontal = DDZSpacing.screenPadding, vertical = DDZSpacing.itemGap),
+        verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("취소") }
+            Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.TextStrong,
+                modifier = Modifier.weight(1f))
             Button(enabled = (cells.isNotEmpty() || automaticCells.isNotEmpty()) && draft != null, onClick = {
                 if (!onSave(changes)) failure = "입력을 저장하지 못했습니다. 촬영 기록과 최신 문서를 확인해 주세요."
-            }) { Text("입력 완료") }
+            }) { Text("완료") }
         }
         failure?.let { Text(it) }
         if (availableDocuments.size > 1 && onSwitchTemplate != null) {
@@ -151,6 +157,23 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
         }
         if (cells.isEmpty() && automaticCells.isEmpty() && fields.isSuccess && automaticFields.isSuccess) {
             Text("빠르게 수정할 수 있는 셀이 없습니다.")
+        }
+        preview?.let {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = DDZColor.Card,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
+            ) {
+                Column(Modifier.padding(DDZSpacing.itemGap),
+                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
+                    Text("다음 촬영 저장 정보", style = DDZTypography.Secondary,
+                        color = DDZColor.TextStrong)
+                    Text("파일명 · ${it.previewNaming.displayName}", style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary)
+                    Text("저장경로 · ${it.previewNaming.relativePath}", style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary)
+                }
+            }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -198,10 +221,6 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                 }
                 val links = quickCellLinks(document.template.templateState, cell.cellId)
                 if (links.description.isNotEmpty()) Text(links.description)
-            }
-            preview?.let {
-                Text("파일명: ${it.previewNaming.displayName}")
-                Text("저장경로: ${it.previewNaming.relativePath}")
             }
         }
     }
