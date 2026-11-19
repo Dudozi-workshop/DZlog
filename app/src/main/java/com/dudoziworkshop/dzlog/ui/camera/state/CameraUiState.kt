@@ -103,6 +103,8 @@ internal class CameraUiState {
     var isPinchZoomActive by mutableStateOf(false)
     var focusMode by mutableStateOf(CameraFocusMode.AUTO)
     var focusUiValue by mutableFloatStateOf(0.5f)
+    // Session-wide CameraX exposure compensation, independent of autofocus.
+    var globalExposureIndex by mutableIntStateOf(0)
 
     var showWizard by mutableStateOf(false)
 
@@ -129,6 +131,7 @@ internal enum class CameraOverlayTool {
     ZOOM,
     FOCUS,
     FLASH,
+    EXPOSURE,
 }
 
 internal enum class CameraFlashMode {
