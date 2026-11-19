@@ -34,6 +34,9 @@ internal class CameraPrefsState {
     var assistShutterEnabled by mutableStateOf(false)
     var assistShutterXRatio by mutableFloatStateOf(0.82f)
     var assistShutterYRatio by mutableFloatStateOf(0.62f)
+    var floatingCountEnabled by mutableStateOf(false)
+    var floatingCountXRatio by mutableFloatStateOf(0.27f)
+    var floatingCountYRatio by mutableFloatStateOf(0.52f)
 
     var showWmPreview by mutableStateOf(true)
     var wmTableAnchor by mutableStateOf(WatermarkTableAnchor.BOTTOM_RIGHT)

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.TableChart
@@ -54,6 +55,8 @@ internal fun CameraToolMenuSection(
     showGrid: Boolean,
     showTable: Boolean,
     assistShutterEnabled: Boolean,
+    floatingCountEnabled: Boolean,
+    onToggleFloatingCount: () -> Unit,
     onSelectTool: (CameraOverlayTool) -> Unit,
     onToggleGrid: () -> Unit,
     onToggleTable: () -> Unit,
@@ -63,7 +66,7 @@ internal fun CameraToolMenuSection(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
-            .fillMaxWidth(0.90f)
+            .fillMaxWidth(0.96f)
             .clip(ToolMenuChipShape)
             .background(DDZColor.Surface.copy(alpha = 0.94f), ToolMenuChipShape)
             .border(1.dp, DDZColor.SageBorder, ToolMenuChipShape)
@@ -127,6 +130,17 @@ internal fun CameraToolMenuSection(
                 modifier = Modifier.size(16.dp),
             )
         }
+        ToolMenuChip(
+            selected = floatingCountEnabled,
+            label = "카운트",
+            onClick = onToggleFloatingCount,
+        ) {
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = if (floatingCountEnabled) "카운트 조작부 끄기" else "카운트 조작부 켜기",
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 
@@ -137,7 +151,7 @@ private fun RowScope.ToolMenuChip(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val tourId = when (label) { "초점" -> "focus"; "플래시" -> "flash"; "격자" -> "grid"; "표" -> "table"; else -> "assist" }
+    val tourId = when (label) { "초점" -> "focus"; "플래시" -> "flash"; "격자" -> "grid"; "표" -> "table"; "카운트" -> "count"; else -> "assist" }
     val chipBg = if (selected) DDZColor.SageLight.copy(alpha = 0.74f) else Color.Transparent
     val iconTint = if (selected) DDZColor.SageDarkStrong else DDZColor.SageDark
     Box(

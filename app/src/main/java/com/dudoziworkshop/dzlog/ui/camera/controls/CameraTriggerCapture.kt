@@ -45,6 +45,7 @@ internal fun buildCameraTriggerCapture(
     latestImageController: LatestImageController,
     onTemplateChange: (TableTemplateState) -> Unit,
     onCaptureCommitted: () -> Unit,
+    onCaptureReserved: () -> Unit = {},
     buildWatermarkConfig: (
         anchor: WatermarkTableAnchor,
         offsetXRatio: Int,
@@ -119,6 +120,10 @@ internal fun buildCameraTriggerCapture(
         },
         onImageCaptured = { },
         onAsyncReservationCreated = { id, mode ->
+            // The snapshot has already captured the manual count position.
+            // Clear only the temporary overlay; pending projection owns the
+            // actual next-frame phrase progress until persistence completes.
+            onCaptureReserved()
             if (CaptureReviewPolicy.expectsSavedPreview(mode)) {
                 ui.capture.pendingPreviewCaptureId = id
             }

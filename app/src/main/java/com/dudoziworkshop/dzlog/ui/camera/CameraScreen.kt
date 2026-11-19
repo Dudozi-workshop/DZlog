@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -102,6 +103,7 @@ import com.dudoziworkshop.dzlog.ui.camera.controls.CameraNextCaptureInfoPopup
 import com.dudoziworkshop.dzlog.domain.project.CaptureProject
 import com.dudoziworkshop.dzlog.feature.capture.policy.CameraSelectionChangePolicy
 import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingAssistShutterButton
+import com.dudoziworkshop.dzlog.ui.camera.controls.FloatingCountControl
 import com.dudoziworkshop.dzlog.ui.camera.controls.buildCameraTriggerCapture
 import com.dudoziworkshop.dzlog.ui.camera.controls.isCaptureReady
 import com.dudoziworkshop.dzlog.ui.camera.effects.CameraNowTickEffect
@@ -119,6 +121,8 @@ import com.dudoziworkshop.dzlog.ui.camera.settings.CameraSettingsWriter
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraFlashMode
 import com.dudoziworkshop.dzlog.ui.camera.state.CameraViewModel
 import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraDerivedState
+import com.dudoziworkshop.dzlog.ui.camera.state.computeCameraManualStepPreview
+import com.dudoziworkshop.dzlog.domain.phrase.ManualCaptureStepPolicy
 import com.dudoziworkshop.dzlog.ui.common.dzScreen
 import com.dudoziworkshop.dzlog.ui.common.rememberThreeButtonNavEquivalentBottomPadding
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
@@ -476,6 +480,11 @@ fun CameraPreview(
     val timeFormat = NamingFormatDefaults.TIME_FORMAT_CAPTURE_DEFAULT
     // A persisted catalog update may lag behind the committed receipt.
     // Recompute from the committed base even before Compose delivers that update.
+    var manualStepOffset by remember(quickTemplateId) { mutableIntStateOf(0) }
+    LaunchedEffect(quickTemplateId, tableTemplateState) {
+        // An external edit or a newly committed template is authoritative.
+        manualStepOffset = 0
+    }
     val effectiveTemplate = remember(
         tableTemplateState,
         ui.capture.pendingProjectionVersion,
@@ -483,7 +492,7 @@ fun CameraPreview(
     ) {
         pendingProjection.previewTemplate(tableTemplateState)
     }
-    val derivedState = remember(
+    val baseDerivedState = remember(
         effectiveTemplate,
         ui.capture.now,
         ui.prefs.counterDigits,
@@ -504,6 +513,28 @@ fun CameraPreview(
             saveMode = appSettings.saveMode,
             syncedNextCounter = ui.counter.scopeNextCounter,
             syncedRequest = ui.counter.syncedRequest,
+            tableResolver = tableResolver,
+        )
+    }
+    val previewTemplate = remember(effectiveTemplate, manualStepOffset) {
+        ManualCaptureStepPolicy.offsetTemplate(effectiveTemplate, manualStepOffset)
+    }
+    val derivedState = remember(
+        baseDerivedState, effectiveTemplate, manualStepOffset, ui.capture.now,
+        ui.prefs.counterDigits, appSettings.phraseProgressCursor,
+        appSettings.includePathInCounterScope, appSettings.includeFilenameInCounterScope,
+        appSettings.saveMode,
+    ) {
+        computeCameraManualStepPreview(
+            base = baseDerivedState,
+            template = effectiveTemplate,
+            offset = manualStepOffset,
+            now = ui.capture.now,
+            counterDigits = ui.prefs.counterDigits,
+            phraseProgressCounter = appSettings.phraseProgressCursor,
+            includePathInCounterScope = appSettings.includePathInCounterScope,
+            includeFilenameInCounterScope = appSettings.includeFilenameInCounterScope,
+            saveMode = appSettings.saveMode,
             tableResolver = tableResolver,
         )
     }
@@ -600,12 +631,12 @@ fun CameraPreview(
         },
     )
 
-    val isTemplateReady = derivedState.isTemplateReady
+    val isTemplateReady = baseDerivedState.isTemplateReady
 
     // ✅ 카운터 단일소스: 표기(ON/OFF)와 무관하게 스트림 nextSeed로 ui.counter를 항상 동기화
     CameraCounterController(
-        counterScope = captureScopeState.counterScope,
-        scanPrefix = captureScopeState.scanPrefix,
+        counterScope = baseDerivedState.captureScopeState.counterScope,
+        scanPrefix = baseDerivedState.captureScopeState.scanPrefix,
         resumeTick = cameraViewModel.resumeResyncTick,
         counterEventTick = cameraViewModel.counterEventTick,
         latestCounterEvent = cameraViewModel.latestCounterEvent,
@@ -670,6 +701,7 @@ fun CameraPreview(
         sessionCaptureStack = sessionCaptureStack,
         latestImageController = latestImageController,
         onCaptureCommitted = onCaptureCommitted,
+        onCaptureReserved = { manualStepOffset = 0 },
         onTemplateChange = onTemplateChange,
         buildWatermarkConfig = ::buildWatermarkConfig,
     )
@@ -770,7 +802,7 @@ fun CameraPreview(
                     ui = ui,
                     appSettings = appSettings,
                     settingsWriter = settingsWriter,
-                    tableTemplateState = effectiveTemplate,
+                    tableTemplateState = previewTemplate,
                     tableResolver = tableResolver,
                     scopeNextCounter = displayCounter,
                     phraseProgressCursor = appSettings.phraseProgressCursor,
@@ -924,6 +956,45 @@ fun CameraPreview(
                         hapticEnabled = appSettings.hapticEnabled,
                     )
                 }
+
+                FloatingCountControl(
+                    visible = !readOnlyTour && ui.prefs.floatingCountEnabled,
+                    enabled = !readOnlyTour && !ui.capture.isCapturing &&
+                        ui.capture.capturedUri == null && ui.capture.pendingPreviewCaptureId == null &&
+                        ui.capture.pendingSaveCount == 0 && !ui.capture.pendingSaveError &&
+                        !ui.capture.isRecoveringPendingCaptures && !undoPhraseSaving &&
+                        !undoDeleteController.isBusy && !undoDeletionIncomplete &&
+                        undoPathWarning == null && baseDerivedState.displayCounter != null,
+                    xRatio = ui.prefs.floatingCountXRatio,
+                    yRatio = ui.prefs.floatingCountYRatio,
+                    onPositionRatioChange = { x, y ->
+                        ui.prefs.floatingCountXRatio = x
+                        ui.prefs.floatingCountYRatio = y
+                        scope.launch { settingsWriter.setFloatingCountPositionRatio(x, y) }
+                    },
+                    onPrevious = {
+                        val baseline = baseDerivedState.displayCounter
+                        if (baseline != null && ManualCaptureStepPolicy.canStepBack(baseline, manualStepOffset)) {
+                            manualStepOffset--
+                        }
+                    },
+                    onSync = {
+                        manualStepOffset = 0
+                        // Re-read the configured next number; do not erase
+                        // unrelated manual counter overrides from Quick Edit.
+                        ui.counter.scopeNextCounter = null
+                        ui.counter.syncedRequest = null
+                        cameraViewModel.bumpResumeResyncTick()
+                    },
+                    onNext = {
+                        val baseline = baseDerivedState.displayCounter
+                        if (baseline != null &&
+                            baseline.toLong() + manualStepOffset.toLong() < Int.MAX_VALUE.toLong()) {
+                            manualStepOffset++
+                        }
+                    },
+                    modifier = Modifier.matchParentSize().zIndex(81f),
+                )
 
                 FloatingAssistShutterButton(
                     enabled = if (readOnlyTour && tourLocation?.pageId == "assist") tourProgress >= 0.15f else ui.prefs.assistShutterEnabled,

@@ -57,6 +57,9 @@ val KEY_BLANK_WARNING_ENABLED = booleanPreferencesKey("blank_warning_enabled")
 val KEY_ASSIST_SHUTTER_ENABLED = booleanPreferencesKey("assist_shutter_enabled")
 val KEY_ASSIST_SHUTTER_X_RATIO = floatPreferencesKey("assist_shutter_x_ratio")
 val KEY_ASSIST_SHUTTER_Y_RATIO = floatPreferencesKey("assist_shutter_y_ratio")
+val KEY_FLOATING_COUNT_ENABLED = booleanPreferencesKey("floating_count_enabled")
+val KEY_FLOATING_COUNT_X_RATIO = floatPreferencesKey("floating_count_x_ratio")
+val KEY_FLOATING_COUNT_Y_RATIO = floatPreferencesKey("floating_count_y_ratio")
 
 
 enum class OrientationMode(val v: Int) {

@@ -10,6 +10,9 @@ import com.dudoziworkshop.dzlog.data.preferences.KEY_CAMERA_ZOOM_TENTHS
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_ENABLED
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_X_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_ASSIST_SHUTTER_Y_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_ENABLED
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_X_RATIO
+import com.dudoziworkshop.dzlog.data.preferences.KEY_FLOATING_COUNT_Y_RATIO
 import com.dudoziworkshop.dzlog.data.preferences.KEY_CONTINUOUS_PREVIEW_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SAVE_MODE
 import com.dudoziworkshop.dzlog.data.preferences.KEY_SHOW_WM_PREVIEW
@@ -85,6 +88,19 @@ internal class CameraSettingsWriter(
         context.dataStore.edit {
             it[KEY_ASSIST_SHUTTER_X_RATIO] = xRatio
             it[KEY_ASSIST_SHUTTER_Y_RATIO] = yRatio
+        }
+    }
+
+    suspend fun setFloatingCountEnabled(enabled: Boolean) {
+        if (readOnly) return
+        context.dataStore.edit { it[KEY_FLOATING_COUNT_ENABLED] = enabled }
+    }
+
+    suspend fun setFloatingCountPositionRatio(xRatio: Float, yRatio: Float) {
+        if (readOnly) return
+        context.dataStore.edit {
+            it[KEY_FLOATING_COUNT_X_RATIO] = xRatio.coerceIn(0f, 1f)
+            it[KEY_FLOATING_COUNT_Y_RATIO] = yRatio.coerceIn(0f, 1f)
         }
     }
 
