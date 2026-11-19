@@ -46,6 +46,7 @@ class CapturePhraseUndoHistoryTest {
         )
         val adjusted = ManualCaptureStepPolicy.offsetTemplate(original, -3)
         val afterCapture = original.applyPatch(TablePatch(
+            updatesByCellId = emptyMap(),
             phraseProgressByCellId = CellPhraseProgressPolicy.captureUpdates(
                 adjusted.cells, adjusted.phraseSets,
             ),
