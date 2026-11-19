@@ -1,6 +1,10 @@
 package com.dudoziworkshop.dzlog.feature.capture.policy
 
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+import com.dudoziworkshop.dzlog.domain.phrase.ManualCaptureStepPolicy
+import com.dudoziworkshop.dzlog.domain.table.TablePatch
+import com.dudoziworkshop.dzlog.domain.table.applyPatch
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -16,6 +20,48 @@ class CapturePhraseUndoHistoryTest {
             phraseIndex = index, phraseCompletedShots = shots)),
         phraseSets = listOf(set),
     )
+
+    @Test fun manualCountCaptureUndoRestoresBeforeAdjustmentForEveryRotatingCell() {
+        // Simulates a baseline next photo (e.g. 104) adjusted back three
+        // steps for a single shot (101). The journal must restore the stored
+        // pre-adjustment template, not the manually shifted preview (101).
+        val original = TableTemplateState(
+            rows = 1, cols = 2,
+            cells = listOf(
+                TableCellState(
+                    rowIndex = 0, colIndex = 0, cellId = "a",
+                    dataType = TableCellDataType.ROTATING_TEXT,
+                    phraseSetId = "set-a", phraseIndex = 1, phraseCompletedShots = 2,
+                ),
+                TableCellState(
+                    rowIndex = 0, colIndex = 1, cellId = "b",
+                    dataType = TableCellDataType.ROTATING_TEXT,
+                    phraseSetId = "set-b", phraseIndex = 0, phraseCompletedShots = 1,
+                ),
+            ),
+            phraseSets = listOf(
+                RotatingPhraseSet("set-a", "A", listOf("A1", "A2"), defaultEvery = 3),
+                RotatingPhraseSet("set-b", "B", listOf("B1", "B2"), defaultEvery = 2),
+            ),
+        )
+        val adjusted = ManualCaptureStepPolicy.offsetTemplate(original, -3)
+        val afterCapture = original.applyPatch(TablePatch(
+            phraseProgressByCellId = CellPhraseProgressPolicy.captureUpdates(
+                adjusted.cells, adjusted.phraseSets,
+            ),
+        ))
+        assertNotEquals(original.cells, afterCapture.cells)
+        // The capture snapshot records before=original and after=adjusted shot
+        // committed. Undo should not re-apply the manual -3 offset.
+        val journal = CapturePhraseUndoHistory()
+        journal.record("template-1", listOf("shot-original", "shot-watermark"),
+            before = original, after = afterCapture)
+        assertNull(journal.deleted(listOf("shot-original")))
+        val entry = requireNotNull(journal.deleted(listOf("shot-watermark")))
+        val restored = journal.restore(afterCapture, entry)
+        assertEquals(original, restored)
+        journal.acknowledgeRestored(entry)
+    }
 
     @Test fun `undo last of twelve restores previous phrase`() {
         val journal = CapturePhraseUndoHistory()
