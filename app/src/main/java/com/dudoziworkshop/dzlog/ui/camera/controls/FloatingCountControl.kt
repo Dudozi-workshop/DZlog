@@ -31,14 +31,18 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.roundToInt
 
-private val BUTTON_SIZE = 46.dp
-private val BUTTON_SPACING = 4.dp
+private val BUTTON_SIZE = 48.dp
+private val BUTTON_SPACING = 3.dp
 
 /**
  * Three floating controls, one draggable group. Moving any individual button
@@ -116,11 +120,22 @@ internal fun FloatingCountControl(
                             modifier = Modifier
                                 .size(BUTTON_SIZE)
                                 .background(
-                                    if (enabled) DDZColor.Surface else DDZColor.Surface.copy(alpha = 0.6f),
+                                    when {
+                                        !enabled -> DDZColor.Surface.copy(alpha = 0.60f)
+                                        index == 1 -> DDZColor.SageLight
+                                        else -> DDZColor.Surface.copy(alpha = 0.96f)
+                                    },
                                     CircleShape,
                                 )
-                                .border(1.dp, DDZColor.SageDarkStrong, CircleShape)
-                                .semantics { contentDescription = names[index] }
+                                .border(1.dp, DDZColor.SageDarkStrong.copy(alpha = if (enabled) 0.85f else 0.45f), CircleShape)
+                                .semantics {
+                                    role = Role.Button
+                                    contentDescription = names[index]
+                                    if (enabled) onClick(label = names[index]) {
+                                        action()
+                                        true
+                                    } else disabled()
+                                }
                                 .pointerInput(containerWidth, containerHeight, enabled) {
                                     awaitEachGesture {
                                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -137,7 +152,7 @@ internal fun FloatingCountControl(
                                             if (!change.pressed) break
                                             val delta = change.positionChange()
                                             total += delta
-                                            if (!moved && total.getDistance() > viewConfiguration.touchSlop) {
+                                            if (enabled && !moved && total.getDistance() > viewConfiguration.touchSlop) {
                                                 moved = true
                                                 dragging = true
                                             }
@@ -162,7 +177,7 @@ internal fun FloatingCountControl(
                             Icon(
                                 imageVector = icons[index],
                                 contentDescription = null,
-                                tint = DDZColor.SageDarkStrong,
+                                tint = DDZColor.SageDarkStrong.copy(alpha = if (enabled) 1f else 0.45f),
                             )
                         }
                     }
