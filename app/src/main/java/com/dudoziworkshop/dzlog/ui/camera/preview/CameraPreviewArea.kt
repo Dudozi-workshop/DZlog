@@ -79,6 +79,7 @@ internal fun CameraPreviewArea(
     onTableSelectionChange: (Boolean) -> Unit,
     onCornerResizeScale: (Float, Boolean) -> Unit,
     focusControlsCollapseToken: Int = 0,
+    globalExposureIndex: Int = 0,
 ) {
     val context = args.context
     val lifecycleOwner = args.lifecycleOwner
@@ -232,6 +233,26 @@ internal fun CameraPreviewArea(
         }
 
 
+        // Global EV is a persistent session baseline independent of the
+        // transient sun slider attached to a tapped autofocus ring.
+        LaunchedEffect(boundCamera, globalExposureIndex, args.focusMode) {
+            val activeCamera = boundCamera ?: return@LaunchedEffect
+            if (args.focusMode != CameraFocusMode.AUTO || !exposureSupported) return@LaunchedEffect
+            val baseline = globalExposureIndex.coerceIn(minExposureIndex, maxExposureIndex)
+            if (aeLocked) {
+                // Global AE control is explicit: release a previous tap AE lock
+                // so the exposure compensation can follow moving subjects.
+                requestTapAeLock(context, activeCamera, false) { unlocked ->
+                    if (unlocked && liveBoundCamera.value === activeCamera && previewAlive.get()) {
+                        aeLocked = false
+                        requestExposureIndex(baseline, force = true)
+                    }
+                }
+            } else {
+                requestExposureIndex(baseline, force = true)
+            }
+        }
+
         fun requestFocusAt(
             xPx: Float,
             yPx: Float,
@@ -241,7 +262,12 @@ internal fun CameraPreviewArea(
             val activeCamera = boundCamera ?: return
             // Reset EV only for unlocked AF-point changes. Locked refocus
             // preserves the operator's exposure adjustment.
-            if (resetExposure) requestExposureIndex(0, force = true)
+            if (resetExposure) {
+                requestExposureIndex(
+                    globalExposureIndex.coerceIn(minExposureIndex, maxExposureIndex),
+                    force = true,
+                )
+            }
             val id = ++focusRequestId
             focusInteractionId += 1
             focusControlsExpanded = true

@@ -762,6 +762,14 @@ fun CameraPreview(
         )
     }
 
+    // CameraX hardware compensation affects both live preview and JPEG capture;
+    // unlike a dimming overlay it doesn't change only the on-screen appearance.
+    val hardwareExposure = boundCamera?.cameraInfo?.exposureState
+    val hardwareExposureSupported = hardwareExposure?.isExposureCompensationSupported == true
+    val hardwareExposureMin = hardwareExposure?.exposureCompensationRange?.lower ?: 0
+    val hardwareExposureMax = hardwareExposure?.exposureCompensationRange?.upper ?: 0
+    val hardwareExposureStep = hardwareExposure?.exposureCompensationStep?.toFloat() ?: 1f
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -869,7 +877,8 @@ fun CameraPreview(
                     onDismissCaptured = { ui.capture.capturedUri = null },
                     tapFocusUi = ui.capture.tapFocusUi,
                     onTapFocusUiChange = { ui.capture.tapFocusUi = it },
-                    focusControlsCollapseToken = ui.capture.focusControlsCollapseToken
+                    focusControlsCollapseToken = ui.capture.focusControlsCollapseToken,
+                    globalExposureIndex = ui.globalExposureIndex,
                 )
 
                 if (readOnlyTour && tourLocation?.pageId == "preview") {
@@ -954,6 +963,10 @@ fun CameraPreview(
                             }
                         },
                         hapticEnabled = appSettings.hapticEnabled,
+                        exposureSupported = !readOnlyTour && hardwareExposureSupported,
+                        exposureMinIndex = hardwareExposureMin,
+                        exposureMaxIndex = hardwareExposureMax,
+                        exposureStepEv = hardwareExposureStep,
                     )
                 }
 

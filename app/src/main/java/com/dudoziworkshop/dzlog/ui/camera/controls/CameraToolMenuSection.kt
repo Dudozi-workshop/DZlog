@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.FlashAuto
@@ -83,6 +84,17 @@ internal fun CameraToolMenuSection(
                     CameraFocusMode.AUTO -> "초점 자동"
                     CameraFocusMode.MANUAL -> "초점 수동"
                 },
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        ToolMenuChip(
+            selected = selectedTool == CameraOverlayTool.EXPOSURE,
+            label = "노출",
+            onClick = { onSelectTool(CameraOverlayTool.EXPOSURE) },
+        ) {
+            Icon(
+                imageVector = Icons.Default.Brightness6,
+                contentDescription = "전체 노출 보정",
                 modifier = Modifier.size(16.dp),
             )
         }
@@ -151,7 +163,7 @@ private fun RowScope.ToolMenuChip(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val tourId = when (label) { "초점" -> "focus"; "플래시" -> "flash"; "격자" -> "grid"; "표" -> "table"; "카운트" -> "count"; else -> "assist" }
+    val tourId = when (label) { "초점" -> "focus"; "노출" -> "exposure"; "플래시" -> "flash"; "격자" -> "grid"; "표" -> "table"; "카운트" -> "count"; else -> "assist" }
     val chipBg = if (selected) DDZColor.SageLight.copy(alpha = 0.74f) else Color.Transparent
     val iconTint = if (selected) DDZColor.SageDarkStrong else DDZColor.SageDark
     Box(
