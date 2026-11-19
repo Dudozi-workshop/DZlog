@@ -39,10 +39,12 @@ internal fun editorPreviewCardHeight(
 
     // The help caption is hidden while the keyboard is open.
     val guideAndSpacing = if (keyboardVisible) 12.dp else 44.dp
+    // When the keyboard leaves less room than even a minimal preview,
+    // collapse the viewport rather than overlapping the input controls.
     val maximumBySpace =
-        (availableHeight - reservedEditorHeight - guideAndSpacing).coerceAtLeast(72.dp)
+        (availableHeight - reservedEditorHeight - guideAndSpacing).coerceAtLeast(0.dp)
     val maximumByWindow =
-        (availableHeight * if (keyboardVisible) 0.36f else 0.55f).coerceAtLeast(72.dp)
+        (availableHeight * if (keyboardVisible) 0.36f else 0.55f).coerceAtLeast(0.dp)
     val maximum = minOf(320.dp, maximumBySpace, maximumByWindow)
 
     // Short landscape viewports may be smaller than the preferred minimum:
