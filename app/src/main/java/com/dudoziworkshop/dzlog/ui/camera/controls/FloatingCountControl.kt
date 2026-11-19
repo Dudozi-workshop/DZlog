@@ -7,8 +7,10 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -24,6 +26,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -41,8 +45,13 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.roundToInt
 
-private val BUTTON_SIZE = 48.dp
-private val BUTTON_SPACING = 3.dp
+// Smaller visible buttons with independent, accessible touch targets.
+private val TOUCH_SIZE = 44.dp
+private val VISIBLE_BUTTON_SIZE = 34.dp
+private val ICON_SIZE = 20.dp
+private val BUTTON_SPACING = 2.dp
+private val DOCK_PADDING = 4.dp
+private val DOCK_SHAPE = RoundedCornerShape(28.dp)
 
 /**
  * Three floating controls, one draggable group. Moving any individual button
@@ -79,10 +88,12 @@ internal fun FloatingCountControl(
         containerHeight = it.height.toFloat()
     }) {
         if (containerWidth > 0f && containerHeight > 0f) {
-            val buttonWidth = with(density) { BUTTON_SIZE.toPx() }
+            val buttonWidth = with(density) { TOUCH_SIZE.toPx() }
             val buttonGap = with(density) { BUTTON_SPACING.toPx() }
-            val groupWidth = buttonWidth * 3f + buttonGap * 2f
-            val groupHeight = buttonWidth
+            val dockPadding = with(density) { DOCK_PADDING.toPx() }
+            // Keep the entire pill inside the viewfinder when dragging / rotating.
+            val groupWidth = buttonWidth * 3f + buttonGap * 2f + dockPadding * 2f
+            val groupHeight = buttonWidth + dockPadding * 2f
             val minX = groupWidth / 2f
             val maxX = (containerWidth - groupWidth / 2f).coerceAtLeast(minX)
             val minY = groupHeight / 2f
@@ -98,16 +109,36 @@ internal fun FloatingCountControl(
             }
 
             if (centerX.isFinite() && centerY.isFinite()) {
-                Row(
-                    modifier = Modifier.offset {
-                        IntOffset(
-                            (centerX - groupWidth / 2f).roundToInt(),
-                            (centerY - groupHeight / 2f).roundToInt(),
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                (centerX - groupWidth / 2f).roundToInt(),
+                                (centerY - groupHeight / 2f).roundToInt(),
+                            )
+                        }
+                        .shadow(5.dp, DOCK_SHAPE)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    DDZColor.Surface.copy(alpha = if (enabled) 0.94f else 0.65f),
+                                    DDZColor.Surface.copy(alpha = if (enabled) 0.76f else 0.52f),
+                                )
+                            ),
+                            shape = DOCK_SHAPE,
                         )
-                    },
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(BUTTON_SPACING),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .border(
+                            1.dp,
+                            DDZColor.SageBorder.copy(alpha = if (enabled) 0.78f else 0.40f),
+                            DOCK_SHAPE,
+                        )
+                        .padding(DOCK_PADDING),
+                    contentAlignment = Alignment.Center,
                 ) {
+                    Row(
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(BUTTON_SPACING),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                     val actions = listOf(
                         { previousAction.value() },
                         { syncAction.value() },
@@ -118,16 +149,7 @@ internal fun FloatingCountControl(
                     actions.forEachIndexed { index, action ->
                         Box(
                             modifier = Modifier
-                                .size(BUTTON_SIZE)
-                                .background(
-                                    when {
-                                        !enabled -> DDZColor.Surface.copy(alpha = 0.60f)
-                                        index == 1 -> DDZColor.SageLight
-                                        else -> DDZColor.Surface.copy(alpha = 0.96f)
-                                    },
-                                    CircleShape,
-                                )
-                                .border(1.dp, DDZColor.SageDarkStrong.copy(alpha = if (enabled) 0.85f else 0.45f), CircleShape)
+                                .size(TOUCH_SIZE)
                                 .semantics {
                                     role = Role.Button
                                     contentDescription = names[index]
@@ -174,12 +196,36 @@ internal fun FloatingCountControl(
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                imageVector = icons[index],
-                                contentDescription = null,
-                                tint = DDZColor.SageDarkStrong.copy(alpha = if (enabled) 1f else 0.45f),
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(VISIBLE_BUTTON_SIZE)
+                                    .shadow(if (enabled) 1.dp else 0.dp, CircleShape)
+                                    .background(
+                                        when {
+                                            !enabled -> DDZColor.Surface.copy(alpha = 0.55f)
+                                            index == 1 -> DDZColor.SageLight.copy(alpha = 0.94f)
+                                            else -> DDZColor.Surface.copy(alpha = 0.92f)
+                                        },
+                                        CircleShape,
+                                    )
+                                    .then(
+                                        if (index == 1) Modifier.border(
+                                            1.dp,
+                                            DDZColor.SageDarkStrong.copy(alpha = if (enabled) 0.38f else 0.20f),
+                                            CircleShape,
+                                        ) else Modifier
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = icons[index],
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ICON_SIZE),
+                                    tint = DDZColor.SageDarkStrong.copy(alpha = if (enabled) 1f else 0.45f),
+                                )
+                            }
                         }
+                    }
                     }
                 }
             }
