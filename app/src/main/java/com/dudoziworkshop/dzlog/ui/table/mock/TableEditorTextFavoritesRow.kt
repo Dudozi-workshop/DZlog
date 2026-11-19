@@ -108,22 +108,23 @@ internal fun TableEditorTextFavoritesRow(
                 }
             }
         }
-        Surface(
-            shape = RoundedCornerShape(9.dp),
-            color = DDZColor.Surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, DDZColor.Border),
+        // Compact trailing action: show only the ellipsis, while keeping
+        // IconButton's accessible touch target and the existing manage sheet.
+        IconButton(
+            onClick = {
+                keyboard?.hide()
+                focusManager.clearFocus()
+                model.openManagement()
+            },
+            enabled = enabled,
+            modifier = Modifier.size(40.dp),
         ) {
-            IconButton(
-                onClick = {
-                    keyboard?.hide()
-                    focusManager.clearFocus()
-                    model.openManagement()
-                },
-                enabled = enabled,
-                modifier = Modifier.size(DDZLayout.QuickInput.Touch),
-            ) {
-                Icon(Icons.Filled.MoreHoriz, contentDescription = "즐겨찾기 관리")
-            }
+            Icon(
+                Icons.Filled.MoreHoriz,
+                contentDescription = "즐겨찾기 관리",
+                modifier = Modifier.size(20.dp),
+                tint = if (enabled) DDZColor.TextSecondary else DDZColor.TextMuted,
+            )
         }
     }
     if (model.managementOpen) TableEditorTextFavoritesManageSheet(model)

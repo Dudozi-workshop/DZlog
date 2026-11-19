@@ -6,6 +6,76 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TableEditorPreviewHeightPolicyTest {
+    @Test fun wideOneRowTableKeepsReadablePreviewWithoutKeyboard() {
+        val h = editorPreviewCardHeight(
+            availableWidth = 390.dp, availableHeight = 680.dp,
+            tableWidthToHeight = 8f, reservedEditorHeight = 168.dp,
+            keyboardVisible = false,
+        )
+        // The old natural-height-only rule could shrink a one-row table
+        // preview to approximately 200dp; keep it proportional to the window.
+        assertTrue(h >= 240.dp)
+        assertTrue(h <= 320.dp)
+    }
+
+    @Test fun tallPortraitRetainsMoreRoomForWideTable() {
+        val h = editorPreviewCardHeight(
+            availableWidth = 430.dp, availableHeight = 900.dp,
+            tableWidthToHeight = 12f, reservedEditorHeight = 188.dp,
+            keyboardVisible = false,
+        )
+        assertTrue(h >= 260.dp)
+        assertTrue(h <= 320.dp)
+    }
+
+    @Test fun inputKeyboardKeepsEditorRoomAndBoundsPreview() {
+        val height = 440.dp
+        val editor = 168.dp
+        val h = editorPreviewCardHeight(
+            availableWidth = 390.dp, availableHeight = height,
+            tableWidthToHeight = 10f, reservedEditorHeight = editor,
+            keyboardVisible = true,
+        )
+        assertTrue(h <= height * 0.36f)
+        assertTrue(h + editor + 12.dp <= height)
+    }
+
+    @Test fun shortLandscapeDoesNotForcePreferredMinimumOverEditor() {
+        val height = 300.dp
+        val editor = 124.dp
+        val h = editorPreviewCardHeight(
+            availableWidth = 760.dp, availableHeight = height,
+            tableWidthToHeight = 20f, reservedEditorHeight = editor,
+            keyboardVisible = false,
+        )
+        assertTrue(h <= 132.dp)
+        assertTrue(h + editor + 44.dp <= height)
+    }
+
+    @Test fun splitScreenClampsWithoutOverlappingEditor() {
+        val height = 260.dp
+        val editor = 140.dp
+        val h = editorPreviewCardHeight(
+            availableWidth = 300.dp, availableHeight = height,
+            tableWidthToHeight = 9f, reservedEditorHeight = editor,
+            keyboardVisible = true,
+        )
+        assertTrue(h <= 108.dp)
+        assertTrue(h + editor + 12.dp <= height)
+    }
+
+    @Test fun extremelyShortImeWindowPrioritizesEditorWithoutOverlap() {
+        val height = 180.dp
+        val editor = 168.dp
+        val h = editorPreviewCardHeight(
+            availableWidth = 340.dp, availableHeight = height,
+            tableWidthToHeight = 8f, reservedEditorHeight = editor,
+            keyboardVisible = true,
+        )
+        assertEquals(0.dp, h)
+        assertTrue(h + editor <= height)
+    }
+
     @Test fun shortTableDoesNotFillAvailableHeight() {
         val h = editorPreviewCardHeight(
             availableWidth = 390.dp, availableHeight = 680.dp,
