@@ -99,6 +99,10 @@ internal fun CameraBottomControls(
     tutorialFocus: FirstCaptureGuidePhase? = null,
     onShutterButtonTopYChange: (Float?) -> Unit,
     hapticEnabled: Boolean,
+    exposureSupported: Boolean = false,
+    exposureMinIndex: Int = 0,
+    exposureMaxIndex: Int = 0,
+    exposureStepEv: Float = 1f,
 ) {
     val density = LocalDensity.current
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
@@ -196,6 +200,12 @@ internal fun CameraBottomControls(
             flashMode = if (guidePage == "flash") when { fraction < 0.33f -> CameraFlashMode.OFF; fraction < 0.66f -> CameraFlashMode.AUTO; else -> CameraFlashMode.ON } else ui.prefs.flashMode,
             focusMode = if (guidePage == "manual-focus") { if (guideOn) CameraFocusMode.MANUAL else CameraFocusMode.AUTO } else ui.focusMode,
             focusUiValue = if (guidePage == "manual-focus") fraction else ui.focusUiValue,
+            globalExposureIndex = ui.globalExposureIndex,
+            exposureSupported = exposureSupported,
+            exposureMinIndex = exposureMinIndex,
+            exposureMaxIndex = exposureMaxIndex,
+            exposureStepEv = exposureStepEv,
+            onGlobalExposureIndexChange = { ui.globalExposureIndex = it },
             showGrid = if (guidePage == "grid") guideOn else ui.prefs.showGrid,
             showTable = if (guidePage == "table") guideOn else ui.prefs.showWmPreview,
             bottomOffset = with(density) { bottomBarHeightPx.toDp() + ToolOverlayBottomSpacing },
@@ -204,6 +214,11 @@ internal fun CameraBottomControls(
                 ui.isZoomChipExpanded = false
                 ui.showToolMenu = false
                 ui.selectedTool = selectedTool
+                if (selectedTool == CameraOverlayTool.EXPOSURE) {
+                    // Global exposure is a companion of continuous AF, not
+                    // an implicit manual-focus/pro mode.
+                    ui.focusMode = CameraFocusMode.AUTO
+                }
                 ui.isToolPanelExpanded = true
             },
             onOpenSelectedToolPanel = { if (!ui.isPinchZoomActive) ui.isToolPanelExpanded = true },
@@ -582,6 +597,12 @@ private fun BoxScope.CameraToolOverlayPanel(
     flashMode: CameraFlashMode,
     focusMode: CameraFocusMode,
     focusUiValue: Float,
+    globalExposureIndex: Int,
+    exposureSupported: Boolean,
+    exposureMinIndex: Int,
+    exposureMaxIndex: Int,
+    exposureStepEv: Float,
+    onGlobalExposureIndexChange: (Int) -> Unit,
     showGrid: Boolean,
     showTable: Boolean,
     bottomOffset: androidx.compose.ui.unit.Dp,
@@ -664,6 +685,14 @@ private fun BoxScope.CameraToolOverlayPanel(
             selectedTool == CameraOverlayTool.FLASH && isToolPanelExpanded && !isPinchZoomActive -> CameraFlashControlSection(
                 mode = flashMode,
                 onModeChange = onFlashModeChange
+            )
+            selectedTool == CameraOverlayTool.EXPOSURE && !isPinchZoomActive -> CameraExposureControlSection(
+                currentIndex = globalExposureIndex,
+                minIndex = exposureMinIndex,
+                maxIndex = exposureMaxIndex,
+                stepEv = exposureStepEv,
+                supported = exposureSupported,
+                onIndexChange = onGlobalExposureIndexChange,
             )
         }
     }
