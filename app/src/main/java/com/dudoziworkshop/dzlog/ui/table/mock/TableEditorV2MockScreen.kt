@@ -427,11 +427,13 @@ fun TableEditorV2Screen(
             val minTextEditorHeight = DDZLayout.QuickInput.RowHeight +
                 DDZLayout.QuickInput.Touch + 24.dp +
                 if (hasFavoritesRow) DDZLayout.QuickInput.Touch else 0.dp
-            val editorPanelModifier = Modifier.heightIn(
-                max = if (imeVisible && cellPanelVisible) {
-                    minOf(maxHeight, maxOf(maxHeight * 0.55f, minTextEditorHeight))
-                } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
-            )
+            // Keep preview and panel height planning on the same budget.
+            // IME editors may grow beyond the non-keyboard panel cap; reserve
+            // that maximum before distributing the remaining screen space.
+            val reservedEditorPanelHeight = if (imeVisible && cellPanelVisible) {
+                minOf(maxHeight, maxOf(maxHeight * 0.55f, minTextEditorHeight))
+            } else if (cellPanelVisible) cellPanelMaxHeight else panelHeight
+            val editorPanelModifier = Modifier.heightIn(max = reservedEditorPanelHeight)
             val geometry = remember(
                 cells, rows, cols, draftTemplateState, draftStyleState.valueScale,
                 cameraTablePrefs,
@@ -453,7 +455,7 @@ fun TableEditorV2Screen(
                 availableWidth = maxWidth,
                 availableHeight = maxHeight,
                 tableWidthToHeight = geometry.widthToHeight,
-                reservedEditorHeight = if (cellPanelVisible) cellPanelMaxHeight else panelHeight,
+                reservedEditorHeight = reservedEditorPanelHeight,
                 keyboardVisible = imeVisible,
             )
             Column(modifier = Modifier.fillMaxSize()) {
