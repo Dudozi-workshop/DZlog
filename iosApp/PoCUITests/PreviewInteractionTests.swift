@@ -117,6 +117,24 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertFalse(text("입력값: bluex").exists)
     }
 
+    func testPhraseCsvFilesPickersCanCancelWithoutReplacingTheSet() {
+        app.launchArguments = ["--quick-values-flow", "--phrase-csv-picker"]
+        app.launch()
+        tapPanelText("CSV 일괄 관리")
+        for label in ["CSV 불러오기", "CSV 내보내기"] {
+            tapButton(label)
+            let cancel = app.buttons.matching(NSPredicate(
+                format: "label IN %@", ["Cancel", "취소"])).firstMatch
+            XCTAssertTrue(cancel.waitForExistence(timeout: 15), app.debugDescription)
+            cancel.tap()
+            XCTAssertTrue(button(label).waitForExistence(timeout: 10))
+            XCTAssertTrue(button(label).isEnabled)
+        }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18)).tap()
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("과수원 · 온실").waitForExistence(timeout: 10))
+    }
+
     func testQuickGridWrapAndDraftAcrossCells() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()

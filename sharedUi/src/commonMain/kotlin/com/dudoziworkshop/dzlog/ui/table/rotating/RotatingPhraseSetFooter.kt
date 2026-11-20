@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
@@ -35,12 +36,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.domain.model.RotatingCounterProgressMode
 import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 import com.dudoziworkshop.dzlog.ui.common.DDZBottomSheet
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
+private enum class SetFooterSheet { NUMBERING, CSV }
 
 @Composable
 internal fun RotatingPhraseDefaultPeriodBar(
@@ -138,83 +141,121 @@ internal fun RotatingPhraseSetFooter(
     phraseSet: RotatingPhraseSet,
     onUpdateSet: ((RotatingPhraseSet) -> RotatingPhraseSet) -> Unit,
 ) {
-    var showNumbering by remember(phraseSet.id) { mutableStateOf(false) }
+    var sheet by remember(phraseSet.id) { mutableStateOf<SetFooterSheet?>(null) }
 
-    Surface(color = DDZColor.Surface, border = BorderStroke(1.dp, DDZColor.Border), shape = RoundedCornerShape(14.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .clickable { showNumbering = true }
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "번호 진행 방식",
-                modifier = Modifier.weight(1f),
-                style = DDZTypography.Body,
-                color = DDZColor.TextPrimary,
-            )
-            Text(
-                if (phraseSet.counterProgressMode == RotatingCounterProgressMode.PER_PHRASE)
-                    "문구별로 따로" else "문구가 바뀌어도 계속",
-                style = DDZTypography.Caption,
-                color = DDZColor.TextSecondary,
-            )
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = DDZColor.IconMuted)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Surface(color = DDZColor.Surface, border = BorderStroke(1.dp, DDZColor.Border), shape = RoundedCornerShape(14.dp)) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { sheet = SetFooterSheet.NUMBERING }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "번호 진행 방식",
+                        modifier = Modifier.weight(1f),
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary,
+                    )
+                    Text(
+                        if (phraseSet.counterProgressMode == RotatingCounterProgressMode.PER_PHRASE)
+                            "문구별로 따로" else "문구가 바뀌어도 계속",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary,
+                    )
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = DDZColor.IconMuted)
+                }
+                HorizontalDivider(color = DDZColor.Border)
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { sheet = SetFooterSheet.CSV }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "CSV 일괄 관리",
+                        modifier = Modifier.weight(1f),
+                        style = DDZTypography.Body,
+                        color = DDZColor.TextPrimary,
+                    )
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = DDZColor.IconMuted)
+                }
+            }
         }
     }
 
-    if (showNumbering) {
-        DDZBottomSheet(onDismiss = { showNumbering = false }, title = "번호 진행 방식") {
-            Column(
-                modifier = Modifier.fillMaxWidth().selectableGroup(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                RotatingCounterProgressMode.entries.forEach { mode ->
-                    val selected = phraseSet.counterProgressMode == mode
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .selectable(
+    when (sheet) {
+        SetFooterSheet.NUMBERING -> {
+            DDZBottomSheet(onDismiss = { sheet = null }, title = "번호 진행 방식") {
+                Column(
+                    modifier = Modifier.fillMaxWidth().selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    RotatingCounterProgressMode.entries.forEach { mode ->
+                        val selected = phraseSet.counterProgressMode == mode
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        onUpdateSet { it.copy(counterProgressMode = mode) }
+                                        sheet = null
+                                    },
+                                )
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
                                 selected = selected,
-                                role = Role.RadioButton,
-                                onClick = {
-                                    onUpdateSet { it.copy(counterProgressMode = mode) }
-                                    showNumbering = false
-                                },
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = DDZColor.SelectedDark,
+                                    unselectedColor = DDZColor.IconMuted,
+                                ),
                             )
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = selected,
-                            onClick = null,
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = DDZColor.SelectedDark,
-                                unselectedColor = DDZColor.IconMuted,
-                            ),
-                        )
-                        Column(Modifier.padding(start = 6.dp)) {
-                            Text(
-                                if (mode == RotatingCounterProgressMode.PER_PHRASE)
-                                    "문구별로 따로" else "문구가 바뀌어도 계속",
-                                style = DDZTypography.Body,
-                                color = DDZColor.TextPrimary,
-                            )
-                            Text(
-                                if (mode == RotatingCounterProgressMode.PER_PHRASE)
-                                    "A 0001 → B 0001 → A 0002"
-                                else "A 0001 → B 0002 → A 0003",
-                                style = DDZTypography.Caption,
-                                color = DDZColor.TextSecondary,
-                            )
+                            Column(Modifier.padding(start = 6.dp)) {
+                                Text(
+                                    if (mode == RotatingCounterProgressMode.PER_PHRASE)
+                                        "문구별로 따로" else "문구가 바뀌어도 계속",
+                                    style = DDZTypography.Body,
+                                    color = DDZColor.TextPrimary,
+                                )
+                                Text(
+                                    if (mode == RotatingCounterProgressMode.PER_PHRASE)
+                                        "A 0001 → B 0001 → A 0002"
+                                    else "A 0001 → B 0002 → A 0003",
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.TextSecondary,
+                                )
+                            }
                         }
                     }
+                    Text(
+                        "표 편집에서 저장하면 적용됩니다.",
+                        style = DDZTypography.Caption,
+                        color = DDZColor.TextSecondary,
+                    )
                 }
-                Text(
-                    "표 편집에서 저장하면 적용됩니다.",
-                    style = DDZTypography.Caption,
-                    color = DDZColor.TextSecondary,
+            }
+        }
+        SetFooterSheet.CSV -> {
+            DDZBottomSheet(onDismiss = { sheet = null }, title = "CSV 일괄 관리") {
+                RotatingPhraseCsvActions(
+                    phraseSet = phraseSet,
+                    showHeading = false,
+                    onReplaceItems = { imported, periods ->
+                        if (phraseSet.items != imported ||
+                            RotatingPhraseSetItemPolicy.overrides(phraseSet) != periods) {
+                            onUpdateSet {
+                                RotatingPhraseSetItemPolicy.replaceItems(it, imported, periods)
+                            }
+                        }
+                    },
                 )
             }
         }
+        null -> Unit
     }
 }

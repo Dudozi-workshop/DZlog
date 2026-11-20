@@ -26,6 +26,19 @@ private const val QUICK_TEST_KEY = "dzlog.ios.quick-values.uitest.v1"
 /** Synthetic sensor only; production quick-input UI, workspace, renderer and PhotoKit. */
 @Composable
 internal fun IosQuickValuesFixture() {
+    if (NSProcessInfo.processInfo.arguments.contains("--phrase-csv-picker")) {
+        var set by remember { mutableStateOf(RotatingPhraseSet("csv", "현장 조사", listOf("과수원", "온실"))) }
+        var editing by remember { mutableStateOf(true) }
+        if (editing) {
+            com.dudoziworkshop.dzlog.ui.table.rotating.RotatingPhraseSetEditDialog(
+                phraseSet = set, onClose = { editing = false },
+                onUpdateSet = { update -> set = update(set) }, onDeleteSet = { editing = false },
+            )
+        } else {
+            Text(set.items.joinToString(" · "))
+        }
+        return
+    }
     val projectFlow = remember { NSProcessInfo.processInfo.arguments.contains("--quick-project-switch") }
     val seed = remember {
         SavedTableTemplate("quick-values", "빠른 입력 검증", TableTemplateState(2, 4, listOf(

@@ -13,6 +13,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     private var cameraPresentedOrPending = false
     private var permissionActionPending = false
     private var awaitingWorkspaceImport = false
+    private var phraseCsvRequest: (picker: UIDocumentPickerViewController, reply: Notification.Name, directory: URL?)?
     private var exportedTemporaryURL: URL?
     private var testWorkspaceArchive: String?
     private var activePhotoShareDirectory: URL?
@@ -66,6 +67,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
         NotificationCenter.default.addObserver(
             self, selector: #selector(importWorkspaceFromSettings(_:)),
             name: Self.importWorkspace, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(selectPhraseCsv(_:)), name: Notification.Name("dzlog.phraseCsv"), object: nil
         )
         if CommandLine.arguments.contains("--camera-flow") {
             // Keep the camera disconnected while the asynchronous prompt is unresolved.
@@ -334,8 +338,97 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
         presenter.present(picker, animated: true)
     }
 
+    @objc private func selectPhraseCsv(_ notification: Notification) {
+        guard let input = notification.object as? [String: String], let name = input["reply"],
+              name.hasPrefix("dzlog.phraseCsvReply.") else { return }
+        let reply = Notification.Name(name)
+        // Compose can present the editor in a separate UIKit window.
+        let root = window?.windowScene?.windows.first(where: { $0.isKeyWindow })?.rootViewController
+            ?? window?.rootViewController
+        guard var presenter = root, phraseCsvRequest == nil, !awaitingWorkspaceImport,
+              exportedTemporaryURL == nil else {
+            NotificationCenter.default.post(name: reply, object: ["message": "파일 선택기를 열 수 없습니다."])
+            return
+        }
+        while let next = presenter.presentedViewController { presenter = next }
+        guard presenter.viewIfLoaded?.window != nil, !presenter.isBeingDismissed,
+              !(presenter is UIDocumentPickerViewController) else {
+            NotificationCenter.default.post(name: reply, object: ["message": "파일 선택기를 열 수 없습니다."])
+            return
+        }
+        var directory: URL?
+        do {
+            let picker: UIDocumentPickerViewController
+            if let csv = input["csv"], let filename = input["name"] {
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+                directory = folder
+                let file = folder.appendingPathComponent((filename as NSString).lastPathComponent)
+                try Data(csv.utf8).write(to: file, options: .atomic)
+                picker = UIDocumentPickerViewController(forExporting: [file], asCopy: true)
+            } else {
+                picker = UIDocumentPickerViewController(forOpeningContentTypes: [.commaSeparatedText, .plainText, .data], asCopy: true)
+                picker.allowsMultipleSelection = false
+            }
+            picker.delegate = self
+            phraseCsvRequest = (picker, reply, directory)
+            presenter.present(picker, animated: true)
+        } catch {
+            if let folder = directory { try? FileManager.default.removeItem(at: folder) }
+            NotificationCenter.default.post(name: reply, object: ["message": "CSV 파일을 준비하지 못했습니다."])
+        }
+    }
+
+    private func finishPhraseCsv(_ picker: UIDocumentPickerViewController, urls: [URL]?) -> Bool {
+        guard let request = phraseCsvRequest, request.picker === picker else { return false }
+        phraseCsvRequest = nil
+        if let folder = request.directory { try? FileManager.default.removeItem(at: folder) }
+        guard let urls = urls else {
+            NotificationCenter.default.post(name: request.reply, object: [String: String]())
+            return true
+        }
+        guard let file = urls.first else {
+            NotificationCenter.default.post(name: request.reply, object: ["message": "선택한 파일을 찾을 수 없습니다."])
+            return true
+        }
+        if request.directory != nil {
+            NotificationCenter.default.post(name: request.reply, object: ["message": "CSV 내보내기가 완료되었습니다."])
+            return true
+        }
+        let reply = request.reply
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Self.readPhraseCsv(file)
+            DispatchQueue.main.async { NotificationCenter.default.post(name: reply, object: result) }
+        }
+        return true
+    }
+
+    private static func readPhraseCsv(_ file: URL) -> [String: String] {
+        let scoped = file.startAccessingSecurityScopedResource()
+        defer { if scoped { file.stopAccessingSecurityScopedResource() } }
+        do {
+            let handle = try FileHandle(forReadingFrom: file)
+            defer { try? handle.close() }
+            var bytes = Data()
+            let limit = 1_000_000
+            while bytes.count <= limit {
+                guard let chunk = try handle.read(upToCount: min(65536, limit + 1 - bytes.count)),
+                      !chunk.isEmpty else { break }
+                bytes.append(chunk)
+            }
+            guard bytes.count <= limit else { return ["message": "파일 크기가 1 MB를 초과합니다."] }
+            guard let csv = String(data: bytes, encoding: .utf8) else {
+                return ["message": "UTF-8 CSV 파일을 선택해 주세요."]
+            }
+            return ["csv": csv]
+        } catch {
+            return ["message": "CSV 파일을 읽을 수 없습니다."]
+        }
+    }
+
     func documentPicker(_ controller: UIDocumentPickerViewController,
                         didPickDocumentsAt urls: [URL]) {
+        if finishPhraseCsv(controller, urls: urls) { return }
         if !awaitingWorkspaceImport {
             cleanupExportedWorkspaceFile()
             NotificationCenter.default.post(name: Self.exportCompleted, object: nil)
@@ -366,6 +459,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     }
 
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        if finishPhraseCsv(controller, urls: nil) { return }
         let wasImport = awaitingWorkspaceImport
         awaitingWorkspaceImport = false
         cleanupExportedWorkspaceFile()

@@ -12,6 +12,8 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
 import org.junit.Assert.*
 import org.junit.Test
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [33])
 class TableEditorPhraseSettingsTest {
     private val set = RotatingPhraseSet("set", "처리구", listOf("T1", "T2", "T3", "T4"), 12)
     private val cell = TableCellState(0, 0, cellId = "cell", dataType = TableCellDataType.ROTATING_TEXT,
