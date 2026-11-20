@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,11 +89,14 @@ internal fun IosProjectPickerSheet(
 }
 
 @Composable
-private fun IosProjectChoice(title: String, selected: Boolean, onClick: () -> Unit) {
+private fun IosProjectChoice(title: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        color = if (selected) DDZColor.SurfaceSoft else DDZColor.Surface,
+        modifier = Modifier.fillMaxWidth().semantics {
+            contentDescription = title
+            selected = isSelected
+        },
+        color = if (isSelected) DDZColor.SurfaceSoft else DDZColor.Surface,
         shape = RoundedCornerShape(12.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
@@ -101,7 +105,7 @@ private fun IosProjectChoice(title: String, selected: Boolean, onClick: () -> Un
             Spacer(Modifier.width(10.dp))
             Text(title, modifier = Modifier.weight(1f), style = DDZTypography.Body,
                 color = DDZColor.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (selected) Icon(Icons.Default.Check, contentDescription = "현재 촬영 대상",
+            if (isSelected) Icon(Icons.Default.Check, contentDescription = null,
                 tint = DDZColor.Selected)
         }
     }
@@ -174,7 +178,7 @@ private fun IosProjectEmpty(text: String) {
 private fun IosProjectRow(project: IosCaptureProject, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().background(DDZColor.Surface, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick).padding(14.dp),
+            .clickable(onClick = onClick).semantics { contentDescription = "프로젝트 상세 · ${project.title}" }.padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {

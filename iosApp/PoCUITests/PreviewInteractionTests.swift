@@ -263,9 +263,43 @@ final class PreviewInteractionTests: XCTestCase {
         let point = CGPoint(x: frame.minX + frame.width * 0.08, y: frame.minY + frame.height * 0.08)
         app.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: point.x - app.frame.minX, dy: point.y - app.frame.minY)).tap()
-        XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 2))
+        // XCTest may first sample after the 1.2-second result display has elapsed.
+        XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 5))
         XCTAssertTrue(app.sliders["밝기 조절"].waitForNonExistence(timeout: 5))
-        XCTAssertTrue(text("카메라 초점").exists)
+        XCTAssertEqual(text("카메라 초점").frame.width, 40, accuracy: 1)
+    }
+
+    func testNativeFocusControlsAtPreviewEdges() {
+        openLiveTable(reset: true)
+        let preview = livePreview().frame
+        let slider = app.sliders["밝기 조절"]
+        for (x, y) in [(0.5, 0.5), (0.01, 0.01), (0.99, 0.99)] as [(CGFloat, CGFloat)] {
+            let point = CGVector(dx: preview.minX + x * preview.width - app.frame.minX,
+                                 dy: preview.minY + y * preview.height - app.frame.minY)
+            app.coordinate(withNormalizedOffset: .zero).withOffset(point).tap()
+            XCTAssertTrue(slider.waitForExistence(timeout: 5))
+            let ring = text("카메라 초점").frame
+            let lock = button("노출 잠금").frame
+            XCTAssertEqual(ring.width, 44, accuracy: 1)
+            XCTAssertEqual(lock.width, 48, accuracy: 1)
+            XCTAssertEqual(slider.frame.width, 108, accuracy: 1)
+            for rect in [ring, lock, slider.frame] {
+                XCTAssertTrue(preview.insetBy(dx: -1, dy: -1).contains(rect))
+            }
+            XCTAssertEqual(ring.midX, min(max(preview.minX + x * preview.width, preview.minX + 22),
+                                          preview.maxX - 22), accuracy: 1)
+            XCTAssertEqual(lock.midY, y < 0.02 ? ring.maxY : ring.minY, accuracy: 1)
+            if y > 0.98 {
+                XCTAssertLessThan(slider.frame.maxY, lock.minY)
+            } else {
+                XCTAssertGreaterThan(slider.frame.minY, lock.maxY)
+            }
+        }
+        tapButton("노출 잠금")
+        tapButton("초점 최소화")
+        tapButton("밝기 조절 열기")
+        XCTAssertTrue(slider.waitForExistence(timeout: 5))
+        XCTAssertTrue(button("노출 잠금 해제").exists)
     }
 
     func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
@@ -1446,7 +1480,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         enterHomeAfterOptionalOnboarding()
 
-        tapButton("촬영 프로젝트 선택")
+        tapButton("촬영 프로젝트 선택 · 일반 촬영")
         XCTAssertTrue(text("촬영 프로젝트 선택").waitForExistence(timeout: 10))
         tapButton("+ 새 프로젝트")
         XCTAssertTrue(text("프로젝트").waitForExistence(timeout: 10))
@@ -1454,12 +1488,12 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("프로젝트 이름")
         typeWithVisibleKeyboard("blueberry")
         tapButton("만들기")
-        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 10))
+        XCTAssertTrue(panelText("프로젝트 상세 · blueberry").waitForExistence(timeout: 10))
         tapButton("뒤로")
 
-        tapButton("촬영 프로젝트 선택")
+        tapButton("촬영 프로젝트 선택 · 일반 촬영")
         tapButton("blueberry")
-        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10))
 
         tapButton("촬영 시작")
         // The first production capture requires a saved placement and counter.
@@ -1509,7 +1543,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--production-home-flow"]
         app.launch()
-        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 20),
+        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 20),
                       "Selected project must survive relaunch")
     }
 

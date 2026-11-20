@@ -125,11 +125,12 @@ fun HomeContent(
                     Spacer(Modifier.height(heroTopGap))
 
                     if (onOpenProjectPicker != null) {
+                        val currentProject = projectName?.takeIf(String::isNotBlank) ?: "일반 촬영"
                         androidx.compose.material3.Surface(
                             modifier = Modifier.fillMaxWidth()
                                 .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset)
                                 .clickable(role = Role.Button, onClick = onOpenProjectPicker)
-                                .semantics { contentDescription = "촬영 프로젝트 선택" },
+                                .semantics { contentDescription = "촬영 프로젝트 선택 · $currentProject" },
                             shape = RoundedCornerShape(12.dp),
                             color = DDZColor.SurfaceSoft,
                         ) {
@@ -151,7 +152,7 @@ fun HomeContent(
                                         color = DDZColor.TextSecondary,
                                     )
                                     Text(
-                                        text = projectName?.takeIf(String::isNotBlank) ?: "일반 촬영",
+                                        text = currentProject,
                                         style = DDZTypography.SettingLabel,
                                         color = DDZColor.TextPrimary,
                                         maxLines = 1,

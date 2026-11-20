@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitInteropInteractionMode
+import com.dudoziworkshop.dzlog.feature.capture.policy.*
 import kotlinx.cinterop.*
 import kotlinx.coroutines.delay
 import platform.AVFoundation.*
@@ -93,9 +94,11 @@ internal class IosLiveTableView(
     private val gridLines = List(4) { UIView() }
     private val moveHandle = UIView()
     private val resizeHandle = UILabel()
+    private val lockedColor = UIColor(red = 172.0 / 255, green = 219.0 / 255, blue = 114.0 / 255, alpha = 1.0)
     private val focusRing = UIView()
     private val focusLock = UIButton.buttonWithType(UIButtonTypeSystem)
-    private val exposureSlider = UISlider()
+    private val expandBrightness = UIButton.buttonWithType(UIButtonTypeCustom)
+    private val exposureSlider = FocusExposureSlider()
     private val target = LiveTableGestureTarget(this)
     private val movePan = UIPanGestureRecognizer(target, NSSelectorFromString("move:"))
     private val resizePan = UIPanGestureRecognizer(target, NSSelectorFromString("resize:"))
@@ -153,6 +156,7 @@ internal class IosLiveTableView(
         addSubview(resizeHandle)
         addSubview(focusRing)
         addSubview(focusLock)
+        addSubview(expandBrightness)
         addSubview(exposureSlider)
         image.isAccessibilityElement = true
         image.accessibilityLabel = "촬영 표 미리보기"
@@ -169,18 +173,23 @@ internal class IosLiveTableView(
         resizeHandle.clipsToBounds = true
         focusRing.hidden = true
         focusRing.userInteractionEnabled = false
-        focusRing.layer.borderWidth = 2.0
-        focusRing.layer.cornerRadius = 27.0
+        focusRing.layer.borderWidth = 1.25
         focusRing.isAccessibilityElement = true
         focusRing.accessibilityLabel = "카메라 초점"
         focusLock.hidden = true
-        focusLock.setTitle("AE", forState = UIControlStateNormal)
+        updateLockIcon()
         focusLock.accessibilityLabel = "노출 잠금"
-        focusLock.backgroundColor = UIColor.blackColor.colorWithAlphaComponent(0.48)
-        focusLock.layer.cornerRadius = 10.0
+        focusLock.imageView?.layer?.apply {
+            shadowColor = UIColor.blackColor.CGColor
+            shadowOpacity = 0.8f
+            shadowRadius = 1.0
+            shadowOffset = CGSizeMake(0.0, 1.0)
+        }
+        expandBrightness.hidden = true
+        expandBrightness.accessibilityLabel = "밝기 조절 열기"
+        exposureSlider.setThumbImage(UIImage.systemImageNamed("sun.max.fill"), forState = UIControlStateNormal)
         exposureSlider.hidden = true
         exposureSlider.accessibilityLabel = "밝기 조절"
-        exposureSlider.minimumTrackTintColor = UIColor.systemYellowColor
         exposureSlider.maximumTrackTintColor = UIColor.whiteColor.colorWithAlphaComponent(0.55)
         focusTap.cancelsTouchesInView = false
         pinchZoom.cancelsTouchesInView = false
@@ -188,6 +197,7 @@ internal class IosLiveTableView(
         resizeHandle.addGestureRecognizer(resizePan)
         addGestureRecognizer(focusTap)
         addGestureRecognizer(pinchZoom)
+        expandBrightness.addTarget(target, NSSelectorFromString("openBrightness:"), UIControlEventTouchUpInside)
         focusLock.addTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.addTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
         exposureSlider.addTarget(target, NSSelectorFromString("exposureBegan:"), UIControlEventTouchDown)
@@ -275,6 +285,7 @@ internal class IosLiveTableView(
             viewport = frame
             dirty = true
         }
+        layoutFocusControls()
         updateGrid(frame)
         if (!dirty || start != null) return
         dirty = false
@@ -323,8 +334,13 @@ internal class IosLiveTableView(
     fun focus(sender: UITapGestureRecognizer) {
         if (!focusEnabled || sender.state != UIGestureRecognizerStateEnded) return
         val location = sender.locationInView(this)
+        if (!hasViewport || !location.useContents {
+                x >= viewport.x && x <= viewport.x + viewport.width &&
+                    y >= viewport.y && y <= viewport.y + viewport.height
+            }) return
         if ((!moveHandle.hidden && contains(moveHandle, location)) ||
             (!resizeHandle.hidden && contains(resizeHandle, location)) ||
+            (!expandBrightness.hidden && contains(expandBrightness, location)) ||
             (!focusLock.hidden && contains(focusLock, location)) ||
             (!exposureSlider.hidden && contains(exposureSlider, location))) return
 
@@ -337,7 +353,7 @@ internal class IosLiveTableView(
             layoutFocusControls()
             return
         }
-        val devicePoint = preview?.captureDevicePointOfInterestForPoint(location) ?: location.useContents {
+        val devicePoint = preview?.let { it.captureDevicePointOfInterestForPoint(it.convertPoint(location, fromLayer = layer)) } ?: location.useContents {
             CGPointMake(
                 ((x - viewport.x) / viewport.width).coerceIn(0.0, 1.0),
                 ((y - viewport.y) / viewport.height).coerceIn(0.0, 1.0),
@@ -356,7 +372,7 @@ internal class IosLiveTableView(
         awaitingLockedRefocusTap = false
         focusRing.layer.borderColor = when {
             !applied -> UIColor.systemRedColor.CGColor
-            exposureLocked -> UIColor.systemOrangeColor.CGColor
+            exposureLocked -> lockedColor.CGColor
             else -> UIColor.whiteColor.CGColor
         }
         focusRing.accessibilityValue = if (applied) "초점 요청 적용" else "초점 요청 실패"
@@ -375,12 +391,28 @@ internal class IosLiveTableView(
         }
         exposureLocked = desired
         awaitingLockedRefocusTap = false
-        focusRing.layer.borderColor = if (desired) UIColor.systemOrangeColor.CGColor
+        focusRing.layer.borderColor = if (desired) lockedColor.CGColor
             else UIColor.whiteColor.CGColor
-        focusLock.setTitle(if (desired) "AE 🔒" else "AE", forState = UIControlStateNormal)
+        updateLockIcon()
         focusLock.accessibilityLabel = if (desired) "노출 잠금 해제" else "노출 잠금"
         focusRing.accessibilityValue = if (desired) "노출 잠금" else "노출 자동"
         if (!desired) focusExpanded = false
+        focusInteraction?.invoke(trackingExposure)
+        layoutFocusControls()
+    }
+
+    private fun updateLockIcon() {
+        val symbol = if (exposureLocked) "lock.fill" else "lock.open"
+        focusLock.setImage(UIImage.systemImageNamed(symbol), forState = UIControlStateNormal)
+        focusLock.tintColor = if (exposureLocked) lockedColor else UIColor.whiteColor
+        val sliderColor = if (exposureLocked) lockedColor else UIColor.systemYellowColor
+        exposureSlider.minimumTrackTintColor = sliderColor
+        exposureSlider.tintColor = sliderColor
+    }
+
+    fun openBrightness() {
+        if (!focusEnabled || !exposureLocked) return
+        focusExpanded = true
         focusInteraction?.invoke(trackingExposure)
         layoutFocusControls()
     }
@@ -435,6 +467,7 @@ internal class IosLiveTableView(
         focusY = Float.NaN
         focusRing.hidden = true
         focusLock.hidden = true
+        expandBrightness.hidden = true
         exposureSlider.hidden = true
     }
 
@@ -451,41 +484,41 @@ internal class IosLiveTableView(
         awaitingLockedRefocusTap = false
         focusRing.hidden = true
         focusLock.hidden = true
+        expandBrightness.hidden = true
         exposureSlider.hidden = true
     }
 
     private fun layoutFocusControls() {
         if (!focusEnabled || !focusX.isFinite() || !focusY.isFinite()) return
-        val (viewWidth, viewHeight) = bounds.useContents { size.width to size.height }
-        if (viewWidth <= 0.0 || viewHeight <= 0.0) return
-        val ringSize = if (focusExpanded) 54.0 else 38.0
-        val ringX = (focusX - ringSize.toFloat() / 2f).toDouble().coerceIn(0.0, maxOf(0.0, viewWidth - ringSize))
-        val ringY = (focusY - ringSize.toFloat() / 2f).toDouble().coerceIn(0.0, maxOf(0.0, viewHeight - ringSize))
-        focusRing.setFrame(CGRectMake(ringX, ringY, ringSize, ringSize))
-        focusRing.layer.cornerRadius = ringSize / 2.0
+        if (!hasViewport) return
+        val width = viewport.width
+        val height = viewport.height
+        val radius = (if (focusExpanded) FOCUS_RING_RADIUS_DP else FOCUS_RING_COMPACT_RADIUS_DP)
+            .toFloat().coerceAtMost(minOf(width, height) / 2f)
+        val centerX = visibleFocusCenter(focusX - viewport.x, width, radius)
+        val centerY = visibleFocusCenter(focusY - viewport.y, height, radius)
+        val lockSize = minOf(FOCUS_LOCK_TOUCH_DP.toFloat(), width, height)
+        val sliderHeight = minOf(FOCUS_EV_TOUCH_HEIGHT_DP.toFloat(), height)
+        val placement = placeFocusControlsVertically(centerY, height, radius, lockSize, sliderHeight, 2f)
+
+        fun centeredFrame(top: Float, w: Float, h: Float): CValue<CGRect> {
+            val left = (centerX - w / 2f).coerceIn(0f, width - w)
+            return CGRectMake((viewport.x + left).toDouble(), (viewport.y + top).toDouble(),
+                w.toDouble(), h.toDouble())
+        }
+        focusRing.setFrame(centeredFrame(centerY - radius, 2f * radius, 2f * radius))
+        focusRing.layer.cornerRadius = radius.toDouble()
         focusRing.hidden = false
-
         focusLock.hidden = !(focusExpanded || exposureLocked)
-        if (!focusLock.hidden) {
-            val lockX = if (ringX + ringSize + 30.0 <= viewWidth) ringX + ringSize + 3.0
-                else maxOf(0.0, ringX - 33.0)
-            focusLock.setFrame(CGRectMake(lockX, (ringY + ringSize / 2.0 - 11.0)
-                .coerceIn(0.0, maxOf(0.0, viewHeight - 22.0)), 30.0, 22.0))
-        }
-
-        val sliderAvailable = maximumExposureBias > minimumExposureBias
-        exposureSlider.hidden = !focusExpanded || !sliderAvailable
-        if (!exposureSlider.hidden) {
-            // 78pt is the approved compact length (roughly 2/3 of the former control).
-            val sliderWidth = 78.0
-            val sliderHeight = 36.0
-            val sliderX = (focusX.toDouble() - sliderWidth / 2.0)
-                .coerceIn(0.0, maxOf(0.0, viewWidth - sliderWidth))
-            val aboveY = ringY - sliderHeight - 4.0
-            val sliderY = if (aboveY >= 0.0) aboveY
-                else (ringY + ringSize + 4.0).coerceAtMost(maxOf(0.0, viewHeight - sliderHeight))
-            exposureSlider.setFrame(CGRectMake(sliderX, sliderY, sliderWidth, sliderHeight))
-        }
+        focusLock.setFrame(centeredFrame(placement.lockTop, lockSize, lockSize))
+        // Added above the lock so its overlapping hit area cannot unlock a center tap.
+        val centerSize = minOf(36f, 2f * radius)
+        expandBrightness.setFrame(centeredFrame(centerY - centerSize / 2f, centerSize, centerSize))
+        expandBrightness.hidden = !exposureLocked
+        exposureSlider.hidden = !focusExpanded || maximumExposureBias <= minimumExposureBias
+        val sliderWidth = minOf(FOCUS_EV_TOUCH_WIDTH_DP.toFloat(), width)
+        exposureSlider.setFrame(centeredFrame(placement.exposureTop, sliderWidth, sliderHeight))
+        exposureSlider.placeAboveRing(placement.exposureAbove)
     }
 
     private fun contains(view: UIView, point: CValue<CGPoint>): Boolean {
@@ -569,6 +602,7 @@ internal class IosLiveTableView(
         resizeHandle.removeGestureRecognizer(resizePan)
         removeGestureRecognizer(focusTap)
         removeGestureRecognizer(pinchZoom)
+        expandBrightness.removeTarget(target, NSSelectorFromString("openBrightness:"), UIControlEventTouchUpInside)
         focusLock.removeTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.removeTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
         exposureSlider.removeTarget(target, NSSelectorFromString("exposureBegan:"), UIControlEventTouchDown)
@@ -584,10 +618,43 @@ internal class IosLiveTableView(
     }
 }
 
+/** Keep the full slider frame interactive while drawing the shorter track next to the ring. */
+private class FocusExposureSlider : UISlider(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
+    private var aboveRing = false
+
+    fun placeAboveRing(above: Boolean) {
+        if (aboveRing == above) return
+        aboveRing = above
+        setNeedsLayout()
+    }
+
+    override fun trackRectForBounds(bounds: CValue<CGRect>): CValue<CGRect> = bounds.useContents {
+        val width = minOf(size.width, FOCUS_EV_WIDTH_DP.toDouble())
+        val inset = minOf(size.height / 2.0, FOCUS_EV_TRACK_INSET_DP.toDouble())
+        val y = if (aboveRing) size.height - inset else inset
+        CGRectMake(origin.x + (size.width - width) / 2.0, origin.y + y - 1.0, width, 2.0)
+    }
+
+    override fun beginTrackingWithTouch(touch: UITouch, withEvent: UIEvent?): Boolean = updateFromTouch(touch)
+
+    override fun continueTrackingWithTouch(touch: UITouch, withEvent: UIEvent?): Boolean = updateFromTouch(touch)
+
+    private fun updateFromTouch(touch: UITouch): Boolean {
+        val x = touch.locationInView(this).useContents { x }
+        val fraction = trackRectForBounds(bounds).useContents {
+            ((x - origin.x) / size.width.coerceAtLeast(1.0)).coerceIn(0.0, 1.0)
+        }
+        value = minimumValue + (maximumValue - minimumValue) * fraction.toFloat()
+        sendActionsForControlEvents(UIControlEventValueChanged)
+        return true
+    }
+}
+
 private class LiveTableGestureTarget(var owner: IosLiveTableView?) : NSObject() {
     @ObjCAction fun move(sender: UIPanGestureRecognizer) { owner?.pan(sender, false) }
     @ObjCAction fun resize(sender: UIPanGestureRecognizer) { owner?.pan(sender, true) }
     @ObjCAction fun focus(sender: UITapGestureRecognizer) { owner?.focus(sender) }
+    @ObjCAction fun openBrightness(sender: UIButton) { owner?.openBrightness() }
     @ObjCAction fun toggleFocusLock(sender: UIButton) { owner?.toggleFocusLock() }
     @ObjCAction fun exposureBegan(sender: UISlider) { owner?.setExposureTracking(true) }
     @ObjCAction fun exposureEnded(sender: UISlider) { owner?.setExposureTracking(false) }
