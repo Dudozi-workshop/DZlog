@@ -9,6 +9,11 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.domain.model.*
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
+import com.dudoziworkshop.dzlog.feature.table.policy.applyPhrasePeriodResolutions
+import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
+import com.dudoziworkshop.dzlog.ui.table.mock.updateMockPhraseSet
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.EncodedImageFormat
@@ -140,6 +145,7 @@ internal fun IosQuickValuesFixture() {
                 check(com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
                     .afterSuccessfulCapture(editedPhrase, set).index == 1)
                 check(doc.template.templateState.cells.first { it.cellId == "phrase" }.phraseSetId == "set-a")
+                checkEditorPhraseReturn(edited)
                 val automatic = applyIosQuickValueChanges(doc, IosQuickValueChanges(
                     manualValues = mapOf("note" to doc.template.templateState.cells.first { it.cellId == "note" }.rawText,
                         "number" to "1.20"),
@@ -215,4 +221,26 @@ internal fun IosQuickValuesFixture() {
             }
         }) { Text("입력값으로 촬영 저장") }
     }
+}
+
+
+/** Reopen the real camera workspace after a set edit on a separate simulator fixture. */
+private fun checkEditorPhraseReturn(document: EditorDocument) {
+    val key = "$QUICK_TEST_KEY.phrase-return"
+    val store = IosWorkspaceStore(key)
+    val template = document.template
+    val before = EditorWorkspace(listOf(document), template.id)
+    check(store.save(before))
+    val camera = IosCameraCaptureSession(key, store.load(template))
+    val proposed = updateMockPhraseSet(template.templateState, "set-b") {
+        RotatingPhraseSetItemPolicy.setEvery(it, 0, 2)
+    }
+    val conflicts = quickPhrasePeriodConflicts(template.templateState, proposed)
+    check(conflicts.map { it.cellId } == listOf("phrase"))
+    check(camera.previewInfo().selectedPhraseTextByCellId["phrase"] == "C")
+    val resolved = requireNotNull(applyPhrasePeriodResolutions(proposed, conflicts,
+        mapOf("phrase" to CellPhraseProgress(index = 1, completedShots = 0))))
+    check(store.save(before.save(document.copy(template = template.copy(templateState = resolved)))))
+    camera.reloadAfterEditing(null)
+    check(camera.previewInfo().plan.resolvedCells.single { it.id == "phrase" }.resolvedText == "D")
 }
