@@ -10,6 +10,7 @@ import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Surface
@@ -46,6 +47,7 @@ internal fun IosLiveTableFixture() {
     var cameraZoom by remember { mutableFloatStateOf(1f) }
     var cameraExposureBias by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
+    val simulateFocus = remember { NSProcessInfo.processInfo.arguments.contains("--live-focus-outcomes") }
     val doc = session.selectedDocument
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("표 조작 검증")
@@ -63,9 +65,13 @@ internal fun IosLiveTableFixture() {
             autoCollapseFocus = NSProcessInfo.processInfo.arguments.contains("--live-focus-timer"),
             minimumExposureBias = -2f,
             maximumExposureBias = 2f,
-            onFocusAt = { _, _, exposureLocked ->
+            onFocusAt = { x, _, exposureLocked ->
+                if (simulateFocus && x > 0.75) {
+                    message = "초점 응답 대기"
+                    delay(3_000)
+                }
                 message = if (exposureLocked) "잠금 초점 이동" else "터치 초점 적용"
-                true
+                !(simulateFocus && x < 0.25)
             },
             onExposureLock = { exposureLocked ->
                 message = if (exposureLocked) "노출 잠금" else "노출 자동"

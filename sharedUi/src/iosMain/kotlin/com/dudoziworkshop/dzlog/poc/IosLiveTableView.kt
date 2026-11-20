@@ -8,12 +8,22 @@ import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitInteropInteractionMode
 import com.dudoziworkshop.dzlog.feature.capture.policy.*
 import kotlinx.cinterop.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import platform.QuartzCore.CABasicAnimation
 import platform.AVFoundation.*
 import platform.CoreGraphics.*
 import platform.Foundation.*
 import platform.UIKit.*
 import platform.darwin.NSObject
+
+private const val FOCUS_RESULT_HOLD_MS = 1_200L
+private const val FOCUS_REQUEST_TIMEOUT_MS = 2_000L
+private const val FOCUS_FAILURE_FLASH_MS = 500L
 
 /** One native surface keeps the table above the AVFoundation layer, including during gestures. */
 @Composable
@@ -30,7 +40,7 @@ internal fun IosLiveTablePreview(
     focusCollapseToken: Int = 0,
     minimumExposureBias: Float = 0f,
     maximumExposureBias: Float = 0f,
-    onFocusAt: (Double, Double, Boolean) -> Boolean = { _, _, _ -> false },
+    onFocusAt: suspend (Double, Double, Boolean) -> Boolean = { _, _, _ -> false },
     onExposureLock: (Boolean) -> Boolean = { false },
     onExposureBias: (Float) -> Boolean = { false },
     autoCollapseFocus: Boolean = true,
@@ -50,9 +60,10 @@ internal fun IosLiveTablePreview(
     }
     var focusInteraction by remember(view) { mutableIntStateOf(0) }
     var draggingExposure by remember(view) { mutableStateOf(false) }
-    LaunchedEffect(view, autoCollapseFocus, focusInteraction, draggingExposure) {
-        if (autoCollapseFocus && focusInteraction > 0 && !draggingExposure) {
-            delay(1_200L)
+    val waitingForFocus = view.waitingForFocus
+    LaunchedEffect(view, autoCollapseFocus, focusInteraction, draggingExposure, waitingForFocus) {
+        if (autoCollapseFocus && focusInteraction > 0 && !draggingExposure && !waitingForFocus) {
+            delay(FOCUS_RESULT_HOLD_MS)
             view.collapseFocusControls()
         }
     }
@@ -112,13 +123,18 @@ internal class IosLiveTableView(
     private var focusEnabled = false
     private var focusCollapseToken = -1
     private var focusExpanded = false
+    private val feedbackScope = MainScope()
+    private var focusRequest: Job? = null
+    var waitingForFocus by mutableStateOf(false)
+        private set
+    private var focusTimedOut = false
     private var exposureLocked = false
     private var awaitingLockedRefocusTap = false
     private var focusX = Float.NaN
     private var focusY = Float.NaN
     private var minimumExposureBias = 0f
     private var maximumExposureBias = 0f
-    private var focusAt: ((Double, Double, Boolean) -> Boolean)? = null
+    private var focusAt: (suspend (Double, Double, Boolean) -> Boolean)? = null
     private var exposureLock: ((Boolean) -> Boolean)? = null
     private var exposureBias: ((Float) -> Boolean)? = null
     private var focusInteraction: ((Boolean) -> Unit)? = null
@@ -217,7 +233,7 @@ internal class IosLiveTableView(
     fun bind(p: IosCaptureTablePlacement?, active: Boolean, gridVisible: Boolean,
         tableVisible: Boolean, focusActive: Boolean, collapseToken: Int,
         minExposureBias: Float, maxExposureBias: Float,
-        focusWriter: (Double, Double, Boolean) -> Boolean,
+        focusWriter: suspend (Double, Double, Boolean) -> Boolean,
         exposureLockWriter: (Boolean) -> Boolean,
         exposureBiasWriter: (Float) -> Boolean,
         onFocusInteraction: (Boolean) -> Unit, version: Int,
@@ -359,25 +375,67 @@ internal class IosLiveTableView(
                 ((y - viewport.y) / viewport.height).coerceIn(0.0, 1.0),
             )
         }
-        val applied = devicePoint.useContents {
-            // A locked refocus moves AF only. Keep both the native bias and
-            // slider value; resetting either silently changes the chosen light.
-            if (!exposureLocked) exposureBias?.invoke(0f)
-            focusAt?.invoke(x, y, exposureLocked) == true
+        val (deviceX, deviceY) = devicePoint.useContents { x to y }
+        val lockedAtTap = exposureLocked
+        // A locked refocus keeps both the native exposure bias and the slider value.
+        if (!lockedAtTap) {
+            exposureBias?.invoke(0f)
+            exposureSlider.value = 0f
         }
-        if (!exposureLocked) exposureSlider.value = 0f
+        cancelFocusFeedback()
         focusX = location.useContents { x.toFloat() }
         focusY = location.useContents { y.toFloat() }
         focusExpanded = true
         awaitingLockedRefocusTap = false
-        focusRing.layer.borderColor = when {
-            !applied -> UIColor.systemRedColor.CGColor
-            exposureLocked -> lockedColor.CGColor
-            else -> UIColor.whiteColor.CGColor
-        }
-        focusRing.accessibilityValue = if (applied) "초점 요청 적용" else "초점 요청 실패"
-        focusInteraction?.invoke(trackingExposure)
+        waitingForFocus = true
+        focusRing.accessibilityValue = "초점 조정 중"
+        focusRing.layer.addAnimation(CABasicAnimation().apply {
+            keyPath = "opacity"
+            fromValue = NSNumber.numberWithDouble(0.55)
+            toValue = NSNumber.numberWithDouble(1.0)
+            duration = 0.28
+            autoreverses = true
+            repeatCount = Float.MAX_VALUE
+        }, forKey = "focusPulse")
         layoutFocusControls()
+        focusRequest = feedbackScope.launch {
+            val settled = withTimeoutOrNull(FOCUS_REQUEST_TIMEOUT_MS) {
+                focusAt?.invoke(deviceX, deviceY, lockedAtTap) == true
+            }
+            waitingForFocus = false
+            focusRing.layer.removeAnimationForKey("focusPulse")
+            focusInteraction?.invoke(trackingExposure)
+            when (settled) {
+                true -> focusRing.accessibilityValue = "초점 조정 완료"
+                false -> {
+                    focusRing.accessibilityValue = "초점 요청 실패"
+                    focusRing.layer.borderColor = UIColor.systemRedColor.CGColor
+                    delay(FOCUS_FAILURE_FLASH_MS)
+                    restoreRingColor()
+                }
+                null -> {
+                    focusTimedOut = true
+                    focusRing.accessibilityValue = "초점 응답 시간 초과"
+                    if (!trackingExposure) collapseFocusControls()
+                }
+            }
+        }
+    }
+
+    private fun restoreRingColor() {
+        focusRing.layer.borderColor = if (exposureLocked) lockedColor.CGColor else UIColor.whiteColor.CGColor
+    }
+
+    private fun cancelFocusFeedback() {
+        if (waitingForFocus) {
+            focusRing.accessibilityValue = if (exposureLocked) "노출 잠금" else "초점 조정 종료"
+        }
+        focusRequest?.cancel()
+        focusRequest = null
+        waitingForFocus = false
+        focusTimedOut = false
+        focusRing.layer.removeAnimationForKey("focusPulse")
+        restoreRingColor()
     }
 
     fun toggleFocusLock() {
@@ -389,13 +447,14 @@ internal class IosLiveTableView(
             focusInteraction?.invoke(trackingExposure)
             return
         }
+        if (!desired) cancelFocusFeedback()
         exposureLocked = desired
         awaitingLockedRefocusTap = false
         focusRing.layer.borderColor = if (desired) lockedColor.CGColor
             else UIColor.whiteColor.CGColor
         updateLockIcon()
         focusLock.accessibilityLabel = if (desired) "노출 잠금 해제" else "노출 잠금"
-        focusRing.accessibilityValue = if (desired) "노출 잠금" else "노출 자동"
+        if (!waitingForFocus) focusRing.accessibilityValue = if (desired) "노출 잠금" else "노출 자동"
         if (!desired) focusExpanded = false
         focusInteraction?.invoke(trackingExposure)
         layoutFocusControls()
@@ -448,6 +507,12 @@ internal class IosLiveTableView(
     }
 
     fun collapseFocusControls() {
+        val hideTimedOutRing = focusTimedOut && !exposureLocked
+        cancelFocusFeedback()
+        if (hideTimedOutRing) {
+            clearFocusControls()
+            return
+        }
         setExposureTracking(false)
         focusExpanded = false
         awaitingLockedRefocusTap = false
@@ -472,6 +537,7 @@ internal class IosLiveTableView(
     }
 
     private fun suspendFocusControls() {
+        cancelFocusFeedback()
         setExposureTracking(false)
         // Capture and table gestures temporarily disable input, not AVFoundation
         // AE lock. Keep the locked state until the same camera view is usable
@@ -598,6 +664,7 @@ internal class IosLiveTableView(
     }
 
     fun release() {
+        feedbackScope.cancel()
         moveHandle.removeGestureRecognizer(movePan)
         resizeHandle.removeGestureRecognizer(resizePan)
         removeGestureRecognizer(focusTap)

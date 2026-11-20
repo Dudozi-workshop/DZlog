@@ -170,9 +170,10 @@ final class PreviewInteractionTests: XCTestCase {
         return app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 
-    private func openLiveTable(reset: Bool, useFocusTimer: Bool = false) {
+    private func openLiveTable(reset: Bool, useFocusTimer: Bool = false, simulateFocusOutcomes: Bool = false) {
         app.launchArguments = ["--live-table-placement-flow"] + (reset ? ["--reset-live-table-fixture"] : [])
         if useFocusTimer { app.launchArguments.append("--live-focus-timer") }
+        if simulateFocusOutcomes { app.launchArguments.append("--live-focus-outcomes") }
         app.launch()
         XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20), app.debugDescription)
         XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
@@ -267,6 +268,29 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 5))
         XCTAssertTrue(app.sliders["밝기 조절"].waitForNonExistence(timeout: 5))
         XCTAssertEqual(text("카메라 초점").frame.width, 40, accuracy: 1)
+    }
+
+    func testNativeFocusFeedbackFailureTimeoutAndRecovery() {
+        openLiveTable(reset: true, simulateFocusOutcomes: true)
+        let preview = livePreview().frame
+        func focus(_ x: CGFloat) {
+            let point = CGVector(dx: preview.minX + preview.width * x - app.frame.minX,
+                                 dy: preview.minY + preview.height * 0.76 - app.frame.minY)
+            app.coordinate(withNormalizedOffset: .zero).withOffset(point).tap()
+        }
+        let ring = text("카메라 초점")
+        focus(0.10)
+        XCTAssertTrue(ring.waitForExistence(timeout: 5))
+        XCTAssertEqual(ring.value as? String, "초점 요청 실패")
+        XCTAssertTrue(button("노출 잠금").isEnabled)
+        focus(0.90)
+        XCTAssertTrue(text("상태: 초점 응답 대기").waitForExistence(timeout: 5))
+        XCTAssertTrue(ring.waitForNonExistence(timeout: 5))
+        XCTAssertFalse(app.sliders["밝기 조절"].exists)
+        focus(0.50)
+        XCTAssertTrue(ring.waitForExistence(timeout: 5))
+        XCTAssertEqual(ring.value as? String, "초점 조정 완료")
+        XCTAssertTrue(app.sliders["밝기 조절"].exists)
     }
 
     func testNativeFocusControlsAtPreviewEdges() {

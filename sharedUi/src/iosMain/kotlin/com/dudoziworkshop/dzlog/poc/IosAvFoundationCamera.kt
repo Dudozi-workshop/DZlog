@@ -1,6 +1,7 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
+import kotlinx.coroutines.delay
 import kotlinx.cinterop.readBytes
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -134,19 +135,39 @@ internal class IosAvFoundationCamera {
     }
 
     /** Device coordinates must come from AVCaptureVideoPreviewLayer conversion. */
-    fun focusAt(deviceX: Double, deviceY: Double, keepExposureLocked: Boolean): Boolean =
-        configureDevice { device ->
+    suspend fun focusAt(deviceX: Double, deviceY: Double, keepExposureLocked: Boolean): Boolean {
+        val active = device ?: return false
+        val submitted = configureDevice { device ->
             val point = CGPointMake(deviceX.coerceIn(0.0, 1.0), deviceY.coerceIn(0.0, 1.0))
             check(device.focusPointOfInterestSupported)
             check(device.isFocusModeSupported(AVCaptureFocusModeAutoFocus))
+            if (!keepExposureLocked) {
+                check(device.isExposureModeSupported(AVCaptureExposureModeContinuousAutoExposure))
+            }
             device.focusPointOfInterest = point
             device.focusMode = AVCaptureFocusModeAutoFocus
             if (!keepExposureLocked) {
                 if (device.exposurePointOfInterestSupported) device.exposurePointOfInterest = point
-                check(device.isExposureModeSupported(AVCaptureExposureModeContinuousAutoExposure))
                 device.exposureMode = AVCaptureExposureModeContinuousAutoExposure
             }
         }
+
+        if (!submitted) return false
+        // A configuration write only starts one-shot AF. A locked lens or the end of an
+        // observed adjustment is its completion signal. The preview bounds this observation.
+        var sawAdjustment = false
+        while (device === active && session.running) {
+            val adjusting = active.adjustingFocus
+            when (active.focusMode) {
+                AVCaptureFocusModeLocked -> if (!adjusting) return true
+                AVCaptureFocusModeAutoFocus -> if (sawAdjustment && !adjusting) return true
+                else -> return false
+            }
+            sawAdjustment = sawAdjustment || adjusting
+            delay(25)
+        }
+        return false
+    }
 
     fun setExposureLocked(locked: Boolean): Boolean = configureDevice { device ->
         val mode = if (locked) AVCaptureExposureModeLocked else AVCaptureExposureModeContinuousAutoExposure
