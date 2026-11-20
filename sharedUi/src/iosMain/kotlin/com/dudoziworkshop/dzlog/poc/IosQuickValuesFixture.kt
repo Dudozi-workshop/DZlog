@@ -69,7 +69,7 @@ internal fun IosQuickValuesFixture() {
     val scope = rememberCoroutineScope()
     if (open) {
         var expected by remember { mutableStateOf(session.selectedDocument) }
-        IosQuickValuesScreen(expected, onBack = { open = false },
+        IosQuickValuesScreen(expected, session.quickSelection, onBack = { open = false },
             availableDocuments = session.documents,
             onSwitchTemplate = { targetId, changes ->
                 session.switchQuickTemplate(expected, targetId, changes).also { switched ->
@@ -96,11 +96,11 @@ internal fun IosQuickValuesFixture() {
         Button(enabled = !busy && !session.hasPending(), onClick = { open = true }) { Text("빠른 입력 열기") }
         Button(enabled = !busy, onClick = {
             status = runCatching {
-                check(iosQuickValueCells(doc).map { it.cellId } == listOf("note", "number"))
+                check(iosQuickValueCells(doc).map { it.cellId } == listOf("heading", "note", "number"))
                 val changed = updateIosQuickValues(doc, mapOf("number" to "-12.50"))
                 check(changed.template.templateState.cells.first { it.cellId == "number" }.typedValue == CellValue.Number("-12.50"))
                 check(changed.nextCounter == doc.nextCounter && changed.capturePlacement == doc.capturePlacement)
-                for (id in listOf("covered", "heading", "date", "counter", "missing")) {
+                for (id in listOf("covered", "date", "counter", "missing")) {
                     check(runCatching { updateIosQuickValues(doc, mapOf(id to "overwrite")) }.isFailure)
                 }
                 check(runCatching { updateIosQuickValues(doc, mapOf("number" to "1x")) }.isFailure)

@@ -48,12 +48,14 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
         tapPanelText("2행 1열 · 텍스트")
         typeWithVisibleKeyboard("blue")
         tapButton("취소")
         XCTAssertTrue(text("상태: 대기").waitForExistence(timeout: 20))
         XCTAssertFalse(text("입력값: blue").exists)
         tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
         tapPanelText("2행 1열 · 텍스트")
         typeWithVisibleKeyboard("blue")
         tapButton("완료")
@@ -63,8 +65,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
             format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명: ", "blue")).firstMatch.exists)
         tapButton("빠른 입력 열기")
+        tapPanelText("1행 3열 셀 선택")
         tapScrollableButton("날짜 형식 · yyyyMMdd")
         tapScrollableButton("yyMMdd · 짧은 연월일")
+        tapButton("다음 셀")
         tapScrollableButton("문구 세트 · 과수원")
         tapScrollableButton("온실")
         tapButton("완료")
@@ -83,10 +87,31 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 13").exists)
     }
 
+    func testQuickGridWrapAndDraftAcrossCells() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapButton("이전 셀")
+        XCTAssertTrue(text("촬영 시각으로 자동 입력돼요.").waitForExistence(timeout: 10))
+        tapButton("다음 셀")
+        XCTAssertTrue(panelText("1행 1~2열 · 텍스트").waitForExistence(timeout: 10))
+        XCTAssertFalse(panelText("1행 2열 셀 선택").exists)
+        tapPanelText("2행 2열 셀 선택")
+        tapButton("±")
+        tapButton("다음 셀")
+        XCTAssertTrue(text("촬영을 저장하면 자동으로 증가해요.").waitForExistence(timeout: 10))
+        tapButton("완료")
+        XCTAssertTrue(text("숫자값: -1.20").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        tapButton("빠른 입력 열기")
+        XCTAssertTrue(text("촬영을 저장하면 자동으로 증가해요.").waitForExistence(timeout: 10))
+    }
+
     func testQuickTextFavoriteSurvivesCancellationAndRelaunch() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
         tapPanelText("2행 1열 · 텍스트")
         typeWithVisibleKeyboard("blue")
         tapButton("즐겨찾기 즉시 등록")
@@ -97,6 +122,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--quick-values-flow"]
         app.launch()
         tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
         tapPanelText("blue")
         tapButton("완료")
         XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
@@ -115,6 +141,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
         tapPanelText("2행 1열 · 텍스트")
         typeWithVisibleKeyboard("blue")
         tapButton("템플릿 · 빠른 입력 검증")

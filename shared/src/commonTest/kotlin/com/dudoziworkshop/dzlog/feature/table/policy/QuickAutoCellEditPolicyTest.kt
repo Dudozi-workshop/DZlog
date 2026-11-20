@@ -25,8 +25,8 @@ class QuickAutoCellEditPolicyTest {
     )
 
     @Test
-    fun shared_quick_policy_excludes_counter_and_locked_cells() {
-        assertEquals(listOf("date", "phrase"), quickSelectableCells(template).map { it.cellId })
+    fun counter_is_read_only_and_legacy_heading_is_editable() {
+        assertEquals(listOf("date", "phrase", "locked"), quickSelectableCells(template).map { it.cellId })
     }
 
     @Test

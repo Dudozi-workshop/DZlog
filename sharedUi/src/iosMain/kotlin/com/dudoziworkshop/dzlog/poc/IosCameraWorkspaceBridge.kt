@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.data.media.IosCaptureSaveCoordinator
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoCoordinator
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoRequest
@@ -37,6 +38,7 @@ internal class IosCameraCaptureSession(
     private val persistWorkspace: ((EditorWorkspace) -> Boolean)? = null,
     mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) {
+    val quickSelection = QuickEditSelectionMemory()
     private val store = IosWorkspaceStore(editorKey)
     private val projectStore = IosCaptureProjectStore(editorKey)
     internal val mediaRepository = PhotoKitCaptureMediaRepository(mediaDefaults)
@@ -188,6 +190,7 @@ internal class IosCameraCaptureSession(
         changes: IosQuickValueChanges): Boolean {
         if (selectedDocument != expected || hasPending()) return false
         val updated = runCatching { applyIosQuickValueChanges(expected, changes) }.getOrNull() ?: return false
+        if (updated == expected) return store.load(expected.template) == workspace
         return saveSettings(updated)
     }
 

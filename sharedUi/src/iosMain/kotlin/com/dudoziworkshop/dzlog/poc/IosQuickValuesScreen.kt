@@ -1,6 +1,20 @@
 package com.dudoziworkshop.dzlog.poc
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
+import com.dudoziworkshop.dzlog.feature.table.policy.adjacentQuickCellId
+import com.dudoziworkshop.dzlog.feature.table.policy.quickCellPosition
+import com.dudoziworkshop.dzlog.ui.table.template.templatePreviewCellBounds
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -126,7 +140,7 @@ internal fun applyIosQuickValueChanges(
 
 /** Explicit Apply/Cancel draft: typing does not mutate the camera or persisted document. */
 @Composable
-internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
+internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: QuickEditSelectionMemory, onBack: () -> Unit,
     availableDocuments: List<EditorDocument> = listOf(document),
     onSwitchTemplate: ((String, IosQuickValueChanges) -> Boolean)? = null,
     onSave: (IosQuickValueChanges) -> Boolean) {
@@ -135,15 +149,32 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
     val automaticFields = remember(document) { runCatching { iosQuickAutoValueCells(document) } }
     val cells = fields.getOrDefault(emptyList())
     val automaticCells = automaticFields.getOrDefault(emptyList())
+    val table = document.template.templateState
+    val bounds = remember(document) {
+        if (fields.isSuccess) templatePreviewCellBounds(table)
+        else emptyList()
+    }
+    val navigation = remember(bounds) { bounds.map { it.cell } }
+    val ids = remember(navigation) { navigation.map { it.cellId } }
+    val templateId = document.template.id
+    var selectedId by remember(templateId, ids) { mutableStateOf(selectionMemory.initialSelection(templateId, ids)) }
+    val selectedCell = navigation.firstOrNull { it.cellId == selectedId }
+    val focus = LocalFocusManager.current
+    fun select(id: String) {
+        if (selectedId == id) return
+        focus.clearFocus()
+        selectedId = id
+        selectionMemory.recordSelection(templateId, id, ids)
+    }
     val values = remember(document) { cells.map { it.cellId to it.rawText }.toMutableStateMap() }
-    val dateFormats = remember(document) { automaticCells.filter { it.dataType == TableCellDataType.DATE }
-        .map { it.cellId to (it.formatPattern.takeIf { pattern -> pattern in quickDateFormats } ?: "yyyyMMdd") }
-        .toMutableStateMap() }
+    val dateFormats = remember(document) { mutableStateMapOf<String, String>() }
     var phraseEdits by remember(document) { mutableStateOf(emptyList<IosQuickPhraseEdit>()) }
     var expandedAutomaticId by remember(document) { mutableStateOf<String?>(null) }
     var templateExpanded by remember(document) { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
-    val changes = IosQuickValueChanges(values.toMap(), dateFormats.toMap(), phraseEdits = phraseEdits)
+    val changedValues = cells.filter { values[it.cellId] != it.rawText }
+        .associate { it.cellId to values.getValue(it.cellId) }
+    val changes = IosQuickValueChanges(changedValues, dateFormats.toMap(), phraseEdits = phraseEdits)
     val draft = remember(document, changes) { runCatching { applyIosQuickValueChanges(document, changes) }.getOrNull() }
     val phraseTable = draft?.template?.templateState ?: document.template.templateState
     val preview = draft?.let {
@@ -159,116 +190,167 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             TextButton(onClick = onBack) { Text("취소") }
             Text("빠른 수정", style = DDZTypography.SettingLabel, color = DDZColor.TextStrong,
                 modifier = Modifier.weight(1f))
-            Button(enabled = (cells.isNotEmpty() || automaticCells.isNotEmpty()) && draft != null, onClick = {
+            Button(enabled = selectedCell != null && draft != null, onClick = {
                 if (!onSave(changes)) failure = "입력을 저장하지 못했습니다. 촬영 기록과 최신 문서를 확인해 주세요."
             }) { Text("완료") }
         }
         failure?.let { Text(it) }
         if (availableDocuments.size > 1 && onSwitchTemplate != null) {
-            Button(onClick = { templateExpanded = !templateExpanded }, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { focus.clearFocus(); templateExpanded = !templateExpanded }, modifier = Modifier.fillMaxWidth()) {
                 Text("템플릿 · ${document.template.name}")
             }
-            if (templateExpanded) availableDocuments.forEach { candidate ->
-                OutlinedButton(
-                    enabled = candidate.template.id != document.template.id,
-                    onClick = {
-                        if (onSwitchTemplate(candidate.template.id, changes)) {
-                            templateExpanded = false
-                            failure = null
-                        } else {
-                            failure = "템플릿을 변경하지 못했습니다. 촬영 기록과 최신 문서를 확인해 주세요."
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(candidate.template.name) }
+            if (templateExpanded) DDZBottomSheet(title = "템플릿 선택", onDismiss = { templateExpanded = false }) {
+                Column(Modifier.fillMaxWidth().heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    availableDocuments.forEach { candidate ->
+                        OutlinedButton(
+                            enabled = candidate.template.id != document.template.id,
+                            onClick = {
+                                if (onSwitchTemplate(candidate.template.id, changes)) {
+                                    templateExpanded = false
+                                    failure = null
+                                } else {
+                                    failure = "템플릿을 변경하지 못했습니다. 촬영 기록과 최신 문서를 확인해 주세요."
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text(candidate.template.name) }
+                    }
+                }
             }
         }
         (fields.exceptionOrNull() ?: automaticFields.exceptionOrNull())?.let {
             Text(it.message ?: "표 구조를 확인해 주세요.")
         }
-        if (cells.isEmpty() && automaticCells.isEmpty() && fields.isSuccess && automaticFields.isSuccess) {
+        if (selectedCell == null && fields.isSuccess && automaticFields.isSuccess) {
             Text("빠르게 수정할 수 있는 셀이 없습니다.")
         }
-        preview?.let {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = DDZColor.Card,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
-            ) {
-                Column(Modifier.padding(DDZSpacing.itemGap),
-                    verticalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
-                    Text("다음 촬영 저장 정보", style = DDZTypography.Secondary,
-                        color = DDZColor.TextStrong)
-                    Text("파일명 · ${it.previewNaming.displayName}", style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary)
-                    Text("저장경로 · ${it.previewNaming.relativePath}", style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary)
-                }
-            }
-        }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            for (cell in cells) {
-                val kind = if (cell.dataType == TableCellDataType.NUMBER) "숫자" else "텍스트"
-                val fieldLabel = "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열 · $kind"
-                OutlinedTextField(value = values[cell.cellId].orEmpty(), onValueChange = { value ->
-                    values[cell.cellId] = if (cell.dataType == TableCellDataType.NUMBER)
-                        decimalInputOrPrevious(value, values[cell.cellId].orEmpty()) else value
-                    failure = null
-                }, label = { Text(fieldLabel) },
-                    trailingIcon = if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
-                        { TableEditorTextFavoriteStar(values[cell.cellId].orEmpty(), favorites) }
-                    } else null,
-                    // iOS Compose exports the editable value but can omit the
-                    // Material floating label. Preserve position/type for VoiceOver
-                    // and touch-based UI selection even when the value is empty.
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = fieldLabel })
-                if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
-                    TableEditorTextFavoritesRow(favorites, onApply = { text ->
-                        values[cell.cellId] = text
-                        failure = null
-                    })
-                }
-                val links = quickCellLinks(document.template.templateState, cell.cellId)
-                if (links.description.isNotEmpty()) Text(links.description)
-            }
-            for (cell in automaticCells) {
-                val fieldLabel = "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열 · " + when (cell.dataType) {
-                    TableCellDataType.DATE -> "날짜"
-                    TableCellDataType.TIME -> "시간"
-                    else -> "순환문구"
-                }
-                Text(fieldLabel)
-                when (cell.dataType) {
-                    TableCellDataType.DATE -> {
-                        val selected = dateFormats[cell.cellId] ?: "yyyyMMdd"
-                        Button(onClick = {
-                            expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
-                        }, modifier = Modifier.fillMaxWidth()) { Text("날짜 형식 · $selected") }
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(DDZSpacing.itemGap)) {
+            preview?.let {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = DDZColor.Card,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(DDZLayout.Radius.Small),
+                ) {
+                    Column(Modifier.padding(DDZSpacing.itemGap),
+                        verticalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
+                        Text("다음 촬영 저장 정보", style = DDZTypography.Secondary,
+                            color = DDZColor.TextStrong)
+                        Text("파일명 · ${it.previewNaming.displayName}", style = DDZTypography.Caption,
+                            color = DDZColor.TextSecondary)
+                        Text("저장경로 · ${it.previewNaming.relativePath}", style = DDZTypography.Caption,
+                            color = DDZColor.TextSecondary)
                     }
-                    TableCellDataType.TIME -> Text("촬영 시각으로 자동 입력돼요.")
-                    TableCellDataType.ROTATING_TEXT -> {
-                        val current = phraseTable.cells.first { it.cellId == cell.cellId }
-                        val sets = phraseTable.phraseSets.filter { it.items.isNotEmpty() }
-                        val selected = sets.firstOrNull { it.id == current.phraseSetId }
-                        Button(enabled = sets.isNotEmpty(), onClick = {
-                            expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
-                        }, modifier = Modifier.fillMaxWidth()) {
-                            Text("문구 세트 · ${selected?.name ?: "세트 선택"}")
+                }
+            }
+            if (bounds.isNotEmpty() && preview != null) {
+                val rendered = preview.plan.resolvedCells.associate { it.id to it.resolvedText }
+                BoxWithConstraints(Modifier.fillMaxWidth().height((table.rows.coerceIn(2, 4) * 36).dp)) {
+                    val gridWidth = maxWidth
+                    val gridHeight = maxHeight
+                    for (rect in bounds) {
+                        val cell = rect.cell
+                        val active = cell.cellId == selectedId
+                        val label = "${quickCellPosition(cell)} 셀 선택"
+                        Box(Modifier.offset(gridWidth * rect.left, gridHeight * rect.top)
+                            .size(gridWidth * rect.width, gridHeight * rect.height)
+                            .background(if (active) DDZColor.SelectedSoft else DDZColor.Surface)
+                            .border(if (active) 2.dp else 1.dp, if (active) DDZColor.SelectionEmphasis else DDZColor.SageBorder)
+                            .clickable(role = Role.Button) { select(cell.cellId) }
+                            .semantics { selected = active; contentDescription = label },
+                            contentAlignment = Alignment.Center) {
+                            Text(rendered[cell.cellId].orEmpty(), Modifier.padding(horizontal = 2.dp),
+                                style = DDZTypography.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        if (selected != null) PhraseProgressControls(
-                            phraseTable, current, selected, enabled = draft != null,
-                            onProgress = { index, count ->
-                                phraseEdits += IosQuickPhraseEdit.Progress(cell.cellId, index, count)
-                            },
-                            onPeriod = { edit, choices -> phraseEdits += IosQuickPhraseEdit.Period(edit, choices) },
-                        )
-                        if (sets.isEmpty()) Text("표 상세설정에서 문구를 먼저 등록해 주세요.")
                     }
-                    else -> Unit
                 }
-                val links = quickCellLinks(document.template.templateState, cell.cellId)
-                if (links.description.isNotEmpty()) Text(links.description)
+            }
+            selectedCell?.let { cell ->
+                key(cell.cellId) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(quickCellPosition(cell), Modifier.weight(1f), style = DDZTypography.SettingLabel)
+                        val previous = adjacentQuickCellId(navigation, cell.cellId, -1)
+                        val next = adjacentQuickCellId(navigation, cell.cellId, 1)
+                        IconButton(enabled = previous != null, onClick = { previous?.let(::select) }) {
+                            Icon(Icons.Filled.ChevronLeft, "이전 셀")
+                        }
+                        IconButton(enabled = next != null, onClick = { next?.let(::select) }) {
+                            Icon(Icons.Filled.ChevronRight, "다음 셀")
+                        }
+                    }
+                    if (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER) {
+                        val kind = if (cell.dataType == TableCellDataType.NUMBER) "숫자" else "텍스트"
+                        val fieldLabel = "${quickCellPosition(cell)} · $kind"
+                        OutlinedTextField(value = values[cell.cellId].orEmpty(), onValueChange = { value ->
+                            values[cell.cellId] = if (cell.dataType == TableCellDataType.NUMBER)
+                                decimalInputOrPrevious(value, values[cell.cellId].orEmpty()) else value
+                            failure = null
+                        }, label = { Text(fieldLabel) },
+                            keyboardOptions = KeyboardOptions(keyboardType = if (cell.dataType == TableCellDataType.NUMBER)
+                                KeyboardType.Decimal else KeyboardType.Text),
+                            trailingIcon = if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
+                                { TableEditorTextFavoriteStar(values[cell.cellId].orEmpty(), favorites) }
+                            } else null,
+                            // iOS Compose exports the editable value but can omit the
+                            // Material floating label. Preserve position/type for VoiceOver
+                            // and touch-based UI selection even when the value is empty.
+                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = fieldLabel })
+                        if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
+                            TableEditorTextFavoritesRow(favorites, onApply = { text ->
+                                values[cell.cellId] = text
+                                failure = null
+                            })
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            if (cell.dataType == TableCellDataType.NUMBER) TextButton(onClick = {
+                                val number = values[cell.cellId].orEmpty()
+                                values[cell.cellId] = if (number.startsWith("-")) number.drop(1) else "-$number"
+                            }) { Text("±") }
+                            TextButton(onClick = { focus.clearFocus() }) { Text("입력") }
+                        }
+                    } else if (cell.dataType == TableCellDataType.COUNTER) {
+                        val number = preview?.plan?.resolvedCells?.firstOrNull { it.id == cell.cellId }?.resolvedText.orEmpty()
+                        Text("다음 촬영 번호 · $number", style = DDZTypography.SettingLabel)
+                        Text("촬영을 저장하면 자동으로 증가해요.", style = DDZTypography.Caption)
+                    } else {
+                        val fieldLabel = "${cell.rowIndex + 1}행 ${cell.colIndex + 1}열 · " + when (cell.dataType) {
+                            TableCellDataType.DATE -> "날짜"
+                            TableCellDataType.TIME -> "시간"
+                            else -> "순환문구"
+                        }
+                        Text(fieldLabel)
+                        when (cell.dataType) {
+                            TableCellDataType.DATE -> {
+                                val selected = dateFormats[cell.cellId] ?: cell.formatPattern.ifBlank { "yyyyMMdd" }
+                                Button(onClick = {
+                                    expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
+                                }, modifier = Modifier.fillMaxWidth()) { Text("날짜 형식 · $selected") }
+                            }
+                            TableCellDataType.TIME -> Text("촬영 시각으로 자동 입력돼요.")
+                            TableCellDataType.ROTATING_TEXT -> {
+                                val current = phraseTable.cells.first { it.cellId == cell.cellId }
+                                val sets = phraseTable.phraseSets.filter { it.items.isNotEmpty() }
+                                val selected = sets.firstOrNull { it.id == current.phraseSetId }
+                                Button(enabled = sets.isNotEmpty(), onClick = {
+                                    expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
+                                }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("문구 세트 · ${selected?.name ?: "세트 선택"}")
+                                }
+                                if (selected != null) PhraseProgressControls(
+                                    phraseTable, current, selected, enabled = draft != null,
+                                    onProgress = { index, count ->
+                                        phraseEdits += IosQuickPhraseEdit.Progress(cell.cellId, index, count)
+                                    },
+                                    onPeriod = { edit, choices -> phraseEdits += IosQuickPhraseEdit.Period(edit, choices) },
+                                )
+                                if (sets.isEmpty()) Text("표 상세설정에서 문구를 먼저 등록해 주세요.")
+                            }
+                            else -> Unit
+                        }
+                    }
+                    val links = quickCellLinks(table, cell.cellId)
+                    if (links.description.isNotEmpty()) Text(links.description)
+                }
             }
         }
     }
@@ -282,7 +364,9 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             }
         } else document.template.templateState.phraseSets.filter { it.items.isNotEmpty() }
             .map { it.id to it.name }
-        val selectedId = if (isDate) dateFormats[cell.cellId] else phraseTable.cells.first { it.cellId == cell.cellId }.phraseSetId
+        val selectedOption = if (isDate) {
+            dateFormats[cell.cellId] ?: cell.formatPattern.ifBlank { "yyyyMMdd" }
+        } else phraseTable.cells.first { it.cellId == cell.cellId }.phraseSetId
         DDZBottomSheet(
             title = if (isDate) "날짜 형식 선택" else "순환문구 세트 선택",
             onDismiss = { expandedAutomaticId = null },
@@ -290,10 +374,10 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             Column(Modifier.fillMaxWidth().heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 options.forEach { (id, label) ->
-                    val active = id == selectedId
+                    val active = id == selectedOption
                     OutlinedButton(
                         onClick = {
-                            if (isDate) dateFormats[cell.cellId] = id else if (selectedId != id) phraseEdits += IosQuickPhraseEdit.Select(cell.cellId, id)
+                            if (isDate) dateFormats[cell.cellId] = id else if (selectedOption != id) phraseEdits += IosQuickPhraseEdit.Select(cell.cellId, id)
                             expandedAutomaticId = null
                             failure = null
                         },

@@ -201,7 +201,7 @@ internal fun IosCameraCapturePoc(
     }
     if (showQuickValues && session != null) {
         var expected by remember { mutableStateOf(session.selectedDocument) }
-        IosQuickValuesScreen(expected, onBack = { showQuickValues = false },
+        IosQuickValuesScreen(expected, session.quickSelection, onBack = { showQuickValues = false },
             availableDocuments = session.documents,
             onSwitchTemplate = { targetId, changes ->
                 session.switchQuickTemplate(expected, targetId, changes).also { switched ->

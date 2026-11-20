@@ -1,29 +1,28 @@
 package com.dudoziworkshop.dzlog.feature.table.policy
 
+import com.dudoziworkshop.dzlog.domain.table.resolveTableRootCells
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 
-fun quickRootCells(template: TableTemplateState): List<TableCellState> = template.cells.filter { cell ->
-    template.cells.none { other -> other.cellId != cell.cellId &&
-        (other.rowSpan > 1 || other.colSpan > 1) &&
-        cell.rowIndex in other.rowIndex until other.rowIndex + other.rowSpan &&
-        cell.colIndex in other.colIndex until other.colIndex + other.colSpan }
-}
+fun quickRootCells(template: TableTemplateState): List<TableCellState> =
+    resolveTableRootCells(template.cells)
 
-fun quickEditableCells(template: TableTemplateState): List<TableCellState> {
-    val manual = quickRootCells(template).filter {
-        it.quickEditable && (it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER)
-    }.sortedWith(compareBy({ it.rowIndex }, { it.colIndex }))
-    return manual
-}
+/** Reading order used by the camera. A counter can be inspected, but never edited. */
+fun quickNavigableCells(template: TableTemplateState): List<TableCellState> =
+    quickRootCells(template)
+
+fun quickEditableCells(template: TableTemplateState): List<TableCellState> =
+    quickNavigableCells(template).filter {
+        it.dataType == TableCellDataType.TEXT || it.dataType == TableCellDataType.NUMBER
+    }
 
 fun updateQuickCellValues(template: TableTemplateState, values: Map<String, String>): TableTemplateState =
     template.copy(cells = template.cells.map { cell ->
         val text = values[cell.cellId]
         when {
-            !cell.quickEditable || text == null || text == cell.rawText -> cell
+            text == null || text == cell.rawText -> cell
             cell.dataType == TableCellDataType.TEXT -> cell.copy(rawText = text, typedValue = CellValue.Text(text))
             cell.dataType == TableCellDataType.NUMBER -> cell.copy(rawText = text, typedValue = CellValue.Number(text))
             else -> cell
@@ -35,10 +34,10 @@ fun quickCellPosition(cell: TableCellState): String {
     return "${range(cell.rowIndex, cell.rowSpan)}행 ${range(cell.colIndex, cell.colSpan)}열"
 }
 
-/** Row-major manual-cell navigation, without wrapping or selecting covered/automatic cells. */
+/** Cycle through the supplied visible cells in both directions. */
 fun adjacentQuickCellId(cells: List<TableCellState>, selectedId: String?, direction: Int): String? {
-    if (direction != -1 && direction != 1) return null
+    if ((direction != -1 && direction != 1) || cells.size < 2) return null
     val index = cells.indexOfFirst { it.cellId == selectedId }
     if (index < 0) return null
-    return cells.getOrNull(index + direction)?.cellId
+    return cells[(index + direction + cells.size) % cells.size].cellId
 }
