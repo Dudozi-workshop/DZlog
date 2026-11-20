@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
  * Kotlin/Native only: Android storage and preferences are never consulted.
  */
 internal class IosCameraCaptureSession(
-    private val editorKey: String,
+    val editorKey: String,
     private var workspace: EditorWorkspace,
     private val persistWorkspace: ((EditorWorkspace) -> Boolean)? = null,
     mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
@@ -53,6 +53,17 @@ internal class IosCameraCaptureSession(
     }
 
     fun loadProjectRegistry(): IosCaptureProjectRegistry = projectStore.load()
+
+    /** Browsing leaves Undo intact. A changed document invalidates its workspace snapshot. */
+    fun reloadAfterEditing(previousProjectId: String?): IosCaptureProjectRegistry {
+        val next = store.load(selectedDocument.template)
+        check(next.active != null)
+        val projects = projectStore.load()
+        if (next != workspace || previousProjectId != projects.activeId) sessionCaptures.clear()
+        if (previousProjectId != projects.activeId) confirmedCaptureIds.clear()
+        workspace = next
+        return projects
+    }
 
     /** Switch capture context and its remembered shared template as one user action. */
     fun selectProject(projectId: String?): Boolean {

@@ -71,7 +71,8 @@ internal fun IosCameraTopBar(
             Modifier.weight(1f).heightIn(min = 32.dp).clip(CameraChromeShape)
                 .background(DDZColor.Card.copy(alpha = 0.55f))
                 .border(1.dp, DDZColor.SageBorder, CameraChromeShape)
-                .clickable(enabled = infoEnabled, onClick = onOpenInfo)
+                .clickable(enabled = infoEnabled, role = Role.Button, onClick = onOpenInfo)
+                .semantics { contentDescription = "촬영 정보 열기 · $displayName" }
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center,
         ) {

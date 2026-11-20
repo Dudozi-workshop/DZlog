@@ -34,13 +34,17 @@ import kotlinx.cinterop.*
 import org.jetbrains.skia.Image
 import platform.Foundation.*
 
-/** The existing home/list/editor/settings UI with an iOS persistence adapter. */
+internal enum class CameraWorkspacePage { TEMPLATES, TABLE_EDITOR, SAVE_SETTINGS, PROJECTS, CREATE_PROJECT }
+
+/** Home and camera share the same catalog, editor and project management routes. */
 @Composable
 internal fun HomeNavigationPoc(
     template: SavedTableTemplate,
     editorKey: String = IOS_EDITOR_KEY,
     resetTestFixture: Boolean = false,
     enableOnboarding: Boolean = false,
+    cameraPage: CameraWorkspacePage? = null,
+    onReturnToCamera: () -> Unit = {},
 ) {
     val appVersionLabel = remember { iosAppVersionLabel() }
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
@@ -71,7 +75,8 @@ internal fun HomeNavigationPoc(
         })
     }
     val editorPlatform = remember { IosTableEditorPlatform { notice = it } }
-    var showEditor by remember { mutableStateOf(false) }
+    var showEditor by remember { mutableStateOf(cameraPage == CameraWorkspacePage.TABLE_EDITOR ||
+        cameraPage == CameraWorkspacePage.SAVE_SETTINGS) }
     var showGallery by remember { mutableStateOf(false) }
     var showCaptureSettings by remember { mutableStateOf(false) }
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
@@ -84,6 +89,7 @@ internal fun HomeNavigationPoc(
     var recoveryPending by remember { mutableStateOf(IosCameraCaptureSession.hasPending()) }
     var recovering by remember { mutableStateOf(false) }
     LaunchedEffect(editorKey, cameraReturnRevision, recoveryRevision) {
+        if (cameraPage != null) return@LaunchedEffect
         if (!projectLoadFailed) {
             runCatching { projectStore.load() }
                 .onSuccess { projectRegistry = it }
@@ -103,6 +109,7 @@ internal fun HomeNavigationPoc(
         }
     }
     LaunchedEffect(showGallery, cameraReturnRevision) {
+        if (cameraPage != null) return@LaunchedEffect
         if (cameraReturnRevision > 0 && !loadFailed && !showGallery) {
             runCatching { store.load(template) }.onSuccess { workspace = it }
         }
@@ -124,7 +131,7 @@ internal fun HomeNavigationPoc(
             }
         }
     }
-    var showList by remember { mutableStateOf(false) }
+    var showList by remember { mutableStateOf(cameraPage == CameraWorkspacePage.TEMPLATES) }
     var showSettings by remember { mutableStateOf(false) }
     var showCaptureFeedback by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
@@ -136,10 +143,11 @@ internal fun HomeNavigationPoc(
     var editorFromList by remember { mutableStateOf(false) }
     var editingId by remember { mutableStateOf<String?>(null) }
     var pendingNew by remember { mutableStateOf<EditorDocument?>(null) }
-    var openSaveSettings by remember { mutableStateOf(false) }
+    var openSaveSettings by remember { mutableStateOf(cameraPage == CameraWorkspacePage.SAVE_SETTINGS) }
     var showProjectPicker by remember { mutableStateOf(false) }
-    var showProjectList by remember { mutableStateOf(false) }
-    var createProjectInitially by remember { mutableStateOf(false) }
+    var showProjectList by remember { mutableStateOf(cameraPage == CameraWorkspacePage.PROJECTS ||
+        cameraPage == CameraWorkspacePage.CREATE_PROJECT) }
+    var createProjectInitially by remember { mutableStateOf(cameraPage == CameraWorkspacePage.CREATE_PROJECT) }
     var projectDetailId by remember { mutableStateOf<String?>(null) }
     var projectGalleryId by remember { mutableStateOf<String?>(null) }
     val document = pendingNew ?: workspace.documents.firstOrNull { it.template.id == editingId }
@@ -193,6 +201,7 @@ internal fun HomeNavigationPoc(
     }
     fun startCamera() {
         if (loadFailed || recoveryPending || recovering) return
+        if (cameraPage != null) return
         if (editorKey != IOS_PRODUCTION_STARTUP_TEST_KEY &&
             NSProcessInfo.processInfo.arguments.contains("--deny-camera-permission-for-ui-test")) {
             NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
@@ -458,6 +467,8 @@ internal fun HomeNavigationPoc(
                 else (if (used) "사용 " else "수정 ") + formatCaptureTime("yyyy.MM.dd", tableEditorNow().copy(epochMilliseconds = timestamp))
             },
         )
+    } else if (cameraPage != null) {
+        LaunchedEffect(Unit) { onReturnToCamera() }
     } else {
         HomeContent(
             templateName = if (selected) savedDocument.template.name else "기본 촬영",

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
@@ -123,23 +124,18 @@ fun HomeContent(
 
                     Spacer(Modifier.height(heroTopGap))
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
-                        horizontalAlignment = Alignment.Start,
-                    ) {
-                        if (onOpenProjectPicker != null) {
+                    if (onOpenProjectPicker != null) {
+                        androidx.compose.material3.Surface(
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset)
+                                .clickable(role = Role.Button, onClick = onOpenProjectPicker)
+                                .semantics { contentDescription = "촬영 프로젝트 선택" },
+                            shape = RoundedCornerShape(12.dp),
+                            color = DDZColor.SurfaceSoft,
+                        ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(
-                                        role = Role.Button,
-                                        onClickLabel = "촬영 프로젝트 선택",
-                                        onClick = onOpenProjectPicker,
-                                    )
-                                    .semantics { contentDescription = "촬영 프로젝트 선택" }
-                                    .padding(vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
@@ -164,51 +160,56 @@ fun HomeContent(
                                 }
                                 Text(
                                     text = "변경",
-                                    style = DDZTypography.Caption,
-                                    color = DDZColor.PrimaryDark,
-                                )
-                            }
-                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                        }
-                        Column(
-                            modifier = Modifier.fillMaxWidth().clickable(
-                                role = Role.Button,
-                                onClickLabel = "템플릿 선택",
-                                onClick = onManageTemplates,
-                            ),
-                        ) {
-                            Text(
-                                text = labels.currentTemplate,
-                                style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
-                                color = DDZColor.TextSecondary,
-                            )
-                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = templateName,
-                                    style = DDZTypography.ScreenTitle.copy(
-                                        fontSize = HomeUiSpec.TemplateNameSize,
-                                        lineHeight = HomeUiSpec.TemplateNameLineHeight,
-                                        fontWeight = FontWeight.SemiBold,
-                                    ),
-                                    color = DDZColor.TextPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false),
+                                    style = DDZTypography.Secondary,
+                                    color = DDZColor.SelectedDark,
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = "템플릿 선택",
-                                    tint = DDZColor.TextSecondary,
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = DDZColor.SelectedDark,
                                 )
                             }
-                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clickable(
+                            role = Role.Button,
+                            onClickLabel = "템플릿 선택",
+                            onClick = onManageTemplates,
+                        ).padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
+                    ) {
+                        Text(
+                            text = labels.currentTemplate,
+                            style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
+                            color = DDZColor.TextSecondary,
+                        )
+                        Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = labels.nextCounter,
-                                style = DDZTypography.Secondary,
-                                color = DDZColor.TextSecondary,
+                                text = templateName,
+                                style = DDZTypography.ScreenTitle.copy(
+                                    fontSize = HomeUiSpec.TemplateNameSize,
+                                    lineHeight = HomeUiSpec.TemplateNameLineHeight,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = DDZColor.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "템플릿 선택",
+                                tint = DDZColor.TextSecondary,
                             )
                         }
+                        Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                        Text(
+                            text = labels.nextCounter,
+                            style = DDZTypography.Secondary,
+                            color = DDZColor.TextSecondary,
+                        )
                     }
                     }
                 },

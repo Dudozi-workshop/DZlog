@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import com.dudoziworkshop.dzlog.domain.naming.capturePhysicalSavePaths
-import com.dudoziworkshop.dzlog.ui.home.HomeSaveInfoSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -82,6 +81,7 @@ internal fun IosCameraCapturePoc(
     var showSettingsDetails by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var workspacePage by remember { mutableStateOf<CameraWorkspacePage?>(null) }
     var showQuickValues by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var showTools by remember { mutableStateOf(false) }
@@ -115,8 +115,9 @@ internal fun IosCameraCapturePoc(
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
-    LaunchedEffect(ready, busy, overlayEditing, showSettingsDetails, showGallery, showQuickValues, liveHasClock) {
-        if (liveHasClock && ready && !busy && !overlayEditing && !showSettingsDetails && !showGallery && !showQuickValues) {
+    val cameraCovered = workspacePage != null || showSettingsDetails || showGallery || showQuickValues
+    LaunchedEffect(ready, busy, overlayEditing, cameraCovered, liveHasClock) {
+        if (liveHasClock && ready && !busy && !overlayEditing && !cameraCovered) {
             while (true) { delay(1000); liveTick += 1 }
         }
     }
@@ -153,10 +154,10 @@ internal fun IosCameraCapturePoc(
         }
     }
 
-    LaunchedEffect(camera, showSettingsDetails, showGallery, showQuickValues) {
+    LaunchedEffect(camera, cameraCovered) {
         try {
             ready = false
-            if (showSettingsDetails || showGallery || showQuickValues) {
+            if (cameraCovered) {
                 withContext(Dispatchers.Default) { camera.stop() }
             } else if (!permissionGranted) {
                 status = "카메라 권한이 없습니다."
@@ -179,6 +180,25 @@ internal fun IosCameraCapturePoc(
         onDispose { camera.stop() }
     }
 
+    val page = workspacePage
+    if (page != null && session != null) {
+        HomeNavigationPoc(session.selectedDocument.template, editorKey = session.editorKey,
+            cameraPage = page, onReturnToCamera = {
+                val projects = runCatching { session.reloadAfterEditing(projectRegistry?.activeId) }
+                if (projects.isFailure) {
+                    // The selected template may have been deleted. Home handles an empty catalog.
+                    onBack?.invoke()
+                } else {
+                    projectRegistry = projects.getOrThrow()
+                    settingsRevision += 1
+                    val document = session.selectedDocument
+                    showSettingsDetails = document.nextCounter == null ||
+                        (document.saveMode != SaveMode.ORIGINAL_ONLY && document.capturePlacement == null)
+                    workspacePage = null
+                }
+            })
+        return
+    }
     if (showQuickValues && session != null) {
         var expected by remember { mutableStateOf(session.selectedDocument) }
         IosQuickValuesScreen(expected, onBack = { showQuickValues = false },
@@ -235,13 +255,20 @@ internal fun IosCameraCapturePoc(
             runCatching { SkiaImage.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
         }
     }
-    if (showInfo && session != null && info != null) HomeSaveInfoSheet(
-        fileName = info.previewNaming.displayName,
+    if (showInfo && session != null && info != null) IosCameraInfoDialog(
+        nextFileName = info.previewNaming.displayName,
         relativePaths = capturePhysicalSavePaths(info.previewNaming.relativePath, session.selectedDocument.saveMode),
-        onOpenSaveSettings = { showInfo = false; showSettingsDetails = true },
-        onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
+        projectName = projectRegistry?.active?.title ?: "일반 촬영",
+        templateName = session.selectedDocument.template.name,
+        canChangeSelection = !busy && !counterSyncing && !session.hasPending(),
+        projectSelectionEnabled = projectRegistry != null,
+        onOpenProjectSelection = { showInfo = false; showProjectPicker = true },
+        onOpenTemplateSelection = { showInfo = false; workspacePage = CameraWorkspacePage.TEMPLATES },
+        onOpenTableEditor = { showInfo = false; workspacePage = CameraWorkspacePage.TABLE_EDITOR },
+        onOpenSaveSettings = { showInfo = false; workspacePage = CameraWorkspacePage.SAVE_SETTINGS },
+        onDismiss = { showInfo = false },
     )
-    val captureEnabled = ready && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
+    val captureEnabled = ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
         !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
@@ -316,7 +343,7 @@ internal fun IosCameraCapturePoc(
     ) {
         IosCameraTopBar(
             displayName = info?.previewNaming?.displayName ?: "DZlog 촬영",
-            infoEnabled = info != null && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady,
+            infoEnabled = info != null && !busy && !reviewVisible && !overlayEditing,
             settingsEnabled = !busy && !reviewVisible && !overlayEditing && session != null && !session.hasPending(),
             backEnabled = onBack != null && !busy && !reviewVisible && !overlayEditing,
             onBack = {
@@ -540,11 +567,11 @@ internal fun IosCameraCapturePoc(
             },
             onCreate = {
                 showProjectPicker = false
-                status = "새 프로젝트는 홈의 프로젝트 관리에서 만들 수 있습니다."
+                workspacePage = CameraWorkspacePage.CREATE_PROJECT
             },
             onManage = {
                 showProjectPicker = false
-                status = "전체 프로젝트 관리는 홈에서 열어 주세요."
+                workspacePage = CameraWorkspacePage.PROJECTS
             },
             onDismiss = { showProjectPicker = false },
         )

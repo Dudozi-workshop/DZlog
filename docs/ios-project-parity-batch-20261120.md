@@ -38,7 +38,7 @@ disabled project-photo button makes that boundary explicit rather than opening a
 - A project switch restores that project's remembered shared template, persists the workspace and registry,
   clears cross-project Undo state and reruns the existing automatic-counter synchronization.
 - The UI test opens the camera from a persisted project and verifies that the camera picker exposes the same
-  selection. Project creation and full metadata management intentionally remain on the home project screens.
+  selection.
 
 ## Quick results
 
@@ -49,6 +49,15 @@ disabled project-photo button makes that boundary explicit rather than opening a
 - The viewer pages through the visible captures, opens the result first and can show its original.
   General session results survive template and camera-setting edits that invalidate Undo.
 - Continuing from project detail now enters the home camera flow, including first-capture configuration.
+
+## Home and camera navigation
+
+- Home follows Android's separate project card and template row. The camera filename opens a centered
+  capture information dialog with project, template, filename and save paths in the Android order.
+- The project picker opens the same create and management screens as home. Template selection opens the
+  catalog. Table details opens the active editor and Save settings opens its save panel.
+- Returning reloads persisted edits. Browsing preserves the current session and Undo. A changed workspace
+  invalidates the previous Undo snapshot, and switching projects clears the previous session results.
 
 ## Validation
 

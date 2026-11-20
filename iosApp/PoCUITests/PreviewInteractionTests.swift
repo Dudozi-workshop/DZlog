@@ -1398,13 +1398,39 @@ final class PreviewInteractionTests: XCTestCase {
 
         tapButton("촬영 시작")
         // The first production capture requires a saved placement and counter.
-        if button("확인").waitForExistence(timeout: 5) {
+        if app.buttons["확인"].waitForExistence(timeout: 5) {
             tapButton("확인")
             tapCaptureSettingsButton("저장", searchDown: false)
             tapButton("촬영 시작")
         }
         XCTAssertTrue(button("카메라 프로젝트 변경").waitForExistence(timeout: 20))
-        tapButton("카메라 프로젝트 변경")
+        let info = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "촬영 정보 열기")).firstMatch
+        XCTAssertTrue(info.waitForExistence(timeout: 10))
+        info.tap()
+        XCTAssertTrue(text("촬영 정보").waitForExistence(timeout: 10))
+        let template = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "템플릿 선택 ·")).firstMatch
+        XCTAssertTrue(template.waitForExistence(timeout: 10))
+        template.tap()
+        XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
+        tapButton("뒤로가기")
+        XCTAssertTrue(info.waitForExistence(timeout: 10))
+        for action in ["표 상세설정", "저장 설정"] {
+            info.tap()
+            tapButton(action)
+            XCTAssertTrue(text("표 편집").waitForExistence(timeout: 10))
+            if action == "저장 설정" {
+                XCTAssertTrue(panelText("파일명").waitForExistence(timeout: 10))
+            }
+            // Back closes the current editor panel before returning to the camera.
+            for _ in 0..<3 {
+                if info.exists { break }
+                tapButton("뒤로가기")
+                if info.waitForExistence(timeout: 2) { break }
+            }
+            XCTAssertTrue(info.exists)
+        }
+        info.tap()
+        tapButton("프로젝트 선택 · Blueberry field")
         XCTAssertTrue(text("촬영 프로젝트 선택").waitForExistence(timeout: 10))
         XCTAssertTrue(text("Blueberry field").exists)
         tapButton("닫기")

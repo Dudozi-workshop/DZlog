@@ -5,12 +5,12 @@ import org.junit.Test
 
 class TableEditorCellNavigationTest {
     @Test
-    fun detail_navigation_visits_every_kind_in_row_order_and_does_not_wrap() {
+    fun detail_navigation_visits_every_kind_in_row_order_and_wraps() {
         val cells = TableEditorCellType.entries.mapIndexed { index, type ->
             TableEditorCellUiModel(index, "", type, "cell$index", rowIndex = index / 3, colIndex = index % 3)
         }.reversed()
-        assertEquals(EditorCellNeighbours(null, "cell1"), editorCellNeighbours(cells, "cell0"))
-        assertEquals(EditorCellNeighbours("cell4", null), editorCellNeighbours(cells, "cell5"))
+        assertEquals(EditorCellNeighbours("cell5", "cell1"), editorCellNeighbours(cells, "cell0"))
+        assertEquals(EditorCellNeighbours("cell4", "cell0"), editorCellNeighbours(cells, "cell5"))
         assertEquals(EditorCellNeighbours("cell1", "cell3"), editorCellNeighbours(cells, "cell2"))
     }
 
@@ -21,9 +21,16 @@ class TableEditorCellNavigationTest {
             TableEditorCellUiModel(1, "", domainCellId = "covered", colIndex = 1, isCovered = true),
             TableEditorCellUiModel(2, "next", domainCellId = "next", colIndex = 2),
         )
-        assertEquals(EditorCellNeighbours(null, "next"), editorCellNeighbours(cells, "root"))
-        assertEquals(EditorCellNeighbours("root", null), editorCellNeighbours(cells, "next"))
+        assertEquals(EditorCellNeighbours("next", "next"), editorCellNeighbours(cells, "root"))
+        assertEquals(EditorCellNeighbours("root", "root"), editorCellNeighbours(cells, "next"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(cells, "covered"))
         assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(emptyList(), null))
+    }
+
+    @Test
+    fun single_root_has_no_previous_or_next_cell() {
+        val root = TableEditorCellUiModel(0, "merged", domainCellId = "root")
+        val covered = TableEditorCellUiModel(1, "", domainCellId = "covered", isCovered = true)
+        assertEquals(EditorCellNeighbours(null, null), editorCellNeighbours(listOf(root, covered), "root"))
     }
 }
