@@ -17,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProject
@@ -298,7 +300,7 @@ private fun IosProjectNameDialog(
                 onValueChange = { name = it.take(80) },
                 label = { Text("프로젝트 이름") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "프로젝트 이름" },
             )
         },
         confirmButton = { TextButton(onClick = { onConfirm(name.trim()) },

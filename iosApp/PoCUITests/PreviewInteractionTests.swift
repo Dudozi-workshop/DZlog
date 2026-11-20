@@ -170,8 +170,9 @@ final class PreviewInteractionTests: XCTestCase {
         return app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 
-    private func openLiveTable(reset: Bool) {
+    private func openLiveTable(reset: Bool, useFocusTimer: Bool = false) {
         app.launchArguments = ["--live-table-placement-flow"] + (reset ? ["--reset-live-table-fixture"] : [])
+        if useFocusTimer { app.launchArguments.append("--live-focus-timer") }
         app.launch()
         XCTAssertTrue(text("표 준비 완료").waitForExistence(timeout: 20), app.debugDescription)
         XCTAssertTrue(liveHandle("ios.table.move").waitForExistence(timeout: 10))
@@ -253,6 +254,18 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertEqual(String(describing: liveHandle("ios.table.move").value ?? ""), value)
         dragLiveHandle("ios.table.move", dx: 30, dy: 30)
         XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
+    func testNativeFocusControlsCollapseAfterInteraction() {
+        openLiveTable(reset: true, useFocusTimer: true)
+        let frame = livePreview().frame
+        XCTAssertFalse(frame.isEmpty)
+        let point = CGPoint(x: frame.minX + frame.width * 0.08, y: frame.minY + frame.height * 0.08)
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: point.x - app.frame.minX, dy: point.y - app.frame.minY)).tap()
+        XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.sliders["밝기 조절"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(text("카메라 초점").exists)
     }
 
     func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
@@ -440,6 +453,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("카메라 열기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
         tapButton("빠른 값 변경")
+        tapPanelText("2행 2열 셀 선택")
         XCTAssertTrue(panelText("2행 2열 · 텍스트").waitForExistence(timeout: 20))
         tapButton("취소")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
@@ -1437,17 +1451,15 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("+ 새 프로젝트")
         XCTAssertTrue(text("프로젝트").waitForExistence(timeout: 10))
         XCTAssertTrue(text("새 프로젝트").waitForExistence(timeout: 10))
-        let field = app.textFields.matching(NSPredicate(format: "label == %@", "프로젝트 이름")).firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap()
-        field.typeText("Blueberry field")
+        tapPanelText("프로젝트 이름")
+        typeWithVisibleKeyboard("blueberry")
         tapButton("만들기")
-        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 10))
         tapButton("뒤로")
 
         tapButton("촬영 프로젝트 선택")
-        tapButton("Blueberry field")
-        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 10))
+        tapButton("blueberry")
+        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 10))
 
         tapButton("촬영 시작")
         // The first production capture requires a saved placement and counter.
@@ -1483,9 +1495,9 @@ final class PreviewInteractionTests: XCTestCase {
             XCTAssertTrue(info.exists)
         }
         info.tap()
-        tapButton("프로젝트 선택 · Blueberry field")
+        tapButton("프로젝트 선택 · blueberry")
         XCTAssertTrue(text("촬영 프로젝트 선택").waitForExistence(timeout: 10))
-        XCTAssertTrue(text("Blueberry field").exists)
+        XCTAssertTrue(text("blueberry").exists)
         tapButton("닫기")
         tapButton("촬영 결과 보기")
         XCTAssertTrue(text("프로젝트 결과").waitForExistence(timeout: 10))
@@ -1497,7 +1509,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.terminate()
         app.launchArguments = ["--production-home-flow"]
         app.launch()
-        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 20),
+        XCTAssertTrue(text("blueberry").waitForExistence(timeout: 20),
                       "Selected project must survive relaunch")
     }
 

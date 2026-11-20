@@ -22,6 +22,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableMoveResizePersistsAndSaves
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableRotationLockAndGeometryBounds
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusControlsCollapseAfterInteraction
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusExposureLockUsesConfirmedTwoTapPolicy
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativePreviewPinchZoomCommitsCompactScale
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged

@@ -32,7 +32,7 @@ internal fun IosLiveTablePreview(
     onFocusAt: (Double, Double, Boolean) -> Boolean = { _, _, _ -> false },
     onExposureLock: (Boolean) -> Boolean = { false },
     onExposureBias: (Float) -> Boolean = { false },
-    onFocusInteraction: () -> Unit = {},
+    autoCollapseFocus: Boolean = true,
     zoomEnabled: Boolean = false,
     currentZoom: Float = 1f,
     maximumZoom: Float = 1f,
@@ -46,6 +46,14 @@ internal fun IosLiveTablePreview(
 ) {
     val view = remember(session, previewLayer, fixtureAspect) {
         IosLiveTableView(previewLayer, fixtureAspect, captureAspect)
+    }
+    var focusInteraction by remember(view) { mutableIntStateOf(0) }
+    var draggingExposure by remember(view) { mutableStateOf(false) }
+    LaunchedEffect(view, autoCollapseFocus, focusInteraction, draggingExposure) {
+        if (autoCollapseFocus && focusInteraction > 0 && !draggingExposure) {
+            delay(1_200L)
+            view.collapseFocusControls()
+        }
     }
     val placement = if (session.selectedDocument.saveMode == com.dudoziworkshop.dzlog.domain.model.SaveMode.ORIGINAL_ONLY)
         null else session.tablePlacement
@@ -66,7 +74,10 @@ internal fun IosLiveTablePreview(
             it.updateCaptureAspect(captureAspect)
             it.bind(placement, enabled, showGrid, showTable, focusEnabled,
                 focusCollapseToken, minimumExposureBias, maximumExposureBias,
-                onFocusAt, onExposureLock, onExposureBias, onFocusInteraction, revision,
+                onFocusAt, onExposureLock, onExposureBias, { dragging ->
+                    draggingExposure = dragging
+                    focusInteraction += 1
+                }, revision,
                 zoomEnabled, currentZoom, maximumZoom, onZoomChange, onZoomFinished,
                 session::renderLiveOverlay, session::savePlacement,
                 onReady, onEditing, onSaved, onError)
@@ -107,7 +118,8 @@ internal class IosLiveTableView(
     private var focusAt: ((Double, Double, Boolean) -> Boolean)? = null
     private var exposureLock: ((Boolean) -> Boolean)? = null
     private var exposureBias: ((Float) -> Boolean)? = null
-    private var focusInteraction: (() -> Unit)? = null
+    private var focusInteraction: ((Boolean) -> Unit)? = null
+    private var trackingExposure = false
     private var zoomEnabled = false
     private var currentZoom = 1f
     private var maximumZoom = 1f
@@ -178,6 +190,9 @@ internal class IosLiveTableView(
         addGestureRecognizer(pinchZoom)
         focusLock.addTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.addTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
+        exposureSlider.addTarget(target, NSSelectorFromString("exposureBegan:"), UIControlEventTouchDown)
+        exposureSlider.addTarget(target, NSSelectorFromString("exposureEnded:"),
+            UIControlEventTouchUpInside or UIControlEventTouchUpOutside or UIControlEventTouchCancel)
     }
 
     fun updateCaptureAspect(aspect: Double?) {
@@ -195,7 +210,7 @@ internal class IosLiveTableView(
         focusWriter: (Double, Double, Boolean) -> Boolean,
         exposureLockWriter: (Boolean) -> Boolean,
         exposureBiasWriter: (Float) -> Boolean,
-        onFocusInteraction: () -> Unit, version: Int,
+        onFocusInteraction: (Boolean) -> Unit, version: Int,
         zoomActive: Boolean, zoomValue: Float, maxZoom: Float,
         zoomValueWriter: (Float) -> Boolean, onZoomCommit: (Float) -> Unit,
         renderer: (Int, Int) -> ByteArray, writer: (IosCaptureTablePlacement) -> Boolean,
@@ -318,7 +333,7 @@ internal class IosLiveTableView(
             // the following tap chooses a new AF point while keeping AE locked.
             focusExpanded = true
             awaitingLockedRefocusTap = true
-            focusInteraction?.invoke()
+            focusInteraction?.invoke(trackingExposure)
             layoutFocusControls()
             return
         }
@@ -345,7 +360,7 @@ internal class IosLiveTableView(
             else -> UIColor.whiteColor.CGColor
         }
         focusRing.accessibilityValue = if (applied) "초점 요청 적용" else "초점 요청 실패"
-        focusInteraction?.invoke()
+        focusInteraction?.invoke(trackingExposure)
         layoutFocusControls()
     }
 
@@ -355,7 +370,7 @@ internal class IosLiveTableView(
         if (exposureLock?.invoke(desired) != true) {
             focusRing.layer.borderColor = UIColor.systemRedColor.CGColor
             focusRing.accessibilityValue = "노출 잠금 실패"
-            focusInteraction?.invoke()
+            focusInteraction?.invoke(trackingExposure)
             return
         }
         exposureLocked = desired
@@ -366,14 +381,20 @@ internal class IosLiveTableView(
         focusLock.accessibilityLabel = if (desired) "노출 잠금 해제" else "노출 잠금"
         focusRing.accessibilityValue = if (desired) "노출 잠금" else "노출 자동"
         if (!desired) focusExpanded = false
-        focusInteraction?.invoke()
+        focusInteraction?.invoke(trackingExposure)
         layoutFocusControls()
+    }
+
+    fun setExposureTracking(tracking: Boolean) {
+        if (trackingExposure == tracking) return
+        trackingExposure = tracking
+        focusInteraction?.invoke(tracking)
     }
 
     fun exposureChanged(sender: UISlider) {
         if (!focusEnabled || !focusExpanded) return
         exposureBias?.invoke(sender.value)
-        focusInteraction?.invoke()
+        focusInteraction?.invoke(trackingExposure)
     }
 
     fun pinchZoom(sender: UIPinchGestureRecognizer) {
@@ -394,7 +415,8 @@ internal class IosLiveTableView(
         }
     }
 
-    private fun collapseFocusControls() {
+    fun collapseFocusControls() {
+        setExposureTracking(false)
         focusExpanded = false
         awaitingLockedRefocusTap = false
         if (!exposureLocked) {
@@ -417,6 +439,7 @@ internal class IosLiveTableView(
     }
 
     private fun suspendFocusControls() {
+        setExposureTracking(false)
         // Capture and table gestures temporarily disable input, not AVFoundation
         // AE lock. Keep the locked state until the same camera view is usable
         // again; otherwise the UI incorrectly reports automatic exposure.
@@ -548,6 +571,9 @@ internal class IosLiveTableView(
         removeGestureRecognizer(pinchZoom)
         focusLock.removeTarget(target, NSSelectorFromString("toggleFocusLock:"), UIControlEventTouchUpInside)
         exposureSlider.removeTarget(target, NSSelectorFromString("exposureChanged:"), UIControlEventValueChanged)
+        exposureSlider.removeTarget(target, NSSelectorFromString("exposureBegan:"), UIControlEventTouchDown)
+        exposureSlider.removeTarget(target, NSSelectorFromString("exposureEnded:"),
+            UIControlEventTouchUpInside or UIControlEventTouchUpOutside or UIControlEventTouchCancel)
         target.owner = null
         image.image = null
         gridLines.forEach { it.removeFromSuperview() }
@@ -563,6 +589,8 @@ private class LiveTableGestureTarget(var owner: IosLiveTableView?) : NSObject() 
     @ObjCAction fun resize(sender: UIPanGestureRecognizer) { owner?.pan(sender, true) }
     @ObjCAction fun focus(sender: UITapGestureRecognizer) { owner?.focus(sender) }
     @ObjCAction fun toggleFocusLock(sender: UIButton) { owner?.toggleFocusLock() }
+    @ObjCAction fun exposureBegan(sender: UISlider) { owner?.setExposureTracking(true) }
+    @ObjCAction fun exposureEnded(sender: UISlider) { owner?.setExposureTracking(false) }
     @ObjCAction fun exposureChanged(sender: UISlider) { owner?.exposureChanged(sender) }
     @ObjCAction fun pinchZoom(sender: UIPinchGestureRecognizer) { owner?.pinchZoom(sender) }
 }

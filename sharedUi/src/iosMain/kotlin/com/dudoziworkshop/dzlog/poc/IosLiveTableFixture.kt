@@ -60,6 +60,7 @@ internal fun IosLiveTableFixture() {
             enabled = !locked && !busy,
             focusEnabled = !locked && !busy,
             focusCollapseToken = focusCollapseToken,
+            autoCollapseFocus = NSProcessInfo.processInfo.arguments.contains("--live-focus-timer"),
             minimumExposureBias = -2f,
             maximumExposureBias = 2f,
             onFocusAt = { _, _, exposureLocked ->

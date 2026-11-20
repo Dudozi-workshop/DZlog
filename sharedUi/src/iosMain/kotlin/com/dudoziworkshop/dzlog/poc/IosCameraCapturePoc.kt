@@ -113,7 +113,6 @@ internal fun IosCameraCapturePoc(
     var liveTick by remember { mutableIntStateOf(0) }
     var overlayReady by remember { mutableStateOf(false) }
     var overlayEditing by remember { mutableStateOf(false) }
-    var focusInteractionToken by remember { mutableIntStateOf(0) }
     var focusCollapseToken by remember { mutableIntStateOf(0) }
     var reviewVisible by remember { mutableStateOf(false) }
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
@@ -124,12 +123,6 @@ internal fun IosCameraCapturePoc(
         if (liveHasClock && ready && !busy && !overlayEditing && !cameraCovered) {
             while (true) { delay(1000); liveTick += 1 }
         }
-    }
-    LaunchedEffect(focusInteractionToken) {
-        if (focusInteractionToken <= 0) return@LaunchedEffect
-        // Android policy: allow focus to settle, retain the result briefly, then compact.
-        delay(2_800)
-        focusCollapseToken += 1
     }
     var settingsFailure by remember { mutableStateOf<String?>(null) }
     val continuousPreviewMode = session?.continuousPreviewMode ?: 0
@@ -406,7 +399,6 @@ internal fun IosCameraCapturePoc(
                 onFocusAt = camera::focusAt,
                 onExposureLock = camera::setExposureLocked,
                 onExposureBias = camera::setExposureBias,
-                onFocusInteraction = { focusInteractionToken += 1 },
                 zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing &&
                     !showSettings && !showProjectPicker,
                 currentZoom = zoom,
