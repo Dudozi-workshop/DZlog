@@ -39,6 +39,12 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.template.EditorDocument
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
+import com.dudoziworkshop.dzlog.domain.naming.NamingCellPreview
+import com.dudoziworkshop.dzlog.domain.naming.buildNamingCellPreview
+import com.dudoziworkshop.dzlog.domain.naming.captureFolderNamingPreview
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import com.dudoziworkshop.dzlog.domain.preview.PreviewInput
 import com.dudoziworkshop.dzlog.domain.preview.buildPreview
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
@@ -193,8 +199,9 @@ internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: Qui
     val changes = IosQuickValueChanges(changedValues, dateFormats.toMap(), phraseEdits = phraseEdits)
     val draft = remember(document, changes) { runCatching { applyIosQuickValueChanges(document, changes) }.getOrNull() }
     val phraseTable = draft?.template?.templateState ?: document.template.templateState
+    val previewTime = tableEditorNow()
     val preview = draft?.let {
-        buildPreview(PreviewInput(it.template.templateState, tableEditorNow(), it.counterPadding,
+        buildPreview(PreviewInput(it.template.templateState, previewTime, it.counterPadding,
             NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
             NamingFormatDefaults.FILE_NAME_DELIMITER, it.includePathInScope, it.includeFilenameInScope,
             it.saveMode, it.nextCounter, 0))
@@ -252,10 +259,25 @@ internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: Qui
                         verticalArrangement = Arrangement.spacedBy(DDZSpacing.xs)) {
                         Text("다음 촬영 저장 정보", style = DDZTypography.Secondary,
                             color = DDZColor.TextStrong)
-                        Text("파일명 · ${it.previewNaming.displayName}", style = DDZTypography.Caption,
+                        fun naming(file: Boolean): NamingCellPreview {
+                            val source = buildNamingCellPreview(
+                                file, selectedId, it.plan.resolvedCells,
+                                if (file) table.fileNameSlotDrafts else table.pathSlotDrafts,
+                                NamingFormatDefaults.FILE_NAME_DELIMITER, document.counterPadding,
+                                document.nextCounter, previewTime, NamingFormatDefaults.DATE_FORMAT_DEFAULT,
+                                NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
+                            )
+                            val actual = if (file) it.previewNaming.displayName else it.previewNaming.relativePath
+                            // The save preview stays authoritative if its naming policy changes.
+                            return if (source.text == actual) source else NamingCellPreview(actual, emptyList())
+                        }
+                        // Use slot provenance, not substring matching: repeated labels
+                        // and manual text can have the same value as the selected cell.
+                        Text(quickNamingText("파일명", naming(true)), style = DDZTypography.Caption,
                             color = DDZColor.TextSecondary)
-                        Text("저장경로 · ${it.previewNaming.relativePath}", style = DDZTypography.Caption,
-                            color = DDZColor.TextSecondary)
+                        // These are DZlog's indexed folders, not extra Photos albums.
+                        Text(quickNamingText("저장경로", captureFolderNamingPreview(naming(false), document.saveMode)),
+                            style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                     }
                 }
             }
@@ -427,6 +449,20 @@ internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: Qui
                     ) { Text(label) }
                 }
             }
+        }
+    }
+}
+
+
+private fun quickNamingText(label: String, preview: NamingCellPreview) = buildAnnotatedString {
+    append("$label · ")
+    val offset = length
+    append(preview.text)
+    preview.highlights.forEach { range ->
+        if (!range.isEmpty() && range.first >= 0 && range.last < preview.text.length) {
+            addStyle(SpanStyle(color = DDZColor.SelectionEmphasis,
+                background = DDZColor.SelectedSoft, fontWeight = FontWeight.Bold),
+                offset + range.first, offset + range.last + 1)
         }
     }
 }

@@ -8,6 +8,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickAutomaticDraftWrapCancelAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
@@ -20,6 +21,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickAutomaticDraftWrapCancelAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection

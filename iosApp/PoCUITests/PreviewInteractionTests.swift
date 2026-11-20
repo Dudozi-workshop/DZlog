@@ -137,6 +137,37 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("촬영을 저장하면 자동으로 증가해요.").waitForExistence(timeout: 10))
     }
 
+    func testQuickAutomaticDraftWrapCancelAndRelaunch() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        XCTAssertTrue(text("저장경로 · Pictures/DZlog/\nPictures/DZlog/original/").waitForExistence(timeout: 10))
+        tapPanelText("1행 3열 셀 선택")
+        tapScrollableButton("날짜 형식 · yyyyMMdd")
+        tapScrollableButton("yyMMdd · 짧은 연월일")
+        tapButton("다음 셀")
+        tapScrollableButton("문구 세트 · 과수원")
+        tapScrollableButton("온실")
+        tapPanelText("2행 4열 셀 선택")
+        XCTAssertTrue(text("촬영 시각으로 자동 입력돼요.").waitForExistence(timeout: 10))
+        tapButton("다음 셀")
+        XCTAssertTrue(panelText("1행 1~2열 · 텍스트").waitForExistence(timeout: 10))
+        tapButton("다음 셀")
+        XCTAssertTrue(text("날짜 형식 · yyMMdd").waitForExistence(timeout: 10))
+        tapButton("다음 셀")
+        XCTAssertTrue(text("문구 세트 · 온실").waitForExistence(timeout: 10))
+        tapButton("취소")
+        XCTAssertTrue(text("날짜형식: yyyyMMdd").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("문구세트: set-a").exists)
+
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        XCTAssertTrue(text("날짜형식: yyyyMMdd").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("문구세트: set-a").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+    }
+
     func testQuickTextFavoriteSurvivesCancellationAndRelaunch() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
@@ -171,11 +202,13 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = ["--quick-values-flow", "--quick-project-switch", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
+        XCTAssertTrue(text("저장경로 · Pictures/DZlog/orchard/").waitForExistence(timeout: 10))
         tapPanelText("2행 1열 셀 선택")
         tapPanelText("2행 1열 · 텍스트")
         typeWithVisibleKeyboard("blue")
         tapButton("템플릿 · 빠른 입력 검증")
         tapButton("빠른 입력 보조")
+        XCTAssertTrue(text("저장경로 · Pictures/DZlog/lab/original/").waitForExistence(timeout: 10))
         tapButton("완료")
         XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
         XCTAssertTrue(text("입력값: SECOND").exists)

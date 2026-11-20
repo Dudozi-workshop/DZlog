@@ -70,8 +70,10 @@ internal fun IosQuickValuesFixture() {
             check(IosCaptureProjectStore(QUICK_TEST_KEY).save(projects))
             val placement = EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)
             check(store.save(EditorWorkspace(listOf(
-                EditorDocument(seed, nextCounter = 12, usesAutoNext = false, capturePlacement = placement),
-                EditorDocument(alternate, nextCounter = 40, usesAutoNext = false, capturePlacement = placement),
+                EditorDocument(seed, nextCounter = 12, usesAutoNext = false, capturePlacement = placement,
+                    saveMode = if (projectFlow) SaveMode.WATERMARK_ONLY else SaveMode.BOTH),
+                EditorDocument(alternate, nextCounter = 40, usesAutoNext = false, capturePlacement = placement,
+                    saveMode = if (projectFlow) SaveMode.ORIGINAL_ONLY else SaveMode.BOTH),
             ), seed.id)))
         }
         IosCameraCaptureSession(QUICK_TEST_KEY, store.load(seed))
