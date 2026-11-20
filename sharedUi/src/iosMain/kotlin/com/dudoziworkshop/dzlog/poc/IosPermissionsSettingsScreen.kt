@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,7 +44,9 @@ internal enum class IosAccess(val label: String) {
     val readable get() = this == ALLOWED || this == LIMITED
 }
 
-internal data class IosPermissions(val camera: IosAccess, val photos: IosAccess)
+internal data class IosPermissions(val camera: IosAccess, val photos: IosAccess, val photoScopeVersion: Int = 0) {
+    val captureAllowed get() = camera == IosAccess.ALLOWED && photos.readable
+}
 
 private fun currentPhotosAccess(): IosAccess = when (PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)) {
     PHAuthorizationStatusAuthorized -> IosAccess.ALLOWED
@@ -67,10 +68,8 @@ private fun refreshPermissions() {
 @Composable
 internal fun rememberIosPermissions(
     initialCamera: IosAccess = IosAccess.UNKNOWN,
-    onPhotoScopeChanged: () -> Unit = {},
 ): IosPermissions {
     var state by remember { mutableStateOf(IosPermissions(initialCamera, currentPhotosAccess())) }
-    val changed by rememberUpdatedState(onPhotoScopeChanged)
     DisposableEffect(Unit) {
         val center = NSNotificationCenter.defaultCenter
         val observer = center.addObserverForName("dzlog.permissionStatusUpdated", null, NSOperationQueue.mainQueue) { event ->
@@ -83,8 +82,8 @@ internal fun rememberIosPermissions(
             }
             val photos = currentPhotosAccess()
             val scopeMayDiffer = state.photos != photos || photos == IosAccess.LIMITED
-            state = IosPermissions(camera, photos)
-            if (scopeMayDiffer) changed()
+            val version = state.photoScopeVersion + if (scopeMayDiffer) 1 else 0
+            state = IosPermissions(camera, photos, version)
         }
         refreshPermissions()
         onDispose { center.removeObserver(observer) }

@@ -68,8 +68,8 @@ internal fun IosPhotoKitGalleryScreen(
     resultCaptureIds: List<String>? = null,
     initialAssetId: String? = null,
 ) {
-    var photoScopeVersion by remember { mutableIntStateOf(0) }
-    val permissions = rememberIosPermissions(onPhotoScopeChanged = { photoScopeVersion++ })
+    val permissions = rememberIosPermissions()
+    val photoScopeVersion = permissions.photoScopeVersion
     if (!permissions.photos.readable) {
         Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {

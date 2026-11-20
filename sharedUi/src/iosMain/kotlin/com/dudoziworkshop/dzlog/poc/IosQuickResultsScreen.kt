@@ -57,14 +57,15 @@ internal fun IosQuickResultsScreen(
             resultCaptureIds = viewerIds, initialAssetId = initial)
         return
     }
-    var captures by remember { mutableStateOf(emptyList<QuickResultCapture>()) }
-    var loading by remember { mutableStateOf(true) }
+    val permissions = rememberIosPermissions()
+    var captures by remember(permissions.photoScopeVersion) { mutableStateOf(emptyList<QuickResultCapture>()) }
+    var loading by remember(permissions.photoScopeVersion) { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(repository, captureIds, revision) {
+    LaunchedEffect(repository, captureIds, revision, permissions.photoScopeVersion) {
         loading = true
         error = null
         try {
-            captures = if (captureIds.isEmpty()) emptyList()
+            captures = if (captureIds.isEmpty() || !permissions.photos.readable) emptyList()
                 else quickResultCaptures(captureIds, repository.listSavedAssets())
             if (folder !in QuickResultsSessionPolicy.folderChoices(captures)) folder = null
         } catch (e: CancellationException) {
@@ -84,6 +85,7 @@ internal fun IosQuickResultsScreen(
         }
         if (scopeError != null) Text(scopeError)
         when {
+            captureIds.isNotEmpty() && !permissions.photos.readable -> PermissionCard(camera = false, access = permissions.photos)
             loading -> CircularProgressIndicator()
             error != null -> {
                 Text(error.orEmpty())

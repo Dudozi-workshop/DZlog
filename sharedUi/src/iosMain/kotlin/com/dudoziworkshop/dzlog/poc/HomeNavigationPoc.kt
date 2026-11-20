@@ -32,6 +32,9 @@ import com.dudoziworkshop.dzlog.ui.home.*
 import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListContent
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.cinterop.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jetbrains.skia.Image
 import platform.Foundation.*
 
@@ -81,15 +84,17 @@ internal fun HomeNavigationPoc(
     var showGallery by remember { mutableStateOf(false) }
     var showCaptureSettings by remember { mutableStateOf(false) }
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
-    var recentPhoto by remember { mutableStateOf<ImageBitmap?>(null) }
-    var recentPhotoName by remember { mutableStateOf("") }
-    var recentPhotoTime by remember { mutableStateOf("-") }
-    var recentPhotoLocation by remember { mutableStateOf("") }
+    val permissions = rememberIosPermissions()
+    var recentPhoto by remember(permissions.photoScopeVersion) { mutableStateOf<ImageBitmap?>(null) }
+    var recentPhotoName by remember(permissions.photoScopeVersion) { mutableStateOf("") }
+    var recentPhotoTime by remember(permissions.photoScopeVersion) { mutableStateOf("-") }
+    var recentPhotoLocation by remember(permissions.photoScopeVersion) { mutableStateOf("") }
     val cameraReturnRevision = IosCameraReturnSignal.revision
+    val recoveryMutex = remember(store) { Mutex() }
     var recoveryRevision by remember { mutableIntStateOf(0) }
     var recoveryPending by remember { mutableStateOf(IosCameraCaptureSession.hasPending()) }
     var recovering by remember { mutableStateOf(false) }
-    LaunchedEffect(editorKey, cameraReturnRevision, recoveryRevision) {
+    LaunchedEffect(editorKey, cameraReturnRevision, recoveryRevision, permissions.photoScopeVersion) {
         if (cameraPage != null) return@LaunchedEffect
         if (!projectLoadFailed) {
             runCatching { projectStore.load() }
@@ -99,12 +104,19 @@ internal fun HomeNavigationPoc(
         recoveryPending = IosCameraCaptureSession.hasPending()
         if (!loadFailed && IosCameraCaptureSession.hasPending()) {
             recovering = true
-            val recovered = runCatching { IosCameraCaptureSession.recover(store, template) }.getOrDefault(false)
+            val recovered = try {
+                recoveryMutex.withLock { IosCameraCaptureSession.recover(store, template) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            } finally {
+                recovering = false
+            }
             recoveryPending = IosCameraCaptureSession.hasPending()
-            recovering = false
             if (recovered) {
                 runCatching { store.load(template) }.onSuccess { workspace = it }
-            } else {
+            } else if (permissions.photos.readable) {
                 notice = "이전 촬영 기록을 복구하지 못했습니다. 추가 촬영은 보류됩니다."
             }
         }
@@ -114,7 +126,9 @@ internal fun HomeNavigationPoc(
         if (cameraReturnRevision > 0 && !loadFailed && !showGallery) {
             runCatching { store.load(template) }.onSuccess { workspace = it }
         }
-        if (!showGallery) {
+    }
+    LaunchedEffect(showGallery, cameraReturnRevision, permissions.photoScopeVersion) {
+        if (cameraPage == null && !showGallery && permissions.photos.readable) {
             val indexed = runCatching { photoRepository.listSavedAssets() }.getOrDefault(emptyList())
             val newestCapture = indexed.lastOrNull()?.captureId
             val recent = indexed.lastOrNull {
@@ -493,7 +507,12 @@ internal fun HomeNavigationPoc(
             editingEnabled = !loadFailed && !recoveryPending && !recovering, saveInfoEnabled = true,
             background = { HomeAmbientContent(painter = leaf) },
             recentCapture = {
-                HomeRecentCaptureContent(
+                if (recoveryPending && permissions.photos != IosAccess.ALLOWED) {
+                    androidx.compose.material3.Text(if (permissions.photos == IosAccess.LIMITED)
+                        "이전 촬영을 복구하려면 해당 사진을 선택해 주세요."
+                    else "이전 촬영을 복구하려면 사진 접근을 허용해 주세요.")
+                    PermissionCard(camera = false, access = permissions.photos)
+                } else HomeRecentCaptureContent(
                     hasImage = recentPhoto != null, displayName = recentPhotoName,
                     timeText = recentPhotoTime, locationText = recentPhotoLocation,
                     recentLabel = "최근 촬영",

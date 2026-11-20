@@ -1334,6 +1334,50 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("촬영 진동: 꺼짐").waitForExistence(timeout: 10))
     }
 
+    func testPhotoPermissionDeniedThenGrantedInSettingsRestoresGallery() {
+        app.resetAuthorizationStatus(for: .photos)
+        var restored = false
+        defer {
+            if !restored {
+                app.terminate()
+                app.resetAuthorizationStatus(for: .photos)
+            }
+        }
+        app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        tapButton("앨범 보기")
+        tapButton("사진 접근 허용하기")
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let deny = system.alerts.buttons.matching(NSPredicate(
+            format: "label IN %@", ["Don’t Allow", "Don't Allow"]
+        )).firstMatch
+        XCTAssertTrue(deny.waitForExistence(timeout: 10))
+        deny.tap()
+        XCTAssertTrue(text("거부됨").waitForExistence(timeout: 10))
+        tapButton("iPhone 설정 열기")
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 10))
+        let photos = settings.staticTexts["Photos"].firstMatch
+        XCTAssertTrue(photos.waitForExistence(timeout: 10), settings.debugDescription)
+        photos.tap()
+        let fullAccess = settings.descendants(matching: .any).matching(NSPredicate(
+            format: "label IN %@", ["Full Access", "All Photos"]
+        )).firstMatch
+        XCTAssertTrue(fullAccess.waitForExistence(timeout: 10), settings.debugDescription)
+        fullAccess.tap()
+        let confirm = settings.alerts.buttons["Allow Full Access"]
+        if confirm.exists { confirm.tap() }
+        // iOS may terminate the app when its privacy settings change.
+        if app.state == .notRunning { app.launch() } else { app.activate() }
+        if app.buttons["앨범 보기"].waitForExistence(timeout: 2) { tapButton("앨범 보기") }
+        XCTAssertTrue(app.buttons["폴더 보기"].waitForExistence(timeout: 15), app.debugDescription)
+        XCTAssertFalse(text("거부됨").exists)
+        restored = true
+        tapButton("뒤로가기")
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("촬영").isEnabled)
+    }
+
     func testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute() throws {
         app.launchArguments = ["--navigation-flow", "--reset-navigation-fixture"]
         app.launch()

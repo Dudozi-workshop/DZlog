@@ -13,6 +13,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
   ) ;;
   media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPhotoPermissionDeniedThenGrantedInSettingsRestoresGallery
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureHapticSettingPersistsFromGlobalSettings
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch

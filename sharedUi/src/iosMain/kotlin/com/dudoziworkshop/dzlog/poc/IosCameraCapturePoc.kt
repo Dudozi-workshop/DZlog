@@ -27,6 +27,7 @@ import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.TablePatch
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -77,7 +78,7 @@ internal fun IosCameraCapturePoc(
     val strength = session?.captureVibrationStrength ?: CaptureVibrationStrength.MEDIUM
     val captureFeedback = remember(strength) { IosCaptureFeedback(strength) }
     val scope = rememberCoroutineScope()
-    var ready by remember { mutableStateOf(false) }
+    var ready by remember(camera, permissions.captureAllowed) { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("카메라 확인 중") }
     var successfulSaves by remember { mutableIntStateOf(0) }
@@ -88,7 +89,7 @@ internal fun IosCameraCapturePoc(
     var workspacePage by remember { mutableStateOf<CameraWorkspacePage?>(null) }
     var showQuickValues by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
-    var showTools by remember { mutableStateOf(false) }
+    var showTools by remember(permissions.captureAllowed) { mutableStateOf(false) }
     var projectRegistry by remember(session) {
         mutableStateOf(session?.let { runCatching { it.loadProjectRegistry() }.getOrNull() })
     }
@@ -109,12 +110,12 @@ internal fun IosCameraCapturePoc(
     var placementRevision by remember { mutableIntStateOf(0) }
     var counterRevision by remember { mutableIntStateOf(0) }
     var counterSyncing by remember(session) { mutableStateOf(session?.selectedDocument?.usesAutoNext == true) }
-    var counterSyncReady by remember(session) { mutableStateOf(session?.selectedDocument?.usesAutoNext != true) }
+    var counterSyncReady by remember(session, permissions.captureAllowed, permissions.photoScopeVersion) { mutableStateOf(session?.selectedDocument?.usesAutoNext != true) }
     var liveTick by remember { mutableIntStateOf(0) }
-    var overlayReady by remember { mutableStateOf(false) }
-    var overlayEditing by remember { mutableStateOf(false) }
+    var overlayReady by remember(permissions.captureAllowed) { mutableStateOf(false) }
+    var overlayEditing by remember(permissions.captureAllowed) { mutableStateOf(false) }
     var focusCollapseToken by remember { mutableIntStateOf(0) }
-    var reviewVisible by remember { mutableStateOf(false) }
+    var reviewVisible by remember(permissions.photoScopeVersion) { mutableStateOf(false) }
     val liveHasClock = session?.selectedDocument?.template?.templateState?.cells?.any {
         it.dataType == TableCellDataType.DATE || it.dataType == TableCellDataType.TIME
     } == true
@@ -135,11 +136,11 @@ internal fun IosCameraCapturePoc(
 
     // Keep the visible filename and live overlay on the same persisted counter
     // that saveJpeg will verify again immediately before writing Photos.
-    LaunchedEffect(session, settingsRevision, permissions.photos, cameraAllowed) {
+    LaunchedEffect(session, settingsRevision, permissions.photoScopeVersion, permissions.captureAllowed) {
         if (session == null) return@LaunchedEffect
         counterSyncing = session.selectedDocument.usesAutoNext
         counterSyncReady = !counterSyncing
-        if (!permissions.photos.readable || !cameraAllowed) {
+        if (!permissions.captureAllowed) {
             counterSyncing = false
             return@LaunchedEffect
         }
@@ -148,6 +149,8 @@ internal fun IosCameraCapturePoc(
             val next = session.synchronizeAutomaticCounter()
             if (next != before) counterRevision += 1
             counterSyncReady = true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Throwable) {
             status = "촬영 번호 확인 실패: ${error.message}"
         } finally {
@@ -155,12 +158,13 @@ internal fun IosCameraCapturePoc(
         }
     }
 
-    LaunchedEffect(camera, cameraCovered, cameraAllowed) {
+    LaunchedEffect(camera, cameraCovered, permissions.captureAllowed, cameraAllowed) {
         try {
             ready = false
-            if (cameraCovered || !cameraAllowed) {
+            if (cameraCovered || !permissions.captureAllowed) {
                 withContext(Dispatchers.Default) { camera.stop() }
                 if (!cameraAllowed) status = "카메라 권한이 없습니다."
+                else if (!permissions.photos.readable) status = "촬영한 사진을 저장하려면 사진 접근을 허용해 주세요."
             } else if (!camera.configure()) {
                 status = "카메라를 사용할 수 없는 기기입니다."
             } else {
@@ -172,6 +176,8 @@ internal fun IosCameraCapturePoc(
                 ready = true
                 status = "카메라 준비 완료"
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Throwable) {
             status = "카메라 준비 실패: ${error.message}"
         }
@@ -248,11 +254,14 @@ internal fun IosCameraCapturePoc(
         session?.previewInfo()
     }
     val latestSessionCaptureId = session?.latestSessionCaptureId
-    val recentThumbnail by produceState<ImageBitmap?>(initialValue = null,
-        latestSessionCaptureId, successfulSaves) {
-        value = null
-        value = session?.readLatestSessionThumbnail()?.let { bytes ->
-            runCatching { SkiaImage.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
+    val recentThumbnail by key(permissions.photoScopeVersion) {
+        produceState<ImageBitmap?>(null, latestSessionCaptureId, successfulSaves) {
+            value = null
+            if (permissions.photos.readable) {
+                value = session?.readLatestSessionThumbnail()?.let { bytes ->
+                    runCatching { SkiaImage.makeFromEncoded(uprightIosImage(bytes)).toComposeImageBitmap() }.getOrNull()
+                }
+            }
         }
     }
     if (showInfo && session != null && info != null) IosCameraInfoDialog(
@@ -268,7 +277,7 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; workspacePage = CameraWorkspacePage.SAVE_SETTINGS },
         onDismiss = { showInfo = false },
     )
-    val captureEnabled = cameraAllowed && permissions.photos.readable && ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
+    val captureEnabled = permissions.captureAllowed && ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
         !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
@@ -384,7 +393,7 @@ internal fun IosCameraCapturePoc(
             modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
         Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),
             contentAlignment = Alignment.Center) {
-            if (ready && session != null) IosLiveTablePreview(
+            if (permissions.captureAllowed && ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 captureAspect = session.captureAspect.ratioF.toDouble(),
                 enabled = !busy && !reviewVisible && !session.hasPending() && !showTools &&
@@ -414,7 +423,7 @@ internal fun IosCameraCapturePoc(
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
                 onError = { status = it },
-            ) else if (ready) UIKitView(
+            ) else if (permissions.captureAllowed && ready) UIKitView(
                 modifier = Modifier.fillMaxSize(),
                 factory = {
                     object : UIView(frame = CGRectMake(0.0, 0.0, 1.0, 1.0)) {
@@ -518,7 +527,7 @@ internal fun IosCameraCapturePoc(
             toolsSelected = showTools,
             quickValuesEnabled = session != null && !busy && !reviewVisible && !overlayEditing &&
                 !showProjectPicker && !session.hasPending(),
-            undoEnabled = session?.canUndoLatestCapture == true && !busy && !reviewVisible &&
+            undoEnabled = permissions.photos.readable && session?.canUndoLatestCapture == true && !busy && !reviewVisible &&
                 !overlayEditing && !showProjectPicker,
             recentThumbnail = recentThumbnail,
             galleryLabel = if (session == null) "앨범 보기" else "촬영 결과 보기",
