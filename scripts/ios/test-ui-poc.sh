@@ -6,6 +6,7 @@ case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   quick-values) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
@@ -17,6 +18,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureHapticSettingPersistsFromGlobalSettings
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace

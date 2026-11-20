@@ -89,6 +89,34 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 13").exists)
     }
 
+    func testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 셀 선택")
+        tapScrollableButton("입력창 확대")
+        XCTAssertTrue(button("입력창 축소").exists)
+        tapScrollableButton("입력창 축소")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("다음 셀")
+        XCTAssertTrue(panelText("2행 2열 · 숫자").waitForExistence(timeout: 10))
+        typeWithVisibleKeyboard("3")
+        tapButton("이전 셀")
+        typeWithVisibleKeyboard("x")
+        tapButton("입력")
+        let preview = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명 · ", "bluex")).firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 10))
+        tapPanelText("1행 4열 셀 선택")
+        tapScrollableButton("문구 세트 · 과수원")
+        tapScrollableButton("온실")
+        tapButton("취소")
+        XCTAssertTrue(text("문구세트: set-a").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("숫자값: 1.20").exists)
+        XCTAssertFalse(text("입력값: bluex").exists)
+    }
+
     func testQuickGridWrapAndDraftAcrossCells() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()

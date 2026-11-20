@@ -3,7 +3,16 @@ package com.dudoziworkshop.dzlog.poc
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.CloseFullscreen
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -160,20 +169,27 @@ internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: Qui
     var selectedId by remember(templateId, ids) { mutableStateOf(selectionMemory.initialSelection(templateId, ids)) }
     val selectedCell = navigation.firstOrNull { it.cellId == selectedId }
     val focus = LocalFocusManager.current
+    val inputs = remember(document) {
+        cells.map { it.cellId to TextFieldValue(it.rawText, TextRange(it.rawText.length)) }.toMutableStateMap()
+    }
+    var inputFocused by remember(document) { mutableStateOf(false) }
+    var focusTarget by remember(document) { mutableStateOf<String?>(null) }
     fun select(id: String) {
         if (selectedId == id) return
-        focus.clearFocus()
+        val targetInput = inputs[id]
+        focusTarget = id.takeIf { inputFocused && targetInput != null }
+        if (focusTarget == null) focus.clearFocus()
+        if (targetInput != null) inputs[id] = TextFieldValue(targetInput.text, TextRange(targetInput.text.length))
         selectedId = id
         selectionMemory.recordSelection(templateId, id, ids)
     }
-    val values = remember(document) { cells.map { it.cellId to it.rawText }.toMutableStateMap() }
     val dateFormats = remember(document) { mutableStateMapOf<String, String>() }
     var phraseEdits by remember(document) { mutableStateOf(emptyList<IosQuickPhraseEdit>()) }
     var expandedAutomaticId by remember(document) { mutableStateOf<String?>(null) }
     var templateExpanded by remember(document) { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
-    val changedValues = cells.filter { values[it.cellId] != it.rawText }
-        .associate { it.cellId to values.getValue(it.cellId) }
+    val changedValues = cells.filter { inputs.getValue(it.cellId).text != it.rawText }
+        .associate { it.cellId to inputs.getValue(it.cellId).text }
     val changes = IosQuickValueChanges(changedValues, dateFormats.toMap(), phraseEdits = phraseEdits)
     val draft = remember(document, changes) { runCatching { applyIosQuickValueChanges(document, changes) }.getOrNull() }
     val phraseTable = draft?.template?.templateState ?: document.template.templateState
@@ -281,31 +297,55 @@ internal fun IosQuickValuesScreen(document: EditorDocument, selectionMemory: Qui
                     if (cell.dataType == TableCellDataType.TEXT || cell.dataType == TableCellDataType.NUMBER) {
                         val kind = if (cell.dataType == TableCellDataType.NUMBER) "숫자" else "텍스트"
                         val fieldLabel = "${quickCellPosition(cell)} · $kind"
-                        OutlinedTextField(value = values[cell.cellId].orEmpty(), onValueChange = { value ->
-                            values[cell.cellId] = if (cell.dataType == TableCellDataType.NUMBER)
-                                decimalInputOrPrevious(value, values[cell.cellId].orEmpty()) else value
+                        val number = cell.dataType == TableCellDataType.NUMBER
+                        val input = inputs.getValue(cell.cellId)
+                        val requester = remember { FocusRequester() }
+                        var expanded by remember(document) { mutableStateOf(false) }
+                        LaunchedEffect(focusTarget) {
+                            if (focusTarget == cell.cellId) {
+                                requester.requestFocus()
+                                focusTarget = null
+                            }
+                        }
+                        fun change(next: TextFieldValue) {
+                            val accepted = if (number) decimalInputOrPrevious(next.text, input.text) else next.text
+                            if (number && accepted != next.text.replace('−', '-')) return
+                            inputs[cell.cellId] = next.copy(text = accepted)
                             failure = null
-                        }, label = { Text(fieldLabel) },
-                            keyboardOptions = KeyboardOptions(keyboardType = if (cell.dataType == TableCellDataType.NUMBER)
-                                KeyboardType.Decimal else KeyboardType.Text),
-                            trailingIcon = if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
-                                { TableEditorTextFavoriteStar(values[cell.cellId].orEmpty(), favorites) }
-                            } else null,
-                            // iOS Compose exports the editable value but can omit the
-                            // Material floating label. Preserve position/type for VoiceOver
-                            // and touch-based UI selection even when the value is empty.
-                            modifier = Modifier.fillMaxWidth().semantics { contentDescription = fieldLabel })
-                        if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
+                        }
+                        OutlinedTextField(value = input, onValueChange = ::change, label = { Text(fieldLabel) },
+                            singleLine = number, maxLines = if (expanded) Int.MAX_VALUE else if (number) 1 else 2,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = if (number) KeyboardType.Decimal else KeyboardType.Text,
+                                imeAction = if (number) ImeAction.Done else ImeAction.Default,
+                            ),
+                            keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (!number && favorites != null) TableEditorTextFavoriteStar(input.text, favorites)
+                                    IconButton(onClick = {
+                                        if (number) {
+                                            val value = if (input.text.startsWith("-")) input.text.drop(1) else "-${input.text}"
+                                            change(TextFieldValue(value, TextRange(value.length)))
+                                        } else expanded = !expanded
+                                    }) {
+                                        if (number) Text("±") else Icon(
+                                            if (expanded) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull,
+                                            if (expanded) "입력창 축소" else "입력창 확대",
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                                .then(if (expanded) Modifier.height(DDZLayout.QuickInput.ExpandedHeight) else Modifier)
+                                .focusRequester(requester).onFocusChanged { inputFocused = it.isFocused }
+                                .semantics { contentDescription = fieldLabel })
+                        if (!number && favorites != null) {
                             TableEditorTextFavoritesRow(favorites, onApply = { text ->
-                                values[cell.cellId] = text
-                                failure = null
+                                change(TextFieldValue(text, TextRange(text.length)))
                             })
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            if (cell.dataType == TableCellDataType.NUMBER) TextButton(onClick = {
-                                val number = values[cell.cellId].orEmpty()
-                                values[cell.cellId] = if (number.startsWith("-")) number.drop(1) else "-$number"
-                            }) { Text("±") }
                             TextButton(onClick = { focus.clearFocus() }) { Text("입력") }
                         }
                     } else if (cell.dataType == TableCellDataType.COUNTER) {
