@@ -1,13 +1,18 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import platform.UIKit.UIImpactFeedbackGenerator
 import platform.UIKit.UIImpactFeedbackStyle
 
 /** Optional app haptic after AVFoundation accepts the shutter request. */
-internal class IosCaptureFeedback {
+internal class IosCaptureFeedback(strength: CaptureVibrationStrength) {
     private val impact = UIImpactFeedbackGenerator(
-        style = UIImpactFeedbackStyle.UIImpactFeedbackStyleMedium,
+        style = when (strength) {
+            CaptureVibrationStrength.LOW -> UIImpactFeedbackStyle.UIImpactFeedbackStyleLight
+            CaptureVibrationStrength.HIGH -> UIImpactFeedbackStyle.UIImpactFeedbackStyleHeavy
+            else -> UIImpactFeedbackStyle.UIImpactFeedbackStyleMedium
+        },
     )
 
     fun prepare(enabled: Boolean) {

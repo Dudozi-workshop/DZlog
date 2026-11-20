@@ -92,6 +92,7 @@ fun SettingsRootContent(
     onOpenGuide: () -> Unit,
     onOpenExport: () -> Unit,
     onOpenImport: () -> Unit,
+    permissionSubtitle: String = "카메라·사진 접근 및 폴더 연결",
     proSection: @Composable () -> Unit = {},
 ) {
     val uriHandler = LocalUriHandler.current
@@ -145,7 +146,7 @@ fun SettingsRootContent(
                         SettingsActionRow(
                             icon = Icons.Default.CheckCircle,
                             title = "권한 관리",
-                            subtitle = "카메라·사진 접근 및 폴더 연결",
+                            subtitle = permissionSubtitle,
                             onClick = onOpenPermissions,
                             trailing = { Icon(Icons.Default.ChevronRight, null, tint = DDZColor.IconMuted) },
                         )

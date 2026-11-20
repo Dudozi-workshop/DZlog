@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import androidx.compose.foundation.Image as ComposeImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -414,12 +415,16 @@ internal fun HomeNavigationPoc(
         IosCaptureFeedbackSettingsScreen(
             hapticEnabled = workspace.settings.captureHapticEnabled,
             onBack = { showCaptureFeedback = false },
-            onChangeHaptic = { enabled ->
-                persist(workspace.copy(settings = workspace.settings.copy(captureHapticEnabled = enabled)))
+            strength = workspace.settings.captureVibrationStrength,
+            onSelect = { choice ->
+                val enabled = choice != CaptureVibrationStrength.OFF
+                persist(workspace.copy(settings = workspace.settings.copy(captureHapticEnabled = enabled,
+                    captureVibrationStrength = if (enabled) choice else workspace.settings.captureVibrationStrength)))
             },
         )
     } else if (showSettings) {
         SettingsRootContent(
+            permissionSubtitle = "카메라·사진 보관함 접근",
             onBack = { showSettings = false }, qualityMode = workspace.settings.qualityMode,
             assistShutterEnabled = workspace.settings.assistShutterEnabled,
             undoSavePathWarningEnabled = workspace.settings.undoSavePathWarningEnabled,

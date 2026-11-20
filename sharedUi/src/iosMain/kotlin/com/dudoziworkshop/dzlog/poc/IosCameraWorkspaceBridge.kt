@@ -26,6 +26,7 @@ import platform.Foundation.NSUserDefaults
 import com.dudoziworkshop.dzlog.data.media.IosCaptureWorkspaceJournal
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoJournal
 import platform.Foundation.NSUUID
+import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPolicy
 import kotlin.math.roundToInt
 
 /**
@@ -45,7 +46,10 @@ internal class IosCameraCaptureSession(
     private val media get() = mediaRepository
     private val coordinator = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults))
     private val undoCoordinator = IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults))
-    private val sessionCaptures = mutableListOf<IosCaptureUndoRequest>()
+    private data class SessionCapture(val undo: IosCaptureUndoRequest, val folder: String)
+    data class UndoPathWarning(val captureId: String, val capturedFolder: String, val currentFolder: String)
+
+    private val sessionCaptures = mutableListOf<SessionCapture>()
     private val confirmedCaptureIds = mutableListOf<String>()
     fun sessionResultIds(): List<String> = confirmedCaptureIds.toList()
     private var projectAssociationWarning: String? = null
@@ -109,6 +113,7 @@ internal class IosCameraCaptureSession(
     val cameraZoom get() = workspace.settings.cameraZoomTenths / 10f
     val cameraFlashMode get() = workspace.settings.cameraFlashMode
     val continuousPreviewMode get() = workspace.settings.continuousPreviewMode
+    val captureVibrationStrength get() = workspace.settings.captureVibrationStrength
     val captureHapticEnabled get() = workspace.settings.captureHapticEnabled
     val captureAspect get() = com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(
         workspace.settings.captureAspectMode,
@@ -166,9 +171,23 @@ internal class IosCameraCaptureSession(
         return media.readThumbnail(selected.asset.assetId)
     }
 
-    suspend fun undoLatestCapture(): Boolean {
+    fun undoPathWarning(): UndoPathWarning? {
+        val last = sessionCaptures.lastOrNull() ?: return null
+        if (!workspace.settings.undoSavePathWarningEnabled) return null
+        val current = previewInfo().previewNaming.relativePath
+        return if (CaptureUndoPathWarningPolicy.requiresConfirmation(last.folder, current))
+            UndoPathWarning(last.undo.captureId, last.folder, current) else null
+    }
+
+    suspend fun undoLatestCapture(confirmedId: String?, disableWarning: Boolean): Boolean {
         check(!coordinator.hasPendingCapture()) { "이전 촬영 저장 기록을 먼저 복구해 주세요." }
-        val request = sessionCaptures.lastOrNull() ?: return false
+        val last = sessionCaptures.lastOrNull()?.undo ?: return false
+        if (confirmedId != null && confirmedId != last.captureId) return false
+        if (confirmedId == null && undoPathWarning() != null) return false
+        fun withWarningDisabled(value: EditorWorkspace) =
+            value.copy(settings = value.settings.copy(undoSavePathWarningEnabled = false))
+        val optOut = confirmedId != null && disableWarning
+        val request = if (optOut) last.copy(before = withWarningDisabled(last.before)) else last
         val rolledBack = undoCoordinator.deleteAndRollback(
             request = request,
             loadWorkspace = { store.load(request.after.active!!.template) },
@@ -177,6 +196,15 @@ internal class IosCameraCaptureSession(
         if (rolledBack) {
             workspace = store.load(request.before.active!!.template)
             sessionCaptures.removeAt(sessionCaptures.lastIndex)
+            if (optOut) {
+                // Older Undo entries must preserve this preference through subsequent rollbacks.
+                for (index in sessionCaptures.indices) {
+                    val capture = sessionCaptures[index]
+                    sessionCaptures[index] = capture.copy(undo = capture.undo.copy(
+                        before = withWarningDisabled(capture.undo.before),
+                        after = withWarningDisabled(capture.undo.after)))
+                }
+            }
             confirmedCaptureIds.remove(request.captureId)
             if (projectStore.removeCapture(request.captureId) == null) {
                 projectAssociationWarning = "사진은 삭제됐지만 프로젝트 촬영 기록을 갱신하지 못했습니다."
@@ -508,7 +536,8 @@ internal class IosCameraCaptureSession(
         )
         if (committed) {
             workspace = store.load(doc.template)
-            sessionCaptures += IosCaptureUndoRequest(plan.captureId, beforeCaptureWorkspace, workspace)
+            sessionCaptures += SessionCapture(IosCaptureUndoRequest(plan.captureId, beforeCaptureWorkspace, workspace),
+                preview.relativePathPreview)
             confirmedCaptureIds += plan.captureId
             val projects = runCatching { projectStore.load() }.getOrNull()
             if (projects?.activeId != null && projectStore.appendCapture(plan.captureId) == null) {

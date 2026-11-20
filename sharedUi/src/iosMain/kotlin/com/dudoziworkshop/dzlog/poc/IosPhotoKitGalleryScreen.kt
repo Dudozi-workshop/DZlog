@@ -68,6 +68,16 @@ internal fun IosPhotoKitGalleryScreen(
     resultCaptureIds: List<String>? = null,
     initialAssetId: String? = null,
 ) {
+    var photoScopeVersion by remember { mutableIntStateOf(0) }
+    val permissions = rememberIosPermissions(onPhotoScopeChanged = { photoScopeVersion++ })
+    if (!permissions.photos.readable) {
+        Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.dudoziworkshop.dzlog.ui.common.DDZTopBar(title = "갤러리", onBack = onBack)
+            PermissionCard(camera = false, access = permissions.photos)
+        }
+        return
+    }
     val scope = rememberCoroutineScope()
     var photos by remember { mutableStateOf<List<SavedCaptureMedia>>(emptyList()) }
     var folders by remember { mutableStateOf<List<String>>(listOf(GALLERY_ROOT)) }
@@ -125,7 +135,7 @@ internal fun IosPhotoKitGalleryScreen(
     var folderTarget by remember { mutableStateOf(GALLERY_ROOT) }
     var folderName by remember { mutableStateOf("") }
     var folderError by remember { mutableStateOf<String?>(null) }
-    val thumbnails = remember { LinkedHashMap<String, ImageBitmap>() }
+    val thumbnails = remember(photoScopeVersion) { LinkedHashMap<String, ImageBitmap>() }
     val effectivePhotoSort = if (recentView) SavedGalleryPhotoSort.NEWEST else photoSort
     val scopedPhotos = when {
         recentView -> SavedGalleryEntryPolicy.recentAll(photos)
@@ -302,7 +312,13 @@ internal fun IosPhotoKitGalleryScreen(
             }) { Text(if (action == "delete") "삭제" else "저장") } },
             dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
-    LaunchedEffect(Unit) { refresh() }
+    var refreshedScope by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(photoScopeVersion, managing, refreshing) {
+        if (!managing && !refreshing && refreshedScope != photoScopeVersion) {
+            refreshedScope = photoScopeVersion
+            refresh()
+        }
+    }
     LaunchedEffect(photos, folder, favoritesOnly, favorites, viewer, photoSort) {
         // A viewer can intentionally show the other capture companion outside
         // the filter. Reconcile the list preview when returning to the list.
@@ -316,7 +332,7 @@ internal fun IosPhotoKitGalleryScreen(
                 ?: visible.firstOrNull())?.asset?.assetId
         }
     }
-    LaunchedEffect(selectedId, photos, folder, favoritesOnly, imageLoadRevision) {
+    LaunchedEffect(selectedId, photos, folder, favoritesOnly, imageLoadRevision, photoScopeVersion) {
         image = null
         val entry = photos.firstOrNull { it.asset.assetId == selectedId }
         if (entry == null) {
@@ -446,6 +462,11 @@ internal fun IosPhotoKitGalleryScreen(
 
     Column(Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (permissions.photos == IosAccess.LIMITED && (!viewer || viewerControls)) {
+            TextButton(enabled = !managing && !refreshing, onClick = {
+                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.permissionAction", "selection")
+            }) { Text("선택한 사진 변경") }
+        }
         if (viewer) {
             // Every navigation entry point shares the active filtered order.
             val entries = resultEntries ?: visible
@@ -499,7 +520,7 @@ internal fun IosPhotoKitGalleryScreen(
                     repository = repository,
                     entries = entries,
                     selectedId = selectedId,
-                    imageLoadRevision = imageLoadRevision,
+                    imageLoadRevision = imageLoadRevision + photoScopeVersion,
                     enabled = !managing && !refreshing,
                     showControls = viewerControls,
                     onSelected = { selectedId = it },
@@ -704,7 +725,8 @@ internal fun IosPhotoKitGalleryScreen(
                         gridItems(visible, key = { it.asset.assetId }) { entry ->
                             val thumbnail by produceState<ImageBitmap?>(
                                 if (entry.availability == CaptureMediaAvailability.PRESENT) thumbnails[entry.asset.assetId] else null,
-                                entry.asset.assetId, entry.availability) {
+                                entry.asset.assetId, entry.availability, photoScopeVersion) {
+                                value = thumbnails[entry.asset.assetId]
                                 if (entry.availability != CaptureMediaAvailability.PRESENT) {
                                     value = null
                                     thumbnails.remove(entry.asset.assetId)

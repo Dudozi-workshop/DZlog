@@ -9,14 +9,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,87 +38,109 @@ import platform.Photos.PHAuthorizationStatusNotDetermined
 import platform.Photos.PHAuthorizationStatusRestricted
 import platform.Photos.PHPhotoLibrary
 
-@Composable
-internal fun IosPermissionsSettingsScreen(onBack: () -> Unit) {
-    var refreshRevision by remember { mutableIntStateOf(0) }
-    var cameraStatus by remember { mutableStateOf("확인 중") }
-    val photosStatus = remember(refreshRevision) { iosPhotosPermissionLabel() }
-    val center = remember { NSNotificationCenter.defaultCenter }
+internal enum class IosAccess(val label: String) {
+    UNKNOWN("확인 중"), UNDETERMINED("요청 전"), DENIED("거부됨"), RESTRICTED("제한됨"),
+    LIMITED("선택한 사진만"), ALLOWED("허용됨");
 
-    DisposableEffect(center) {
-        val observer = center.addObserverForName(
-            IOS_PERMISSION_STATUS_UPDATED, null, NSOperationQueue.mainQueue,
-        ) { notification ->
-            cameraStatus = notification?.`object` as? String ?: "확인 필요"
+    val readable get() = this == ALLOWED || this == LIMITED
+}
+
+internal data class IosPermissions(val camera: IosAccess, val photos: IosAccess)
+
+private fun currentPhotosAccess(): IosAccess = when (PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)) {
+    PHAuthorizationStatusAuthorized -> IosAccess.ALLOWED
+    PHAuthorizationStatusLimited -> IosAccess.LIMITED
+    PHAuthorizationStatusDenied -> IosAccess.DENIED
+    PHAuthorizationStatusRestricted -> IosAccess.RESTRICTED
+    PHAuthorizationStatusNotDetermined -> IosAccess.UNDETERMINED
+    else -> IosAccess.UNKNOWN
+}
+
+internal fun openIosSystemSettings() {
+    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openSystemSettings", null)
+}
+
+private fun refreshPermissions() {
+    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.permissionStatusRequest", null)
+}
+
+@Composable
+internal fun rememberIosPermissions(
+    initialCamera: IosAccess = IosAccess.UNKNOWN,
+    onPhotoScopeChanged: () -> Unit = {},
+): IosPermissions {
+    var state by remember { mutableStateOf(IosPermissions(initialCamera, currentPhotosAccess())) }
+    val changed by rememberUpdatedState(onPhotoScopeChanged)
+    DisposableEffect(Unit) {
+        val center = NSNotificationCenter.defaultCenter
+        val observer = center.addObserverForName("dzlog.permissionStatusUpdated", null, NSOperationQueue.mainQueue) { event ->
+            val camera = when (event?.`object` as? String) {
+                "allowed" -> IosAccess.ALLOWED
+                "denied" -> IosAccess.DENIED
+                "restricted" -> IosAccess.RESTRICTED
+                "undetermined" -> IosAccess.UNDETERMINED
+                else -> IosAccess.UNKNOWN
+            }
+            val photos = currentPhotosAccess()
+            val scopeMayDiffer = state.photos != photos || photos == IosAccess.LIMITED
+            state = IosPermissions(camera, photos)
+            if (scopeMayDiffer) changed()
         }
-        center.postNotificationName(IOS_PERMISSION_STATUS_REQUEST, null)
+        refreshPermissions()
         onDispose { center.removeObserver(observer) }
     }
+    return state
+}
 
-    Scaffold(
-        containerColor = DDZColor.Background,
-        topBar = { DDZTopBar(title = "권한 관리", onBack = onBack) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = DDZSpacing.screenPadding, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            PermissionStatusRow("카메라 권한", cameraStatus,
-                "사진 촬영과 초점·줌 제어에 사용합니다.")
-            HorizontalDivider(color = DDZColor.Border)
-            PermissionStatusRow("사진 권한", photosStatus,
-                "촬영 결과 저장, 갤러리 조회와 직전 촬영 삭제에 사용합니다.")
-            Text(
-                "권한 요청은 카메라 또는 사진 기능을 처음 사용할 때 표시됩니다. " +
-                    "거부한 권한은 iPhone 설정에서 변경할 수 있습니다.",
-                style = DDZTypography.Body,
-                color = DDZColor.TextSecondary,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Button(onClick = {
-                    refreshRevision += 1
-                    center.postNotificationName(IOS_PERMISSION_STATUS_REQUEST, null)
-                }) { Text("상태 새로고침") }
-                Button(onClick = {
-                    NSNotificationCenter.defaultCenter.postNotificationName(
-                        "dzlog.openSystemSettings", null,
-                    )
-                }) { Text("iPhone 설정 열기") }
+@Composable
+internal fun PermissionCard(camera: Boolean, access: IosAccess) {
+    val title = if (camera) "카메라 권한" else "사진 권한"
+    val explanation = when {
+        access == IosAccess.RESTRICTED -> "기기의 사용 제한 설정을 확인해 주세요."
+        access == IosAccess.DENIED -> "iPhone 설정에서 ${if (camera) "카메라" else "사진"} 접근을 허용해 주세요."
+        access == IosAccess.LIMITED -> "DZlog가 접근할 수 있는 사진을 선택하거나 변경할 수 있어요."
+        camera -> "사진과 기록표를 촬영할 때 사용해요."
+        else -> "촬영한 사진을 저장하고 갤러리에서 확인할 때 사용해요."
+    }
+    Surface(Modifier.fillMaxWidth(), color = DDZColor.Surface, shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), style = DDZTypography.SettingLabel, color = DDZColor.PrimaryDark)
+                Text(if (!camera && access == IosAccess.ALLOWED) "전체 허용" else access.label,
+                    style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            }
+            Text(explanation, style = DDZTypography.Body, color = DDZColor.TextSecondary)
+            when (access) {
+                IosAccess.UNDETERMINED, IosAccess.LIMITED -> TextButton(onClick = {
+                    val action = if (camera) "camera" else if (access == IosAccess.LIMITED) "selection" else "photos"
+                    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.permissionAction", action)
+                }) {
+                    Text(if (camera) "카메라 권한 허용하기" else if (access == IosAccess.LIMITED) "선택한 사진 변경" else "사진 접근 허용하기")
+                }
+                IosAccess.DENIED -> TextButton(onClick = ::openIosSystemSettings) { Text("iPhone 설정 열기") }
+                else -> Unit
             }
         }
     }
 }
 
 @Composable
-private fun PermissionStatusRow(title: String, status: String, explanation: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = DDZTypography.ScreenTitle, color = DDZColor.PrimaryDark)
-            Text(explanation, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+internal fun IosPermissionsSettingsScreen(onBack: () -> Unit) {
+    val permission = rememberIosPermissions()
+    Scaffold(containerColor = DDZColor.Background,
+        topBar = { DDZTopBar(title = "권한 관리", onBack = onBack) },
+    ) { innerPadding ->
+        Column(Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState())
+            .padding(horizontal = DDZSpacing.screenPadding, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            PermissionCard(camera = true, access = permission.camera)
+            PermissionCard(camera = false, access = permission.photos)
+            Text("촬영 결과는 iPhone 사진 보관함에 저장돼요. DZlog 안에서는 프로젝트와 폴더별로 확인할 수 있어요.",
+                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            TextButton(onClick = ::refreshPermissions) { Text("상태 새로고침") }
+            if (permission.camera != IosAccess.DENIED && permission.photos != IosAccess.DENIED) {
+                TextButton(onClick = ::openIosSystemSettings) { Text("iPhone 설정 열기") }
+            }
         }
-        Text(status, style = DDZTypography.Body, color = DDZColor.TextPrimary)
     }
-}
-
-private const val IOS_PERMISSION_STATUS_REQUEST = "dzlog.permissionStatusRequest"
-private const val IOS_PERMISSION_STATUS_UPDATED = "dzlog.permissionStatusUpdated"
-
-private fun iosPhotosPermissionLabel(): String = when (
-    PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)
-) {
-    PHAuthorizationStatusAuthorized -> "전체 허용"
-    PHAuthorizationStatusLimited -> "선택한 사진만"
-    PHAuthorizationStatusDenied -> "거부됨"
-    PHAuthorizationStatusRestricted -> "제한됨"
-    PHAuthorizationStatusNotDetermined -> "요청 전"
-    else -> "확인 필요"
 }

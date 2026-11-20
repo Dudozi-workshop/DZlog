@@ -1,6 +1,7 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
@@ -69,9 +70,12 @@ internal fun IosCameraCapturePoc(
     onBack: (() -> Unit)? = null,
     session: IosCameraCaptureSession? = null,
 ) {
+    val permissions = rememberIosPermissions(if (permissionGranted) IosAccess.ALLOWED else IosAccess.UNKNOWN)
+    val cameraAllowed = permissions.camera == IosAccess.ALLOWED
     val camera = remember { IosAvFoundationCamera() }
     val repository = remember(session) { session?.mediaRepository ?: PhotoKitCaptureMediaRepository() }
-    val captureFeedback = remember { IosCaptureFeedback() }
+    val strength = session?.captureVibrationStrength ?: CaptureVibrationStrength.MEDIUM
+    val captureFeedback = remember(strength) { IosCaptureFeedback(strength) }
     val scope = rememberCoroutineScope()
     var ready by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -138,10 +142,14 @@ internal fun IosCameraCapturePoc(
 
     // Keep the visible filename and live overlay on the same persisted counter
     // that saveJpeg will verify again immediately before writing Photos.
-    LaunchedEffect(session, settingsRevision) {
+    LaunchedEffect(session, settingsRevision, permissions.photos, cameraAllowed) {
         if (session == null) return@LaunchedEffect
         counterSyncing = session.selectedDocument.usesAutoNext
         counterSyncReady = !counterSyncing
+        if (!permissions.photos.readable || !cameraAllowed) {
+            counterSyncing = false
+            return@LaunchedEffect
+        }
         try {
             val before = session.selectedDocument.nextCounter
             val next = session.synchronizeAutomaticCounter()
@@ -154,13 +162,12 @@ internal fun IosCameraCapturePoc(
         }
     }
 
-    LaunchedEffect(camera, cameraCovered) {
+    LaunchedEffect(camera, cameraCovered, cameraAllowed) {
         try {
             ready = false
-            if (cameraCovered) {
+            if (cameraCovered || !cameraAllowed) {
                 withContext(Dispatchers.Default) { camera.stop() }
-            } else if (!permissionGranted) {
-                status = "카메라 권한이 없습니다."
+                if (!cameraAllowed) status = "카메라 권한이 없습니다."
             } else if (!camera.configure()) {
                 status = "카메라를 사용할 수 없는 기기입니다."
             } else {
@@ -268,7 +275,7 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; workspacePage = CameraWorkspacePage.SAVE_SETTINGS },
         onDismiss = { showInfo = false },
     )
-    val captureEnabled = ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
+    val captureEnabled = cameraAllowed && permissions.photos.readable && ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
         !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
@@ -315,14 +322,15 @@ internal fun IosCameraCapturePoc(
             busy = false
         }
     }
-    val triggerUndo: () -> Unit = {
+    var pendingUndo by remember(session) { mutableStateOf<IosCameraCaptureSession.UndoPathWarning?>(null) }
+    fun performUndo(confirmedId: String?, disableWarning: Boolean) {
         if (session != null && session.canUndoLatestCapture && !busy && !showSettings) {
             busy = true
             showTools = false
             status = "직전 촬영 삭제 중"
             scope.launch {
                 try {
-                    if (session.undoLatestCapture()) {
+                    if (session.undoLatestCapture(confirmedId, disableWarning)) {
                         successfulSaves = (successfulSaves - 1).coerceAtLeast(0)
                         counterRevision += 1
                         status = session.takeProjectAssociationWarning()
@@ -337,6 +345,22 @@ internal fun IosCameraCapturePoc(
                 }
             }
         }
+    }
+    val triggerUndo: () -> Unit = {
+        if (!busy && pendingUndo == null && session?.canUndoLatestCapture == true) {
+            pendingUndo = session.undoPathWarning()
+            if (pendingUndo == null) performUndo(null, false)
+        }
+    }
+    pendingUndo?.let { warning ->
+        com.dudoziworkshop.dzlog.ui.camera.CameraUndoPathWarningDialog(
+            capturedFolder = warning.capturedFolder, currentFolder = warning.currentFolder,
+            onCancel = { pendingUndo = null },
+            onConfirm = { disableWarning ->
+                pendingUndo = null
+                performUndo(warning.captureId, disableWarning)
+            },
+        )
     }
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background).safeDrawingPadding(),
@@ -359,7 +383,7 @@ internal fun IosCameraCapturePoc(
             onClick = { showTools = false; showProjectPicker = true },
         )
         IosCameraStatusStrip(status, successfulSaves)
-        if (permissionGranted && onBack != null && session == null) Text(
+        if (cameraAllowed && onBack != null && session == null) Text(
             "촬영할 템플릿과 저장 설정이 준비되지 않았습니다.",
             modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
         if (session?.hasPending() == true) Text(
@@ -409,6 +433,10 @@ internal fun IosCameraCapturePoc(
                     }.apply { layer.addSublayer(camera.previewLayer) }
                 },
             )
+            if (!showTools && !busy && !reviewVisible) {
+                if (!cameraAllowed) PermissionCard(camera = true, access = permissions.camera)
+                else if (!permissions.photos.readable) PermissionCard(camera = false, access = permissions.photos)
+            }
             if (showTools) IosCameraToolPanel(
                 ready = ready && !busy && !reviewVisible,
                 flashAvailable = camera.flashAvailable,

@@ -1,5 +1,7 @@
 import UIKit
 import AVFoundation
+import Photos
+import PhotosUI
 import UniformTypeIdentifiers
 import DZlogUi
 
@@ -9,6 +11,7 @@ import DZlogUi
 final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDelegate {
     var window: UIWindow?
     private var cameraPresentedOrPending = false
+    private var permissionActionPending = false
     private var awaitingWorkspaceImport = false
     private var exportedTemporaryURL: URL?
     private var testWorkspaceArchive: String?
@@ -19,6 +22,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     private static let sharePhoto = Notification.Name("dzlog.sharePhoto")
     private static let sharePhotoFinished = Notification.Name("dzlog.sharePhotoFinished")
     private static let openSystemSettings = Notification.Name("dzlog.openSystemSettings")
+    private static let permissionAction = Notification.Name("dzlog.permissionAction")
     private static let permissionStatusRequest = Notification.Name("dzlog.permissionStatusRequest")
     private static let permissionStatusUpdated = Notification.Name("dzlog.permissionStatusUpdated")
     private static let exportWorkspace = Notification.Name("dzlog.exportWorkspace")
@@ -47,6 +51,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
         NotificationCenter.default.addObserver(
             self, selector: #selector(openSystemSettingsFromSettings(_:)),
             name: Self.openSystemSettings, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handlePermissionAction(_:)), name: Self.permissionAction, object: nil
         )
         NotificationCenter.default.addObserver(
             self, selector: #selector(reportPermissionStatus(_:)),
@@ -225,15 +232,52 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     }
 
     @objc private func reportPermissionStatus(_ notification: Notification) {
-        let label: String
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized: label = "허용됨"
-        case .denied: label = "거부됨"
-        case .restricted: label = "제한됨"
-        case .notDetermined: label = "요청 전"
-        @unknown default: label = "확인 필요"
+        publishPermissions()
+    }
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        publishPermissions()
+    }
+
+    private var cameraAuthorization: AVAuthorizationStatus {
+        if CommandLine.arguments.contains("--deny-camera-permission-for-ui-test") { return .denied }
+        return AVCaptureDevice.authorizationStatus(for: .video)
+    }
+
+    private func publishPermissions() {
+        let status: String
+        switch cameraAuthorization {
+        case .authorized: status = "allowed"
+        case .denied: status = "denied"
+        case .restricted: status = "restricted"
+        case .notDetermined: status = "undetermined"
+        @unknown default: status = "unknown"
         }
-        NotificationCenter.default.post(name: Self.permissionStatusUpdated, object: label)
+        NotificationCenter.default.post(name: Self.permissionStatusUpdated, object: status)
+    }
+
+    @objc private func handlePermissionAction(_ notification: Notification) {
+        guard !permissionActionPending, let action = notification.object as? String else { return }
+        let finish = { [weak self] in
+            DispatchQueue.main.async {
+                self?.permissionActionPending = false
+                self?.publishPermissions()
+            }
+        }
+        switch action {
+        case "camera" where cameraAuthorization == .notDetermined:
+            permissionActionPending = true
+            resolveCameraPermission { _ in finish() }
+        case "photos" where PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined:
+            permissionActionPending = true
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { _ in finish() }
+        case "selection" where PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited:
+            guard let presenter = availablePresenter(), presenter.viewIfLoaded?.window != nil else { return }
+            permissionActionPending = true
+            PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: presenter) { _ in finish() }
+        default:
+            publishPermissions()
+        }
     }
 
     @objc private func exportWorkspaceFromSettings(_ notification: Notification) {
@@ -348,12 +392,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
     }
 
     private func resolveCameraPermission(completion: @escaping (Bool) -> Void) {
-        // Deterministic UI fixture only: may force denial, never grant permission.
-        if CommandLine.arguments.contains("--deny-camera-permission-for-ui-test") {
-            completion(false)
-            return
-        }
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        switch cameraAuthorization {
         case .authorized:
             completion(true)
         case .notDetermined:

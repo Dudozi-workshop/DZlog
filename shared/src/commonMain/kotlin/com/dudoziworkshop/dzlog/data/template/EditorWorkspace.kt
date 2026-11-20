@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.template
 
 import com.dudoziworkshop.dzlog.data.json.CompatJsonObject
 import com.dudoziworkshop.dzlog.data.json.CompatJsonArray
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import kotlin.math.roundToInt
 
 /** Local preferences shared by the existing settings presentation. Platform effects remain separate. */
@@ -18,6 +19,7 @@ data class WorkspaceSettings(
     val continuousPreviewMode: Int = 0,
     val captureHapticEnabled: Boolean = true,
     val captureAspectMode: Int = 0,
+    val captureVibrationStrength: CaptureVibrationStrength = CaptureVibrationStrength.MEDIUM,
 ) {
     init {
         require(qualityMode in 0..2)
@@ -67,6 +69,7 @@ object EditorWorkspaceCodec {
             .put("cameraFlashMode", value.settings.cameraFlashMode)
             .put("continuousPreviewMode", value.settings.continuousPreviewMode)
             .put("captureHapticEnabled", value.settings.captureHapticEnabled)
+            .put("captureVibrationStrength", value.settings.captureVibrationStrength.storedId)
             .put("captureAspectMode", value.settings.captureAspectMode).toString()
     }
     fun decode(json: String): EditorWorkspace {
@@ -89,6 +92,8 @@ object EditorWorkspaceCodec {
             cameraFlashMode = root.optInt("cameraFlashMode", 0).coerceIn(0, 2),
             continuousPreviewMode = root.optInt("continuousPreviewMode", 0).coerceIn(0, 2),
             captureHapticEnabled = root.optBoolean("captureHapticEnabled", true),
+            captureVibrationStrength = CaptureVibrationStrength.fromStored(root.optInt("captureVibrationStrength", 2))
+                .takeUnless { it == CaptureVibrationStrength.OFF } ?: CaptureVibrationStrength.MEDIUM,
             captureAspectMode = root.optInt("captureAspectMode", 0).coerceIn(0, 2),
         ))
     }

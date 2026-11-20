@@ -947,6 +947,7 @@ final class PreviewInteractionTests: XCTestCase {
         // The aligned camera chrome no longer renders a redundant screen title.
         XCTAssertTrue(app.buttons["촬영 도구"].waitForExistence(timeout: 20))
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(button("iPhone 설정 열기").isEnabled)
         XCTAssertTrue(text("이번 촬영: 0장").exists)
         XCTAssertFalse(button("촬영").isEnabled)
     }
@@ -1248,7 +1249,8 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("촬영 효과음 및 진동")
         XCTAssertTrue(text("촬영 진동: 켜짐").waitForExistence(timeout: 10))
         XCTAssertTrue(try screenContains("시스템 설정과 지역 정책"))
-        tapButton("촬영 진동 끄기")
+        tapPanelText("강함")
+        tapPanelText("OFF")
         XCTAssertTrue(text("촬영 진동: 꺼짐").waitForExistence(timeout: 10))
         XCTAssertFalse(button("진동 미리보기").isEnabled)
 
@@ -1267,10 +1269,15 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("권한 관리")
         XCTAssertTrue(text("카메라 권한").waitForExistence(timeout: 10))
         XCTAssertTrue(text("사진 권한").exists)
-        XCTAssertTrue(try screenContains("권한 요청은 카메라 또는 사진 기능을 처음 사용할 때"))
+        XCTAssertTrue(panelText("촬영 결과는 iPhone 사진 보관함에 저장돼요. DZlog 안에서는 프로젝트와 폴더별로 확인할 수 있어요.").exists)
         XCTAssertTrue(button("상태 새로고침").isEnabled)
         XCTAssertTrue(button("iPhone 설정 열기").isEnabled)
         tapButton("상태 새로고침")
+        tapButton("iPhone 설정 열기")
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 10))
+        app.activate()
+        XCTAssertTrue(text("권한 관리").waitForExistence(timeout: 10))
         XCTAssertTrue(text("카메라 권한").exists)
     }
 

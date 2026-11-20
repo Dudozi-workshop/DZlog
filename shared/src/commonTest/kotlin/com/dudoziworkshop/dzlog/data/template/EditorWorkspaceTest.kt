@@ -2,6 +2,7 @@ package com.dudoziworkshop.dzlog.data.template
 
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import kotlin.test.*
 
 class EditorWorkspaceTest {
@@ -14,7 +15,7 @@ class EditorWorkspaceTest {
             WorkspaceSettings(2, true, false, showCameraGrid = true, showCameraTable = false,
                 assistShutterXRatio = 0.31f, assistShutterYRatio = 0.74f,
                 cameraZoomTenths = 27, cameraFlashMode = 2, continuousPreviewMode = 2,
-                captureHapticEnabled = false, captureAspectMode = 2))
+                captureHapticEnabled = false, captureAspectMode = 2, captureVibrationStrength = CaptureVibrationStrength.HIGH))
         assertEquals(value, EditorWorkspaceCodec.decode(EditorWorkspaceCodec.encode(value)))
         val legacy = document("legacy")
         assertEquals(listOf(legacy), editorWorkspaceFromLegacy(legacy, document("seed").template).documents)
@@ -23,6 +24,7 @@ class EditorWorkspaceTest {
     }
     @Test fun legacyCameraPreferencesUseSafeDefaults() {
         val json = EditorWorkspaceCodec.encode(EditorWorkspace(listOf(document("a")), "a"))
+            .replace(",\"captureVibrationStrength\":2", "")
             .replace(",\"cameraGrid\":false", "")
             .replace(",\"cameraTable\":true", "")
             .replace(",\"assistX10000\":8200", "")
@@ -41,6 +43,7 @@ class EditorWorkspaceTest {
         assertEquals(0, settings.cameraFlashMode)
         assertEquals(0, settings.continuousPreviewMode)
         assertTrue(settings.captureHapticEnabled)
+        assertEquals(CaptureVibrationStrength.MEDIUM, settings.captureVibrationStrength)
         assertEquals(0, settings.captureAspectMode)
     }
     @Test fun rejectsDamageDuplicatesAndMissingActiveWithoutDroppingDocuments() {

@@ -28,15 +28,9 @@ import com.dudoziworkshop.dzlog.ui.theme.LocalDDZColor
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 
-internal data class PendingCameraUndoPathWarning(
-    val captureUris: List<String>,
-    val capturedFolder: String,
-    val currentFolder: String,
-)
-
 /** The calling screen owns deletion, consent validity and its Undo stack. */
 @Composable
-internal fun CameraUndoPathWarningDialog(
+fun CameraUndoPathWarningDialog(
     capturedFolder: String,
     currentFolder: String,
     onCancel: () -> Unit,

@@ -9,17 +9,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.ui.common.DDZTopBar
@@ -31,19 +30,12 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 @Composable
 internal fun IosCaptureFeedbackSettingsScreen(
     hapticEnabled: Boolean,
+    strength: CaptureVibrationStrength,
     onBack: () -> Unit,
-    onChangeHaptic: (Boolean) -> Boolean,
+    onSelect: (CaptureVibrationStrength) -> Boolean,
 ) {
-    val feedback = remember { IosCaptureFeedback() }
+    val feedback = remember(strength) { IosCaptureFeedback(strength) }
     var saveFailed by remember { mutableStateOf(false) }
-
-    fun changeHaptic(next: Boolean) {
-        saveFailed = !onChangeHaptic(next)
-        if (!saveFailed && next) {
-            feedback.prepare(true)
-            feedback.play(true)
-        }
-    }
 
     Scaffold(
         containerColor = DDZColor.Background,
@@ -56,24 +48,18 @@ internal fun IosCaptureFeedbackSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("촬영 진동", style = DDZTypography.ScreenTitle, color = DDZColor.PrimaryDark)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        if (hapticEnabled) "촬영 진동: 켜짐" else "촬영 진동: 꺼짐",
-                        style = DDZTypography.Body,
-                        color = DDZColor.TextPrimary,
-                    )
-                    Text("촬영 요청이 접수될 때 진동합니다.", style = DDZTypography.Caption,
-                        color = DDZColor.TextSecondary)
+            Text(if (hapticEnabled) "촬영 진동: 켜짐" else "촬영 진동: 꺼짐",
+                style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CaptureVibrationStrength.entries.forEach { choice ->
+                    FilterChip(selected = choice == (if (hapticEnabled) strength else CaptureVibrationStrength.OFF),
+                        onClick = {
+                            saveFailed = !onSelect(choice)
+                            if (!saveFailed && choice != CaptureVibrationStrength.OFF) {
+                                IosCaptureFeedback(choice).play(true)
+                            }
+                        }, label = { Text(choice.label) })
                 }
-                Switch(checked = hapticEnabled, onCheckedChange = ::changeHaptic)
-            }
-            TextButton(onClick = { changeHaptic(!hapticEnabled) }) {
-                Text(if (hapticEnabled) "촬영 진동 끄기" else "촬영 진동 켜기")
             }
             Button(enabled = hapticEnabled, onClick = {
                 feedback.prepare(true)
