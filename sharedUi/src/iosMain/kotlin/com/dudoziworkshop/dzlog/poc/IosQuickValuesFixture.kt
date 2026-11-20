@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.domain.model.*
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
@@ -20,6 +21,7 @@ private const val QUICK_TEST_KEY = "dzlog.ios.quick-values.uitest.v1"
 /** Synthetic sensor only; production quick-input UI, workspace, renderer and PhotoKit. */
 @Composable
 internal fun IosQuickValuesFixture() {
+    val projectFlow = remember { NSProcessInfo.processInfo.arguments.contains("--quick-project-switch") }
     val seed = remember {
         SavedTableTemplate("quick-values", "빠른 입력 검증", TableTemplateState(2, 4, listOf(
             TableCellState(0, 0, cellId = "heading", rawText = "HEADER", colSpan = 2, quickEditable = false),
@@ -37,6 +39,8 @@ internal fun IosQuickValuesFixture() {
                 RotatingPhraseSet("set-a", "과수원", listOf("A", "B")),
                 RotatingPhraseSet("set-b", "온실", listOf("C", "D")),
             ),
+            pathSlotDrafts = if (projectFlow) listOf(TableEditorSlotDraft("MANUAL", "직접입력", manualText = "orchard"))
+                else emptyList(),
             fileNameSlotDrafts = listOf(TableEditorSlotDraft("CELL", "입력", cellId = "note"),
                 TableEditorSlotDraft("CELL", "번호", cellId = "counter"))), TableStyleState(), 0L)
     }
@@ -44,7 +48,9 @@ internal fun IosQuickValuesFixture() {
         seed.copy(
             id = "quick-values-alt",
             name = "빠른 입력 보조",
-            templateState = seed.templateState.copy(cells = seed.templateState.cells.map { cell ->
+            templateState = seed.templateState.copy(pathSlotDrafts = if (projectFlow)
+                listOf(TableEditorSlotDraft("MANUAL", "직접입력", manualText = "lab")) else seed.templateState.pathSlotDrafts,
+                cells = seed.templateState.cells.map { cell ->
                 if (cell.cellId == "note") cell.copy(rawText = "SECOND", typedValue = CellValue.Text("SECOND")) else cell
             }),
             modifiedAt = 1L,
@@ -54,6 +60,9 @@ internal fun IosQuickValuesFixture() {
     val session = remember {
         if (NSProcessInfo.processInfo.arguments.contains("--reset-quick-values-fixture")) {
             check(!IosCameraCaptureSession.hasPending())
+            val projects = if (projectFlow) IosCaptureProjectRegistry().rememberTemplate(seed.id)
+                .create("p", "조사", 0L, seed.id).select("p") else IosCaptureProjectRegistry()
+            check(IosCaptureProjectStore(QUICK_TEST_KEY).save(projects))
             val placement = EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)
             check(store.save(EditorWorkspace(listOf(
                 EditorDocument(seed, nextCounter = 12, usesAutoNext = false, capturePlacement = placement),
@@ -93,6 +102,13 @@ internal fun IosQuickValuesFixture() {
         Text("문구세트: ${doc.template.templateState.cells.first { it.cellId == "phrase" }.phraseSetId}")
         Text("다음 번호: ${doc.nextCounter}")
         Text("파일명: ${session.previewInfo().previewNaming.displayName}")
+        if (projectFlow) {
+            val inProject = remember(revision) { session.loadProjectRegistry().activeId != null }
+            Text("경로: ${session.previewInfo().previewNaming.relativePath}")
+            Button(onClick = {
+                if (session.selectProject(if (inProject) null else "p")) revision++
+            }) { Text(if (inProject) "일반 촬영으로" else "조사 프로젝트로") }
+        }
         Button(enabled = !busy && !session.hasPending(), onClick = { open = true }) { Text("빠른 입력 열기") }
         Button(enabled = !busy, onClick = {
             status = runCatching {

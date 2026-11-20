@@ -2,6 +2,8 @@ package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistryCodec
+import com.dudoziworkshop.dzlog.data.project.IosCaptureContext
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import platform.Foundation.NSDate
 import platform.Foundation.NSUUID
 import platform.Foundation.NSUserDefaults
@@ -12,11 +14,48 @@ internal class IosCaptureProjectStore(private val editorKey: String) {
     private val key = "$editorKey.capture-projects.v1"
     private val defaults get() = NSUserDefaults.standardUserDefaults
 
-    fun load(): IosCaptureProjectRegistry = defaults.stringForKey(key)
-        ?.let(IosCaptureProjectRegistryCodec::decode)
-        ?: IosCaptureProjectRegistry()
+    private val selectionKey = "$editorKey.capture-selection.pending.v1"
+
+    // Replay the paired preference update before either store is read or changed.
+    fun finishPendingSelection() {
+        val record = defaults.dictionaryForKey(selectionKey) ?: return
+        val workspace = record["workspace"] as String
+        val projects = record["projects"] as String
+        defaults.setObject(workspace, forKey = IosWorkspaceStore(editorKey).workspaceKey)
+        defaults.setObject(projects, forKey = key)
+        check(defaults.synchronize())
+        defaults.removeObjectForKey(selectionKey)
+        check(defaults.synchronize())
+    }
+
+    fun saveContext(before: IosCaptureContext, next: IosCaptureContext, seed: SavedTableTemplate): Boolean = runCatching {
+        val store = IosWorkspaceStore(editorKey)
+        check(load() == before.projects && store.load(seed) == before.workspace)
+        when {
+            before == next -> true
+            before.workspace == next.workspace -> save(next.projects)
+            before.projects == next.projects -> store.save(next.workspace)
+            else -> {
+                val workspace = store.encodeValidated(next.workspace)
+                val projects = IosCaptureProjectRegistryCodec.encode(next.projects)
+                check(IosCaptureProjectRegistryCodec.decode(projects) == next.projects)
+                defaults.setObject(mapOf("workspace" to workspace, "projects" to projects), forKey = selectionKey)
+                check(defaults.synchronize())
+                finishPendingSelection()
+                true
+            }
+        }
+    }.getOrDefault(false)
+
+    fun load(): IosCaptureProjectRegistry {
+        finishPendingSelection()
+        return defaults.stringForKey(key)
+            ?.let(IosCaptureProjectRegistryCodec::decode)
+            ?: IosCaptureProjectRegistry()
+    }
 
     fun save(value: IosCaptureProjectRegistry): Boolean = runCatching {
+        finishPendingSelection()
         val encoded = IosCaptureProjectRegistryCodec.encode(value)
         check(IosCaptureProjectRegistryCodec.decode(encoded) == value)
         defaults.setObject(encoded, forKey = key)
@@ -62,6 +101,7 @@ internal class IosCaptureProjectStore(private val editorKey: String) {
 
     fun resetTestFixture() {
         check(editorKey in setOf(IOS_EDITOR_TEST_KEY, IOS_NAVIGATION_TEST_KEY, IOS_PRODUCTION_STARTUP_TEST_KEY))
+        defaults.removeObjectForKey(selectionKey)
         defaults.removeObjectForKey(key)
         defaults.synchronize()
     }
@@ -75,5 +115,5 @@ internal class IosCaptureProjectStore(private val editorKey: String) {
         next
     }.getOrNull()
 
-    private fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1_000.0).toLong()
+    fun nowMillis(): Long = (NSDate().timeIntervalSince1970 * 1_000.0).toLong()
 }

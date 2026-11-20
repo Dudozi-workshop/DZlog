@@ -1,5 +1,15 @@
 package com.dudoziworkshop.dzlog.data.project
 
+import com.dudoziworkshop.dzlog.data.template.EditorDocument
+import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
+import com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec
+import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
+import com.dudoziworkshop.dzlog.domain.model.TableCellState
+import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.domain.naming.buildGalleryRelativePathFromSlotDrafts
+import com.dudoziworkshop.dzlog.domain.time.CaptureTime
+import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -8,6 +18,55 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class IosCaptureProjectRegistryTest {
+    private fun document(id: String, folder: String, counter: Int): EditorDocument {
+        val table = TableTemplateState(1, 1, listOf(TableCellState(0, 0, cellId = id)),
+            pathSlotDrafts = listOf(TableEditorSlotDraft("MANUAL", "직접입력", manualText = folder)))
+        return EditorDocument(SavedTableTemplate(id, id, table, TableStyleState(), 1L),
+            nextCounter = counter, usesAutoNext = false)
+    }
+
+    private fun assertDestination(context: IosCaptureContext, folder: String, counter: Int) {
+        val document = requireNotNull(context.workspace.active)
+        val path = buildGalleryRelativePathFromSlotDrafts(emptyList(), document.template.templateState.pathSlotDrafts,
+            CaptureTime(0, "en-US", "UTC"), "yyyyMMdd", "HHmm")
+        assertEquals("Pictures/DZlog/$folder/", path)
+        assertEquals(counter, document.nextCounter)
+    }
+
+    @Test
+    fun switch_and_relaunch_restore_the_selected_templates_folder_and_number() {
+        val general = document("a", "orchard", 12)
+        val project = document("b", "lab", 40)
+        val initial = IosCaptureContext(IosCaptureProjectRegistry().create("p", "조사", 0L, null),
+            EditorWorkspace(listOf(general, project), "a"))
+        val entered = initial.select("p")
+        assertDestination(entered, "orchard", 12)
+        val edited = entered.withWorkspace(entered.workspace.save(project.copy(nextCounter = 41)))
+        assertEquals("b", edited.projects.active?.lastTemplateId)
+        val restored = IosCaptureContext(
+            IosCaptureProjectRegistryCodec.decode(IosCaptureProjectRegistryCodec.encode(edited.projects)),
+            EditorWorkspaceCodec.decode(EditorWorkspaceCodec.encode(edited.workspace)),
+        )
+        assertDestination(restored.select(null), "orchard", 12)
+        assertDestination(restored.select(null).select("p"), "lab", 41)
+    }
+
+    @Test
+    fun leaving_corrects_stale_memory_and_missing_template_falls_back_to_the_current_document() {
+        val doc = document("a", "field", 12)
+        val registry = IosCaptureProjectRegistry().create("p", "조사", 0L, "deleted").rememberTemplate("old-general")
+        val context = IosCaptureContext(registry, EditorWorkspace(listOf(doc), "a"))
+        val entered = context.select("p")
+        assertEquals("a", entered.projects.generalLastTemplateId)
+        assertEquals("a", entered.projects.active?.lastTemplateId)
+        assertEquals(entered, entered.select("p"))
+        val advanced = entered.withWorkspace(entered.workspace.save(doc.copy(nextCounter = 13)))
+        assertDestination(advanced.select(null), "field", 13)
+        assertFails { context.select("missing-project") }
+        assertEquals("a", context.copy(workspace = context.workspace.copy(activeTemplateId = null))
+            .select("p").workspace.activeTemplateId)
+    }
+
     @Test
     fun lifecycle_and_selection_match_android_project_contract() {
         val created = IosCaptureProjectRegistry()

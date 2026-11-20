@@ -6,6 +6,7 @@ import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoCoordinator
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoRequest
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
+import com.dudoziworkshop.dzlog.data.project.IosCaptureContext
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
@@ -75,24 +76,11 @@ internal class IosCameraCaptureSession(
     fun selectProject(projectId: String?): Boolean {
         if (hasPending()) return false
         val currentProjects = runCatching { projectStore.load() }.getOrNull() ?: return false
-        val target = projectId?.let(currentProjects::find)
-        if (projectId != null && target?.isOpen != true) return false
-        if (projectId == currentProjects.activeId) return true
-        val available = workspace.documents.map { it.template.id }
-        val remembered = if (target == null) currentProjects.generalLastTemplateId else target.lastTemplateId
-        val templateId = remembered?.takeIf(available::contains)
-            ?: workspace.activeTemplateId?.takeIf(available::contains)
-            ?: available.firstOrNull()
-        val beforeWorkspace = workspace
-        val nextWorkspace = workspace.copy(activeTemplateId = templateId)
-        var nextProjects = runCatching { currentProjects.select(projectId) }.getOrNull() ?: return false
-        if (templateId != null) nextProjects = nextProjects.rememberTemplate(templateId)
-        if (!store.save(nextWorkspace)) return false
-        if (!projectStore.save(nextProjects)) {
-            store.save(beforeWorkspace)
-            return false
-        }
-        workspace = store.load(nextWorkspace.active?.template ?: selectedDocument.template)
+        val before = IosCaptureContext(currentProjects, workspace)
+        val next = runCatching { before.select(projectId) }.getOrNull() ?: return false
+        if (next == before) return true
+        if (!projectStore.saveContext(before, next, selectedDocument.template)) return false
+        workspace = store.load(selectedDocument.template)
         sessionCaptures.clear()
         confirmedCaptureIds.clear()
         return true
@@ -231,10 +219,11 @@ internal class IosCameraCaptureSession(
         if (selectedDocument != expected || hasPending()) return false
         if (workspace.documents.none { it.template.id == targetTemplateId }) return false
         val updatedCurrent = runCatching { applyIosQuickValueChanges(expected, changes) }.getOrNull() ?: return false
-        if (store.load(expected.template) != workspace) return false
-        val updated = workspace.save(updatedCurrent).copy(activeTemplateId = targetTemplateId)
-        if (!store.save(updated)) return false
-        workspace = store.load(updated.active!!.template)
+        val projects = runCatching { projectStore.load() }.getOrNull() ?: return false
+        val before = IosCaptureContext(projects, workspace)
+        val next = before.withWorkspace(workspace.save(updatedCurrent).copy(activeTemplateId = targetTemplateId))
+        if (!projectStore.saveContext(before, next, expected.template)) return false
+        workspace = store.load(selectedDocument.template)
         sessionCaptures.clear()
         return workspace.activeTemplateId == targetTemplateId
     }

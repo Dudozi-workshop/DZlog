@@ -2,6 +2,28 @@ package com.dudoziworkshop.dzlog.data.project
 
 import com.dudoziworkshop.dzlog.data.json.CompatJsonArray
 import com.dudoziworkshop.dzlog.data.json.CompatJsonObject
+import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
+
+/** Projects own the last template ID. The catalog owns the actual document and its counter. */
+data class IosCaptureContext(val projects: IosCaptureProjectRegistry, val workspace: EditorWorkspace) {
+    fun select(projectId: String?): IosCaptureContext {
+        if (projectId == projects.activeId) return this
+        val current = workspace.activeTemplateId
+        val outgoing = current?.let(projects::rememberTemplate) ?: projects
+        val incoming = outgoing.select(projectId)
+        val remembered = if (projectId == null) incoming.generalLastTemplateId else incoming.active?.lastTemplateId
+        val chosen = remembered?.takeIf { id -> workspace.documents.any { it.template.id == id } }
+            ?: current ?: workspace.documents.firstOrNull()?.template?.id
+        return IosCaptureContext(
+            chosen?.let(incoming::rememberTemplate) ?: incoming,
+            workspace.copy(activeTemplateId = chosen),
+        )
+    }
+
+    fun withWorkspace(updated: EditorWorkspace) = IosCaptureContext(
+        updated.activeTemplateId?.let(projects::rememberTemplate) ?: projects, updated,
+    )
+}
 
 /**
  * Platform-neutral iOS project metadata.

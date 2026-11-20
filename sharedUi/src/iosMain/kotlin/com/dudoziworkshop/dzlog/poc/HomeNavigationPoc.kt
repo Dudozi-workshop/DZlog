@@ -16,6 +16,7 @@ import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackupMerge
+import com.dudoziworkshop.dzlog.data.project.IosCaptureContext
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsRootContent
@@ -54,11 +55,13 @@ internal fun HomeNavigationPoc(
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
     val projectStore = remember(editorKey) { IosCaptureProjectStore(editorKey) }
     val initial = remember(store) {
-        if (resetTestFixture) store.resetTestFixture()
+        if (resetTestFixture) {
+            projectStore.resetTestFixture()
+            store.resetTestFixture()
+        }
         runCatching { store.load(template) }
     }
     val initialProjects = remember(projectStore) {
-        if (resetTestFixture) projectStore.resetTestFixture()
         runCatching { projectStore.load() }
     }
     var workspace by remember { mutableStateOf(initial.getOrNull() ?: EditorWorkspace(listOf(EditorDocument(template)), null)) }
@@ -176,44 +179,25 @@ internal fun HomeNavigationPoc(
             notice = "이전 촬영 기록을 복구한 후 설정을 변경해 주세요."
             return false
         }
-        if (!loadFailed && store.save(next)) { workspace = next; return true }
+        if (!loadFailed && store.save(next)) { workspace = store.load(template); return true }
         notice = "변경 내용을 저장하지 못했습니다. 다시 시도해 주세요."
         return false
     }
-    fun selectProject(projectId: String?): Boolean {
+    fun changeContext(transform: (IosCaptureContext) -> IosCaptureContext): Boolean {
         if (loadFailed || projectLoadFailed || IosCameraCaptureSession.hasPending()) return false
-        val target = projectId?.let(projectRegistry::find)
-        if (projectId != null && target?.isOpen != true) return false
-        val rememberedTemplate = if (target == null) projectRegistry.generalLastTemplateId else target.lastTemplateId
-        val available = workspace.documents.map { it.template.id }
-        val selectedTemplateId = rememberedTemplate?.takeIf(available::contains)
-            ?: workspace.activeTemplateId?.takeIf(available::contains)
-            ?: available.firstOrNull()
-        val beforeWorkspace = workspace
-        val nextWorkspace = workspace.copy(activeTemplateId = selectedTemplateId)
-        var nextProjects = runCatching { projectRegistry.select(projectId) }.getOrNull() ?: return false
-        if (selectedTemplateId != null) nextProjects = nextProjects.rememberTemplate(selectedTemplateId)
-        if (!store.save(nextWorkspace)) {
-            notice = "프로젝트에 사용할 템플릿을 저장하지 못했습니다."
+        val before = IosCaptureContext(projectRegistry, workspace)
+        val next = runCatching { transform(before) }.getOrNull() ?: return false
+        if (!projectStore.saveContext(before, next, template)) {
+            notice = "프로젝트와 템플릿 선택을 저장하지 못했습니다."
             return false
         }
-        if (!projectStore.save(nextProjects)) {
-            store.save(beforeWorkspace)
-            notice = "프로젝트 선택을 저장하지 못했습니다. 이전 상태로 복구했습니다."
-            return false
-        }
-        workspace = store.load(nextWorkspace.active?.template ?: template)
-        projectRegistry = projectStore.load()
+        workspace = store.load(template)
+        projectRegistry = next.projects
         return true
     }
-    fun rememberSelectedTemplate(templateId: String) {
-        if (projectLoadFailed) return
-        val next = runCatching { projectRegistry.rememberTemplate(templateId) }.getOrNull() ?: return
-        if (next != projectRegistry) {
-            if (projectStore.save(next)) projectRegistry = next
-            else notice = "프로젝트의 마지막 템플릿을 저장하지 못했습니다."
-        }
-    }
+    fun selectProject(projectId: String?) = changeContext { it.select(projectId) }
+    fun saveTemplateSelection(updated: EditorWorkspace) = if (projectLoadFailed) persist(updated)
+        else changeContext { it.withWorkspace(updated) }
     fun startCamera() {
         if (loadFailed || recoveryPending || recovering) return
         if (cameraPage != null) return
@@ -235,7 +219,7 @@ internal fun HomeNavigationPoc(
     fun updateCatalog(items: List<SavedTableTemplate>, activeId: String?) {
         val previous = workspace.documents.associateBy { it.template.id }
         val documents = items.map { item -> previous[item.id]?.copy(template = item) ?: EditorDocument(item) }
-        persist(workspace.copy(documents = documents.sortedByDescending { it.template.modifiedAt }, activeTemplateId = activeId))
+        saveTemplateSelection(workspace.copy(documents = documents.sortedByDescending { it.template.modifiedAt }, activeTemplateId = activeId))
     }
     fun openEditor(id: String?, fromList: Boolean, saveSettings: Boolean = false) {
         if (loadFailed) return
@@ -308,22 +292,24 @@ internal fun HomeNavigationPoc(
                     ?: run { notice = "프로젝트 이름을 저장하지 못했습니다." }
             },
             onComplete = {
-                val wasSelected = project.id == projectRegistry.activeId
-                projectStore.complete(project.id)?.let { completed ->
-                    projectRegistry = completed
-                    if (wasSelected) selectProject(null)
-                } ?: run { notice = "프로젝트 완료 상태를 저장하지 못했습니다." }
+                changeContext { before ->
+                    val next = if (project.id == before.projects.activeId) before.select(null) else before
+                    next.copy(projects = next.projects.complete(project.id, projectStore.nowMillis()))
+                }
             },
             onReopen = {
                 projectStore.reopen(project.id)?.let { projectRegistry = it }
                     ?: run { notice = "프로젝트를 재개하지 못했습니다." }
             },
             onDeleteMetadata = {
-                projectStore.delete(project.id)?.let {
-                    projectRegistry = it
+                val deleted = changeContext { before ->
+                    val next = if (project.id == before.projects.activeId) before.select(null) else before
+                    next.copy(projects = next.projects.delete(project.id))
+                }
+                if (deleted) {
                     projectDetailId = null
                     showProjectList = true
-                } ?: run { notice = "프로젝트를 삭제하지 못했습니다." }
+                }
             },
         )
     } else if (showProjectList) {
@@ -383,9 +369,8 @@ internal fun HomeNavigationPoc(
                         pathScope, filenameScope, mode, padding, next, autoNext,
                         capturePlacement = document.capturePlacement,
                     )
-                    if (persist(workspace.save(updated))) {
+                    if (saveTemplateSelection(workspace.save(updated))) {
                         pendingNew = null
-                        rememberSelectedTemplate(updated.template.id)
                         true
                     } else false
                 },
@@ -412,7 +397,7 @@ internal fun HomeNavigationPoc(
                         },
                         activeTemplateId = result.activeTemplateId,
                     )
-                    if (persist(imported)) result else null
+                    if (saveTemplateSelection(imported)) result else null
                 }
             },
         )
@@ -460,8 +445,7 @@ internal fun HomeNavigationPoc(
             templates = templates, activeTemplateId = workspace.activeTemplateId,
             onBack = { showList = false },
             onSelectTemplate = { id ->
-                if (persist(workspace.copy(activeTemplateId = id))) {
-                    rememberSelectedTemplate(id)
+                if (saveTemplateSelection(workspace.copy(activeTemplateId = id))) {
                     showList = false
                 }
             },

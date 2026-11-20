@@ -142,7 +142,7 @@ private class IosDraftCounterActions : TableEditorCounterActions {
 
 /** New collection key; the validated v1 editor value remains untouched as a recovery source. */
 internal class IosWorkspaceStore(private val legacyKey: String) {
-    private val workspaceKey = "$legacyKey.workspace.v2"
+    internal val workspaceKey = "$legacyKey.workspace.v2"
     private val onboardingKey = "$legacyKey.onboarding.completed.v1"
     fun shouldOfferOnboarding(): Boolean =
         NSUserDefaults.standardUserDefaults.stringForKey(workspaceKey) == null &&
@@ -153,13 +153,14 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
         NSUserDefaults.standardUserDefaults.synchronize()
     }
     fun load(seed: com.dudoziworkshop.dzlog.data.template.SavedTableTemplate): com.dudoziworkshop.dzlog.data.template.EditorWorkspace {
+        IosCaptureProjectStore(legacyKey).finishPendingSelection()
         NSUserDefaults.standardUserDefaults.stringForKey(workspaceKey)?.let {
             return com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.decode(it)
         }
         val legacy = IosEditorStore(legacyKey).load()
         return com.dudoziworkshop.dzlog.data.template.editorWorkspaceFromLegacy(legacy, seed)
     }
-    fun save(value: com.dudoziworkshop.dzlog.data.template.EditorWorkspace): Boolean = runCatching {
+    fun encodeValidated(value: com.dudoziworkshop.dzlog.data.template.EditorWorkspace): String {
         val encoded = com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.encode(value)
         val decoded = com.dudoziworkshop.dzlog.data.template.EditorWorkspaceCodec.decode(encoded)
         check(decoded.documents.map { it.template.id } == value.documents.map { it.template.id })
@@ -170,6 +171,12 @@ internal class IosWorkspaceStore(private val legacyKey: String) {
                 a.capturePlacement == b.capturePlacement &&
                 a.includePathInScope == b.includePathInScope && a.includeFilenameInScope == b.includeFilenameInScope
         })
+        return encoded
+    }
+
+    fun save(value: com.dudoziworkshop.dzlog.data.template.EditorWorkspace): Boolean = runCatching {
+        IosCaptureProjectStore(legacyKey).finishPendingSelection()
+        val encoded = encodeValidated(value)
         NSUserDefaults.standardUserDefaults.setObject(encoded, forKey = workspaceKey)
         NSUserDefaults.standardUserDefaults.synchronize()
     }.getOrDefault(false)

@@ -138,7 +138,7 @@ final class PreviewInteractionTests: XCTestCase {
     }
 
     func testQuickValueTemplateSwitchPersistsDraftAndSelection() {
-        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launchArguments = ["--quick-values-flow", "--quick-project-switch", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
         tapPanelText("2행 1열 셀 선택")
@@ -151,9 +151,17 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("입력값: SECOND").exists)
         XCTAssertTrue(text("다음 번호: 40").exists)
         app.terminate()
-        app.launchArguments = ["--quick-values-flow"]
+        app.launchArguments = ["--quick-values-flow", "--quick-project-switch"]
         app.launch()
         XCTAssertTrue(text("활성템플릿: 빠른 입력 보조").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("경로: Pictures/DZlog/lab/").exists)
+        tapButton("일반 촬영으로")
+        XCTAssertTrue(text("경로: Pictures/DZlog/orchard/").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("입력값: blue").exists)
+        XCTAssertTrue(text("다음 번호: 12").exists)
+        tapButton("조사 프로젝트로")
+        XCTAssertTrue(text("경로: Pictures/DZlog/lab/").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("다음 번호: 40").exists)
         tapButton("빠른 입력 열기")
         tapButton("템플릿 · 빠른 입력 보조")
         tapButton("빠른 입력 검증")
@@ -1613,6 +1621,15 @@ final class PreviewInteractionTests: XCTestCase {
         app.launch()
         XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 20),
                       "Selected project must survive relaunch")
+        tapButton("촬영 프로젝트 선택 · blueberry")
+        tapButton("일반 촬영")
+        XCTAssertTrue(text("촬영 프로젝트 선택 · 일반 촬영").waitForExistence(timeout: 10))
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(text("촬영 프로젝트 선택 · 일반 촬영").waitForExistence(timeout: 20))
+        tapButton("촬영 프로젝트 선택 · 일반 촬영")
+        tapButton("blueberry")
+        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10))
     }
 
     func testEditorContentStructureStyleSaveAndRelaunch() throws {
