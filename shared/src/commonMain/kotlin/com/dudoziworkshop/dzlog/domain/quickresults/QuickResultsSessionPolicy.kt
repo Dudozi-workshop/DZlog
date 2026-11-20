@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.domain.quickresults
 
+import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
+
 /**
  * Session captures are saved URI groups, oldest first. Each group represents
  * one shutter press, even if it produced both an original and an output.
@@ -10,6 +12,7 @@ data class QuickResultPhoto(
     val uri: String,
     val displayName: String,
     val relativePath: String,
+    val role: CaptureMediaRole? = null,
 )
 
 data class QuickResultCapture(
@@ -44,12 +47,14 @@ object QuickResultsSessionPolicy {
         return savedUriGroups.mapIndexedNotNull { index, group ->
             val found = group.distinct().mapNotNull(byUri::get)
             if (found.isEmpty()) return@mapIndexedNotNull null
-            val result = found.firstOrNull { !isOriginal(it.relativePath) }
-            val original = found.firstOrNull { isOriginal(it.relativePath) }
+            fun QuickResultPhoto.isOriginalPhoto() =
+                role?.let { it == CaptureMediaRole.ORIGINAL } ?: isOriginal(relativePath)
+            val result = found.firstOrNull { !it.isOriginalPhoto() }
+            val original = found.firstOrNull { it.isOriginalPhoto() }
             val selected = result ?: original ?: return@mapIndexedNotNull null
             QuickResultCapture(
                 captureIndex = index,
-                folderPath = parentFolder(selected.relativePath),
+                folderPath = if (result == null) parentFolder(selected.relativePath) else selected.relativePath,
                 result = result,
                 original = original,
             )

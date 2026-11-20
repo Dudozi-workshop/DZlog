@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
@@ -110,6 +111,33 @@ internal fun IosCameraStatusStrip(status: String, completedCount: Int) {
             color = DDZColor.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text("이번 촬영: ${completedCount}장", style = DDZTypography.Caption,
             color = DDZColor.SageDarkStrong)
+    }
+}
+
+@Composable
+internal fun IosCameraProjectBar(
+    projectName: String?,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(
+            enabled = enabled,
+            role = Role.Button,
+            onClick = onClick,
+        ).semantics { contentDescription = "카메라 프로젝트 변경" }
+            .padding(horizontal = 16.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp),
+            tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.IconMuted)
+        Text("촬영 프로젝트", style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+        Text(projectName?.takeIf(String::isNotBlank) ?: "일반 촬영",
+            modifier = Modifier.weight(1f), style = DDZTypography.Caption,
+            color = DDZColor.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("변경", style = DDZTypography.Caption,
+            color = if (enabled) DDZColor.PrimaryDark else DDZColor.TextMuted)
     }
 }
 
@@ -219,6 +247,7 @@ internal fun IosCameraBottomBar(
     quickValuesEnabled: Boolean,
     undoEnabled: Boolean,
     recentThumbnail: ImageBitmap?,
+    galleryLabel: String,
     onOpenGallery: () -> Unit,
     onToggleTools: () -> Unit,
     onCapture: () -> Unit,
@@ -230,7 +259,7 @@ internal fun IosCameraBottomBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
-            IosCameraGalleryButton(recentThumbnail, controlsEnabled, onOpenGallery)
+            IosCameraGalleryButton(recentThumbnail, galleryLabel, controlsEnabled, onOpenGallery)
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraChromeButton("촬영 도구", Icons.Default.Tune, controlsEnabled, onToggleTools,
@@ -270,6 +299,7 @@ internal fun IosCameraBottomBar(
 @Composable
 private fun IosCameraGalleryButton(
     thumbnail: ImageBitmap?,
+    label: String,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
@@ -281,10 +311,10 @@ private fun IosCameraGalleryButton(
         ) {
             if (thumbnail != null) Image(
                 bitmap = thumbnail,
-                contentDescription = "앨범 보기",
+                contentDescription = label,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
-            ) else Icon(Icons.Default.Image, contentDescription = "앨범 보기", modifier = Modifier.size(22.dp),
+            ) else Icon(Icons.Default.Image, contentDescription = label, modifier = Modifier.size(22.dp),
                 tint = if (enabled) DDZColor.SageDarkStrong else DDZColor.IconMuted.copy(alpha = 0.35f))
         }
     }

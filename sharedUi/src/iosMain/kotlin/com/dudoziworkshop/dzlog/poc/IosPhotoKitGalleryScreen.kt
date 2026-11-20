@@ -62,7 +62,12 @@ private const val GALLERY_ROOT = "Pictures/DZlog/"
 /** Browses the app's indexed Photos assets; logical folders never rename Photos resources. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository, onBack: () -> Unit) {
+internal fun IosPhotoKitGalleryScreen(
+    repository: PhotoKitCaptureMediaRepository,
+    onBack: () -> Unit,
+    resultCaptureIds: List<String>? = null,
+    initialAssetId: String? = null,
+) {
     val scope = rememberCoroutineScope()
     var photos by remember { mutableStateOf<List<SavedCaptureMedia>>(emptyList()) }
     var folders by remember { mutableStateOf<List<String>>(listOf(GALLERY_ROOT)) }
@@ -71,7 +76,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     var photoSort by remember { mutableStateOf(SavedGalleryPhotoSort.NEWEST) }
     var folderFilter by remember { mutableStateOf(SavedGalleryFolderFilter.ALL) }
     var folderSort by remember { mutableStateOf(SavedGalleryFolderSort.NAME) }
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    var selectedId by remember { mutableStateOf(initialAssetId) }
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var imageLoadRevision by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf("사진 확인 중") }
@@ -89,7 +94,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
     val headerScroll = key(folder, favoritesOnly, recentView, defaultStorageView) { rememberScrollState() }
     var pendingScrollAnchor by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var showPhotoInfo by remember { mutableStateOf(false) }
-    var viewer by remember { mutableStateOf(false) }
+    var viewer by remember { mutableStateOf(initialAssetId != null) }
     var viewerControls by remember { mutableStateOf(true) }
     LaunchedEffect(viewer) { if (viewer) viewerControls = true }
     var managing by remember { mutableStateOf(false) }
@@ -218,12 +223,39 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         savedGalleryChildFolders(it, destinations, photos, folderFilter, folderSort)
     }.orEmpty()
 
+    val scopeIds = remember(resultCaptureIds) { resultCaptureIds?.toSet() }
+    suspend fun readScopedPhotos(): List<SavedCaptureMedia> = repository.listSavedAssets()
+        .filter { scopeIds == null || it.captureId in scopeIds }
+        .asReversed()
+
+    val resultPages = remember(resultCaptureIds, photos) {
+        resultCaptureIds?.let { ids -> quickResultCaptures(ids.asReversed(), photos) }
+    }
+    val resultEntries = remember(resultPages, photos, selectedId) {
+        resultPages?.let { pages ->
+            val byId = photos.associateBy { it.asset.assetId }
+            pages.mapNotNull { page ->
+                val id = if (selectedId != null && selectedId == page.original?.uri) selectedId else page.displayedPhoto.uri
+                byId[id]
+            }
+        }
+    }
+
     fun refresh() {
         if (refreshing || managing) return
         refreshing = true
         scope.launch {
             try {
-                photos = repository.listSavedAssets().asReversed()
+                val previousCapture = selected?.captureId
+                photos = readScopedPhotos()
+                if (resultCaptureIds != null && photos.none {
+                    it.asset.assetId == selectedId && it.availability == CaptureMediaAvailability.PRESENT
+                }) {
+                    val pages = quickResultCaptures(resultCaptureIds.asReversed(), photos)
+                    val ids = resultCaptureIds.asReversed()
+                    selectedId = (pages.firstOrNull { ids[it.captureIndex] == previousCapture }
+                        ?: pages.firstOrNull())?.displayedPhoto?.uri
+                }
                 folders = repository.listGalleryFolders()
                 favorites = repository.favoriteGalleryAssetIds()
                 imageLoadRevision += 1
@@ -259,7 +291,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                                 folderTarget.trimEnd('/').substringBeforeLast('/') + "/"
                             }
                         }
-                        photos = repository.listSavedAssets().asReversed()
+                        photos = readScopedPhotos()
                         folders = repository.listGalleryFolders()
                         favorites = repository.favoriteGalleryAssetIds()
                         operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; else -> "빈 폴더를 삭제했습니다." }
@@ -351,9 +383,13 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                             batchSelection = batchSelection - targetIds
                             selecting = false
                             image = null
+                            if (initialAssetId != null) {
+                                onBack()
+                                return@launch
+                            }
                             viewer = false
                         }
-                        photos = repository.listSavedAssets().asReversed()
+                        photos = readScopedPhotos()
                         folders = repository.listGalleryFolders()
                         favorites = repository.favoriteGalleryAssetIds()
                     } catch (error: Throwable) {
@@ -392,7 +428,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
                 scope.launch {
                     try {
                         repository.moveGalleryAssets(targetIds, path)
-                        photos = repository.listSavedAssets().asReversed()
+                        photos = readScopedPhotos()
                         folders = repository.listGalleryFolders()
                         recentView = false
                         defaultStorageView = false
@@ -412,7 +448,7 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (viewer) {
             // Every navigation entry point shares the active filtered order.
-            val entries = visible
+            val entries = resultEntries ?: visible
             val index = entries.indexOfFirst { it.asset.assetId == selectedId }
             fun navigate(delta: Int) {
                 if (!managing && !refreshing && index >= 0 && index + delta in entries.indices) {
@@ -421,7 +457,9 @@ internal fun IosPhotoKitGalleryScreen(repository: PhotoKitCaptureMediaRepository
             }
             if (viewerControls) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Button(enabled = !managing, onClick = { viewer = false }) { Text("사진 목록") }
+                    Button(enabled = !managing, onClick = {
+                        if (initialAssetId != null) onBack() else viewer = false
+                    }) { Text(if (initialAssetId != null) "촬영 결과" else "사진 목록") }
                     TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
                     TextButton(enabled = !managing && selected != null, onClick = { showPhotoInfo = true }) { Text("사진 정보") }
                 }

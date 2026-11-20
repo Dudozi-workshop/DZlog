@@ -15,6 +15,7 @@ import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackupMerge
+import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.feature.settings.ui.SettingsRootContent
 import com.dudoziworkshop.dzlog.domain.time.formatCaptureTime
@@ -43,17 +44,32 @@ internal fun HomeNavigationPoc(
 ) {
     val appVersionLabel = remember { iosAppVersionLabel() }
     val store = remember(editorKey) { IosWorkspaceStore(editorKey) }
+    val projectStore = remember(editorKey) { IosCaptureProjectStore(editorKey) }
     val initial = remember(store) {
         if (resetTestFixture) store.resetTestFixture()
         runCatching { store.load(template) }
     }
+    val initialProjects = remember(projectStore) {
+        if (resetTestFixture) projectStore.resetTestFixture()
+        runCatching { projectStore.load() }
+    }
     var workspace by remember { mutableStateOf(initial.getOrNull() ?: EditorWorkspace(listOf(EditorDocument(template)), null)) }
+    var projectRegistry by remember {
+        mutableStateOf(initialProjects.getOrNull() ?: IosCaptureProjectRegistry())
+    }
     var showOnboarding by remember(store, enableOnboarding) {
         mutableStateOf(enableOnboarding && store.shouldOfferOnboarding())
     }
     var onboardingBusy by remember { mutableStateOf(false) }
     val loadFailed = initial.isFailure
-    var notice by remember { mutableStateOf(if (loadFailed) "기존 편집 문서를 읽지 못했습니다. 덮어쓰지 않도록 편집을 잠갔습니다." else null) }
+    val projectLoadFailed = initialProjects.isFailure
+    var notice by remember {
+        mutableStateOf(when {
+            loadFailed -> "기존 편집 문서를 읽지 못했습니다. 덮어쓰지 않도록 편집을 잠갔습니다."
+            projectLoadFailed -> "프로젝트 목록을 읽지 못했습니다. 기존 기록을 보호하기 위해 프로젝트 변경을 잠갔습니다."
+            else -> null
+        })
+    }
     val editorPlatform = remember { IosTableEditorPlatform { notice = it } }
     var showEditor by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
@@ -68,6 +84,11 @@ internal fun HomeNavigationPoc(
     var recoveryPending by remember { mutableStateOf(IosCameraCaptureSession.hasPending()) }
     var recovering by remember { mutableStateOf(false) }
     LaunchedEffect(editorKey, cameraReturnRevision, recoveryRevision) {
+        if (!projectLoadFailed) {
+            runCatching { projectStore.load() }
+                .onSuccess { projectRegistry = it }
+                .onFailure { notice = "프로젝트 촬영 기록을 다시 불러오지 못했습니다." }
+        }
         recoveryPending = IosCameraCaptureSession.hasPending()
         if (!loadFailed && IosCameraCaptureSession.hasPending()) {
             recovering = true
@@ -116,6 +137,11 @@ internal fun HomeNavigationPoc(
     var editingId by remember { mutableStateOf<String?>(null) }
     var pendingNew by remember { mutableStateOf<EditorDocument?>(null) }
     var openSaveSettings by remember { mutableStateOf(false) }
+    var showProjectPicker by remember { mutableStateOf(false) }
+    var showProjectList by remember { mutableStateOf(false) }
+    var createProjectInitially by remember { mutableStateOf(false) }
+    var projectDetailId by remember { mutableStateOf<String?>(null) }
+    var projectGalleryId by remember { mutableStateOf<String?>(null) }
     val document = pendingNew ?: workspace.documents.firstOrNull { it.template.id == editingId }
         ?: workspace.active ?: workspace.documents.firstOrNull() ?: EditorDocument(template)
     val currentTemplate = document.template
@@ -130,6 +156,57 @@ internal fun HomeNavigationPoc(
         if (!loadFailed && store.save(next)) { workspace = next; return true }
         notice = "변경 내용을 저장하지 못했습니다. 다시 시도해 주세요."
         return false
+    }
+    fun selectProject(projectId: String?): Boolean {
+        if (loadFailed || projectLoadFailed || IosCameraCaptureSession.hasPending()) return false
+        val target = projectId?.let(projectRegistry::find)
+        if (projectId != null && target?.isOpen != true) return false
+        val rememberedTemplate = if (target == null) projectRegistry.generalLastTemplateId else target.lastTemplateId
+        val available = workspace.documents.map { it.template.id }
+        val selectedTemplateId = rememberedTemplate?.takeIf(available::contains)
+            ?: workspace.activeTemplateId?.takeIf(available::contains)
+            ?: available.firstOrNull()
+        val beforeWorkspace = workspace
+        val nextWorkspace = workspace.copy(activeTemplateId = selectedTemplateId)
+        var nextProjects = runCatching { projectRegistry.select(projectId) }.getOrNull() ?: return false
+        if (selectedTemplateId != null) nextProjects = nextProjects.rememberTemplate(selectedTemplateId)
+        if (!store.save(nextWorkspace)) {
+            notice = "프로젝트에 사용할 템플릿을 저장하지 못했습니다."
+            return false
+        }
+        if (!projectStore.save(nextProjects)) {
+            store.save(beforeWorkspace)
+            notice = "프로젝트 선택을 저장하지 못했습니다. 이전 상태로 복구했습니다."
+            return false
+        }
+        workspace = store.load(nextWorkspace.active?.template ?: template)
+        projectRegistry = projectStore.load()
+        return true
+    }
+    fun rememberSelectedTemplate(templateId: String) {
+        if (projectLoadFailed) return
+        val next = runCatching { projectRegistry.rememberTemplate(templateId) }.getOrNull() ?: return
+        if (next != projectRegistry) {
+            if (projectStore.save(next)) projectRegistry = next
+            else notice = "프로젝트의 마지막 템플릿을 저장하지 못했습니다."
+        }
+    }
+    fun startCamera() {
+        if (loadFailed || recoveryPending || recovering) return
+        if (editorKey != IOS_PRODUCTION_STARTUP_TEST_KEY &&
+            NSProcessInfo.processInfo.arguments.contains("--deny-camera-permission-for-ui-test")) {
+            NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+        } else if (workspace.active == null) {
+            showList = true
+        } else {
+            val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
+            if (issue == null) {
+                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
+            } else {
+                if (!IosCameraCaptureSession.hasPending()) showCaptureSettings = true
+                notice = issue
+            }
+        }
     }
     fun updateCatalog(items: List<SavedTableTemplate>, activeId: String?) {
         val previous = workspace.documents.associateBy { it.template.id }
@@ -185,6 +262,59 @@ internal fun HomeNavigationPoc(
                 onboardingBusy = false
             },
         )
+    } else if (projectDetailId != null) {
+        val project = requireNotNull(projectRegistry.find(requireNotNull(projectDetailId)))
+        IosProjectDetailScreen(
+            project = project,
+            selected = project.id == projectRegistry.activeId,
+            onBack = { projectDetailId = null; showProjectList = true },
+            onContinue = {
+                if (selectProject(project.id)) {
+                    projectDetailId = null
+                    showProjectList = false
+                    startCamera()
+                }
+            },
+            onShowPhotos = {
+                projectDetailId = null
+                projectGalleryId = project.id
+            },
+            onRename = { name ->
+                projectStore.rename(project.id, name)?.let { projectRegistry = it }
+                    ?: run { notice = "프로젝트 이름을 저장하지 못했습니다." }
+            },
+            onComplete = {
+                val wasSelected = project.id == projectRegistry.activeId
+                projectStore.complete(project.id)?.let { completed ->
+                    projectRegistry = completed
+                    if (wasSelected) selectProject(null)
+                } ?: run { notice = "프로젝트 완료 상태를 저장하지 못했습니다." }
+            },
+            onReopen = {
+                projectStore.reopen(project.id)?.let { projectRegistry = it }
+                    ?: run { notice = "프로젝트를 재개하지 못했습니다." }
+            },
+            onDeleteMetadata = {
+                projectStore.delete(project.id)?.let {
+                    projectRegistry = it
+                    projectDetailId = null
+                    showProjectList = true
+                } ?: run { notice = "프로젝트를 삭제하지 못했습니다." }
+            },
+        )
+    } else if (showProjectList) {
+        IosProjectListScreen(
+            registry = projectRegistry,
+            createInitially = createProjectInitially,
+            onBack = { showProjectList = false; createProjectInitially = false },
+            onCreate = { title ->
+                projectStore.create(title, workspace.activeTemplateId)?.let {
+                    projectRegistry = it
+                    createProjectInitially = false
+                } ?: run { notice = "새 프로젝트를 저장하지 못했습니다." }
+            },
+            onOpen = { projectDetailId = it; showProjectList = false },
+        )
     } else if (showCaptureSettings) {
         IosCaptureSettingsScreen(savedDocument, workspace.settings.continuousPreviewMode,
             workspace.settings.captureHapticEnabled, workspace.settings.captureAspectMode,
@@ -195,6 +325,17 @@ internal fun HomeNavigationPoc(
                     captureHapticEnabled = hapticEnabled,
                     captureAspectMode = aspectMode)))) showCaptureSettings = false
         })
+    } else if (projectGalleryId != null) {
+        val project = requireNotNull(projectRegistry.find(requireNotNull(projectGalleryId)))
+        IosQuickResultsScreen(
+            repository = photoRepository,
+            onBack = {
+                projectDetailId = project.id
+                projectGalleryId = null
+            },
+            captureIds = project.captureIds,
+            projectTitle = project.title,
+        )
     } else if (showGallery) {
         IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })
     } else if (showEditor) {
@@ -218,7 +359,11 @@ internal fun HomeNavigationPoc(
                         pathScope, filenameScope, mode, padding, next, autoNext,
                         capturePlacement = document.capturePlacement,
                     )
-                    if (persist(workspace.save(updated))) { pendingNew = null; true } else false
+                    if (persist(workspace.save(updated))) {
+                        pendingNew = null
+                        rememberSelectedTemplate(updated.template.id)
+                        true
+                    } else false
                 },
                 initialNextCounter = document.nextCounter, initialUsesAutoNext = document.usesAutoNext,
             )
@@ -286,7 +431,12 @@ internal fun HomeNavigationPoc(
         TableTemplateListContent(
             templates = templates, activeTemplateId = workspace.activeTemplateId,
             onBack = { showList = false },
-            onSelectTemplate = { id -> if (persist(workspace.copy(activeTemplateId = id))) showList = false },
+            onSelectTemplate = { id ->
+                if (persist(workspace.copy(activeTemplateId = id))) {
+                    rememberSelectedTemplate(id)
+                    showList = false
+                }
+            },
             allowManagement = !loadFailed,
             onOpenTemplate = { openEditor(it, true) }, onCreateTemplate = ::createTemplate,
             onRenameTemplate = { id, name -> updateCatalog(renameSavedTableTemplate(templates, id, name), workspace.activeTemplateId) },
@@ -315,21 +465,7 @@ internal fun HomeNavigationPoc(
                 "다음 촬영 번호 " + if (selected) formatMockCounter(savedDocument.nextCounter ?: 1, savedDocument.counterPadding) else "0001",
                 "촬영 시작", "표 편집", "저장 정보"),
             onManageTemplates = { showList = true }, onOpenSettings = { showSettings = true },
-            onStartCamera = {
-                if (NSProcessInfo.processInfo.arguments.contains("--deny-camera-permission-for-ui-test")) {
-                    // Preserve the permission-denied XCTest route without modifying user data.
-                    NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
-                } else if (workspace.active == null) {
-                    showList = true
-                } else {
-                    val issue = IosCameraWorkspaceBridge.prepare(editorKey, workspace)
-                    if (issue != null) {
-                        if (workspace.active != null && !IosCameraCaptureSession.hasPending()) showCaptureSettings = true
-                        notice = issue
-                    }
-                    else NSNotificationCenter.defaultCenter.postNotificationName("dzlog.openCamera", null)
-                }
-            },
+            onStartCamera = ::startCamera,
             onOpenTableEditor = {
                 openEditor(workspace.activeTemplateId, false)
             }, onOpenSaveInfo = { showSaveInfo = true },
@@ -356,6 +492,8 @@ internal fun HomeNavigationPoc(
                     },
                 )
             },
+            projectName = projectRegistry.active?.title,
+            onOpenProjectPicker = if (projectLoadFailed) null else ({ showProjectPicker = true }),
         )
     }
     notice?.let { message ->
@@ -373,6 +511,26 @@ internal fun HomeNavigationPoc(
                 openEditor(workspace.activeTemplateId, false, saveSettings = true)
             }, onDismiss = { showSaveInfo = false },
             settingsEnabled = !loadFailed && selected && !recoveryPending && !recovering,
+        )
+    }
+    if (showProjectPicker) {
+        IosProjectPickerSheet(
+            registry = projectRegistry,
+            onSelect = { projectId ->
+                if (selectProject(projectId)) showProjectPicker = false
+                else notice = notice ?: "프로젝트를 선택하지 못했습니다."
+            },
+            onCreate = {
+                showProjectPicker = false
+                createProjectInitially = true
+                showProjectList = true
+            },
+            onManage = {
+                showProjectPicker = false
+                createProjectInitially = false
+                showProjectList = true
+            },
+            onDismiss = { showProjectPicker = false },
         )
     }
 }

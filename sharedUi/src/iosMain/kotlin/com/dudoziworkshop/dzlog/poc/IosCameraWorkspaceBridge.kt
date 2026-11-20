@@ -5,6 +5,7 @@ import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoCoordinator
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoRequest
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
+import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.data.template.EditorCaptureAnchor
 import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
@@ -37,15 +38,52 @@ internal class IosCameraCaptureSession(
     mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) {
     private val store = IosWorkspaceStore(editorKey)
+    private val projectStore = IosCaptureProjectStore(editorKey)
     internal val mediaRepository = PhotoKitCaptureMediaRepository(mediaDefaults)
     private val media get() = mediaRepository
     private val coordinator = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults))
     private val undoCoordinator = IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults))
     private val sessionCaptures = mutableListOf<IosCaptureUndoRequest>()
+    private val confirmedCaptureIds = mutableListOf<String>()
+    fun sessionResultIds(): List<String> = confirmedCaptureIds.toList()
+    private var projectAssociationWarning: String? = null
+
+    fun takeProjectAssociationWarning(): String? = projectAssociationWarning.also {
+        projectAssociationWarning = null
+    }
+
+    fun loadProjectRegistry(): IosCaptureProjectRegistry = projectStore.load()
+
+    /** Switch capture context and its remembered shared template as one user action. */
+    fun selectProject(projectId: String?): Boolean {
+        if (hasPending()) return false
+        val currentProjects = runCatching { projectStore.load() }.getOrNull() ?: return false
+        val target = projectId?.let(currentProjects::find)
+        if (projectId != null && target?.isOpen != true) return false
+        if (projectId == currentProjects.activeId) return true
+        val available = workspace.documents.map { it.template.id }
+        val remembered = if (target == null) currentProjects.generalLastTemplateId else target.lastTemplateId
+        val templateId = remembered?.takeIf(available::contains)
+            ?: workspace.activeTemplateId?.takeIf(available::contains)
+            ?: available.firstOrNull()
+        val beforeWorkspace = workspace
+        val nextWorkspace = workspace.copy(activeTemplateId = templateId)
+        var nextProjects = runCatching { currentProjects.select(projectId) }.getOrNull() ?: return false
+        if (templateId != null) nextProjects = nextProjects.rememberTemplate(templateId)
+        if (!store.save(nextWorkspace)) return false
+        if (!projectStore.save(nextProjects)) {
+            store.save(beforeWorkspace)
+            return false
+        }
+        workspace = store.load(nextWorkspace.active?.template ?: selectedDocument.template)
+        sessionCaptures.clear()
+        confirmedCaptureIds.clear()
+        return true
+    }
 
     fun hasPending(): Boolean = coordinator.hasPendingCapture() || undoCoordinator.hasPendingUndo()
 
-    val latestSessionCaptureId: String? get() = sessionCaptures.lastOrNull()?.captureId
+    val latestSessionCaptureId: String? get() = confirmedCaptureIds.lastOrNull()
     val canUndoLatestCapture: Boolean get() = sessionCaptures.isNotEmpty() && !hasPending()
 
     val selectedDocument get() = checkNotNull(workspace.active)
@@ -126,6 +164,10 @@ internal class IosCameraCaptureSession(
         if (rolledBack) {
             workspace = store.load(request.before.active!!.template)
             sessionCaptures.removeAt(sessionCaptures.lastIndex)
+            confirmedCaptureIds.remove(request.captureId)
+            if (projectStore.removeCapture(request.captureId) == null) {
+                projectAssociationWarning = "사진은 삭제됐지만 프로젝트 촬영 기록을 갱신하지 못했습니다."
+            }
         }
         return rolledBack
     }
@@ -453,6 +495,11 @@ internal class IosCameraCaptureSession(
         if (committed) {
             workspace = store.load(doc.template)
             sessionCaptures += IosCaptureUndoRequest(plan.captureId, beforeCaptureWorkspace, workspace)
+            confirmedCaptureIds += plan.captureId
+            val projects = runCatching { projectStore.load() }.getOrNull()
+            if (projects?.activeId != null && projectStore.appendCapture(plan.captureId) == null) {
+                projectAssociationWarning = "사진은 저장됐지만 프로젝트 연결을 기록하지 못했습니다."
+            }
         }
         return committed
     }

@@ -31,6 +31,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionProjectCreateSelectAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeCompositedJpegPhotoKitSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
@@ -42,6 +43,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionOnboardingSelectsStarterAndPersistsWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionProjectCreateSelectAndRelaunch
   ) ;;
   full) selection=() ;;
   *) echo "Unsupported UI scope: $test_scope" >&2; exit 2 ;;

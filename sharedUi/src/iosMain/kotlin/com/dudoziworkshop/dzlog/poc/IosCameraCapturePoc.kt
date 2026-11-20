@@ -83,7 +83,11 @@ internal fun IosCameraCapturePoc(
     var showGallery by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var showQuickValues by remember { mutableStateOf(false) }
+    var showProjectPicker by remember { mutableStateOf(false) }
     var showTools by remember { mutableStateOf(false) }
+    var projectRegistry by remember(session) {
+        mutableStateOf(session?.let { runCatching { it.loadProjectRegistry() }.getOrNull() })
+    }
     var showGrid by remember(session) { mutableStateOf(session?.showCameraGrid ?: false) }
     var showTable by remember(session) { mutableStateOf(session?.showCameraTable ?: true) }
     var assistShutterEnabled by remember(session) {
@@ -209,7 +213,15 @@ internal fun IosCameraCapturePoc(
         return
     }
     if (showGallery) {
-        IosPhotoKitGalleryScreen(repository, onBack = { showGallery = false })
+        if (session == null) {
+            IosPhotoKitGalleryScreen(repository, onBack = { showGallery = false })
+        } else {
+            val registry = remember(session) { runCatching { session.loadProjectRegistry() } }
+            val active = registry.getOrNull()?.active
+            IosQuickResultsScreen(repository, active?.captureIds ?: session.sessionResultIds(),
+                projectTitle = active?.title, onBack = { showGallery = false },
+                scopeError = if (registry.isFailure) "프로젝트 촬영 기록을 읽지 못했습니다." else null)
+        }
         return
     }
     val info = remember(successfulSaves, settingsRevision, counterRevision, placementRevision, liveTick, showInfo) {
@@ -229,7 +241,8 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; showSettingsDetails = true },
         onDismiss = { showInfo = false }, settingsEnabled = !busy && !session.hasPending(),
     )
-    val captureEnabled = ready && !showSettings && !busy && !reviewVisible && !overlayEditing && !counterSyncing && counterSyncReady &&
+    val captureEnabled = ready && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
+        !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
         (onBack == null || session != null) && session?.hasPending() != true
     val triggerCapture: () -> Unit = capture@{
@@ -259,7 +272,7 @@ internal fun IosCameraCapturePoc(
                         if (committed) {
                             successfulSaves += 1
                             reviewVisible = continuousPreviewMode != 0
-                            status = "사진 저장 완료"
+                            status = session?.takeProjectAssociationWarning() ?: "사진 저장 완료"
                         } else {
                             status = "사진 저장됨 · 촬영 기록 복구 필요"
                         }
@@ -285,7 +298,8 @@ internal fun IosCameraCapturePoc(
                     if (session.undoLatestCapture()) {
                         successfulSaves = (successfulSaves - 1).coerceAtLeast(0)
                         counterRevision += 1
-                        status = "직전 촬영 삭제·번호 복원 완료"
+                        status = session.takeProjectAssociationWarning()
+                            ?: "직전 촬영 삭제·번호 복원 완료"
                     } else {
                         status = "직전 촬영 삭제 취소"
                     }
@@ -311,6 +325,12 @@ internal fun IosCameraCapturePoc(
             onOpenInfo = { showTools = false; showInfo = true },
             onOpenSettings = { showTools = false; showSettings = true },
         )
+        if (session != null) IosCameraProjectBar(
+            projectName = projectRegistry?.active?.title,
+            enabled = projectRegistry != null && !busy && !reviewVisible && !overlayEditing &&
+                !session.hasPending(),
+            onClick = { showTools = false; showProjectPicker = true },
+        )
         IosCameraStatusStrip(status, successfulSaves)
         if (permissionGranted && onBack != null && session == null) Text(
             "촬영할 템플릿과 저장 설정이 준비되지 않았습니다.",
@@ -323,10 +343,12 @@ internal fun IosCameraCapturePoc(
             if (ready && session != null) IosLiveTablePreview(
                 modifier = Modifier.fillMaxSize(), session = session, previewLayer = camera.previewLayer,
                 captureAspect = session.captureAspect.ratioF.toDouble(),
-                enabled = !busy && !reviewVisible && !session.hasPending() && !showTools && !showSettings,
+                enabled = !busy && !reviewVisible && !session.hasPending() && !showTools &&
+                    !showSettings && !showProjectPicker,
                 showGrid = showGrid,
                 showTable = showTable,
-                focusEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing && !showSettings,
+                focusEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing &&
+                    !showSettings && !showProjectPicker,
                 focusCollapseToken = focusCollapseToken,
                 minimumExposureBias = camera.minimumExposureBias,
                 maximumExposureBias = camera.maximumExposureBias,
@@ -334,7 +356,8 @@ internal fun IosCameraCapturePoc(
                 onExposureLock = camera::setExposureLocked,
                 onExposureBias = camera::setExposureBias,
                 onFocusInteraction = { focusInteractionToken += 1 },
-                zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing && !showSettings,
+                zoomEnabled = ready && !busy && !reviewVisible && !showTools && !overlayEditing &&
+                    !showSettings && !showProjectPicker,
                 currentZoom = zoom,
                 maximumZoom = camera.maximumZoom,
                 onZoomChange = { next ->
@@ -410,7 +433,8 @@ internal fun IosCameraCapturePoc(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             )
             IosFloatingAssistShutter(
-                visible = assistShutterEnabled && !busy && !reviewVisible && !showTools && !overlayEditing,
+                visible = assistShutterEnabled && !busy && !reviewVisible && !showTools &&
+                    !overlayEditing && !showProjectPicker,
                 captureEnabled = captureEnabled,
                 xRatio = assistShutterXRatio,
                 yRatio = assistShutterYRatio,
@@ -443,11 +467,14 @@ internal fun IosCameraCapturePoc(
         }
         IosCameraBottomBar(
             captureEnabled = captureEnabled,
-            controlsEnabled = !busy && !reviewVisible && !overlayEditing,
+            controlsEnabled = !busy && !reviewVisible && !overlayEditing && !showProjectPicker,
             toolsSelected = showTools,
-            quickValuesEnabled = session != null && !busy && !reviewVisible && !overlayEditing && !session.hasPending(),
-            undoEnabled = session?.canUndoLatestCapture == true && !busy && !reviewVisible && !overlayEditing,
+            quickValuesEnabled = session != null && !busy && !reviewVisible && !overlayEditing &&
+                !showProjectPicker && !session.hasPending(),
+            undoEnabled = session?.canUndoLatestCapture == true && !busy && !reviewVisible &&
+                !overlayEditing && !showProjectPicker,
             recentThumbnail = recentThumbnail,
+            galleryLabel = if (session == null) "앨범 보기" else "촬영 결과 보기",
             onOpenGallery = { showTools = false; showGallery = true },
             onToggleTools = { showTools = !showTools },
             onCapture = triggerCapture,
@@ -495,6 +522,31 @@ internal fun IosCameraCapturePoc(
                 settingsFailure = null
                 showSettings = false
             },
+        )
+    }
+    if (showProjectPicker && session != null && projectRegistry != null) {
+        IosProjectPickerSheet(
+            registry = requireNotNull(projectRegistry),
+            onSelect = { projectId ->
+                if (session.selectProject(projectId)) {
+                    projectRegistry = runCatching { session.loadProjectRegistry() }.getOrNull()
+                    settingsRevision += 1
+                    counterRevision += 1
+                    showProjectPicker = false
+                    status = "촬영 프로젝트 변경 완료"
+                } else {
+                    status = "촬영 프로젝트를 변경하지 못했습니다."
+                }
+            },
+            onCreate = {
+                showProjectPicker = false
+                status = "새 프로젝트는 홈의 프로젝트 관리에서 만들 수 있습니다."
+            },
+            onManage = {
+                showProjectPicker = false
+                status = "전체 프로젝트 관리는 홈에서 열어 주세요."
+            },
+            onDismiss = { showProjectPicker = false },
         )
     }
 }

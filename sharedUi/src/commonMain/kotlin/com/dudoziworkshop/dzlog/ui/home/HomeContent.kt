@@ -39,6 +39,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
     value < min -> min
@@ -69,6 +71,8 @@ fun HomeContent(
     saveInfoEnabled: Boolean = true,
     background: @Composable () -> Unit,
     recentCapture: @Composable () -> Unit,
+    projectName: String? = null,
+    onOpenProjectPicker: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val availableScreenHeight = maxHeight
@@ -122,41 +126,89 @@ fun HomeContent(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(role = Role.Button, onClickLabel = "템플릿 선택") { onManageTemplates() }
                             .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                         horizontalAlignment = Alignment.Start,
                     ) {
-                        Text(
-                            text = labels.currentTemplate,
-                            style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
-                            color = DDZColor.TextSecondary,
-                        )
-                        Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onOpenProjectPicker != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = "촬영 프로젝트 선택",
+                                        onClick = onOpenProjectPicker,
+                                    )
+                                    .semantics { contentDescription = "촬영 프로젝트 선택" }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = DDZColor.SelectedDark,
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = "촬영 프로젝트",
+                                        style = DDZTypography.Caption,
+                                        color = DDZColor.TextSecondary,
+                                    )
+                                    Text(
+                                        text = projectName?.takeIf(String::isNotBlank) ?: "일반 촬영",
+                                        style = DDZTypography.SettingLabel,
+                                        color = DDZColor.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Text(
+                                    text = "변경",
+                                    style = DDZTypography.Caption,
+                                    color = DDZColor.PrimaryDark,
+                                )
+                            }
+                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                        }
+                        Column(
+                            modifier = Modifier.fillMaxWidth().clickable(
+                                role = Role.Button,
+                                onClickLabel = "템플릿 선택",
+                                onClick = onManageTemplates,
+                            ),
+                        ) {
                             Text(
-                                text = templateName,
-                                style = DDZTypography.ScreenTitle.copy(
-                                    fontSize = HomeUiSpec.TemplateNameSize,
-                                    lineHeight = HomeUiSpec.TemplateNameLineHeight,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                                color = DDZColor.TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false),
+                                text = labels.currentTemplate,
+                                style = DDZTypography.Caption.copy(fontWeight = FontWeight.Medium),
+                                color = DDZColor.TextSecondary,
                             )
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = "템플릿 선택",
-                                tint = DDZColor.TextSecondary,
+                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = templateName,
+                                    style = DDZTypography.ScreenTitle.copy(
+                                        fontSize = HomeUiSpec.TemplateNameSize,
+                                        lineHeight = HomeUiSpec.TemplateNameLineHeight,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                    color = DDZColor.TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = "템플릿 선택",
+                                    tint = DDZColor.TextSecondary,
+                                )
+                            }
+                            Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
+                            Text(
+                                text = labels.nextCounter,
+                                style = DDZTypography.Secondary,
+                                color = DDZColor.TextSecondary,
                             )
                         }
-                        Spacer(Modifier.height(HomeUiSpec.CurrentCaptureVerticalGap))
-                        Text(
-                            text = labels.nextCounter,
-                            style = DDZTypography.Secondary,
-                            color = DDZColor.TextSecondary,
-                        )
                     }
                     }
                 },

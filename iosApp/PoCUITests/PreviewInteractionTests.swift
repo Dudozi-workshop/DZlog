@@ -1373,6 +1373,55 @@ final class PreviewInteractionTests: XCTestCase {
                       "The selected production starter must reopen directly after relaunch")
     }
 
+    func testProductionProjectCreateSelectAndRelaunch() throws {
+        app.launchArguments = ["--production-home-flow", "--reset-production-home-fixture",
+                               "--deny-camera-permission-for-ui-test"]
+        app.launch()
+        enterHomeAfterOptionalOnboarding()
+
+        tapButton("촬영 프로젝트 선택")
+        XCTAssertTrue(text("촬영 프로젝트 선택").waitForExistence(timeout: 10))
+        tapButton("+ 새 프로젝트")
+        XCTAssertTrue(text("프로젝트").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("새 프로젝트").waitForExistence(timeout: 10))
+        let field = app.textFields.matching(NSPredicate(format: "label == %@", "프로젝트 이름")).firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText("Blueberry field")
+        tapButton("만들기")
+        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 10))
+        tapButton("뒤로")
+
+        tapButton("촬영 프로젝트 선택")
+        tapButton("Blueberry field")
+        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 10))
+
+        tapButton("촬영 시작")
+        // The first production capture requires a saved placement and counter.
+        if button("확인").waitForExistence(timeout: 5) {
+            tapButton("확인")
+            tapCaptureSettingsButton("저장", searchDown: false)
+            tapButton("촬영 시작")
+        }
+        XCTAssertTrue(button("카메라 프로젝트 변경").waitForExistence(timeout: 20))
+        tapButton("카메라 프로젝트 변경")
+        XCTAssertTrue(text("촬영 프로젝트 선택").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("Blueberry field").exists)
+        tapButton("닫기")
+        tapButton("촬영 결과 보기")
+        XCTAssertTrue(text("프로젝트 결과").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("확인할 수 있는 촬영 사진이 없습니다.").waitForExistence(timeout: 10))
+        tapButton("뒤로")
+        tapButton("뒤로가기")
+        XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
+
+        app.terminate()
+        app.launchArguments = ["--production-home-flow"]
+        app.launch()
+        XCTAssertTrue(text("Blueberry field").waitForExistence(timeout: 20),
+                      "Selected project must survive relaunch")
+    }
+
     func testEditorContentStructureStyleSaveAndRelaunch() throws {
         app.launchArguments = ["--editor-flow", "--reset-editor-fixture"]
         app.launch()
