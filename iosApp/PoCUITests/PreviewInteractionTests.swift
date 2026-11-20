@@ -45,6 +45,8 @@ final class PreviewInteractionTests: XCTestCase {
     // These quick-value checks are the focused gate; milestone validation still
     // runs this class as part of the complete, unfiltered UI suite.
     func testQuickValuesCancelApplySaveAndRelaunch() {
+        // Exercise the real authorization prompt even when run after the denial test.
+        app.resetAuthorizationStatus(for: .photos)
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()
         tapButton("빠른 입력 열기")
@@ -75,7 +77,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("날짜형식: yyMMdd").waitForExistence(timeout: 20))
         XCTAssertTrue(text("문구세트: set-b").exists)
         tapButton("입력값으로 촬영 저장")
-        XCTAssertTrue(waitForPhotoState("상태: 입력 반영 사진 저장 완료"))
+        XCTAssertTrue(waitForPhotoState("상태: 입력 반영 사진 저장 완료"), app.debugDescription)
         XCTAssertTrue(text("다음 번호: 13").exists)
         app.terminate()
         app.launchArguments = ["--quick-values-flow"]
@@ -1362,10 +1364,26 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(deny.waitForExistence(timeout: 10))
         deny.tap()
         XCTAssertTrue(text("거부됨").waitForExistence(timeout: 10))
+        XCTAssertTrue(panelText("DZlog 설정에서 사진 접근을 허용해 주세요. 앱 목록이 열리면 DZlog를 선택하세요.").exists)
         tapButton("iPhone 설정 열기")
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
         XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 10))
+        // iOS can open either this app's settings or Settings > Apps. The
+        // latter also lists the UI test runner, so match the app's bundle ID.
         let photos = settings.staticTexts["Photos"].firstMatch
+        let appRow = settings.buttons["com.dudoziworkshop.dzlog"]
+        let appsList = settings.navigationBars["Apps"]
+        let reachedSettings = NSPredicate { _, _ in
+            if appsList.exists { return appRow.exists && appRow.isHittable }
+            return photos.exists && photos.isHittable
+        }
+        let route = XCTNSPredicateExpectation(predicate: reachedSettings, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [route], timeout: 10), .completed, settings.debugDescription)
+        if appsList.exists {
+            appRow.tap()
+            let leftList = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: appsList)
+            XCTAssertEqual(XCTWaiter.wait(for: [leftList], timeout: 10), .completed, settings.debugDescription)
+        }
         XCTAssertTrue(photos.waitForExistence(timeout: 10), settings.debugDescription)
         photos.tap()
         let fullAccess = settings.descendants(matching: .any).matching(NSPredicate(
@@ -1569,7 +1587,7 @@ final class PreviewInteractionTests: XCTestCase {
 
         tapButton("촬영 프로젝트 선택 · 일반 촬영")
         tapButton("blueberry")
-        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10), app.debugDescription)
 
         tapButton("촬영 시작")
         // The first production capture requires a saved placement and counter.
@@ -1629,7 +1647,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("촬영 프로젝트 선택 · 일반 촬영").waitForExistence(timeout: 20))
         tapButton("촬영 프로젝트 선택 · 일반 촬영")
         tapButton("blueberry")
-        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("촬영 프로젝트 선택 · blueberry").waitForExistence(timeout: 10), app.debugDescription)
     }
 
     func testEditorContentStructureStyleSaveAndRelaunch() throws {

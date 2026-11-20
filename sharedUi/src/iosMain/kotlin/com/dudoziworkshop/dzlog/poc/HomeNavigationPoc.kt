@@ -260,9 +260,10 @@ internal fun HomeNavigationPoc(
                 onboardingBusy = true
                 val starter = iosProductionStarterTemplate(starterId)
                 val next = EditorWorkspace(listOf(EditorDocument(starter)), starter.id)
-                if (store.save(next)) {
+                // Use the persisted (slot-normalized) snapshot as the baseline
+                // for the next optimistic project/template write, just as on relaunch.
+                if (persist(next)) {
                     store.markOnboardingCompleted()
-                    workspace = next
                     showOnboarding = false
                 } else {
                     notice = "시작 양식을 저장하지 못했습니다. 다시 시도해 주세요."

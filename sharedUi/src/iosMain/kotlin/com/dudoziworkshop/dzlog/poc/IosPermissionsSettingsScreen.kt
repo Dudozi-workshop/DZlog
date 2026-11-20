@@ -96,7 +96,7 @@ internal fun PermissionCard(camera: Boolean, access: IosAccess) {
     val title = if (camera) "카메라 권한" else "사진 권한"
     val explanation = when {
         access == IosAccess.RESTRICTED -> "기기의 사용 제한 설정을 확인해 주세요."
-        access == IosAccess.DENIED -> "iPhone 설정에서 ${if (camera) "카메라" else "사진"} 접근을 허용해 주세요."
+        access == IosAccess.DENIED -> "DZlog 설정에서 ${if (camera) "카메라" else "사진"} 접근을 허용해 주세요. 앱 목록이 열리면 DZlog를 선택하세요."
         access == IosAccess.LIMITED -> "DZlog가 접근할 수 있는 사진을 선택하거나 변경할 수 있어요."
         camera -> "사진과 기록표를 촬영할 때 사용해요."
         else -> "촬영한 사진을 저장하고 갤러리에서 확인할 때 사용해요."
