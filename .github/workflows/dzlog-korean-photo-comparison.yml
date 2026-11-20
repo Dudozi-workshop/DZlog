@@ -1,0 +1,101 @@
+name: Android and iPhone Korean table JPEG comparison
+on:
+  push:
+    branches: [qa/ios-korean-photo-20261121]
+permissions:
+  contents: read
+jobs:
+  input:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install Pillow && python3 qa/korean-photo/source.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: source.jpg
+  android:
+    needs: input
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 4e4fecb7101d87f607dfab2591e900be277b6527
+          path: android-source
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Android reference with debug-only photo entry point
+        run: |
+          target=android-source/app/src/debug
+          mkdir -p "$target/java/com/dudoziworkshop/dzlog/qa" "$target/assets"
+          cp qa/korean-photo/PhotoActivity.kt "$target/java/com/dudoziworkshop/dzlog/qa/"
+          cp qa/korean-photo/AndroidManifest.xml "$target/"
+          cp source.jpg qa/korean-photo/cells.txt "$target/assets/"
+          cd android-source && bash gradlew :app:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: bash qa/korean-photo/read-android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: android.jpg
+  iphone:
+    needs: input
+    runs-on: macos-15
+    timeout-minutes: 55
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build simulator fixture using the iPhone save renderer
+        run: |
+          cp qa/korean-photo/KoreanPhoto.kt sharedUi/src/iosMain/kotlin/com/dudoziworkshop/dzlog/poc/
+          cp qa/korean-photo/AppDelegate.swift iosApp/PoCApp/
+          bash gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:linkDebugFrameworkIosSimulatorArm64
+          bash scripts/ios/build-ui-poc.sh
+          bash qa/korean-photo/read-iphone.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iphone
+          path: iphone.jpg
+  compare:
+    needs: [android, iphone]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - run: python3 -m pip install Pillow && python3 qa/korean-photo/compare.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: korean-photo-comparison
+          path: |
+            android.jpg
+            iphone.jpg
+            comparison.png
+            measurements.json
