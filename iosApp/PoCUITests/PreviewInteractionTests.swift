@@ -104,11 +104,16 @@ final class PreviewInteractionTests: XCTestCase {
         typeWithVisibleKeyboard("3")
         tapButton("이전 셀")
         typeWithVisibleKeyboard("x")
-        tapButton("입력")
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.exists, "Manual cell switching must keep the keyboard open")
+        // The secondary Input action is below the keyboard viewport. Select
+        // the visible automatic cell instead and verify the keyboard closes.
+        tapPanelText("1행 4열 셀 선택")
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: keyboard)
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 10), .completed, app.debugDescription)
         let preview = app.descendants(matching: .any).matching(NSPredicate(
             format: "label BEGINSWITH %@ AND label CONTAINS %@", "파일명 · ", "bluex")).firstMatch
         XCTAssertTrue(preview.waitForExistence(timeout: 10))
-        tapPanelText("1행 4열 셀 선택")
         tapScrollableButton("문구 세트 · 과수원")
         tapScrollableButton("온실")
         tapButton("취소")
@@ -123,12 +128,24 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("CSV 일괄 관리")
         for label in ["CSV 불러오기", "CSV 내보내기"] {
             tapButton(label)
-            let cancel = app.buttons.matching(NSPredicate(
-                format: "label IN %@", ["Cancel", "취소"])).firstMatch
-            XCTAssertTrue(cancel.waitForExistence(timeout: 15), app.debugDescription)
-            cancel.tap()
-            XCTAssertTrue(button(label).waitForExistence(timeout: 10))
-            XCTAssertTrue(button(label).isEnabled)
+            // Document import exposes Cancel as Button, but the export
+            // sheet exposes the same native control as Other on iOS 18.
+            let controls = app.descendants(matching: .any).matching(NSPredicate(
+                format: "label IN %@ AND NOT (identifier BEGINSWITH %@)",
+                ["Cancel", "취소"], "AccessibilityElement for SemanticsNode"
+            ))
+            let cancel = controls.firstMatch
+            let pickerReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                cancel.exists && !cancel.frame.isEmpty && self.app.frame.contains(cancel.frame)
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [pickerReady], timeout: 15), .completed, app.debugDescription)
+            let frame = cancel.frame
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: frame.midX - app.frame.minX, dy: frame.midY - app.frame.minY)).tap()
+            let pickerClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: cancel)
+            XCTAssertEqual(XCTWaiter.wait(for: [pickerClosed], timeout: 10), .completed, app.debugDescription)
+            XCTAssertTrue(button("CSV 내보내기").isEnabled)
+            XCTAssertTrue(button("CSV 불러오기").isEnabled)
         }
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18)).tap()
         tapButton("뒤로가기")
@@ -1469,14 +1486,35 @@ final class PreviewInteractionTests: XCTestCase {
             format: "label IN %@", ["Full Access", "All Photos"]
         )).firstMatch
         XCTAssertTrue(fullAccess.waitForExistence(timeout: 10), settings.debugDescription)
+        XCTAssertTrue(fullAccess.isHittable, settings.debugDescription)
         fullAccess.tap()
-        let confirm = settings.alerts.buttons["Allow Full Access"]
-        if confirm.exists { confirm.tap() }
+        // A confirmation can be delivered after the Settings row tap, and
+        // iOS can host it in either Settings or SpringBoard.
+        let settingsConfirm = settings.alerts.buttons["Allow Full Access"].firstMatch
+        let systemConfirm = system.alerts.buttons["Allow Full Access"].firstMatch
+        let grantReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            settingsConfirm.exists || systemConfirm.exists || (fullAccess.exists && fullAccess.isSelected)
+        }, object: nil)
+        _ = XCTWaiter.wait(for: [grantReady], timeout: 6)
+        if settingsConfirm.exists {
+            settingsConfirm.tap()
+        } else if systemConfirm.exists {
+            systemConfirm.tap()
+        }
+        let confirmationClosed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            !settingsConfirm.exists && !systemConfirm.exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [confirmationClosed], timeout: 10), .completed, settings.debugDescription)
+        // The gallery assertion below is the end-to-end check. Record the
+        // system selection too so a failed grant is not mistaken for stale UI.
+        let settingsAfterGrant = settings.debugDescription
         // iOS may terminate the app when its privacy settings change.
         if app.state == .notRunning { app.launch() } else { app.activate() }
         if app.buttons["앨범 보기"].waitForExistence(timeout: 2) { tapButton("앨범 보기") }
-        XCTAssertTrue(app.buttons["폴더 보기"].waitForExistence(timeout: 15), app.debugDescription)
+        XCTAssertTrue(app.buttons["폴더 보기"].waitForExistence(timeout: 15),
+                      "After Settings grant:\n\(settingsAfterGrant)\nAfter app activation:\n\(String(describing: app.debugDescription))")
         XCTAssertFalse(text("거부됨").exists)
+        XCTAssertFalse(app.buttons["선택한 사진 변경"].exists, "Full Access must not restore as Limited")
         restored = true
         tapButton("뒤로가기")
         XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 10))
