@@ -83,6 +83,25 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("다음 번호: 13").exists)
     }
 
+    func testQuickTextFavoriteSurvivesCancellationAndRelaunch() {
+        app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("2행 1열 · 텍스트")
+        typeWithVisibleKeyboard("blue")
+        tapButton("즐겨찾기 즉시 등록")
+        tapButton("취소")
+        XCTAssertFalse(text("입력값: blue").exists)
+
+        app.terminate()
+        app.launchArguments = ["--quick-values-flow"]
+        app.launch()
+        tapButton("빠른 입력 열기")
+        tapPanelText("blue")
+        tapButton("완료")
+        XCTAssertTrue(text("입력값: blue").waitForExistence(timeout: 20))
+    }
+
     func testQuickValuesEligibilityNumbersAndStaleWorkspace() {
         app.launchArguments = ["--quick-values-flow", "--reset-quick-values-fixture"]
         app.launch()

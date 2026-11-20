@@ -463,7 +463,8 @@ fun TableEditorV2Content(
                                 if (selected != null) {
                                     TableEditorCellUiModelEditor(
                                         cell = selected,
-                                        phraseSets = draftTemplateState.phraseSets,
+                                        template = draftTemplateState,
+                                        onTemplateChange = { session.commitTemplateChange(it) },
                                         onValueChange = { nextValue ->
                                             selected.domainCellId?.let { cellId ->
                                                 session.commitTemplateChange(
@@ -515,28 +516,6 @@ fun TableEditorV2Content(
                                                         templateState = draftTemplateState,
                                                         domainCellId = cellId,
                                                         phraseSetId = phraseSetId,
-                                                    )
-                                                )
-                                            }
-                                        },
-                                        onPhraseProgressChange = { index, completed ->
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(draftTemplateState.copy(
-                                                    cells = draftTemplateState.cells.map { cell ->
-                                                        if (cell.cellId == cellId) cell.copy(
-                                                            phraseIndex = index, phraseCompletedShots = completed
-                                                        ) else cell
-                                                    }
-                                                ))
-                                            }
-                                        },
-                                        onPhraseEveryChange = { every ->
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(
-                                                    applyMockPhraseEvery(
-                                                        templateState = draftTemplateState,
-                                                        domainCellId = cellId,
-                                                        every = every,
                                                     )
                                                 )
                                             }

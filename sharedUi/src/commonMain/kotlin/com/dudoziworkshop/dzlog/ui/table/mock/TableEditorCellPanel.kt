@@ -24,6 +24,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
+import com.dudoziworkshop.dzlog.ui.table.favorites.*
+import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
+import com.dudoziworkshop.dzlog.ui.camera.controls.PhraseProgressControls
+import com.dudoziworkshop.dzlog.feature.table.policy.applyQuickPhrasePeriodEdit
+import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickPhraseProgress
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,14 +54,13 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 @Composable
 fun TableEditorCellUiModelEditor(
     cell: TableEditorCellUiModel,
-    phraseSets: List<com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet>,
+    template: TableTemplateState,
+    onTemplateChange: (TableTemplateState) -> Unit,
     onValueChange: (String) -> Unit,
     onTypeChange: (TableEditorCellType) -> Unit,
     onDatePatternChange: (String) -> Unit,
     onApplyTimePolicy: () -> Unit,
     onPhraseSetChange: (String?) -> Unit,
-    onPhraseEveryChange: (Int) -> Unit,
-    onPhraseProgressChange: (Int, Int) -> Unit,
     onCreatePhraseSet: (String) -> String?,
     onUpdatePhraseSet: (String, (com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet) -> Unit,
     onDeletePhraseSet: (String) -> Unit,
@@ -68,10 +72,11 @@ fun TableEditorCellUiModelEditor(
     onInputFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val favorites = LocalTextFavorites.current
     var showTypePicker by remember(cell.id) { mutableStateOf(false) }
     var showDatePicker by remember(cell.id) { mutableStateOf(false) }
     var showPhrasePicker by remember(cell.id) { mutableStateOf(false) }
-    var showPhraseProgress by remember(cell.id) { mutableStateOf(false) }
+    val phraseSets = template.phraseSets
     var editingPhraseSetId by remember(cell.id) { mutableStateOf<String?>(null) }
 
     CompositionLocalProvider(LocalTextStyle provides DDZTypography.Body) {
@@ -112,8 +117,10 @@ fun TableEditorCellUiModelEditor(
                                             onValueChange(if (cell.value.startsWith("-")) cell.value.drop(1) else "-${cell.value}")
                                         }) { Text("±") } }
                                     } else {
-                                        // Reserve the same text inset in both modes for the overlay button.
-                                        { androidx.compose.foundation.layout.Spacer(Modifier.size(DDZLayout.QuickInput.Touch)) }
+                                        { Row {
+                                            favorites?.let { TableEditorTextFavoriteStar(cell.value, it) }
+                                            androidx.compose.foundation.layout.Spacer(Modifier.size(DDZLayout.QuickInput.Touch))
+                                        } }
                                     },
                                 )
                                 if (isText) IconButton(
@@ -181,6 +188,10 @@ fun TableEditorCellUiModelEditor(
                 }
             }
 
+            if (cell.type == TableEditorCellType.TEXT && favorites != null) {
+                TableEditorTextFavoritesRow(favorites, onApply = onValueChange)
+            }
+
             // The selected value stays above the scrollable type-specific settings.
             if (!compactInput) Column(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
@@ -209,33 +220,15 @@ fun TableEditorCellUiModelEditor(
                             value = selectedSet?.name ?: "선택 안 함",
                             onClick = { showPhrasePicker = true },
                         )
-                        if (selectedSet != null) {
-                            val everyValue = (cell.everyOverride ?: selectedSet.defaultEvery).coerceAtLeast(1)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text("변경 주기", modifier = Modifier.weight(1f), color = DDZColor.TextMuted)
-                                DDZButton(text = "−", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
-                                    onClick = { onPhraseEveryChange((everyValue - 1).coerceAtLeast(1)) })
-                                Text(everyValue.toString() + "장")
-                                DDZButton(text = "+", style = DDZButtonStyle.Secondary, minHeight = 40.dp,
-                                    onClick = { onPhraseEveryChange(everyValue + 1) })
-                            }
-                            if (selectedSet.items.isNotEmpty()) {
-                                val index = cell.phraseIndex.coerceIn(0, selectedSet.items.lastIndex)
-                                val completed = cell.phraseCompletedShots.coerceIn(0, everyValue - 1)
-                                TableEditorSettingRow(label = "현재 문구", value = selectedSet.items[index],
-                                    onClick = { showPhraseProgress = true })
-                                TableEditorSettingRow(label = "저장 완료", value = "$completed / ${everyValue}장 · 조정",
-                                    onClick = { showPhraseProgress = true })
-                                Text("${everyValue - completed}장 더 촬영하면 ${selectedSet.items[(index + 1) % selectedSet.items.size]}",
-                                    style = DDZTypography.Caption, color = DDZColor.TextMuted, maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis)
-                                Text("주기 변경 시 현재 문구의 완료 장수가 초기화됩니다.",
-                                    style = DDZTypography.Caption, color = DDZColor.TextMuted)
-                            }
+                        val source = template.cells.firstOrNull { it.cellId == cell.domainCellId }
+                        if (source != null && selectedSet != null && selectedSet.items.isNotEmpty()) {
+                            PhraseProgressControls(template, source, selectedSet,
+                                onProgress = { index, shots ->
+                                    onTemplateChange(updateQuickPhraseProgress(template, source.cellId, index, shots))
+                                },
+                                onPeriod = { edit, choices ->
+                                    applyQuickPhrasePeriodEdit(template, edit, choices)?.let(onTemplateChange)
+                                })
                         }
                     }
                     else -> Unit
@@ -250,12 +243,6 @@ fun TableEditorCellUiModelEditor(
             }
         }
 
-    }
-
-    if (showPhraseProgress) {
-        phraseSets.firstOrNull { it.id == cell.phraseSetId && it.items.isNotEmpty() }?.let { set ->
-            TableEditorPhraseProgressDialog(cell, set, onPhraseProgressChange, { showPhraseProgress = false })
-        }
     }
 
     if (showTypePicker) {

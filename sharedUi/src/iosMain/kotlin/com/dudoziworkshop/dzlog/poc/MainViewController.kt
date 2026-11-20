@@ -24,7 +24,7 @@ import platform.Foundation.*
 fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = ComposeUIViewController(configure = {
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
-    DDZTheme {
+    IosAppTheme {
         val session = remember { IosCameraWorkspaceBridge.current }
         IosCameraCapturePoc(
             permissionGranted = cameraPermissionGranted,
@@ -48,7 +48,7 @@ fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UI
     // This host is PoC-only; Android and the shared dialog implementation are unchanged.
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
-    DDZTheme {
+    IosAppTheme {
         if (NSProcessInfo.processInfo.arguments.contains("--quick-values-flow")) {
             IosQuickValuesFixture()
         } else if (NSProcessInfo.processInfo.arguments.contains("--live-table-placement-flow")) {

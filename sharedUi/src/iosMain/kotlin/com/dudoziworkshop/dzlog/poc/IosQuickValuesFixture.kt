@@ -110,6 +110,20 @@ internal fun IosQuickValuesFixture() {
                 check(iosQuickAutoValueCells(doc).map { it.cellId } == listOf("date", "phrase", "time")) {
                     "자동 셀 선별 규칙이 일치하지 않습니다."
                 }
+                val quickEdits = IosQuickValueChanges(emptyMap(), phraseEdits = listOf(
+                    IosQuickPhraseEdit.Select("phrase", "set-b"),
+                    IosQuickPhraseEdit.Period(com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodEdit(
+                        "phrase", false, 4), emptyMap()),
+                    IosQuickPhraseEdit.Progress("phrase", 0, 3),
+                ))
+                val edited = applyIosQuickValueChanges(doc, quickEdits)
+                val table = edited.template.templateState
+                val set = table.phraseSets.first { it.id == "set-b" }
+                val editedPhrase = table.cells.first { it.cellId == "phrase" }
+                check(set.everyForItem(0) == 4 && editedPhrase.phraseCompletedShots == 3)
+                check(com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
+                    .afterSuccessfulCapture(editedPhrase, set).index == 1)
+                check(doc.template.templateState.cells.first { it.cellId == "phrase" }.phraseSetId == "set-a")
                 val automatic = applyIosQuickValueChanges(doc, IosQuickValueChanges(
                     manualValues = mapOf("note" to doc.template.templateState.cells.first { it.cellId == "note" }.rawText,
                         "number" to "1.20"),

@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.dudoziworkshop.dzlog.ui.table.favorites.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -21,6 +22,11 @@ import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
 import com.dudoziworkshop.dzlog.feature.table.policy.quickDateFormats
 import com.dudoziworkshop.dzlog.feature.table.policy.quickEditableCells
 import com.dudoziworkshop.dzlog.feature.table.policy.quickSelectableCells
+import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgress
+import com.dudoziworkshop.dzlog.feature.table.policy.QuickPhrasePeriodEdit
+import com.dudoziworkshop.dzlog.feature.table.policy.applyQuickPhrasePeriodEdit
+import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickPhraseProgress
+import com.dudoziworkshop.dzlog.ui.camera.controls.PhraseProgressControls
 import com.dudoziworkshop.dzlog.feature.table.policy.selectQuickPhraseSet
 import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickDateFormat
 import com.dudoziworkshop.dzlog.feature.table.policy.updateQuickCellValues
@@ -49,10 +55,27 @@ internal fun iosQuickAutoValueCells(document: EditorDocument): List<TableCellSta
     }
 }
 
+/** Replay in input order so switching away and back resets only the edited cell. */
+internal sealed interface IosQuickPhraseEdit {
+    val cellId: String
+    fun applyTo(template: TableTemplateState): TableTemplateState
+    data class Select(override val cellId: String, val setId: String) : IosQuickPhraseEdit {
+        override fun applyTo(template: TableTemplateState) = selectQuickPhraseSet(template, cellId, setId)
+    }
+    data class Progress(override val cellId: String, val index: Int, val completed: Int) : IosQuickPhraseEdit {
+        override fun applyTo(template: TableTemplateState) = updateQuickPhraseProgress(template, cellId, index, completed)
+    }
+    data class Period(val edit: QuickPhrasePeriodEdit, val choices: Map<String, CellPhraseProgress>) : IosQuickPhraseEdit {
+        override val cellId get() = edit.cellId
+        override fun applyTo(template: TableTemplateState) = requireNotNull(applyQuickPhrasePeriodEdit(template, edit, choices))
+    }
+}
+
 internal data class IosQuickValueChanges(
     val manualValues: Map<String, String>,
     val dateFormats: Map<String, String> = emptyMap(),
     val phraseSetIds: Map<String, String> = emptyMap(),
+    val phraseEdits: List<IosQuickPhraseEdit> = emptyList(),
 )
 
 internal fun updateIosQuickValues(document: EditorDocument, values: Map<String, String>): EditorDocument {
@@ -91,6 +114,13 @@ internal fun applyIosQuickValueChanges(
         updated = updated.copy(template = updated.template.copy(templateState =
             selectQuickPhraseSet(updated.template.templateState, cellId, setId)))
     }
+    if (changes.phraseEdits.isNotEmpty()) {
+        val table = changes.phraseEdits.fold(updated.template.templateState) { state, edit ->
+            require(automatic[edit.cellId]?.dataType == TableCellDataType.ROTATING_TEXT)
+            edit.applyTo(state)
+        }
+        updated = updated.copy(template = updated.template.copy(templateState = table))
+    }
     return updated
 }
 
@@ -100,6 +130,7 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
     availableDocuments: List<EditorDocument> = listOf(document),
     onSwitchTemplate: ((String, IosQuickValueChanges) -> Boolean)? = null,
     onSave: (IosQuickValueChanges) -> Boolean) {
+    val favorites = LocalTextFavorites.current
     val fields = remember(document) { runCatching { iosQuickValueCells(document) } }
     val automaticFields = remember(document) { runCatching { iosQuickAutoValueCells(document) } }
     val cells = fields.getOrDefault(emptyList())
@@ -108,13 +139,13 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
     val dateFormats = remember(document) { automaticCells.filter { it.dataType == TableCellDataType.DATE }
         .map { it.cellId to (it.formatPattern.takeIf { pattern -> pattern in quickDateFormats } ?: "yyyyMMdd") }
         .toMutableStateMap() }
-    val phraseSetIds = remember(document) { automaticCells.filter { it.dataType == TableCellDataType.ROTATING_TEXT }
-        .mapNotNull { cell -> cell.phraseSetId?.let { cell.cellId to it } }.toMutableStateMap() }
+    var phraseEdits by remember(document) { mutableStateOf(emptyList<IosQuickPhraseEdit>()) }
     var expandedAutomaticId by remember(document) { mutableStateOf<String?>(null) }
     var templateExpanded by remember(document) { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
-    val changes = IosQuickValueChanges(values.toMap(), dateFormats.toMap(), phraseSetIds.toMap())
-    val draft = runCatching { applyIosQuickValueChanges(document, changes) }.getOrNull()
+    val changes = IosQuickValueChanges(values.toMap(), dateFormats.toMap(), phraseEdits = phraseEdits)
+    val draft = remember(document, changes) { runCatching { applyIosQuickValueChanges(document, changes) }.getOrNull() }
+    val phraseTable = draft?.template?.templateState ?: document.template.templateState
     val preview = draft?.let {
         buildPreview(PreviewInput(it.template.templateState, tableEditorNow(), it.counterPadding,
             NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
@@ -185,10 +216,19 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                         decimalInputOrPrevious(value, values[cell.cellId].orEmpty()) else value
                     failure = null
                 }, label = { Text(fieldLabel) },
+                    trailingIcon = if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
+                        { TableEditorTextFavoriteStar(values[cell.cellId].orEmpty(), favorites) }
+                    } else null,
                     // iOS Compose exports the editable value but can omit the
                     // Material floating label. Preserve position/type for VoiceOver
                     // and touch-based UI selection even when the value is empty.
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = fieldLabel })
+                if (cell.dataType == TableCellDataType.TEXT && favorites != null) {
+                    TableEditorTextFavoritesRow(favorites, onApply = { text ->
+                        values[cell.cellId] = text
+                        failure = null
+                    })
+                }
                 val links = quickCellLinks(document.template.templateState, cell.cellId)
                 if (links.description.isNotEmpty()) Text(links.description)
             }
@@ -208,13 +248,21 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                     }
                     TableCellDataType.TIME -> Text("촬영 시각으로 자동 입력돼요.")
                     TableCellDataType.ROTATING_TEXT -> {
-                        val sets = document.template.templateState.phraseSets.filter { it.items.isNotEmpty() }
-                        val selected = sets.firstOrNull { it.id == phraseSetIds[cell.cellId] }
+                        val current = phraseTable.cells.first { it.cellId == cell.cellId }
+                        val sets = phraseTable.phraseSets.filter { it.items.isNotEmpty() }
+                        val selected = sets.firstOrNull { it.id == current.phraseSetId }
                         Button(enabled = sets.isNotEmpty(), onClick = {
                             expandedAutomaticId = cell.cellId.takeUnless { expandedAutomaticId == it }
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text("문구 세트 · ${selected?.name ?: "세트 선택"}")
                         }
+                        if (selected != null) PhraseProgressControls(
+                            phraseTable, current, selected, enabled = draft != null,
+                            onProgress = { index, count ->
+                                phraseEdits += IosQuickPhraseEdit.Progress(cell.cellId, index, count)
+                            },
+                            onPeriod = { edit, choices -> phraseEdits += IosQuickPhraseEdit.Period(edit, choices) },
+                        )
                         if (sets.isEmpty()) Text("표 상세설정에서 문구를 먼저 등록해 주세요.")
                     }
                     else -> Unit
@@ -234,7 +282,7 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
             }
         } else document.template.templateState.phraseSets.filter { it.items.isNotEmpty() }
             .map { it.id to it.name }
-        val selectedId = if (isDate) dateFormats[cell.cellId] else phraseSetIds[cell.cellId]
+        val selectedId = if (isDate) dateFormats[cell.cellId] else phraseTable.cells.first { it.cellId == cell.cellId }.phraseSetId
         DDZBottomSheet(
             title = if (isDate) "날짜 형식 선택" else "순환문구 세트 선택",
             onDismiss = { expandedAutomaticId = null },
@@ -245,7 +293,7 @@ internal fun IosQuickValuesScreen(document: EditorDocument, onBack: () -> Unit,
                     val active = id == selectedId
                     OutlinedButton(
                         onClick = {
-                            if (isDate) dateFormats[cell.cellId] = id else phraseSetIds[cell.cellId] = id
+                            if (isDate) dateFormats[cell.cellId] = id else if (selectedId != id) phraseEdits += IosQuickPhraseEdit.Select(cell.cellId, id)
                             expandedAutomaticId = null
                             failure = null
                         },

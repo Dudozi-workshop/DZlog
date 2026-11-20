@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.backup
 
+import com.dudoziworkshop.dzlog.domain.model.RotatingPhraseSet
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableCellKind
 import com.dudoziworkshop.dzlog.domain.model.GroupLevel
@@ -70,7 +71,16 @@ object SharedTemplateBackupValidator {
                         "순환문구 항목이 올바르지 않습니다."
                     }
                 }
-                require(exactInt(p, "defaultEvery", 1..100000) > 0)
+                exactInt(p, "defaultEvery", 1..RotatingPhraseSet.MAX_EVERY)
+                for (key in listOf("itemEveryOverrides", "itemEveryInactiveOverrides")) {
+                    if (!p.has(key)) continue
+                    val periods = requireNotNull(p.optJSONArray(key))
+                    require(periods.length() == phrases.length())
+                    for (j in 0 until periods.length()) {
+                        val value = periods.opt(j)
+                        require(value == null || value == JSONObject.NULL || (value is Int && value in 1..RotatingPhraseSet.MAX_EVERY))
+                    }
+                }
             }
             for (index in 0 until cells.length()) {
                 val c = cells.getJSONObject(index)

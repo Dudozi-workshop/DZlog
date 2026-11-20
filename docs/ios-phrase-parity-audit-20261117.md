@@ -21,3 +21,16 @@ Scope: current PR #87 branch source. This is not a device or native-test pass.
 - Compare full camera phrase-progress controls and latest approved Android changes separately; this audit does not certify complete UI parity or introduce a new all/individual control design.
 
 Local verification: whitespace checks and iOS release metadata validation. Native compilation, XCTest and physical-device checks were not run in this batch. Do not wait for CI per the user's workflow.
+
+## 2026-11-20 quick editing update
+
+- Camera quick edit and table detail share the compact period sheet, current phrase, completed-shot slider,
+  whole-set and individual periods, and explicit resolution of newly out-of-range progress in linked cells.
+- Template JSON and backup validation support active and remembered per-item periods. Omitted lists
+  retain the legacy fallback. Reordering a phrase moves its individual periods with it.
+- The iOS quick editor replays phrase changes in order against its opening document. Cancel discards
+  the draft, and the camera workspace verifies the opening snapshot before saving.
+- Both iOS text-entry screens use the same persistent 20-item favorites list. A star toggles the full
+  input immediately. Single-line chips and a pinned management button expose rename, reorder and deletion.
+- Added shared policy and serialization regression cases and an iOS UI case for favorites surviving
+  cancellation and relaunch. Native and simulator verification runs on the macOS checkpoint.

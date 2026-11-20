@@ -5,12 +5,14 @@ test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
   quick-values) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
   ) ;;
   media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection

@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.table.rotating
 
+import com.dudoziworkshop.dzlog.domain.phrase.RotatingPhraseSetItemPolicy
 import com.dudoziworkshop.dzlog.ui.common.DDZDialogAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -131,10 +132,7 @@ fun RotatingPhraseSetEditDialog(
                 return@onUpdateSet set
             }
 
-            val newList = items.toMutableList().apply {
-                add(toIndex, removeAt(fromIndex))
-            }
-            set.copy(items = newList)
+            RotatingPhraseSetItemPolicy.moveItem(set, fromIndex, toIndex)
         }
 
         val fromIndex = from.index - 1
@@ -223,7 +221,7 @@ fun RotatingPhraseSetEditDialog(
                             IconButton(onClick = {
                                 if (index in itemIds.indices) itemIds.removeAt(index)
                                 onUpdateSet { set ->
-                                    set.copy(items = set.items.filterIndexed { idx, _ -> idx != index })
+                                    RotatingPhraseSetItemPolicy.removeItem(set, index)
                                 }
                             }) {
                                 Icon(Icons.Default.DeleteOutline, "문구 삭제", tint = DDZColor.IconMuted)
@@ -365,7 +363,9 @@ fun RotatingPhraseSetEditDialog(
                     if (trimmed.isNotBlank()) {
                         if (editingItemIndex == null) {
                             itemIds.add(newTableElementId())
-                            onUpdateSet { it.copy(items = it.items + trimmed) }
+                            onUpdateSet { it.copy(items = it.items + trimmed,
+                                itemEveryOverrides = it.itemEveryOverrides.let { v -> if (v.isEmpty()) v else v + listOf(null) },
+                                itemEveryInactiveOverrides = it.itemEveryInactiveOverrides.let { v -> if (v.isEmpty()) v else v + listOf(null) }) }
                         } else {
                             val idx = editingItemIndex!!
                             onUpdateSet { set ->
