@@ -8,7 +8,7 @@ import DZlogUi
 // Swift owns Apple's camera permission API. Kotlin receives only the verified
 // authorization result, so its PhotoKit/camera code cannot bypass a denial.
 @main
-final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDelegate {
+final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
     var window: UIWindow?
     private var cameraPresentedOrPending = false
     private var permissionActionPending = false
@@ -371,12 +371,23 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UIDocumentPickerDel
                 picker.allowsMultipleSelection = false
             }
             picker.delegate = self
+            picker.modalPresentationStyle = .pageSheet
+            picker.sheetPresentationController?.prefersGrabberVisible = true
+            picker.presentationController?.delegate = self
             phraseCsvRequest = (picker, reply, directory)
             presenter.present(picker, animated: true)
         } catch {
             if let folder = directory { try? FileManager.default.removeItem(at: folder) }
             NotificationCenter.default.post(name: reply, object: ["message": "CSV 파일을 준비하지 못했습니다."])
         }
+    }
+
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        guard let request = phraseCsvRequest,
+              presentationController.presentedViewController === request.picker else { return }
+        // An interactive sheet dismissal can arrive separately from the picker delegate.
+        request.picker.delegate = nil
+        _ = finishPhraseCsv(request.picker, urls: nil)
     }
 
     private func finishPhraseCsv(_ picker: UIDocumentPickerViewController, urls: [URL]?) -> Bool {

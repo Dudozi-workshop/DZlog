@@ -128,24 +128,32 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("CSV 일괄 관리")
         for label in ["CSV 불러오기", "CSV 내보내기"] {
             tapButton(label)
-            // Document import exposes Cancel as Button, but the export
-            // sheet exposes the same native control as Other on iOS 18.
-            let controls = app.descendants(matching: .any).matching(NSPredicate(
+            let cancel = app.descendants(matching: .any).matching(NSPredicate(
                 format: "label IN %@ AND NOT (identifier BEGINSWITH %@)",
                 ["Cancel", "취소"], "AccessibilityElement for SemanticsNode"
-            ))
-            let cancel = controls.firstMatch
+            )).firstMatch
             let pickerReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 cancel.exists && !cancel.frame.isEmpty && self.app.frame.contains(cancel.frame)
             }, object: nil)
-            XCTAssertEqual(XCTWaiter.wait(for: [pickerReady], timeout: 15), .completed, app.debugDescription)
-            let frame = cancel.frame
-            app.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: frame.midX - app.frame.minX, dy: frame.midY - app.frame.minY)).tap()
-            let pickerClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: cancel)
-            XCTAssertEqual(XCTWaiter.wait(for: [pickerClosed], timeout: 10), .completed, app.debugDescription)
-            XCTAssertTrue(button("CSV 내보내기").isEnabled)
-            XCTAssertTrue(button("CSV 불러오기").isEnabled)
+            guard XCTWaiter.wait(for: [pickerReady], timeout: 15) == .completed else {
+                XCTFail("Files did not open for \(label). \(app.debugDescription)")
+                return
+            }
+            if label == "CSV 불러오기" {
+                cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            } else {
+                // On export the Files view service exposes a Cancel proxy over its sort menu.
+                // Drag from the top-center sheet chrome, above the document toolbar.
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                let start = origin.withOffset(CGVector(dx: app.frame.width / 2,
+                                                       dy: cancel.frame.minY - app.frame.minY - 8))
+                start.press(forDuration: 0.1, thenDragTo: app.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+            }
+            let returnedToCsv = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                !cancel.exists && self.button("CSV 내보내기").isEnabled && self.button("CSV 불러오기").isEnabled
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [returnedToCsv], timeout: 10), .completed, app.debugDescription)
         }
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18)).tap()
         tapButton("뒤로가기")
