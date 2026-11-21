@@ -69,6 +69,15 @@ internal class PhotoKitAssetAccess {
 
     fun exists(assetId: String): Boolean = find(assetId) != null
 
+    private fun findAssets(ids: Collection<String>): List<PHAsset> {
+        if (ids.isEmpty() || !hasReadAccess()) return emptyList()
+        val result = PHAsset.fetchAssetsWithLocalIdentifiers(ids.toList(), options = null)
+        return List(result.count.toInt()) { result.objectAtIndex(it.toULong()) as PHAsset }
+    }
+
+    fun presentIds(ids: Collection<String>): Set<String> =
+        findAssets(ids).mapTo(mutableSetOf()) { it.localIdentifier }
+
     fun metadata(assetId: String): PhotoKitAssetMetadata? {
         val asset = find(assetId) ?: return null
         val createdAt = asset.creationDate ?: asset.modificationDate
@@ -130,7 +139,7 @@ internal class PhotoKitAssetAccess {
     }
 
     suspend fun remove(assetIds: List<String>): Boolean {
-        val assets = assetIds.mapNotNull(::find)
+        val assets = findAssets(assetIds)
         // Limited Photos access cannot prove an unreturned identifier was deleted.
         if (assets.size != assetIds.size && !hasFullReadAccess()) return false
         if (assets.isEmpty()) return true

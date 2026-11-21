@@ -1052,6 +1052,13 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(recent.waitForExistence(timeout: 20))
         recent.tap()
         XCTAssertTrue(text("폴더: Pictures/DZlog/M3A-PhotoKit/").waitForExistence(timeout: 15))
+        tapButton("폴더 삭제")
+        let folderCounts = app.descendants(matching: .any).matching(NSPredicate(
+            format: "label MATCHES %@", "결과 사진 [1-9][0-9]*장 · 원본 사진 [1-9][0-9]*장"
+        )).firstMatch
+        XCTAssertTrue(folderCounts.waitForExistence(timeout: 15), app.debugDescription)
+        tapButton("취소")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/M3A-PhotoKit/").exists)
         tapButton("뒤로가기")
         XCTAssertTrue(text("앨범 보기").waitForExistence(timeout: 15))
         tapButton("앨범 보기")

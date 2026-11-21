@@ -16,20 +16,11 @@ data class GalleryFolderDeletePlan(val source: String, val entries: List<Gallery
 
 /** Exact subtree boundaries and immutable confirmation inventory, independent of Android I/O. */
 object GalleryFolderDeletePolicy {
-    fun source(path: String): String {
-        val normalized = path.trimEnd('/') + "/"
-        require(normalized.startsWith(GalleryFolderIndexPolicy.ROOT) && normalized != GalleryFolderIndexPolicy.ROOT) {
-            "DZlog 내부의 하위 폴더만 삭제할 수 있습니다."
-        }
-        require(normalized.split('/').dropLast(1).none { it.isBlank() || it == "." || it == ".." || it.equals("original", true) }) {
-            "삭제할 일반 폴더 경로를 확인해 주세요."
-        }
-        return normalized
-    }
+    fun source(path: String): String = GalleryFolderDeleteScope.source(path)
 
     fun plan(path: String, entries: List<GalleryFolderDeleteEntry>): GalleryFolderDeletePlan {
         val root = source(path)
-        require(entries.size <= 5000) { "폴더 내용이 너무 많습니다. 하위 폴더를 나누어 삭제해 주세요." }
+        require(entries.size <= GalleryFolderDeleteScope.MAX_ENTRIES) { "폴더 내용이 너무 많습니다. 하위 폴더를 나누어 삭제해 주세요." }
         require(entries.all { it.documentId.isNotBlank() && it.path.startsWith(root) }) { "삭제 대상이 폴더 범위를 벗어났습니다." }
         require(entries.map { it.documentId }.distinct().size == entries.size && entries.map { it.path }.distinct().size == entries.size) {
             "삭제 대상 파일 또는 폴더가 중복됐습니다."

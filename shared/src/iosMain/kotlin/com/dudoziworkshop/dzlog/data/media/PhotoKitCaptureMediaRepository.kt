@@ -7,6 +7,18 @@ import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
 import com.dudoziworkshop.dzlog.domain.counter.CounterMediaReadbackPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
 
+class PhotoKitFolderDeletion internal constructor(
+    internal val contents: IndexedFolderContents,
+    internal val presentIds: Set<String>,
+) {
+    val resultCount = contents.entries.count { it.asset.assetId in presentIds && it.asset.target.role == CaptureMediaRole.RESULT }
+    val originalCount = presentIds.size - resultCount
+    val missingCount = contents.entries.size - presentIds.size
+    val folderCount = contents.folders.count { folder ->
+        folder != contents.source && folder.removePrefix(contents.source).split('/').none { it.equals("original", true) }
+    }
+}
+
 /**
  * iOS Photos adapter for the common capture/save contract.
  *
@@ -185,11 +197,32 @@ class PhotoKitCaptureMediaRepository(
         index.moveFolder(path, destination)
     }
 
-    suspend fun deleteEmptyGalleryFolder(path: String) = manageFolder {
-        index.deleteEmptyFolder(path)
+    suspend fun prepareFolderDeletion(path: String): PhotoKitFolderDeletion = manageFolder {
+        inspectFolderDeletion(path)
     }
 
-    private suspend fun <T> manageFolder(operation: () -> T): T {
+    private fun inspectFolderDeletion(path: String): PhotoKitFolderDeletion {
+        val contents = index.folderContents(path)
+        val present = photos.presentIds(contents.entries.map { it.asset.assetId })
+        check(present.size == contents.entries.size || photos.hasFullReadAccess()) {
+            "접근할 수 없는 사진이 있습니다. iPhone 설정에서 폴더의 모든 사진에 접근을 허용한 뒤 다시 확인해 주세요."
+        }
+        return PhotoKitFolderDeletion(contents, present)
+    }
+
+    suspend fun deleteGalleryFolder(confirmed: PhotoKitFolderDeletion) = manageFolder {
+        if (confirmed.contents.entries.isNotEmpty()) photos.ensureReadWriteAccess()
+        val current = inspectFolderDeletion(confirmed.contents.source)
+        check(current.contents == confirmed.contents && current.presentIds == confirmed.presentIds) {
+            "폴더 내용이 변경됐습니다. 삭제 범위를 다시 확인해 주세요."
+        }
+        if (current.presentIds.isNotEmpty()) {
+            check(photos.remove(current.presentIds.toList())) { "사진 삭제가 취소되었거나 권한을 확인할 수 없습니다." }
+        }
+        index.finishFolderDeletion(current.contents)
+    }
+
+    private suspend fun <T> manageFolder(operation: suspend () -> T): T {
         check(!saving) { "Wait until the current photo operation finishes." }
         saving = true
         try {

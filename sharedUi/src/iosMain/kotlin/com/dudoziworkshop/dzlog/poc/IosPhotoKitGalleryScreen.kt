@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -279,11 +280,42 @@ internal fun IosPhotoKitGalleryScreen(
     }
 
     folderAction?.let { action ->
+        var deletion by remember(action, folderTarget) { mutableStateOf<PhotoKitFolderDeletion?>(null) }
+        var inspection by remember(action, folderTarget) { mutableIntStateOf(0) }
+        if (action == "delete") {
+            LaunchedEffect(folderTarget, inspection) {
+                try {
+                    deletion = repository.prepareFolderDeletion(folderTarget)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    folderError = error.message ?: "삭제 범위를 확인하지 못했습니다."
+                }
+            }
+        }
         AlertDialog(onDismissRequest = { if (!managing) folderAction = null },
-            title = { Text(when (action) { "create" -> "폴더 생성"; "rename" -> "폴더 이름 변경"; "move" -> "폴더 이동"; else -> "빈 폴더 삭제" }) },
+            title = { Text(when (action) { "create" -> "폴더 생성"; "rename" -> "폴더 이름 변경"; "move" -> "폴더 이동"; else -> "이 폴더를 삭제할까요?" }) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (action == "delete") Text("이 폴더를 삭제합니다. 사진이나 하위 폴더가 있으면 먼저 이동하거나 정리해 주세요.")
+                    if (action == "delete") {
+                        Text(folderTarget)
+                        val plan = deletion
+                        if (plan != null) {
+                            Text("결과 사진 ${plan.resultCount}장 · 원본 사진 ${plan.originalCount}장")
+                            Text("하위 폴더 ${plan.folderCount}개")
+                            if (plan.missingCount > 0) Text("사진 보관함에서 이미 삭제된 ${plan.missingCount}장의 앱 기록도 정리합니다.")
+                            if (plan.resultCount + plan.originalCount > 0) Text("포함된 사진은 iPhone 사진 보관함에서도 삭제됩니다.")
+                        } else if (folderError == null) Text("삭제 범위를 확인하고 있습니다.")
+                        else {
+                            TextButton(enabled = !managing, onClick = {
+                                folderError = null
+                                inspection++
+                            }) { Text("다시 확인") }
+                            if (permissions.photos == IosAccess.LIMITED) {
+                                TextButton(onClick = ::openIosSystemSettings) { Text("iPhone 설정 열기") }
+                            }
+                        }
+                    }
                     else if (action == "move") {
                         Text("하위 폴더와 사진을 함께 옮깁니다. 다음 촬영의 저장 경로는 현재 설정을 따릅니다.")
                         val eligible = remember(destinations, folderTarget) {
@@ -316,7 +348,7 @@ internal fun IosPhotoKitGalleryScreen(
             },
             confirmButton = { TextButton(enabled = !managing && when (action) {
                 "move" -> folderDestination != null
-                "delete" -> true
+                "delete" -> deletion != null
                 else -> folderName.isNotBlank()
             }, onClick = {
                 managing = true
@@ -327,16 +359,21 @@ internal fun IosPhotoKitGalleryScreen(
                             "move" -> repository.moveGalleryFolder(folderTarget, checkNotNull(folderDestination))
                             "rename" -> repository.renameGalleryFolder(folderTarget, folderName)
                             else -> {
-                                repository.deleteEmptyGalleryFolder(folderTarget)
+                                repository.deleteGalleryFolder(checkNotNull(deletion))
                                 folderTarget.trimEnd('/').substringBeforeLast('/') + "/"
                             }
                         }
                         photos = readScopedPhotos()
                         folders = repository.listGalleryFolders()
                         favorites = repository.favoriteGalleryAssetIds()
-                        operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; "move" -> "폴더를 이동했습니다."; else -> "빈 폴더를 삭제했습니다." }
+                        operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; "move" -> "폴더를 이동했습니다."; else -> "폴더를 삭제했습니다." }
                         folderAction = null
-                    } catch (error: Throwable) { folderError = "폴더 처리 실패: ${error.message}" }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        if (action == "delete") deletion = null
+                        folderError = error.message ?: "폴더를 처리하지 못했습니다."
+                    }
                     finally { managing = false }
                 }
             }) { Text(when (action) { "delete" -> "삭제"; "move" -> "이동"; else -> "저장" }) } },
@@ -713,9 +750,11 @@ internal fun IosPhotoKitGalleryScreen(
                                     TextButton(enabled = !managing && !refreshing, onClick = {
                                         folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
                                     }) { Text("이름 변경") }
-                                    TextButton(enabled = !managing && !refreshing, onClick = {
-                                        folderTarget = path; folderError = null; folderAction = "delete"
-                                    }) { Text("폴더 삭제") }
+                                    if (remember(path) { runCatching { GalleryFolderDeleteScope.source(path) }.isSuccess }) {
+                                        TextButton(enabled = !managing && !refreshing, onClick = {
+                                            folderTarget = path; folderError = null; folderAction = "delete"
+                                        }) { Text("폴더 삭제") }
+                                    }
                                 }
                             }
                         }

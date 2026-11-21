@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.media
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaTarget
 import com.dudoziworkshop.dzlog.domain.media.PersistedCaptureAsset
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -16,6 +17,12 @@ import platform.Foundation.NSUserDefaults
 internal data class IndexedCaptureMedia(
     val captureId: String,
     val asset: PersistedCaptureAsset,
+)
+
+internal data class IndexedFolderContents(
+    val source: String,
+    val folders: Set<String>,
+    val entries: Set<IndexedCaptureMedia>,
 )
 
 /**
@@ -99,6 +106,37 @@ internal class PhotoKitCaptureMediaIndex(
             target = entry.asset.target.copy(relativePath = remap(entry.asset.target.relativePath)))) },
             updatedFolders)
         return replacement
+    }
+
+    fun folderContents(path: String): IndexedFolderContents {
+        check(pending().isEmpty()) { "이전 촬영을 먼저 복구해 주세요." }
+        val source = GalleryFolderDeleteScope.source(path)
+        val subtree = folders().filterTo(mutableSetOf()) { it.startsWith(source) }
+        require(source in subtree) { "삭제할 폴더를 찾을 수 없습니다." }
+        val indexed = load()
+        val entries = indexed.filter { it.asset.target.relativePath.startsWith(source) }
+        require(entries.size + subtree.size <= GalleryFolderDeleteScope.MAX_ENTRIES) {
+            "폴더 내용이 너무 많습니다. 하위 폴더를 나누어 삭제해 주세요."
+        }
+        val ids = entries.mapTo(mutableSetOf()) { it.asset.assetId }
+        check(ids.size == entries.size && indexed.count { it.asset.assetId in ids } == entries.size) {
+            "사진의 저장 위치를 확인할 수 없습니다."
+        }
+        return IndexedFolderContents(source, subtree, entries.toSet())
+    }
+
+    fun finishFolderDeletion(confirmed: IndexedFolderContents) {
+        // During the system prompt another capture can add a photo or an empty child.
+        // Keep changed folders for a fresh confirmation. Only confirmed Photos IDs are gone.
+        val entries = load()
+        val folders = folders().toSet()
+        val unchanged = pending().isEmpty() &&
+            folders.filterTo(mutableSetOf()) { it.startsWith(confirmed.source) } == confirmed.folders &&
+            entries.filterTo(mutableSetOf()) { it.asset.target.relativePath.startsWith(confirmed.source) } == confirmed.entries
+        val ids = confirmed.entries.mapTo(mutableSetOf()) { it.asset.assetId }
+        val foldersToKeep = if (unchanged) folders - confirmed.folders else folders
+        persistState(entries.filterNot { it.asset.assetId in ids }, foldersToKeep, favoriteAssetIds() - ids)
+        check(unchanged) { "확인한 사진은 정리했습니다. 폴더가 변경되어 남은 항목을 다시 확인해 주세요." }
     }
 
     fun deleteEmptyFolder(path: String) {
