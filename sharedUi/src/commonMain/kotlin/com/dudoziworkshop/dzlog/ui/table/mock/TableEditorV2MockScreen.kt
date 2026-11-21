@@ -75,6 +75,9 @@ import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecision
 import com.dudoziworkshop.dzlog.feature.table.editor.TableMergeDecisionType
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+import com.dudoziworkshop.dzlog.feature.table.policy.quickPhrasePeriodConflicts
+import com.dudoziworkshop.dzlog.feature.table.policy.applyPhrasePeriodResolutions
+import com.dudoziworkshop.dzlog.ui.camera.controls.CameraQuickPhraseConflictDialog
 import com.dudoziworkshop.dzlog.feature.table.policy.quickCellLinks
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -168,9 +171,14 @@ fun TableEditorV2Content(
 
     val rows = draftTemplateState.rows
     val cols = draftTemplateState.cols
-    val selectionState = remember { TableEditorV2SelectionState() }
+    val selectionState = remember {
+        TableEditorV2SelectionState().apply {
+            selectFirstEditableCellOnEntry(draftTemplateState)
+        }
+    }
     val selectedCellId = selectionState.selectedCellId
     val layoutSelection = selectionState.layoutSelection
+    var pendingPhraseProposal by remember(session, draftTemplateState) { mutableStateOf<TableTemplateState?>(null) }
     var pendingMergeDecision by remember { mutableStateOf<TableMergeDecision?>(null) }
     var mode by remember { mutableStateOf(MockMode.EDIT) }
     var showStyle by remember { mutableStateOf(false) }
@@ -264,6 +272,7 @@ fun TableEditorV2Content(
                             if (mode == MockMode.LAYOUT) {
                                 mode = MockMode.EDIT
                                 selectionState.clearLayoutSelection()
+                                selectionState.reconcileEditSelection(draftTemplateState)
                             } else {
                                 saveScope.launch { saveCoordinator.save(session, onSave) }
                             }
@@ -458,7 +467,8 @@ fun TableEditorV2Content(
                                 if (selected != null) {
                                     TableEditorCellUiModelEditor(
                                         cell = selected,
-                                        phraseSets = draftTemplateState.phraseSets,
+                                        template = draftTemplateState,
+                                        onTemplateChange = { session.commitTemplateChange(it) },
                                         onValueChange = { nextValue ->
                                             selected.domainCellId?.let { cellId ->
                                                 session.commitTemplateChange(
@@ -514,28 +524,6 @@ fun TableEditorV2Content(
                                                 )
                                             }
                                         },
-                                        onPhraseProgressChange = { index, completed ->
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(draftTemplateState.copy(
-                                                    cells = draftTemplateState.cells.map { cell ->
-                                                        if (cell.cellId == cellId) cell.copy(
-                                                            phraseIndex = index, phraseCompletedShots = completed
-                                                        ) else cell
-                                                    }
-                                                ))
-                                            }
-                                        },
-                                        onPhraseEveryChange = { every ->
-                                            selected.domainCellId?.let { cellId ->
-                                                session.commitTemplateChange(
-                                                    applyMockPhraseEvery(
-                                                        templateState = draftTemplateState,
-                                                        domainCellId = cellId,
-                                                        every = every,
-                                                    )
-                                                )
-                                            }
-                                        },
                                         onCreatePhraseSet = { name ->
                                             val newId = newTableElementId()
                                             val updated = com.dudoziworkshop.dzlog.feature.table.policy.RotatingPhraseSetCreationPolicy
@@ -551,13 +539,12 @@ fun TableEditorV2Content(
                                             } else null
                                         },
                                         onUpdatePhraseSet = { phraseSetId, transform ->
-                                            session.commitTemplateChange(
-                                                updateMockPhraseSet(
-                                                    templateState = draftTemplateState,
-                                                    phraseSetId = phraseSetId,
-                                                    transform = transform,
-                                                )
-                                            )
+                                            val candidate = updateMockPhraseSet(draftTemplateState, phraseSetId, transform)
+                                            if (quickPhrasePeriodConflicts(draftTemplateState, candidate).isEmpty()) {
+                                                session.commitTemplateChange(candidate)
+                                            } else {
+                                                pendingPhraseProposal = candidate
+                                            }
                                         },
                                         onDeletePhraseSet = { phraseSetId ->
                                             session.commitTemplateChange(
@@ -663,6 +650,16 @@ fun TableEditorV2Content(
         }
     }
 
+    pendingPhraseProposal?.let { candidate ->
+        val conflicts = quickPhrasePeriodConflicts(draftTemplateState, candidate)
+        CameraQuickPhraseConflictDialog(candidate, conflicts,
+            onDismiss = { pendingPhraseProposal = null },
+            onApply = { choices ->
+                applyPhrasePeriodResolutions(candidate, conflicts, choices)?.let(session::commitTemplateChange)
+                pendingPhraseProposal = null
+            },
+        )
+    }
     if (showTemplatePicker) {
         TableEditorTemplatePicker(
             templates = templates,

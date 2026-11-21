@@ -31,6 +31,7 @@ fun HomeRecentCaptureContent(
     hasImage: Boolean,
     displayName: String,
     timeText: String,
+    locationText: String = "",
     recentLabel: String,
     emptyTitle: String,
     emptyHint: String,
@@ -93,6 +94,16 @@ fun HomeRecentCaptureContent(
                     style = DDZTypography.Caption.copy(fontSize = 11.sp),
                     color = DDZColor.TextSecondary,
                 )
+                if (locationText.isNotBlank()) {
+                    Spacer(Modifier.height(HomeUiSpec.RecentNameToTimeGap))
+                    Text(
+                        text = locationText,
+                        style = DDZTypography.Caption.copy(fontSize = 11.sp),
+                        color = DDZColor.TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     } else {

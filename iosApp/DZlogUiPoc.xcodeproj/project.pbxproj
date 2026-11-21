@@ -8,6 +8,11 @@
         "000000000000000000000020" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "image.png"; "path" = "PoCApp/home_leaf_shadow_c.png"; "sourceTree" = "<group>"; };
         "000000000000000000000021" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000020"; };
         "000000000000000000000022" = { "isa" = "PBXCopyFilesBuildPhase"; "buildActionMask" = 2147483647; "dstPath" = ""; "dstSubfolderSpec" = 7; "name" = "Copy original shared PNG"; "files" = ("000000000000000000000021"); "runOnlyForDeploymentPostprocessing" = 0; };
+		"000000000000000000000023" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "folder.assetcatalog"; "path" = "PoCApp/Assets.xcassets"; "sourceTree" = "<group>"; };
+		"000000000000000000000024" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000023"; };
+		"000000000000000000000025" = { "isa" = "PBXResourcesBuildPhase"; "buildActionMask" = 2147483647; "files" = ("000000000000000000000024", "000000000000000000000027"); "runOnlyForDeploymentPostprocessing" = 0; };
+		"000000000000000000000026" = { "isa" = "PBXFileReference"; "lastKnownFileType" = "text.plist.xml"; "path" = "PoCApp/PrivacyInfo.xcprivacy"; "sourceTree" = "<group>"; };
+		"000000000000000000000027" = { "isa" = "PBXBuildFile"; "fileRef" = "000000000000000000000026"; };
 		"000000000000000000000001" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -23,8 +28,8 @@
 		"000000000000000000000003" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "wrapper.framework";
-			"path" = "../sharedUi/build/bin/iosSimulatorArm64/debugFramework/DZlogUi.framework";
-			"sourceTree" = "<group>";
+			"path" = "DZlogUi.framework";
+			"sourceTree" = "DZLOG_FRAMEWORK_DIR";
 		};
 		"000000000000000000000004" = {
 			"isa" = "PBXFileReference";
@@ -54,12 +59,12 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "000000000000000000000003";
 			"settings" = {
-				"ATTRIBUTES" = ("RemoveHeadersOnCopy");
+				"ATTRIBUTES" = ("CodeSignOnCopy", "RemoveHeadersOnCopy");
 			};
 		};
 		"00000000000000000000000A" = {
 			"isa" = "PBXGroup";
-			"children" = ("000000000000000000000020", "000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
+			"children" = ("000000000000000000000026", "000000000000000000000023", "000000000000000000000020", "000000000000000000000001", "000000000000000000000002", "000000000000000000000003", "00000000000000000000000B");
 			"sourceTree" = "<group>";
 		};
 		"00000000000000000000000B" = {
@@ -116,7 +121,7 @@
 		"000000000000000000000012" = {
 			"isa" = "PBXNativeTarget";
 			"buildConfigurationList" = "000000000000000000000019";
-			"buildPhases" = ("00000000000000000000000C", "00000000000000000000000D", "00000000000000000000000E", "000000000000000000000022");
+			"buildPhases" = ("00000000000000000000000C", "00000000000000000000000D", "00000000000000000000000E", "000000000000000000000025", "000000000000000000000022");
 			"buildRules" = ();
 			"dependencies" = ();
 			"name" = "DZlogUiPoc";
@@ -148,16 +153,19 @@
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
 				"DEBUG_INFORMATION_FORMAT" = "dwarf";
 				"ENABLE_TESTABILITY" = "YES";
+				"DZLOG_FRAMEWORK_DIR" = "$(SRCROOT)/../sharedUi/build/bin/iosSimulatorArm64/debugFramework";
+				"DZLOG_FRAMEWORK_DIR[sdk=iphoneos*]" = "$(SRCROOT)/../sharedUi/build/bin/iosArm64/debugFramework";
 			};
 			"name" = "Debug";
 		};
 		"000000000000000000000016" = {
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog";
 				"INFOPLIST_FILE" = "PoCApp/Info.plist";
-				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(SRCROOT)/../sharedUi/build/bin/iosSimulatorArm64/debugFramework");
+				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(DZLOG_FRAMEWORK_DIR)");
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
 			};
 			"name" = "Debug";
@@ -166,7 +174,7 @@
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
 				"PRODUCT_NAME" = "$(TARGET_NAME)";
-				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.poc.uitests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.uitests";
 				"GENERATE_INFOPLIST_FILE" = "YES";
 				"TEST_TARGET_NAME" = "DZlogUiPoc";
 			};
@@ -174,21 +182,61 @@
 		};
 		"000000000000000000000018" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("000000000000000000000015");
+			"buildConfigurations" = ("000000000000000000000015", "000000000000000000000028");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Debug";
 		};
 		"000000000000000000000019" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("000000000000000000000016");
+			"buildConfigurations" = ("000000000000000000000016", "000000000000000000000029");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Debug";
 		};
 		"00000000000000000000001A" = {
 			"isa" = "XCConfigurationList";
-			"buildConfigurations" = ("000000000000000000000017");
+			"buildConfigurations" = ("000000000000000000000017", "00000000000000000000002A");
 			"defaultConfigurationIsVisible" = 0;
 			"defaultConfigurationName" = "Debug";
+		};
+		"000000000000000000000028" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"ARCHS" = "arm64";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "15.0";
+				"SWIFT_VERSION" = "5.0";
+				"TARGETED_DEVICE_FAMILY" = "1,2";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"DZLOG_FRAMEWORK_DIR" = "$(SRCROOT)/../sharedUi/build/bin/iosArm64/releaseFramework";
+			};
+			"name" = "Release";
+		};
+		"000000000000000000000029" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog";
+				"INFOPLIST_FILE" = "PoCApp/Info.plist";
+				"FRAMEWORK_SEARCH_PATHS" = ("$(inherited)", "$(DZLOG_FRAMEWORK_DIR)");
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"SKIP_INSTALL" = "NO";
+			};
+			"name" = "Release";
+		};
+		"00000000000000000000002A" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.dudoziworkshop.dzlog.uitests";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "DZlogUiPoc";
+				"SKIP_INSTALL" = "YES";
+			};
+			"name" = "Release";
 		};
 		"00000000000000000000001E" = {
 			"isa" = "PBXProject";

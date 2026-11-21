@@ -416,6 +416,24 @@ data class NamingSlotPreview(val text: String, val highlightStart: Int, val high
 /** All occurrences contributed by the selected cell, including repeated CELL slots. */
 data class NamingCellPreview(val text: String, val highlights: List<IntRange>)
 
+/** Repeat only the source-cell highlights in each actual save-folder line. */
+fun captureFolderNamingPreview(base: NamingCellPreview, saveMode: SaveMode): NamingCellPreview {
+    val folders = capturePhysicalSavePaths(base.text, saveMode)
+    val highlights = buildList {
+        var offset = 0
+        folders.forEach { folder ->
+            // Invalid/stale provenance must not emphasize an unrelated segment.
+            if (folder.startsWith(base.text)) base.highlights.forEach { range ->
+                if (!range.isEmpty() && range.first >= 0 && range.last < base.text.length) {
+                    add((offset + range.first)..(offset + range.last))
+                }
+            }
+            offset += folder.length + 1
+        }
+    }
+    return NamingCellPreview(folders.joinToString("\n"), highlights)
+}
+
 fun buildNamingCellPreview(
     isFileName: Boolean,
     selectedCellId: String?,

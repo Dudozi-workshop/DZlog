@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Settings
@@ -39,6 +40,8 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 private fun clampDp(value: Dp, min: Dp, max: Dp): Dp = when {
     value < min -> min
@@ -69,6 +72,8 @@ fun HomeContent(
     saveInfoEnabled: Boolean = true,
     background: @Composable () -> Unit,
     recentCapture: @Composable () -> Unit,
+    projectName: String? = null,
+    onOpenProjectPicker: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val availableScreenHeight = maxHeight
@@ -119,12 +124,61 @@ fun HomeContent(
 
                     Spacer(Modifier.height(heroTopGap))
 
+                    if (onOpenProjectPicker != null) {
+                        val currentProject = projectName?.takeIf(String::isNotBlank) ?: "일반 촬영"
+                        androidx.compose.material3.Surface(
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = HomeUiSpec.PrimaryButtonHorizontalInset)
+                                .clickable(role = Role.Button, onClick = onOpenProjectPicker)
+                                .semantics { contentDescription = "촬영 프로젝트 선택 · $currentProject" },
+                            shape = RoundedCornerShape(12.dp),
+                            color = DDZColor.SurfaceSoft,
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = DDZColor.SelectedDark,
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = "촬영 프로젝트",
+                                        style = DDZTypography.Caption,
+                                        color = DDZColor.TextSecondary,
+                                    )
+                                    Text(
+                                        text = currentProject,
+                                        style = DDZTypography.SettingLabel,
+                                        color = DDZColor.TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Text(
+                                    text = "변경",
+                                    style = DDZTypography.Secondary,
+                                    color = DDZColor.SelectedDark,
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = DDZColor.SelectedDark,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(role = Role.Button, onClickLabel = "템플릿 선택") { onManageTemplates() }
-                            .padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
-                        horizontalAlignment = Alignment.Start,
+                        modifier = Modifier.fillMaxWidth().clickable(
+                            role = Role.Button,
+                            onClickLabel = "템플릿 선택",
+                            onClick = onManageTemplates,
+                        ).padding(horizontal = HomeUiSpec.CurrentCaptureInnerHorizontalPadding),
                     ) {
                         Text(
                             text = labels.currentTemplate,
