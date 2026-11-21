@@ -128,30 +128,22 @@ final class PreviewInteractionTests: XCTestCase {
         tapPanelText("CSV 일괄 관리")
         for label in ["CSV 불러오기", "CSV 내보내기"] {
             tapButton(label)
-            let cancel = app.descendants(matching: .any).matching(NSPredicate(
-                format: "label IN %@ AND NOT (identifier BEGINSWITH %@)",
-                ["Cancel", "취소"], "AccessibilityElement for SemanticsNode"
-            )).firstMatch
-            let pickerReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                cancel.exists && !cancel.frame.isEmpty && self.app.frame.contains(cancel.frame)
-            }, object: nil)
-            guard XCTWaiter.wait(for: [pickerReady], timeout: 15) == .completed else {
-                XCTFail("Files did not open for \(label). \(app.debugDescription)")
+            // Files exposes the remote toolbar Cancel separately from a proxy over More.
+            let navCancel = app.navigationBars.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "취소"])).firstMatch
+            let grabber = app.buttons.matching(NSPredicate(format: "label IN %@", ["Sheet Grabber", "시트 이동 막대"])).firstMatch
+            let control = label == "CSV 불러오기" ? navCancel : grabber
+            guard control.waitForExistence(timeout: 15) else {
+                XCTFail("Missing Files control for \(label). \(app.debugDescription)")
                 return
             }
             if label == "CSV 불러오기" {
-                cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                navCancel.tap()
             } else {
-                // On export the Files view service exposes a Cancel proxy over its sort menu.
-                // Drag from the top-center sheet chrome, above the document toolbar.
-                let origin = app.coordinate(withNormalizedOffset: .zero)
-                let start = origin.withOffset(CGVector(dx: app.frame.width / 2,
-                                                       dy: cancel.frame.minY - app.frame.minY - 8))
-                start.press(forDuration: 0.1, thenDragTo: app.coordinate(
-                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+                grabber.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                    .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
             }
             let returnedToCsv = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                !cancel.exists && self.button("CSV 내보내기").isEnabled && self.button("CSV 불러오기").isEnabled
+                !control.exists && self.app.buttons["CSV 내보내기"].isEnabled && self.app.buttons["CSV 불러오기"].isEnabled
             }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [returnedToCsv], timeout: 10), .completed, app.debugDescription)
         }
@@ -660,6 +652,10 @@ final class PreviewInteractionTests: XCTestCase {
     func testCameraOverlayToolsPersistThroughNativeReturn() {
         app.launchArguments = configuredArguments(merged: true) + ["--reset-configured-fixture", "--deny-camera-permission-for-ui-test"]
         app.launch()
+        tapButton("촬영 설정 열기")
+        tapCaptureSettingsButton("둘 다", searchDown: true)
+        tapCaptureSettingsButton("저장", searchDown: false)
+        XCTAssertTrue(text("배치: BOTTOM_RIGHT").waitForExistence(timeout: 20))
         tapButton("카메라 열기")
         XCTAssertFalse(button("촬영").isEnabled)
         tapButton("촬영 도구")
@@ -1203,7 +1199,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTFail("Missing scrollable button: \(label)")
     }
 
-    private func screenContains(_ marker: String) throws -> Bool {
+    private func visibleTextBox(_ marker: String) throws -> CGRect? {
         // Scroll can leave AX frames stale/zero in Compose 1.7. Verify actual rendered pixels.
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -1212,10 +1208,14 @@ final class PreviewInteractionTests: XCTestCase {
         request.usesLanguageCorrection = false
         let image = try XCTUnwrap(app.screenshot().image.cgImage)
         try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
-        let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-        print("SCREEN_TEXT: \(lines)")
         let normalized = marker.replacingOccurrences(of: " ", with: "")
-        return lines.contains { $0.replacingOccurrences(of: " ", with: "").contains(normalized) }
+        return request.results?.first { item in
+            item.topCandidates(1).first?.string.replacingOccurrences(of: " ", with: "").contains(normalized) == true
+        }?.boundingBox
+    }
+
+    private func screenContains(_ marker: String) throws -> Bool {
+        try visibleTextBox(marker) != nil
     }
 
     func testCloseReopenSelectAndRetainSelection() {
@@ -1356,6 +1356,10 @@ final class PreviewInteractionTests: XCTestCase {
                 let frame = element.frame
                 app.coordinate(withNormalizedOffset: .zero)
                     .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                return
+            }
+            if let box = try? visibleTextBox(label) {
+                app.coordinate(withNormalizedOffset: CGVector(dx: box.midX, dy: 1 - box.midY)).tap()
                 return
             }
             app.swipeUp()
@@ -1641,6 +1645,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("+ 새 템플릿")
         XCTAssertTrue(text("표 편집").waitForExistence(timeout: 10))
         tapButton("저장")
+        if app.buttons["셀 편집 닫기"].exists { tapButton("셀 편집 닫기") }
         tapButton("뒤로가기")
         XCTAssertTrue(text("표 템플릿").waitForExistence(timeout: 10))
         tapButton("표 확대 보기 · 새 템플릿")
@@ -1673,7 +1678,8 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("어떤 기록을 시작할까요?").waitForExistence(timeout: 10))
         XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
         tapButton("이 양식으로 시작")
-        XCTAssertTrue(text("기본 촬영").waitForExistence(timeout: 10))
+        XCTAssertTrue(homeTemplateButton().waitForExistence(timeout: 10))
+        XCTAssertTrue(try screenContains("기본 촬영"))
         XCTAssertFalse(text("현장 기록").exists)
         XCTAssertFalse(text("블루베리 관찰 기록").exists)
         tapButton("설정")
@@ -1778,6 +1784,9 @@ final class PreviewInteractionTests: XCTestCase {
     func testEditorContentStructureStyleSaveAndRelaunch() throws {
         app.launchArguments = ["--editor-flow", "--reset-editor-fixture"]
         app.launch()
+        openHomeTemplates()
+        tapButton("표 확대 보기 · 현장 기록")
+        tapButton("이 템플릿 선택")
         tapButton("표 편집")
         XCTAssertTrue(text("표 편집").waitForExistence(timeout: 15))
         XCTAssertTrue(app.buttons["셀 편집 닫기"].waitForExistence(timeout: 10))
