@@ -1365,22 +1365,23 @@ final class PreviewInteractionTests: XCTestCase {
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
     }
 
-    private func tapScrollablePanelText(_ label: String) {
+    private func tapScrollablePanelText(_ label: String, destination: XCUIElement? = nil) {
         for _ in 0..<5 {
             let element = panelText(label)
-            if element.exists && !element.frame.isEmpty && app.frame.contains(element.frame) {
-                let frame = element.frame
-                app.coordinate(withNormalizedOffset: .zero)
-                    .withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
-                return
-            }
-            if let box = try? visibleTextBox(label) {
+            if element.exists && element.isHittable && !element.frame.isEmpty && app.frame.contains(element.frame) {
+                element.tap()
+            } else if let box = try? visibleTextBox(label) {
                 app.coordinate(withNormalizedOffset: CGVector(dx: box.midX, dy: 1 - box.midY)).tap()
-                return
+            } else {
+                app.swipeUp()
+                continue
             }
-            app.swipeUp()
+            guard let destination = destination else { return }
+            if destination.waitForExistence(timeout: 5) { return }
+            // A tap during scrolling may only stop the scroll. Retry only on the source screen.
+            guard text("설정").exists else { break }
         }
-        XCTFail("Missing scrollable panel label: \(label)")
+        XCTFail("Could not open settings row: \(label)\n\(app.debugDescription)")
     }
 
     private func typeWithVisibleKeyboard(_ value: String) {
@@ -1479,6 +1480,8 @@ final class PreviewInteractionTests: XCTestCase {
         }
         app.launchArguments = ["--camera-flow", "--deny-camera-permission-for-ui-test"]
         app.launch()
+        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 15))
+        XCTAssertFalse(button("촬영").isEnabled)
         tapButton("앨범 보기")
         tapButton("사진 접근 허용하기")
         let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
@@ -1538,15 +1541,30 @@ final class PreviewInteractionTests: XCTestCase {
         let settingsAfterGrant = settings.debugDescription
         // iOS may terminate the app when its privacy settings change.
         if app.state == .notRunning { app.launch() } else { app.activate() }
-        if app.buttons["앨범 보기"].waitForExistence(timeout: 2) { tapButton("앨범 보기") }
+        let gallery = app.buttons["폴더 보기"]
+        let album = app.buttons["앨범 보기"]
+        let returnedToApp = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            gallery.exists || (album.exists && album.isHittable)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [returnedToApp], timeout: 15), .completed, app.debugDescription)
+        var openedFromHome = false
+        if !gallery.exists {
+            openedFromHome = app.buttons["촬영 시작"].exists
+            tapButton("앨범 보기")
+        }
         XCTAssertTrue(app.buttons["폴더 보기"].waitForExistence(timeout: 15),
                       "After Settings grant:\n\(settingsAfterGrant)\nAfter app activation:\n\(String(describing: app.debugDescription))")
         XCTAssertFalse(text("거부됨").exists)
         XCTAssertFalse(app.buttons["선택한 사진 변경"].exists, "Full Access must not restore as Limited")
         restored = true
         tapButton("뒤로가기")
-        XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 10))
-        XCTAssertFalse(button("촬영").isEnabled)
+        if openedFromHome {
+            XCTAssertTrue(app.buttons["촬영 시작"].waitForExistence(timeout: 10), app.debugDescription)
+            XCTAssertTrue(album.exists)
+        } else {
+            XCTAssertTrue(text("카메라 권한이 없습니다.").waitForExistence(timeout: 10), app.debugDescription)
+            XCTAssertFalse(button("촬영").isEnabled)
+        }
     }
 
     func testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute() throws {
@@ -1586,9 +1604,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("1 / 3").waitForExistence(timeout: 10))
         XCTAssertTrue(try screenContains("찍고, 기록하고"))
         tapButton("뒤로가기")
+        XCTAssertTrue(text("DZlog의 주요 기능을 순서대로 살펴볼 수 있어요.").waitForExistence(timeout: 10))
         tapButton("뒤로가기")
-        tapScrollablePanelText("도움 주신 분들")
-        XCTAssertTrue(text("함께해 주셔서 감사합니다").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("설정").waitForExistence(timeout: 10))
+        tapScrollablePanelText("도움 주신 분들", destination: text("함께해 주셔서 감사합니다"))
         XCTAssertTrue(text("버전 1.0.0 (3)").exists)
         XCTAssertTrue(text("특별한 감사").exists)
         XCTAssertTrue(text("루루").exists)
