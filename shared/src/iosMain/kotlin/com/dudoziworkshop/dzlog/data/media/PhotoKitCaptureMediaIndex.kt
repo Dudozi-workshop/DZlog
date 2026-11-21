@@ -110,6 +110,19 @@ internal class PhotoKitCaptureMediaIndex(
         return replacement
     }
 
+    fun projectEntries(captureIds: Set<String>): Set<IndexedCaptureMedia> {
+        val all = load()
+        val linked = all.filter { it.captureId in captureIds }
+        check(linked.mapTo(mutableSetOf()) { it.captureId } == captureIds) {
+            "사진 연결을 확인할 수 없는 촬영 기록이 있습니다. 프로젝트를 유지합니다."
+        }
+        val assetIds = linked.mapTo(mutableSetOf()) { it.asset.assetId }
+        check(assetIds.size == linked.size && all.count { it.asset.assetId in assetIds } == linked.size) {
+            "여러 촬영 기록이 같은 사진을 가리킵니다. 프로젝트를 유지합니다."
+        }
+        return linked.toSet()
+    }
+
     fun folderContents(path: String): IndexedFolderContents {
         check(pending().isEmpty()) { "이전 촬영을 먼저 복구해 주세요." }
         val source = GalleryFolderDeleteScope.source(path)

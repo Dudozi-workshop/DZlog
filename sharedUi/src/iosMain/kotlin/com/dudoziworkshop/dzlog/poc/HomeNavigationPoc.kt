@@ -280,6 +280,17 @@ internal fun HomeNavigationPoc(
         )
     } else if (projectDetailId != null) {
         val project = requireNotNull(projectRegistry.find(requireNotNull(projectDetailId)))
+        fun removeProject(): Boolean {
+            val deleted = changeContext { before ->
+                val next = if (project.id == before.projects.activeId) before.select(null) else before
+                next.copy(projects = next.projects.delete(project.id))
+            }
+            if (deleted) {
+                projectDetailId = null
+                showProjectList = true
+            }
+            return deleted
+        }
         IosProjectDetailScreen(
             project = project,
             selected = project.id == projectRegistry.activeId,
@@ -309,15 +320,14 @@ internal fun HomeNavigationPoc(
                 projectStore.reopen(project.id)?.let { projectRegistry = it }
                     ?: run { notice = "프로젝트를 재개하지 못했습니다." }
             },
-            onDeleteMetadata = {
-                val deleted = changeContext { before ->
-                    val next = if (project.id == before.projects.activeId) before.select(null) else before
-                    next.copy(projects = next.projects.delete(project.id))
-                }
-                if (deleted) {
-                    projectDetailId = null
-                    showProjectList = true
-                }
+            onDeleteMetadata = { removeProject() },
+            prepareDeletion = {
+                photoRepository.prepareProjectDeletion(projectStore.load().exclusiveCaptureIds(project.id))
+            },
+            deleteWithPhotos = { confirmed ->
+                photoRepository.deleteProjectPhotos(confirmed,
+                    currentCaptureIds = { projectStore.load().exclusiveCaptureIds(project.id) },
+                    deleteVerifiedProject = ::removeProject)
             },
         )
     } else if (showProjectList) {

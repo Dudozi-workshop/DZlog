@@ -7,6 +7,16 @@ import com.dudoziworkshop.dzlog.domain.media.ConfirmedCaptureMediaSave
 import com.dudoziworkshop.dzlog.domain.counter.CounterMediaReadbackPolicy
 import com.dudoziworkshop.dzlog.domain.counter.CounterMediaRecord
 
+class PhotoKitProjectDeletion internal constructor(
+    internal val captureIds: Set<String>,
+    internal val entries: Set<IndexedCaptureMedia>,
+    internal val present: Set<String>,
+) {
+    val resultCount = entries.count { it.asset.assetId in present && it.asset.target.role == CaptureMediaRole.RESULT }
+    val originalCount = present.size - resultCount
+    val alreadyMissingCount = entries.size - present.size
+}
+
 class PhotoKitFolderDeletion internal constructor(
     internal val contents: IndexedFolderContents,
     internal val presentIds: Set<String>,
@@ -195,6 +205,44 @@ class PhotoKitCaptureMediaRepository(
 
     suspend fun moveGalleryFolder(path: String, destination: String): String = manageFolder {
         index.moveFolder(path, destination)
+    }
+
+    private fun inspectProjectDeletion(captureIds: Set<String>): PhotoKitProjectDeletion {
+        val entries = index.projectEntries(captureIds)
+        val present = photos.presentIds(entries.map { it.asset.assetId })
+        check(entries.size == present.size || photos.hasFullReadAccess()) {
+            "접근할 수 없는 사진이 있습니다. 사진 접근 권한을 확인해 주세요."
+        }
+        return PhotoKitProjectDeletion(captureIds.toSet(), entries, present)
+    }
+
+    suspend fun prepareProjectDeletion(captureIds: Set<String>): PhotoKitProjectDeletion = manageFolder {
+        if (captureIds.isNotEmpty()) photos.ensureReadWriteAccess()
+        inspectProjectDeletion(captureIds)
+    }
+
+    suspend fun deleteProjectPhotos(
+        confirmed: PhotoKitProjectDeletion,
+        currentCaptureIds: () -> Set<String>,
+        deleteVerifiedProject: () -> Boolean,
+    ) = manageFolder {
+        val current = inspectProjectDeletion(currentCaptureIds())
+        check(current.captureIds == confirmed.captureIds && current.entries == confirmed.entries &&
+            current.present == confirmed.present) { "삭제 범위가 변경됐습니다. 다시 확인해 주세요." }
+        if (current.present.isNotEmpty()) {
+            check(photos.remove(current.present.toList())) { "사진 삭제가 취소되었거나 실패했습니다. 프로젝트를 유지합니다." }
+        }
+        val ids = current.entries.mapTo(mutableSetOf()) { it.asset.assetId }
+        check(ids.isEmpty() || (photos.hasReadAccess() &&
+            (current.alreadyMissingCount == 0 || photos.hasFullReadAccess()) && photos.presentIds(ids).isEmpty())) {
+            "연결 사진의 삭제를 확인하지 못했습니다. 프로젝트를 유지합니다."
+        }
+        check(currentCaptureIds() == confirmed.captureIds && index.projectEntries(confirmed.captureIds) == current.entries) {
+            "촬영 기록이 변경됐습니다. 프로젝트를 유지합니다."
+        }
+        // Keep the exact IDs available for a retry if the registry write fails.
+        check(deleteVerifiedProject()) { "프로젝트 기록을 저장하지 못했습니다. 다시 확인해 주세요." }
+        if (ids.isNotEmpty()) index.forgetDeleted(ids)
     }
 
     suspend fun prepareFolderDeletion(path: String): PhotoKitFolderDeletion = manageFolder {

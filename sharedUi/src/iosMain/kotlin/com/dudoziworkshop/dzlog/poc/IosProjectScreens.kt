@@ -22,7 +22,10 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dudoziworkshop.dzlog.data.media.PhotoKitProjectDeletion
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import com.dudoziworkshop.dzlog.data.project.IosCaptureProjectRegistry
 import com.dudoziworkshop.dzlog.ui.common.DDZButton
 import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
@@ -204,11 +207,14 @@ internal fun IosProjectDetailScreen(
     onComplete: () -> Unit,
     onReopen: () -> Unit,
     onDeleteMetadata: () -> Unit,
+    prepareDeletion: suspend () -> PhotoKitProjectDeletion,
+    deleteWithPhotos: suspend (PhotoKitProjectDeletion) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showComplete by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    var showPhotoDelete by remember(project.id) { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().background(DDZColor.Background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -236,6 +242,9 @@ internal fun IosProjectDetailScreen(
                     })
                     DropdownMenuItem(text = { Text("프로젝트만 삭제 · 사진 유지") }, onClick = {
                         menuOpen = false; showDelete = true
+                    })
+                    DropdownMenuItem(text = { Text("프로젝트 및 연결 사진 삭제") }, onClick = {
+                        menuOpen = false; showPhotoDelete = true
                     })
                 }
             }
@@ -275,6 +284,9 @@ internal fun IosProjectDetailScreen(
         confirmButton = { TextButton(onClick = { showComplete = false; onComplete() }) { Text("완료") } },
         dismissButton = { TextButton(onClick = { showComplete = false }) { Text("취소") } },
     )
+    if (showPhotoDelete) IosProjectPhotoDeleteDialog(project.title, prepareDeletion, deleteWithPhotos) {
+        showPhotoDelete = false
+    }
     if (showDelete) AlertDialog(
         onDismissRequest = { showDelete = false },
         title = { Text("프로젝트만 삭제할까요?") },
@@ -283,6 +295,72 @@ internal fun IosProjectDetailScreen(
             Text("프로젝트만 삭제")
         } },
         dismissButton = { TextButton(onClick = { showDelete = false }) { Text("취소") } },
+    )
+}
+
+@Composable
+private fun IosProjectPhotoDeleteDialog(
+    title: String,
+    prepare: suspend () -> PhotoKitProjectDeletion,
+    delete: suspend (PhotoKitProjectDeletion) -> Unit,
+    dismiss: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var revision by remember { mutableIntStateOf(0) }
+    var plan by remember { mutableStateOf<PhotoKitProjectDeletion?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var deleting by remember { mutableStateOf(false) }
+    LaunchedEffect(revision) {
+        try {
+            plan = prepare()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            error = failure.message ?: "연결 사진을 확인하지 못했습니다."
+        }
+    }
+    AlertDialog(
+        onDismissRequest = { if (!deleting) dismiss() },
+        title = { Text("프로젝트 및 연결 사진 삭제") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title)
+                plan?.let {
+                    Text("결과 사진 ${it.resultCount}장 · 원본 사진 ${it.originalCount}장")
+                    if (it.alreadyMissingCount > 0) Text("이미 삭제된 사진 ${it.alreadyMissingCount}장의 기록도 정리합니다.")
+                    Text("프로젝트와 여기에 연결된 사진을 삭제합니다. 같은 폴더의 다른 사진은 유지됩니다.")
+                }
+                if (plan == null && error == null) Text("연결 사진을 확인하고 있습니다.")
+                if (deleting) Text("삭제 결과를 확인하고 있습니다.")
+                error?.let {
+                    Text(it)
+                    if (rememberIosPermissions().photos != IosAccess.ALLOWED) {
+                        TextButton(onClick = ::openIosSystemSettings) { Text("iPhone 설정 열기") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (error != null) TextButton(onClick = { error = null; revision++ }) { Text("범위 다시 확인") }
+            else TextButton(enabled = plan != null && !deleting, onClick = {
+                val confirmed = plan ?: return@TextButton
+                deleting = true
+                scope.launch {
+                    try {
+                        delete(confirmed)
+                        dismiss()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        plan = null
+                        error = failure.message ?: "삭제 결과를 확인하지 못했습니다."
+                    } finally {
+                        deleting = false
+                    }
+                }
+            }) { Text("프로젝트 및 사진 삭제") }
+        },
+        dismissButton = { TextButton(enabled = !deleting, onClick = dismiss) { Text("취소") } },
     )
 }
 

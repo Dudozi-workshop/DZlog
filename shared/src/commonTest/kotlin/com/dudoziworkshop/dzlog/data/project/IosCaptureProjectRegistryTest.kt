@@ -18,6 +18,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class IosCaptureProjectRegistryTest {
+    @Test
+    fun projectPhotoDeletionRejectsConflictingOwnership() {
+        val a = IosCaptureProject("a", "실험 1", 0L, captureIds = listOf("same"))
+        val b = IosCaptureProject("b", "실험 2", 0L, captureIds = listOf("other"))
+        assertEquals(setOf("same"), IosCaptureProjectRegistry(listOf(a, b)).exclusiveCaptureIds("a"))
+        val conflict = IosCaptureProjectRegistry(listOf(a, b.copy(captureIds = listOf("same"))))
+        assertFails { conflict.exclusiveCaptureIds("a") }
+    }
+
     private fun document(id: String, folder: String, counter: Int): EditorDocument {
         val table = TableTemplateState(1, 1, listOf(TableCellState(0, 0, cellId = id)),
             pathSlotDrafts = listOf(TableEditorSlotDraft("MANUAL", "직접입력", manualText = folder)))

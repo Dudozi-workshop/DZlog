@@ -148,6 +148,14 @@ data class IosCaptureProjectRegistry(
         })
     }
 
+    fun exclusiveCaptureIds(projectId: String): Set<String> {
+        val ids = requireNotNull(find(projectId)) { "프로젝트를 찾을 수 없습니다." }.captureIds.toSet()
+        check(projects.none { it.id != projectId && it.captureIds.any(ids::contains) }) {
+            "다른 프로젝트에도 연결된 촬영 기록이 있습니다. 프로젝트를 유지합니다."
+        }
+        return ids
+    }
+
     /** Project metadata deletion never deletes or reclassifies Photos assets. */
     fun delete(projectId: String): IosCaptureProjectRegistry {
         requireNotNull(find(projectId))

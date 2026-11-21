@@ -16,6 +16,27 @@ class PhotoKitCaptureMediaIndexTest {
             CaptureMediaTarget(CaptureMediaRole.RESULT, path, name), id))
 
     @Test
+    fun projectDeletionFollowsCaptureIdsAcrossFoldersAndChecksMissingLinks() {
+        val suite = "dzlog.photokit.project-delete.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val result = batchEntry("result", "same.jpg")
+            val original = IndexedCaptureMedia(result.captureId, PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, SavedGalleryEntryPolicy.ROOT_ORIGINALS, "same.jpg"), "original"))
+            val other = batchEntry("other", "other.jpg")
+            index.append(listOf(result, original, other))
+            val captured = setOf(result.captureId)
+            assertEquals(setOf(result, original), index.projectEntries(captured))
+            assertFailsWith<IllegalStateException> { index.projectEntries(captured + "unknown") }
+            val plan = PhotoKitProjectDeletion(captured, index.projectEntries(captured), setOf("result", "original"))
+            assertEquals(1, plan.resultCount)
+            assertEquals(1, plan.originalCount)
+            assertEquals(0, plan.alreadyMissingCount)
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun folderDeletionUsesExactSubtreeAndPreservesOtherPhotosAndFavorites() {
         val suite = "dzlog.photokit.folder-delete.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)
