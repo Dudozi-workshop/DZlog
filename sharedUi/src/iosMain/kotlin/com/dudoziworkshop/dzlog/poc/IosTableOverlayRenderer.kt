@@ -39,6 +39,7 @@ internal object IosTableOverlayRenderer {
         rotationDegrees: Float = 0f,
         cellRects: List<IosCaptureCellRect>? = null,
         placement: IosCaptureTablePlacement? = null,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
@@ -66,15 +67,13 @@ internal object IosTableOverlayRenderer {
         val yEdges = edges(rows, layout?.heights ?: rowWeights)
         val tableW = layout?.width ?: maxW
         val tableH = layout?.height ?: maxH
-        val viewport = placement?.let { iosCaptureTableBounds(imageWidth, imageHeight, it) }
-        val rotated = placement?.rotationCwDeg == 90
-        val visibleW = if (rotated) tableH else tableW
-        val visibleH = if (rotated) tableW else tableH
-        fun fraction(start: Float, available: Float) = if (available < 0.001f) 0.5f else (start / available).coerceIn(0f, 1f)
-        val originX = if (viewport == null) imageWidth * offsetXRatio else
-            fraction(viewport.x, imageWidth - viewport.width) * (imageWidth - visibleW) + (visibleW - tableW) / 2
-        val originY = if (viewport == null) imageHeight * offsetYRatio else
-            fraction(viewport.y, imageHeight - viewport.height) * (imageHeight - visibleH) + (visibleH - tableH) / 2
+        val fittedBounds = placement?.let {
+            val aspect = tableW / tableH
+            onContentAspect?.invoke(aspect)
+            iosCaptureTableBounds(imageWidth, imageHeight, it, aspect)
+        }
+        val originX = fittedBounds?.rawX ?: (imageWidth * offsetXRatio)
+        val originY = fittedBounds?.rawY ?: (imageHeight * offsetYRatio)
         require(rotationDegrees.isFinite()) { "표 회전값이 올바르지 않습니다." }
         val angle = rotationDegrees * (kotlin.math.PI / 180.0)
         val rotatedW = abs(tableW * cos(angle)) + abs(tableH * sin(angle))
@@ -159,11 +158,18 @@ internal object IosTableOverlayRenderer {
                                maxW: Float, maxH: Float): FittedTable {
         val font = UIFont.systemFontOfSize(28.0 * valueScale.coerceIn(60, 160) / 100)
         val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
+        fun measuredWidth(line: String) = NSAttributedString.create(string = line, attributes = attributes).size().useContents { width }
+        // Android's Noto Sans CJK KR hmtx gives modern Hangul syllables a
+        // 920-unit advance on a 1000-unit em. Use that advance for grid sizing
+        // while UIKit shapes and draws the original text with its native font.
+        val hangulAdvanceDelta = font.pointSize * 0.92 - measuredWidth("가")
         val widths = MutableList(cols) { 72f }
         val heights = MutableList(rows) { 48f }
         for (cell in roots) {
             val lines = texts[cell.row * cols + cell.col].ifEmpty { " " }.split('\n')
-            val longest = lines.maxOf { NSAttributedString.create(string = it, attributes = attributes).size().useContents { width } }
+            val longest = lines.maxOf { line ->
+                measuredWidth(line) + line.count { it in '가'..'힣' } * hangulAdvanceDelta
+            }
             val w = (longest.toFloat() + 24f) / cell.cols
             val h = ((font.ascender - font.descender).coerceAtLeast(12.0).toFloat() * lines.size + 18f) / cell.rows
             for (c in cell.col until cell.col + cell.cols) widths[c] = maxOf(widths[c], w)
@@ -194,6 +200,7 @@ internal object IosTableOverlayRenderer {
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
         placement: IosCaptureTablePlacement? = null,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val rects = iosCaptureCellRects(template)
         val expected = template.cells.associateBy { it.cellId }
@@ -210,7 +217,7 @@ internal object IosTableOverlayRenderer {
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
-            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement,
+            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement, onContentAspect = onContentAspect,
         )
     }
 
@@ -231,11 +238,12 @@ internal object IosTableOverlayRenderer {
         widthRatio: Int,
         heightRatio: Int,
         rotationCwDeg: Int = 0,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val placement = IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg)
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style, widthRatio, heightRatio,
-            rotationDegrees = rotationCwDeg.toFloat(), placement = placement,
+            rotationDegrees = rotationCwDeg.toFloat(), placement = placement, onContentAspect = onContentAspect,
         )
     }
 
