@@ -13,19 +13,24 @@ import java.io.File
 class PhotoActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        val words = assets.open("cells.txt").bufferedReader().use { it.readLines() }
-        check(words.size == 9)
         val source = assets.open("source.jpg").use { BitmapFactory.decodeStream(it) }
+        for (file in assets.list("").orEmpty().filter { it.startsWith("cells") && it.endsWith(".txt") }) {
+            val table = assets.open(file).bufferedReader().use { PhotoTable(it.readText()) }
+            render(source, table, file.removeSuffix(".txt"))
+        }
+        finish()
+    }
+
+    private fun render(source: Bitmap, table: PhotoTable, name: String) {
         val result = WatermarkRendererImpl().renderTable(
-            originalBmp = source, cells = words.map { WatermarkCell(it) },
-            templateCells = words.mapIndexed { i, text -> TableCellState(i / 3, i % 3, rawText = text) },
-            rows = 3, cols = 3, anchor = WatermarkTableAnchor.BOTTOM_RIGHT,
+            originalBmp = source, cells = table.labels.map { WatermarkCell(it) },
+            templateCells = table.labels.mapIndexed { i, text -> TableCellState(i / table.cols, i % table.cols, rawText = text) },
+            rows = table.rows, cols = table.cols, anchor = WatermarkTableAnchor.BOTTOM_RIGHT,
             offsetXRatio = 0, offsetYRatio = 0, tableWidthRatio = 75, tableHeightRatio = 30,
             bgAlpha = 255, valueScale = 100, textColorMode = 0, manualTextColor = 0, textAlign = 1,
         )
         val tmp = File(filesDir, "result.tmp")
         tmp.outputStream().use { check(result.compress(Bitmap.CompressFormat.JPEG, 94, it)) }
-        check(tmp.renameTo(File(filesDir, "android.jpg")))
-        finish()
+        check(tmp.renameTo(File(filesDir, "android-$name.jpg")))
     }
 }

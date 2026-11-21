@@ -6,14 +6,14 @@ import com.dudoziworkshop.dzlog.domain.preview.*
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.ui.table.mock.tableEditorNow
+import com.dudoziworkshop.dzlog.qa.PhotoTable
 import kotlinx.cinterop.*
 import platform.Foundation.*
 
 fun writeKoreanPhoto(source: String, labels: String, output: String) {
-    val words = labels.trimEnd('\n').lines()
-    check(words.size == 9)
-    val table = TableTemplateState(3, 3, words.mapIndexed { i, text ->
-        TableCellState(i / 3, i % 3, rawText = text, cellId = "cell-$i")
+    val fixture = PhotoTable(labels)
+    val table = TableTemplateState(fixture.rows, fixture.cols, fixture.labels.mapIndexed { i, text ->
+        TableCellState(i / fixture.cols, i % fixture.cols, rawText = text, cellId = "cell-$i")
     })
     val now = tableEditorNow()
     val date = NamingFormatDefaults.DATE_FORMAT_DEFAULT

@@ -36,9 +36,9 @@ jobs:
         run: |
           target=android-source/app/src/debug
           mkdir -p "$target/java/com/dudoziworkshop/dzlog/qa" "$target/assets"
-          cp qa/korean-photo/PhotoActivity.kt "$target/java/com/dudoziworkshop/dzlog/qa/"
+          cp qa/korean-photo/{PhotoActivity,PhotoTable}.kt "$target/java/com/dudoziworkshop/dzlog/qa/"
           cp qa/korean-photo/AndroidManifest.xml "$target/"
-          cp source.jpg qa/korean-photo/cells.txt "$target/assets/"
+          cp source.jpg qa/korean-photo/cells*.txt "$target/assets/"
           cd android-source && bash gradlew :app:assembleDebug
       - name: Enable KVM
         run: |
@@ -53,7 +53,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: android.jpg
+          path: android-*.jpg
   iphone:
     needs: input
     runs-on: macos-15
@@ -72,7 +72,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build simulator fixture using the iPhone save renderer
         run: |
-          cp qa/korean-photo/KoreanPhoto.kt sharedUi/src/iosMain/kotlin/com/dudoziworkshop/dzlog/poc/
+          cp qa/korean-photo/{KoreanPhoto,PhotoTable}.kt sharedUi/src/iosMain/kotlin/com/dudoziworkshop/dzlog/poc/
           cp qa/korean-photo/AppDelegate.swift iosApp/PoCApp/
           bash gradlew -PdzlogSharedOnly=true -PdzlogUiPoc=true :sharedUi:linkDebugFrameworkIosSimulatorArm64
           bash scripts/ios/build-ui-poc.sh
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: iphone
-          path: iphone.jpg
+          path: iphone-*.jpg
   compare:
     needs: [android, iphone]
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
         with:
           name: korean-photo-comparison
           path: |
-            android.jpg
-            iphone.jpg
-            comparison.png
+            android-*.jpg
+            iphone-*.jpg
+            comparison-*.png
             measurements.json
