@@ -39,6 +39,7 @@ internal object IosTableOverlayRenderer {
         rotationDegrees: Float = 0f,
         cellRects: List<IosCaptureCellRect>? = null,
         placement: IosCaptureTablePlacement? = null,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
@@ -66,15 +67,13 @@ internal object IosTableOverlayRenderer {
         val yEdges = edges(rows, layout?.heights ?: rowWeights)
         val tableW = layout?.width ?: maxW
         val tableH = layout?.height ?: maxH
-        val viewport = placement?.let { iosCaptureTableBounds(imageWidth, imageHeight, it) }
-        val rotated = placement?.rotationCwDeg == 90
-        val visibleW = if (rotated) tableH else tableW
-        val visibleH = if (rotated) tableW else tableH
-        fun fraction(start: Float, available: Float) = if (available < 0.001f) 0.5f else (start / available).coerceIn(0f, 1f)
-        val originX = if (viewport == null) imageWidth * offsetXRatio else
-            fraction(viewport.x, imageWidth - viewport.width) * (imageWidth - visibleW) + (visibleW - tableW) / 2
-        val originY = if (viewport == null) imageHeight * offsetYRatio else
-            fraction(viewport.y, imageHeight - viewport.height) * (imageHeight - visibleH) + (visibleH - tableH) / 2
+        val fittedBounds = placement?.let {
+            val aspect = tableW / tableH
+            onContentAspect?.invoke(aspect)
+            iosCaptureTableBounds(imageWidth, imageHeight, it, aspect)
+        }
+        val originX = fittedBounds?.rawX ?: (imageWidth * offsetXRatio)
+        val originY = fittedBounds?.rawY ?: (imageHeight * offsetYRatio)
         require(rotationDegrees.isFinite()) { "표 회전값이 올바르지 않습니다." }
         val angle = rotationDegrees * (kotlin.math.PI / 180.0)
         val rotatedW = abs(tableW * cos(angle)) + abs(tableH * sin(angle))
@@ -194,6 +193,7 @@ internal object IosTableOverlayRenderer {
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
         placement: IosCaptureTablePlacement? = null,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val rects = iosCaptureCellRects(template)
         val expected = template.cells.associateBy { it.cellId }
@@ -210,7 +210,7 @@ internal object IosTableOverlayRenderer {
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
-            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement,
+            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement, onContentAspect = onContentAspect,
         )
     }
 
@@ -231,11 +231,12 @@ internal object IosTableOverlayRenderer {
         widthRatio: Int,
         heightRatio: Int,
         rotationCwDeg: Int = 0,
+        onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val placement = IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg)
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style, widthRatio, heightRatio,
-            rotationDegrees = rotationCwDeg.toFloat(), placement = placement,
+            rotationDegrees = rotationCwDeg.toFloat(), placement = placement, onContentAspect = onContentAspect,
         )
     }
 

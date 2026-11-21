@@ -366,12 +366,12 @@ internal class IosCameraCaptureSession(
 
     private var liveAspect: Double? = null
 
-    fun renderLiveOverlay(width: Int, height: Int): ByteArray {
+    fun renderLiveOverlay(width: Int, height: Int, onContentAspect: (Float) -> Unit = {}): ByteArray {
         val placement = checkNotNull(tablePlacement)
         val png = IosTableOverlayRenderer.renderAndroidAnchoredPng(width, height,
             selectedDocument.template.templateState, resolveCapturePreview(), selectedDocument.template.styleState,
             placement.anchor, placement.offsetXPercent, placement.offsetYPercent,
-            placement.widthRatio, placement.heightRatio, placement.rotationCwDeg)
+            placement.widthRatio, placement.heightRatio, placement.rotationCwDeg, onContentAspect)
         liveAspect = width.toDouble() / height
         return png
     }

@@ -146,9 +146,10 @@ internal class IosLiveTableView(
     private var zoomWriter: ((Float) -> Boolean)? = null
     private var zoomCommit: ((Float) -> Unit)? = null
     private var revision = -1
+    private var contentAspect: Float? = null
     private var dirty = true
     private var viewport = IosTableBounds(0f, 0f, 0f, 0f, 0f, 0f)
-    private var render: ((Int, Int) -> ByteArray)? = null
+    private var render: ((Int, Int, (Float) -> Unit) -> ByteArray)? = null
     private var commit: ((IosCaptureTablePlacement) -> Boolean)? = null
     private var ready: ((Boolean) -> Unit)? = null
     private var editing: ((Boolean) -> Unit)? = null
@@ -239,7 +240,7 @@ internal class IosLiveTableView(
         onFocusInteraction: (Boolean) -> Unit, version: Int,
         zoomActive: Boolean, zoomValue: Float, maxZoom: Float,
         zoomValueWriter: (Float) -> Boolean, onZoomCommit: (Float) -> Unit,
-        renderer: (Int, Int) -> ByteArray, writer: (IosCaptureTablePlacement) -> Boolean,
+        renderer: (Int, Int, (Float) -> Unit) -> ByteArray, writer: (IosCaptureTablePlacement) -> Boolean,
         onReady: (Boolean) -> Unit, onEditing: (Boolean) -> Unit,
         onSaved: () -> Unit, onError: (String) -> Unit) {
         render = renderer; commit = writer; ready = onReady; editing = onEditing; saved = onSaved; error = onError
@@ -315,7 +316,7 @@ internal class IosLiveTableView(
             try {
                 val w = 720
                 val h = (w * frame.height / frame.width).toInt().coerceAtLeast(1)
-                val bytes = checkNotNull(render)(w, h)
+                val bytes = checkNotNull(render)(w, h) { contentAspect = it }
                 val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
                 image.image = checkNotNull(UIImage.imageWithData(data))
                 updateHandles(p)
@@ -610,7 +611,7 @@ internal class IosLiveTableView(
     }
 
     private fun box(p: IosCaptureTablePlacement) = iosCaptureTableBounds(
-        viewport.width.toInt(), viewport.height.toInt(), p)
+        viewport.width.toInt(), viewport.height.toInt(), p, contentAspect)
 
     private fun updateHandles(p: IosCaptureTablePlacement) {
         val b = box(p)
@@ -635,8 +636,8 @@ internal class IosLiveTableView(
             UIGestureRecognizerStateEnded -> {
                 val initial = start ?: return
                 val delta = sender.translationInView(this).useContents { x.toFloat() to y.toFloat() }
-                val p = if (resizing) resizeIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second)
-                    else moveIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second)
+                val p = if (resizing) resizeIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second, contentAspect)
+                    else moveIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second, contentAspect)
                 val old = box(initial)
                 val next = box(p)
                 val sx = next.width / old.width

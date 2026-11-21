@@ -148,6 +148,16 @@ internal fun IosLiveTableFixture() {
 }
 
 private fun checkIosLiveTableGeometry() {
+    // A 4:1 table fits inside the 600 x 240 placement at 600 x 150.
+    val corner = IosCaptureTablePlacement(IosTableAnchor.BOTTOM_RIGHT, 0, 0, 75, 30)
+    val visible = iosCaptureTableBounds(800, 600, corner, 4f)
+    check(visible == IosTableBounds(200f, 450f, 600f, 150f, 200f, 450f))
+    val moved = moveIosCaptureTable(corner, 800, 600, -100f, -225f, 4f)
+    val middle = iosCaptureTableBounds(800, 600, moved, 4f)
+    check(middle.x == 100f && middle.y == 225f)
+    val turned = iosCaptureTableBounds(800, 800, moved.copy(rotationCwDeg = 90), 4f)
+    check(turned.width == 150f && turned.height == 600f)
+
     for ((w, h) in listOf(300 to 450, 450 to 300)) {
         for (anchor in IosTableAnchor.entries) for (rotation in listOf(0, 90)) {
             if (rotation == 90 && anchor != IosTableAnchor.CUSTOM) continue
