@@ -64,6 +64,10 @@ internal class CaptureRecordRoomStore(private val db: CaptureRecordRoomDatabase)
     suspend fun findByMediaUri(uri: String): CaptureRecord? =
         db.captureRecordDao().findByMediaUri(uri)?.toDomain()
 
+    suspend fun findByMediaUris(uris: List<String>): List<CaptureRecord> =
+        if (uris.isEmpty()) emptyList() else db.captureRecordDao().findUsingMediaUris(uris)
+            .map(CaptureRecordEntity::toDomain)
+
     suspend fun findById(captureId: String): CaptureRecord? =
         db.captureRecordDao().findById(captureId)?.toDomain()
 

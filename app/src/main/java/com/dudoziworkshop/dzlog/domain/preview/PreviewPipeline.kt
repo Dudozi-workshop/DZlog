@@ -8,6 +8,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.model.TableCellState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.model.deriveFileNameCellSlotsFromDrafts
+import com.dudoziworkshop.dzlog.domain.model.normalizeFileNameSlotDrafts
 import com.dudoziworkshop.dzlog.domain.phrase.PhraseResolver
 import com.dudoziworkshop.dzlog.domain.phrase.CellPhraseProgressPolicy
 import com.dudoziworkshop.dzlog.domain.table.ResolvePlan
@@ -133,7 +134,7 @@ internal fun buildPreview(
         captureContext = CaptureContext(
             resolvedCells = previewPlan.resolvedCells,
             captureNow = input.captureNow,
-            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            fileNameSlotDrafts = normalizeFileNameSlotDrafts(input.templateState.fileNameSlotDrafts),
             pathSlotDrafts = input.templateState.pathSlotDrafts,
             fnDelim = input.fnDelim,
             counterDigits = input.counterDigits,
@@ -194,7 +195,7 @@ internal fun buildScope(
         captureContext = CaptureContext(
             resolvedCells = plan.resolvedCells,
             captureNow = input.captureNow,
-            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            fileNameSlotDrafts = normalizeFileNameSlotDrafts(input.templateState.fileNameSlotDrafts),
             pathSlotDrafts = input.templateState.pathSlotDrafts,
             fnDelim = input.fnDelim,
             counterDigits = input.counterDigits,
@@ -245,7 +246,7 @@ internal fun buildCapturePreview(
         captureContext = CaptureContext(
             resolvedCells = finalPlan.resolvedCells,
             captureNow = input.captureNow,
-            fileNameSlotDrafts = input.templateState.fileNameSlotDrafts,
+            fileNameSlotDrafts = normalizeFileNameSlotDrafts(input.templateState.fileNameSlotDrafts),
             pathSlotDrafts = input.templateState.pathSlotDrafts,
             fnDelim = input.fnDelim,
             counterDigits = input.counterDigits,

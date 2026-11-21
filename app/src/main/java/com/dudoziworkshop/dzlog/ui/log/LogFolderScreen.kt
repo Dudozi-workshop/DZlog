@@ -80,6 +80,9 @@ import com.dudoziworkshop.dzlog.data.mediastore.DzlogMediaStoreReader
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
+import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoRenamer
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePlan
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderBatchPolicy
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
@@ -99,6 +102,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -206,6 +210,19 @@ fun LogFolderScreen(
     var selectedAccessPath by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedPhotoIds by remember(relativePath) { mutableStateOf<Set<Long>>(emptySet()) }
     var selectionActive by remember(relativePath) { mutableStateOf(false) }
+    var selectedFolderPaths by remember(relativePath) { mutableStateOf<Set<String>>(emptySet()) }
+    var folderSelectionActive by remember(relativePath) { mutableStateOf(false) }
+    var showBatchFolderMove by remember { mutableStateOf(false) }
+    var showBatchFolderMovePicker by remember { mutableStateOf(false) }
+    var batchFolderBusy by remember { mutableStateOf(false) }
+    var showBatchRename by remember { mutableStateOf(false) }
+    var batchRenameBusy by remember { mutableStateOf(false) }
+    var batchFolderMoveTarget by remember { mutableStateOf(GalleryFolderIndexPolicy.ROOT) }
+    var batchFolderKnownPaths by remember { mutableStateOf<List<String>>(emptyList()) }
+    var batchFolderPickerLoading by remember { mutableStateOf(false) }
+    var batchFolderPickerError by remember { mutableStateOf<String?>(null) }
+    val photoRenameSession: GalleryPhotoRenameSession = viewModel(key = if (demoGallery) "tutorial-gallery-rename" else "gallery-rename")
+    val photoRenamer = remember(context) { GalleryPhotoRenamer(context) }
     var showPhotoMove by remember { mutableStateOf(false) }
     var showMoveDestination by remember { mutableStateOf(false) }
     var photoMoveLoading by remember { mutableStateOf(false) }
@@ -274,8 +291,8 @@ fun LogFolderScreen(
         }
     }
     val deleteBusy = deleteAction.busy || photoDeleteLoading
-    val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || folderManagementBusy
-    val navigationLocked = operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || folderAccessBusy || showFolderAccessHelp
+    val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || photoRenameSession.pendingPermission != null || folderManagementBusy || batchFolderBusy || batchRenameBusy || photoRenameSession.busy
+    val navigationLocked = folderSelectionActive || operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || showBatchFolderMove || showBatchRename || photoRenameSession.selectedIds.isNotEmpty() || folderAccessBusy || showFolderAccessHelp
     val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         if (treeUri == null) {
             folderAccessBusy = false
@@ -421,8 +438,97 @@ fun LogFolderScreen(
         loading = false
     }
 
+    fun enterFolderSelection(path: String) {
+        if (operationLocked || selectionActive || manageAction != null) return
+        folderSelectionActive = true
+        selectedFolderPaths = selectedFolderPaths + path
+    }
+    fun toggleFolderSelection(path: String) {
+        if (operationLocked) return
+        selectedFolderPaths = if (path in selectedFolderPaths) selectedFolderPaths - path else selectedFolderPaths + path
+    }
+    fun cancelFolderSelection() {
+        if (operationLocked) return
+        selectedFolderPaths = emptySet()
+        folderSelectionActive = false
+    }
+    fun beginBatchFolderMove() {
+        if (selectedFolderPaths.isEmpty() || operationLocked) return
+        if (!folderStorage.isConnected()) {
+            folderOperationError = "폴더 이동을 위해 Pictures/DZlog 폴더 접근을 먼저 연결해 주세요."
+            return
+        }
+        batchFolderMoveTarget = GalleryFolderIndexPolicy.ROOT
+        batchFolderPickerLoading = true
+        batchFolderPickerError = null
+        showBatchFolderMove = true
+        showBatchFolderMovePicker = true
+        scope.launch {
+            val sources = selectedFolderPaths.sorted()
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    folderStorage.listDestinationFolders(sources.first()) +
+                        folderCatalog.listDescendantPaths(GalleryFolderIndexPolicy.ROOT) +
+                        listOf(GalleryFolderIndexPolicy.ROOT)
+                }
+            }
+            if (!showBatchFolderMove) return@launch
+            result.onSuccess { batchFolderKnownPaths = it.distinct() }
+                .onFailure { batchFolderPickerError = it.message ?: "대상 폴더를 불러오지 못했습니다." }
+            batchFolderPickerLoading = false
+        }
+    }
+    LaunchedEffect(photoRenameSession.error, photoRenameSession.snapshot) {
+        if (photoRenameSession.snapshot == null) photoRenameSession.error?.let { folderOperationError = it }
+    }
+    LaunchedEffect(photoRenameSession.selectedIds, photoRenameSession.result) {
+        val result = photoRenameSession.result
+        if (photoRenameSession.selectedIds.isNotEmpty()) {
+            selectedPhotoIds = photoRenameSession.selectedIds - result?.renamedIds.orEmpty()
+            selectionActive = selectedPhotoIds.isNotEmpty()
+        }
+        if (result != null) {
+            GallerySnapshotMemory.cache.invalidate()
+            reloadKey++
+        }
+    }
+
+    fun beginBatchRename() {
+        if (demoGallery || operationLocked) return
+        if (folderSelectionActive) {
+            if (selectedFolderPaths.isEmpty()) return
+            if (!folderStorage.isConnected()) {
+                folderOperationError = "폴더 이름 변경을 위해 Pictures/DZlog 접근을 먼저 연결해 주세요."
+                return
+            }
+            showBatchRename = true
+        } else {
+            photoRenameSession.start(selectedPhotoIds, photoRenamer)
+        }
+    }
+
+    val renameWritePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        val pending = photoRenameSession.pendingPermission
+        if (result.resultCode == Activity.RESULT_OK && pending != null) photoRenameSession.execute(photoRenamer, pending)
+        else photoRenameSession.permissionFailed("사진 수정 권한이 허용되지 않았습니다.")
+    }
+
+    fun requestPhotoRename(plan: GalleryPhotoRenamePlan) {
+        if (photoRenameSession.busy || photoRenameSession.pendingPermission != null || plan.writablePhotos.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching {
+                photoRenameSession.requestPermission(plan)
+                val request = MediaStore.createWriteRequest(context.contentResolver, plan.writablePhotos.map { it.uri })
+                renameWritePermission.launch(IntentSenderRequest.Builder(request.intentSender).build())
+            }.onFailure {
+                photoRenameSession.permissionFailed("사진 이름 변경 권한을 요청하지 못했습니다.")
+            }
+        } else photoRenameSession.execute(photoRenamer, plan)
+    }
     fun enterSelection(photo: MediaImageItem) {
-        if (operationLocked || showPhotoDelete || showPhotoMove || manageAction != null) return
+        if (operationLocked || folderSelectionActive || showPhotoDelete || showPhotoMove || manageAction != null) return
         selectionActive = true
         selectedPhotoIds = selectedPhotoIds + photo.id
     }
@@ -432,7 +538,7 @@ fun LogFolderScreen(
         selectionActive = false
     }
     fun togglePhoto(photo: MediaImageItem) {
-        if (operationLocked || showPhotoDelete || showPhotoMove || manageAction != null) return
+        if (operationLocked || folderSelectionActive || showPhotoDelete || showPhotoMove || manageAction != null) return
         selectionActive = true
         selectedPhotoIds = if (photo.id in selectedPhotoIds) selectedPhotoIds - photo.id else selectedPhotoIds + photo.id
     }
@@ -528,7 +634,7 @@ fun LogFolderScreen(
     }
     fun startFolderManagement(path: String, action: String) {
         if (demoGallery) return
-        if (folderManagementBusy || folderAccessBusy || selectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
+        if (folderManagementBusy || folderAccessBusy || selectionActive || folderSelectionActive || manageAction != null || deleteBusy || photoMoveBusy) return
         connected = folderStorage.isConnected()
         if (!connected) {
             pendingFolderPath = path
@@ -579,7 +685,8 @@ fun LogFolderScreen(
     BackHandler(enabled = showPhotoDelete && photoDeleteLoading) { showPhotoDelete = false }
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
     BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { onShowDefaultPhotosChange(false) }
-    BackHandler(enabled = selectionActive && !showPhotoMove) {
+    BackHandler(enabled = folderSelectionActive && !operationLocked && !showBatchFolderMove && !showBatchRename) { cancelFolderSelection() }
+    BackHandler(enabled = selectionActive && !showPhotoMove && !showBatchRename && photoRenameSession.selectedIds.isEmpty()) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
@@ -626,15 +733,22 @@ fun LogFolderScreen(
     Column(modifier = Modifier.dzScreen()
         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
         .padding(horizontal = 16.dp)) {
-        if (selectionActive) {
+        if (selectionActive || folderSelectionActive) {
             Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-header"), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = ::cancelSelection, enabled = !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) { Text("취소") }
-                Text("${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f),
+                TextButton(onClick = { if (folderSelectionActive) cancelFolderSelection() else cancelSelection() }, enabled = !operationLocked) { Text("취소") }
+                Text(if (folderSelectionActive) "${selectedFolderPaths.size}개 폴더 선택" else "${selectedPhotoIds.size}장 선택", modifier = Modifier.weight(1f),
                     color = DDZColor.TextPrimary, fontWeight = FontWeight.SemiBold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                TextButton(enabled = selectableIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null,
-                    onClick = { selectedPhotoIds = if (allSelected) emptySet() else selectableIds }) {
-                    Text(if (allSelected) "전체 해제" else "전체 선택")
+                if (folderSelectionActive) {
+                    val selectableFolders = index?.children.orEmpty().map { it.relativePath }.toSet()
+                    TextButton(enabled = !operationLocked, onClick = {
+                        selectedFolderPaths = if (selectedFolderPaths.containsAll(selectableFolders)) emptySet() else selectableFolders
+                    }) { Text(if (selectedFolderPaths.containsAll(selectableFolders)) "전체 해제" else "전체 선택") }
+                } else {
+                    TextButton(enabled = selectableIds.isNotEmpty() && !operationLocked,
+                        onClick = { selectedPhotoIds = if (allSelected) emptySet() else selectableIds }) {
+                        Text(if (allSelected) "전체 해제" else "전체 선택")
+                    }
                 }
             }
         } else {
@@ -782,6 +896,10 @@ fun LogFolderScreen(
             } else if (root && index != null) {
                 LogGalleryHomeContent(
                     projectAlbums = if (demoGallery) emptyList() else projectAlbums,
+                    selectedFolderPaths = selectedFolderPaths,
+                    folderSelectionActive = folderSelectionActive,
+                    onLongPressFolder = ::enterFolderSelection,
+                    onSelectFolder = ::toggleFolderSelection,
                     onOpenProjectAlbum = { id ->
                         if (!selectionActive && !navigationLocked) onOpenProjectAlbum(id)
                     },
@@ -849,8 +967,12 @@ fun LogFolderScreen(
                             GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                                 canManage = !navigationLocked && !selectionActive && !folderAccessBusy,
                                 onManage = { action -> startFolderManagement(folder.relativePath, action) },
+                                selected = folder.relativePath in selectedFolderPaths,
+                                selectionActive = folderSelectionActive,
+                                onLongClick = { enterFolderSelection(folder.relativePath) },
                             ) {
-                                if (!selectionActive && !navigationLocked) onOpenFolder(folder.relativePath)
+                                if (folderSelectionActive) toggleFolderSelection(folder.relativePath)
+                                else if (!selectionActive && !navigationLocked) onOpenFolder(folder.relativePath)
                             }
                         }
                     }
@@ -898,7 +1020,18 @@ fun LogFolderScreen(
         deleteAction.progressText?.let { progress ->
             Text(progress, color = DDZColor.TextSecondary, style = DDZTypography.Caption)
         }
-        if (selectionActive) {
+        if (folderSelectionActive) {
+            val enabled = selectedFolderPaths.isNotEmpty() && !operationLocked
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                .background(DDZColor.SurfaceSoft, RoundedCornerShape(16.dp))) {
+                TextButton(modifier = Modifier.weight(1f), enabled = enabled, onClick = ::beginBatchFolderMove) {
+                    Text("폴더 이동")
+                }
+                TextButton(modifier = Modifier.weight(1f), enabled = enabled, onClick = ::beginBatchRename) {
+                    Text("이름 일괄 변경")
+                }
+            }
+        } else if (selectionActive) {
             val actionsEnabled = selectedPhotoIds.isNotEmpty() && !photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null
             Row(Modifier.fillMaxWidth().tutorialTarget("gallery.selection-actions")
                 .padding(vertical = 8.dp)
@@ -920,6 +1053,9 @@ fun LogFolderScreen(
                         Text("공유")
                     }
                 }
+                TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::beginBatchRename) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("이름 변경") }
+                }
                 TextButton(modifier = Modifier.weight(1f), enabled = actionsEnabled, onClick = ::startPhotoDelete) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Delete, contentDescription = null)
@@ -929,6 +1065,141 @@ fun LogFolderScreen(
             }
         }
     }
+        if (showBatchFolderMove && showBatchFolderMovePicker) {
+            GalleryMoveDestinationPicker(
+                allPhotos = allPhotos,
+                knownFolderPaths = batchFolderKnownPaths,
+                selectedIds = emptySet(),
+                initialPath = batchFolderMoveTarget,
+                loading = batchFolderPickerLoading,
+                loadError = batchFolderPickerError,
+                onRetry = { batchFolderPickerError = "선택을 취소한 후 다시 시도해 주세요." },
+                loadPhysicalChildren = { path ->
+                    withContext(Dispatchers.IO) { folderStorage.listImmediateFolderPaths(path) }
+                },
+                onCancel = {
+                    showBatchFolderMovePicker = false
+                    showBatchFolderMove = false
+                },
+                onChoose = { path ->
+                    batchFolderMoveTarget = path
+                    showBatchFolderMovePicker = false
+                },
+                movingFolderPath = selectedFolderPaths.sorted().firstOrNull(),
+            )
+        }
+        if (showBatchFolderMove && !showBatchFolderMovePicker) {
+            val sources = selectedFolderPaths.sorted()
+            GalleryFolderBatchMoveDialog(
+                sources = sources,
+                destination = batchFolderMoveTarget,
+                knownFolders = batchFolderKnownPaths,
+                capturePathWarning = sources.any {
+                    GalleryFolderOperationPolicy.captureImpact(it, capturePathDrafts) != CapturePathImpact.NONE
+                },
+                busy = batchFolderBusy,
+                onCancel = { showBatchFolderMove = false },
+                onConfirm = {
+                    val planned = runCatching {
+                        GalleryFolderBatchPolicy.moveTargets(sources, batchFolderMoveTarget, batchFolderKnownPaths)
+                    }
+                    planned.onFailure { folderOperationError = it.message }
+                    planned.onSuccess {
+                        showBatchFolderMove = false
+                        batchFolderBusy = true
+                        scope.launch {
+                            val moved = mutableListOf<String>()
+                            var failure: String? = null
+                            for (source in sources) {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val target = GalleryFolderOperationPolicy.movedPath(source, batchFolderMoveTarget)
+                                        folderCatalog.relocateFolder(source, target) {
+                                            folderStorage.moveFolder(source, batchFolderMoveTarget)
+                                        }
+                                    }
+                                }
+                                if (result.isSuccess) moved += source
+                                else {
+                                    failure = result.exceptionOrNull()?.message ?: "폴더 이동 실패"
+                                    break
+                                }
+                            }
+                            batchFolderBusy = false
+                            selectedFolderPaths = selectedFolderPaths - moved.toSet()
+                            folderSelectionActive = selectedFolderPaths.isNotEmpty()
+                            GallerySnapshotMemory.cache.invalidate()
+                            reloadKey++
+                            folderOperationError = if (failure == null) "폴더 ${moved.size}개 이동 완료"
+                                else "폴더 ${moved.size}개 이동 · ${sources.size - moved.size}개 미완료. ${failure}"
+                        }
+                    }
+                },
+            )
+        }
+        photoRenameSession.snapshot?.takeUnless { demoGallery }?.let { snapshot ->
+            GalleryPhotoRenameFlow(
+                snapshot = snapshot,
+                busy = photoRenameSession.busy || photoRenameSession.pendingPermission != null,
+                result = photoRenameSession.result,
+                executionError = photoRenameSession.error,
+                onDismiss = photoRenameSession::dismiss,
+                onExecute = ::requestPhotoRename,
+            )
+        }
+        if (showBatchRename) {
+            val folders = selectedFolderPaths.sorted()
+            GalleryBatchRenameDialog(
+                fileNames = folders.map { it.trimEnd('/').substringAfterLast('/') },
+                busy = batchRenameBusy,
+                validate = { find, replacement ->
+                    runCatching {
+                        GalleryFolderBatchPolicy.renameTargets(
+                            folders, index?.children.orEmpty().map { it.relativePath }, find, replacement,
+                        )
+                    }.exceptionOrNull()?.message
+                },
+                onCancel = { showBatchRename = false },
+                onConfirm = { find, replacement ->
+                    val planned = runCatching {
+                        GalleryFolderBatchPolicy.renameTargets(
+                            folders, index?.children.orEmpty().map { it.relativePath }, find, replacement,
+                        )
+                    }
+                    planned.onFailure { folderOperationError = it.message }
+                    planned.onSuccess { changes ->
+                        showBatchRename = false
+                        batchRenameBusy = true
+                        scope.launch {
+                            val renamed = mutableListOf<String>()
+                            var failure: String? = null
+                            for (entry in changes) {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val target = GalleryFolderOperationPolicy.renamedPath(entry.oldPath, entry.newName)
+                                        folderCatalog.relocateFolder(entry.oldPath, target) {
+                                            folderStorage.renameFolder(entry.oldPath, entry.newName)
+                                        }
+                                    }
+                                }
+                                if (result.isSuccess) renamed += entry.oldPath
+                                else {
+                                    failure = result.exceptionOrNull()?.message ?: "폴더 이름 변경 실패"
+                                    break
+                                }
+                            }
+                            batchRenameBusy = false
+                            selectedFolderPaths = selectedFolderPaths - renamed.toSet()
+                            folderSelectionActive = selectedFolderPaths.isNotEmpty()
+                            GallerySnapshotMemory.cache.invalidate()
+                            reloadKey++
+                            folderOperationError = if (failure == null) "폴더 ${renamed.size}개 이름 변경 완료"
+                                else "폴더 ${renamed.size}개 변경 · ${changes.size - renamed.size}개 미완료. ${failure}"
+                        }
+                    }
+                },
+            )
+        }
         if (showPhotoDelete && !photoDeleteLoading && deleteSelected.isNotEmpty()) {
             GalleryPhotoDeleteConfirmation(
                 selected = deleteSelected,
