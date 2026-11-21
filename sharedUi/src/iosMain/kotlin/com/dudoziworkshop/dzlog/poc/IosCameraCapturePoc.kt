@@ -1,6 +1,7 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +52,7 @@ internal data class IosCaptureTablePlacement(
         require(offsetXPercent in 0..100 && offsetYPercent in 0..100) {
             "표 위치 비율이 올바르지 않습니다."
         }
-        require(widthRatio in 10..100 && heightRatio in 10..100) {
+        require(widthRatio in 10..TableLayoutCalculator.CAMERA_MAX_RATIO && heightRatio in 10..TableLayoutCalculator.CAMERA_MAX_RATIO) {
             "표 크기 비율이 올바르지 않습니다."
         }
         require(rotationCwDeg in 0..359) {

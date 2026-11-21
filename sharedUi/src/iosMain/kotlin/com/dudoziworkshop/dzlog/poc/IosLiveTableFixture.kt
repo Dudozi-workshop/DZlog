@@ -162,6 +162,12 @@ private fun checkIosLiveTableGeometry() {
     val turned = iosCaptureTableBounds(800, 800, moved.copy(rotationCwDeg = 90), 4f)
     check(turned.width == 150f && turned.height == 600f)
 
+    val tall = corner.copy(anchor = IosTableAnchor.CUSTOM, rotationCwDeg = 90, widthRatio = 177, heightRatio = 89)
+    check(tall.fittedToPhoto(900, 1600) == tall)
+    val square = tall.fittedToPhoto(900, 900)
+    check(square.widthRatio == 100 && square.heightRatio == 50)
+    check(iosCaptureTableBounds(900, 900, tall) == iosCaptureTableBounds(900, 900, square))
+
     for ((w, h) in listOf(300 to 450, 450 to 300)) {
         for (anchor in IosTableAnchor.entries) for (rotation in listOf(0, 90)) {
             if (rotation == 90 && anchor != IosTableAnchor.CUSTOM) continue
@@ -174,7 +180,7 @@ private fun checkIosLiveTableGeometry() {
                 val b = iosCaptureTableBounds(w, h, edited)
                 check(b.x >= 0 && b.y >= 0 && b.x + b.width <= w + 0.01f && b.y + b.height <= h + 0.01f)
                 check(edited.rotationCwDeg == rotation)
-                check(edited.widthRatio in 10..100 && edited.heightRatio in 10..100)
+                check(edited.widthRatio >= 10 && edited.heightRatio >= 10)
             }
             check(moveIosCaptureTable(p, w, h, -10000f, -10000f).offsetXPercent == 0)
             check(moveIosCaptureTable(p, w, h, 10000f, 10000f).offsetYPercent == 100)

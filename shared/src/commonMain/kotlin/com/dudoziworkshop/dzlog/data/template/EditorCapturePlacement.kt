@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
+
 /**
  * Persisted placement independent of Android DataStore.
  * A null placement in EditorDocument means that the user has not configured it.
@@ -20,7 +22,7 @@ data class EditorCapturePlacement(
         require(offsetXPercent in 0..100 && offsetYPercent in 0..100) {
             "표 위치 비율이 올바르지 않습니다."
         }
-        require(widthRatio in 10..100 && heightRatio in 10..100) {
+        require(widthRatio in 10..TableLayoutCalculator.CAMERA_MAX_RATIO && heightRatio in 10..TableLayoutCalculator.CAMERA_MAX_RATIO) {
             "표 크기 비율이 올바르지 않습니다."
         }
         require(rotationCwDeg in 0..359) {

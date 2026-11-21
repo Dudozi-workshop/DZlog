@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.table.render.CameraTableSizeLimits
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,12 +62,15 @@ internal fun IosCaptureSettingsScreen(
     onApply: (EditorDocument, Int, Boolean, Int) -> Unit,
 ) {
     var mode by remember(document) { mutableStateOf(document.saveMode) }
-    var placement by remember(document) { mutableStateOf(document.capturePlacement ?:
+    var requestedPlacement by remember(document) { mutableStateOf(document.capturePlacement ?:
         EditorCapturePlacement(EditorCaptureAnchor.BOTTOM_RIGHT, 50, 50, 60, 20)) }
     var number by remember(document) { mutableStateOf((document.nextCounter ?: 1).toString()) }
     var previewMode by remember(continuousPreviewMode) { mutableIntStateOf(continuousPreviewMode) }
     var hapticEnabled by remember(captureHapticEnabled) { mutableStateOf(captureHapticEnabled) }
     var captureAspect by remember(captureAspectMode) { mutableStateOf(CaptureAspect.from(captureAspectMode)) }
+    val sizeLimits = CameraTableSizeLimits(captureAspect.ratioF, requestedPlacement.rotationCwDeg)
+    val size = sizeLimits.fit(requestedPlacement.widthRatio, requestedPlacement.heightRatio)
+    val placement = requestedPlacement.copy(widthRatio = size.tableWidthRatio, heightRatio = size.tableHeightRatio)
     val next = number.toIntOrNull()?.takeIf { it > 0 && it < Int.MAX_VALUE }
     val layoutError = runCatching { iosCaptureCellRects(document.template.templateState) }.exceptionOrNull()?.message
     val saveEnabled = next != null && (mode == SaveMode.ORIGINAL_ONLY || layoutError == null)
@@ -159,47 +163,47 @@ internal fun IosCaptureSettingsScreen(
                     Text("표 위치", style = DDZTypography.SettingLabel, color = DDZColor.Primary)
                     IosCompactSegments(listOf(
                         DDZSegmentedControlOption("왼쪽 위", placement.anchor == EditorCaptureAnchor.TOP_LEFT) {
-                            placement = placement.copy(anchor = EditorCaptureAnchor.TOP_LEFT, rotationCwDeg = 0)
+                            requestedPlacement = placement.copy(anchor = EditorCaptureAnchor.TOP_LEFT, rotationCwDeg = 0)
                         },
                         DDZSegmentedControlOption("오른쪽 위", placement.anchor == EditorCaptureAnchor.TOP_RIGHT) {
-                            placement = placement.copy(anchor = EditorCaptureAnchor.TOP_RIGHT, rotationCwDeg = 0)
+                            requestedPlacement = placement.copy(anchor = EditorCaptureAnchor.TOP_RIGHT, rotationCwDeg = 0)
                         },
                     ))
                     IosCompactSegments(listOf(
                         DDZSegmentedControlOption("왼쪽 아래", placement.anchor == EditorCaptureAnchor.BOTTOM_LEFT) {
-                            placement = placement.copy(anchor = EditorCaptureAnchor.BOTTOM_LEFT, rotationCwDeg = 0)
+                            requestedPlacement = placement.copy(anchor = EditorCaptureAnchor.BOTTOM_LEFT, rotationCwDeg = 0)
                         },
                         DDZSegmentedControlOption("오른쪽 아래", placement.anchor == EditorCaptureAnchor.BOTTOM_RIGHT) {
-                            placement = placement.copy(anchor = EditorCaptureAnchor.BOTTOM_RIGHT, rotationCwDeg = 0)
+                            requestedPlacement = placement.copy(anchor = EditorCaptureAnchor.BOTTOM_RIGHT, rotationCwDeg = 0)
                         },
                     ))
                     IosFeedbackChip(
                         label = "사용자 지정",
                         selected = placement.anchor == EditorCaptureAnchor.CUSTOM,
                         enabled = true,
-                        onClick = { placement = placement.copy(anchor = EditorCaptureAnchor.CUSTOM, rotationCwDeg = 0) },
+                        onClick = { requestedPlacement = placement.copy(anchor = EditorCaptureAnchor.CUSTOM, rotationCwDeg = 0) },
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    CaptureRatio("표 너비", placement.widthRatio, 10f..100f) {
-                        placement = placement.copy(widthRatio = it)
+                    CaptureRatio("표 너비", placement.widthRatio, 10f..sizeLimits.maxWidthRatio.toFloat()) {
+                        requestedPlacement = placement.copy(widthRatio = it)
                     }
-                    CaptureRatio("표 높이", placement.heightRatio, 10f..100f) {
-                        placement = placement.copy(heightRatio = it)
+                    CaptureRatio("표 높이", placement.heightRatio, 10f..sizeLimits.maxHeightRatio.toFloat()) {
+                        requestedPlacement = placement.copy(heightRatio = it)
                     }
                     Text("표 너비와 높이는 사진 너비를 기준으로 적용됩니다.",
                         style = DDZTypography.Caption, color = DDZColor.TextMuted)
                     if (placement.anchor == EditorCaptureAnchor.CUSTOM) {
                         CaptureRatio("가로 위치", placement.offsetXPercent, 0f..100f) {
-                            placement = placement.copy(offsetXPercent = it)
+                            requestedPlacement = placement.copy(offsetXPercent = it)
                         }
                         CaptureRatio("세로 위치", placement.offsetYPercent, 0f..100f) {
-                            placement = placement.copy(offsetYPercent = it)
+                            requestedPlacement = placement.copy(offsetYPercent = it)
                         }
                         IosFeedbackChip(
                             label = "90도 회전",
                             selected = placement.rotationCwDeg == 90,
                             enabled = true,
-                            onClick = { placement = placement.copy(rotationCwDeg = if (placement.rotationCwDeg == 90) 0 else 90) },
+                            onClick = { requestedPlacement = placement.copy(rotationCwDeg = if (placement.rotationCwDeg == 90) 0 else 90) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }

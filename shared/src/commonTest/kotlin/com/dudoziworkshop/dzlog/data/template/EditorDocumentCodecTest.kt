@@ -43,7 +43,7 @@ class EditorDocumentCodecTest {
     @Test fun placementAcceptsAnchorAndBoundaryCombinations() {
         EditorCaptureAnchor.values().forEach { anchor ->
             listOf(0, 100).forEach { offset ->
-                listOf(10, 100).forEach { size ->
+                listOf(10, 100, 177, 200).forEach { size ->
                     listOf(0, 359).forEach { rotation ->
                         val placement = EditorCapturePlacement(
                             anchor, offset, offset, size, size, rotation,
@@ -56,12 +56,18 @@ class EditorDocumentCodecTest {
         }
     }
 
+    @Test fun rotatedPortraitPlacementRoundTripsAboveOnePhotoWidth() {
+        val document = sample().copy(capturePlacement =
+            EditorCapturePlacement(EditorCaptureAnchor.CUSTOM, 17, 81, 177, 89, 90))
+        assertEquals(document, EditorDocumentCodec.decode(EditorDocumentCodec.encode(document)))
+    }
+
     @Test fun placementRejectsInvalidBounds() {
         val anchor = EditorCaptureAnchor.CUSTOM
         assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, -1, 0, 40, 40) }
         assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 101, 40, 40) }
         assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 9, 40) }
-        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 40, 101) }
+        assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 40, 201) }
         assertFailsWith<IllegalArgumentException> { EditorCapturePlacement(anchor, 0, 0, 40, 40, 360) }
     }
 

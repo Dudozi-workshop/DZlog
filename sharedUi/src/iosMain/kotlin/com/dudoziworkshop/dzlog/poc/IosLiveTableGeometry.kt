@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.table.render.CameraTableSizeLimits
 import kotlin.math.roundToInt
 
 /** Photo-space bounds shared by the raster renderer and native gesture handles. */
@@ -8,11 +9,17 @@ internal data class IosTableBounds(
     val rawX: Float, val rawY: Float,
 )
 
+internal fun IosCaptureTablePlacement.fittedToPhoto(w: Int, h: Int, scale: Float = 1f): IosCaptureTablePlacement {
+    val size = CameraTableSizeLimits(w.toFloat() / h, rotationCwDeg).fit(widthRatio, heightRatio, scale)
+    return copy(widthRatio = size.tableWidthRatio, heightRatio = size.tableHeightRatio)
+}
+
 internal fun iosCaptureTableBounds(w: Int, h: Int, p: IosCaptureTablePlacement, contentAspect: Float? = null): IosTableBounds {
     require(w > 0 && h > 0)
     require(p.rotationCwDeg == 0 || (p.rotationCwDeg == 90 && p.anchor == IosTableAnchor.CUSTOM))
-    val maxW = w * p.widthRatio / 100f
-    val maxH = w * p.heightRatio / 100f
+    val fitted = p.fittedToPhoto(w, h)
+    val maxW = w * fitted.widthRatio / 100f
+    val maxH = w * fitted.heightRatio / 100f
     require(contentAspect == null || (contentAspect > 0 && contentAspect.isFinite()))
     val rawW = contentAspect?.let { minOf(maxW, maxH * it) } ?: maxW
     val rawH = contentAspect?.let { minOf(maxH, maxW / it) } ?: maxH
@@ -56,15 +63,8 @@ internal fun resizeIosCaptureTable(
     p: IosCaptureTablePlacement, w: Int, h: Int, scale: Float, contentAspect: Float? = null,
 ): IosCaptureTablePlacement {
     require(scale.isFinite() && scale > 0f)
-    val rotated = p.rotationCwDeg == 90
-    val photoHeightRatio = (h.toLong() * 100 / w).toInt().coerceAtMost(100)
-    val maxW = if (rotated) photoHeightRatio else 100
-    val maxH = if (rotated) 100 else photoHeightRatio
-    val minScale = maxOf(10f / p.widthRatio, 10f / p.heightRatio)
-    val maxScale = minOf(maxW.toFloat() / p.widthRatio, maxH.toFloat() / p.heightRatio)
-    val fitted = scale.coerceIn(minOf(minScale, maxScale), maxScale)
-    val sized = p.copy(widthRatio = (p.widthRatio * fitted).roundToInt().coerceIn(10, maxW),
-        heightRatio = (p.heightRatio * fitted).roundToInt().coerceIn(10, maxH))
+    val initial = p.fittedToPhoto(w, h)
+    val sized = initial.fittedToPhoto(w, h, scale)
     if (sized == p) return p
     val old = iosCaptureTableBounds(w, h, p, contentAspect)
     val next = iosCaptureTableBounds(w, h, sized, contentAspect)

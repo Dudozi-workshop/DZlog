@@ -1,6 +1,7 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
@@ -60,10 +61,12 @@ internal object IosTableOverlayRenderer {
             }
         }
         require(owners.all { it >= 0 }) { "표 셀 좌표가 누락됐습니다." }
-        require(widthRatio in 10..100 && heightRatio in 10..100)
+        val maxRatio = if (placement == null) 100 else TableLayoutCalculator.CAMERA_MAX_RATIO
+        require(widthRatio in 10..maxRatio && heightRatio in 10..maxRatio)
         require(offsetXRatio.isFinite() && offsetYRatio.isFinite())
-        val maxW = imageWidth * (widthRatio / 100f)
-        val maxH = imageWidth * (heightRatio / 100f)
+        val fitted = placement?.fittedToPhoto(imageWidth, imageHeight)
+        val maxW = imageWidth * ((fitted?.widthRatio ?: widthRatio) / 100f)
+        val maxH = imageWidth * ((fitted?.heightRatio ?: heightRatio) / 100f)
         val layout = placement?.let {
             val font = UIFont.systemFontOfSize(contentMeasureTextSize(style.valueScale).toDouble())
             val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
