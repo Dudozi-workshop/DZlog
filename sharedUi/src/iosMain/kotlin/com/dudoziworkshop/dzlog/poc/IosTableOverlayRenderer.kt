@@ -4,6 +4,10 @@ package com.dudoziworkshop.dzlog.poc
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
+import com.dudoziworkshop.dzlog.feature.table.render.ContentDrivenLayoutCell
+import com.dudoziworkshop.dzlog.feature.table.render.contentMeasureTextSize
+import com.dudoziworkshop.dzlog.feature.table.render.fitContentDrivenLayout
+import com.dudoziworkshop.dzlog.feature.table.render.measureContentDrivenLayout
 import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.useContents
 import platform.CoreGraphics.*
@@ -61,12 +65,24 @@ internal object IosTableOverlayRenderer {
         val maxW = imageWidth * (widthRatio / 100f)
         val maxH = imageWidth * (heightRatio / 100f)
         val layout = placement?.let {
-            fitCameraTable(resolvedTexts, rects, rows, cols, style.valueScale, rowWeights, colWeights, maxW, maxH)
+            val font = UIFont.systemFontOfSize(contentMeasureTextSize(style.valueScale).toDouble())
+            val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
+            val cells = rects.map { cell ->
+                ContentDrivenLayoutCell(
+                    rowIndex = cell.row, colIndex = cell.col,
+                    rowSpan = cell.rows, colSpan = cell.cols,
+                    displayText = resolvedTexts[cell.row * cols + cell.col], isCovered = false,
+                )
+            }
+            val intrinsic = measureContentDrivenLayout(cells, rows, cols, widthRatio, (font.ascender - font.descender).toFloat()) { line ->
+                NSAttributedString.create(string = line, attributes = attributes).size().useContents { width.toFloat() }
+            }
+            fitContentDrivenLayout(intrinsic, rowWeights, colWeights, maxW, maxH, allowUpscaleToFit = true)
         }
-        val xEdges = edges(cols, layout?.widths ?: colWeights)
-        val yEdges = edges(rows, layout?.heights ?: rowWeights)
-        val tableW = layout?.width ?: maxW
-        val tableH = layout?.height ?: maxH
+        val xEdges = edges(cols, layout?.finalColWeights ?: colWeights)
+        val yEdges = edges(rows, layout?.finalRowWeights ?: rowWeights)
+        val tableW = layout?.scaledColWidthsPx?.sum() ?: maxW
+        val tableH = layout?.scaledRowHeightsPx?.sum() ?: maxH
         val fittedBounds = placement?.let {
             val aspect = tableW / tableH
             onContentAspect?.invoke(aspect)
@@ -149,31 +165,6 @@ internal object IosTableOverlayRenderer {
         } finally {
             UIGraphicsEndImageContext()
         }
-    }
-
-    private data class FittedTable(val widths: List<Float>, val heights: List<Float>, val width: Float, val height: Float)
-
-    private fun fitCameraTable(texts: List<String>, roots: List<IosCaptureCellRect>, rows: Int, cols: Int,
-                               valueScale: Int, rowWeights: List<Float>?, colWeights: List<Float>?,
-                               maxW: Float, maxH: Float): FittedTable {
-        val font = UIFont.systemFontOfSize(28.0 * valueScale.coerceIn(60, 160) / 100)
-        val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
-        val widths = MutableList(cols) { 72f }
-        val heights = MutableList(rows) { 48f }
-        for (cell in roots) {
-            val lines = texts[cell.row * cols + cell.col].ifEmpty { " " }.split('\n')
-            val longest = lines.maxOf { NSAttributedString.create(string = it, attributes = attributes).size().useContents { width } }
-            val w = (longest.toFloat() + 24f) / cell.cols
-            val h = ((font.ascender - font.descender).coerceAtLeast(12.0).toFloat() * lines.size + 18f) / cell.rows
-            for (c in cell.col until cell.col + cell.cols) widths[c] = maxOf(widths[c], w)
-            for (r in cell.row until cell.row + cell.rows) heights[r] = maxOf(heights[r], h)
-        }
-        val weightedW = widths.mapIndexed { i, w -> w * (colWeights?.get(i) ?: 1f) }
-        val weightedH = heights.mapIndexed { i, h -> h * (rowWeights?.get(i) ?: 1f) }
-        val w = weightedW.sum()
-        val h = weightedH.sum()
-        val fit = minOf(maxW / w, maxH / h)
-        return FittedTable(weightedW, weightedH, w * fit, h * fit)
     }
 
     /**
