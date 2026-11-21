@@ -46,13 +46,13 @@ internal class PhotoKitSaveRolledBackException(message: String, cause: Throwable
     IllegalStateException(message, cause)
 
 /** Only this iOS adapter touches Photos; Android MediaStore remains independent. */
-internal class PhotoKitAssetAccess {
-    fun hasReadAccess(): Boolean = allowed(PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite))
+internal open class PhotoKitAssetAccess {
+    open fun hasReadAccess(): Boolean = allowed(PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite))
 
-    fun hasFullReadAccess(): Boolean =
+    open fun hasFullReadAccess(): Boolean =
         PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite) == PHAuthorizationStatusAuthorized
 
-    suspend fun ensureReadWriteAccess() {
+    open suspend fun ensureReadWriteAccess() {
         var status = PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelReadWrite)
         if (status == PHAuthorizationStatusNotDetermined) {
             status = suspendCoroutine { continuation ->
@@ -75,7 +75,7 @@ internal class PhotoKitAssetAccess {
         return List(result.count.toInt()) { result.objectAtIndex(it.toULong()) as PHAsset }
     }
 
-    fun presentIds(ids: Collection<String>): Set<String> =
+    open fun presentIds(ids: Collection<String>): Set<String> =
         findAssets(ids).mapTo(mutableSetOf()) { it.localIdentifier }
 
     fun metadata(assetId: String): PhotoKitAssetMetadata? {
@@ -138,7 +138,7 @@ internal class PhotoKitAssetAccess {
         }
     }
 
-    suspend fun remove(assetIds: List<String>): Boolean {
+    open suspend fun remove(assetIds: List<String>): Boolean {
         val assets = findAssets(assetIds)
         // Limited Photos access cannot prove an unreturned identifier was deleted.
         if (assets.size != assetIds.size && !hasFullReadAccess()) return false

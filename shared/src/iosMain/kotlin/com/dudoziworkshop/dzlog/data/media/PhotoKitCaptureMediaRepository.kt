@@ -36,10 +36,12 @@ class PhotoKitFolderDeletion internal constructor(
  * must serialize calls and commit the counter/table patch only after the receipt.
  * App-private logical paths are kept in the index, not mapped to Photos folders.
  */
-class PhotoKitCaptureMediaRepository(
-    defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
+class PhotoKitCaptureMediaRepository internal constructor(
+    defaults: NSUserDefaults,
+    private val photos: PhotoKitAssetAccess,
 ) : CaptureMediaRepository, IosCaptureDeletionStore {
-    private val photos = PhotoKitAssetAccess()
+    constructor(defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults) : this(defaults, PhotoKitAssetAccess())
+
     private val index = PhotoKitCaptureMediaIndex(defaults)
 
     /** Ask for Photos access before staging the irreversible workspace journal. */
