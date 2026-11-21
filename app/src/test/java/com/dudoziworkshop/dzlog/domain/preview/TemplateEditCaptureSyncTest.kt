@@ -113,6 +113,13 @@ class TemplateEditCaptureSyncTest {
             camera.resolvedCells.map { it.resolvedText })
     }
 
+    @Test fun shortStarterFileNameSlotsWorkInPreviewAndCapture() {
+        val standard = template()
+        val starter = standard.copy(fileNameSlotDrafts = standard.fileNameSlotDrafts.take(3))
+        assertPreviewMatchesCapture(starter, "Draper_Before_007.jpg",
+            "Pictures/DZlog/5/Before/")
+    }
+
     @Test fun changingTextAndNumberInSameTemplateRefreshesAllOutputs() {
         val savedBefore = template()
         val savedAfter = savedBefore.copy(cells = savedBefore.cells.map { cell ->

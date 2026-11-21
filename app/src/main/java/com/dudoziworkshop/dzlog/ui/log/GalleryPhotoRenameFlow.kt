@@ -7,14 +7,19 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -354,6 +359,8 @@ private fun PhotoRenameDialog(
 ) {
     val spacing = LocalDDZSpacing.current
     val colors = LocalDDZColor.current
+    // A full-screen dialog may receive zero navigation insets even while the host has a visible taskbar.
+    val hostInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
     Dialog(
         onDismissRequest = onBack,
         properties = DialogProperties(
@@ -363,7 +370,9 @@ private fun PhotoRenameDialog(
         ),
     ) {
         val bounds = if (compact) Modifier.fillMaxWidth() else Modifier.fillMaxSize()
-        Box(bounds.safeDrawingPadding().imePadding(), contentAlignment = Alignment.Center) {
+        val dialogInsets = WindowInsets.safeDrawing
+        val insets = if (compact) dialogInsets else dialogInsets.union(hostInsets)
+        Box(bounds.windowInsetsPadding(insets).imePadding(), contentAlignment = Alignment.Center) {
             Surface(
                 modifier = bounds,
                 shape = if (compact) MaterialTheme.shapes.large else MaterialTheme.shapes.extraSmall,
