@@ -38,6 +38,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraControlsStayDisabledWithoutCameraPermission
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFolderGridViewerAndOriginalResultSwitch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryMoveKeepsViewerOrderUntilReopened
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFavoriteAndEmptyFolderManagementPersist
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredSaveModesAndGalleryAfterRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredRecoveryAfterWorkspaceFailure

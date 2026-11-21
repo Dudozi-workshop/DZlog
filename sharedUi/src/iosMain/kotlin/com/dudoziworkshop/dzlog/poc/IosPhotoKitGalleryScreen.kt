@@ -109,6 +109,7 @@ internal fun IosPhotoKitGalleryScreen(
     var pendingScrollAnchor by remember { mutableStateOf<Pair<String, Int>?>(null) }
     var showPhotoInfo by remember { mutableStateOf(false) }
     var viewer by remember { mutableStateOf(initialAssetId != null) }
+    var movedInViewer by remember { mutableStateOf(emptySet<String>()) }
     var viewerControls by remember { mutableStateOf(true) }
     LaunchedEffect(viewer) { if (viewer) viewerControls = true }
     var managing by remember { mutableStateOf(false) }
@@ -180,12 +181,17 @@ internal fun IosPhotoKitGalleryScreen(
         .map { it.asset.assetId }.toSet()
     val selectedBatch = batchSelection.intersect(selectableIds)
     LaunchedEffect(selectableIds) { batchSelection = batchSelection.intersect(selectableIds) }
+    fun openViewer(id: String) {
+        movedInViewer = emptySet()
+        selectedId = id
+        viewer = true
+    }
     fun selectEntry(entry: SavedCaptureMedia) {
         if (managing || refreshing) return
         val id = entry.asset.assetId
         if (selecting) {
             if (id in selectableIds) batchSelection = if (id in selectedBatch) selectedBatch - id else selectedBatch + id
-        } else { selectedId = id; viewer = true }
+        } else openViewer(id)
     }
     fun enterSelection(entry: SavedCaptureMedia) {
         val next = SavedGallerySelectionPolicy.onLongPress(
@@ -243,8 +249,11 @@ internal fun IosPhotoKitGalleryScreen(
         .filter { scopeIds == null || it.captureId in scopeIds }
         .asReversed()
 
-    val resultPages = remember(resultCaptureIds, photos) {
-        resultCaptureIds?.let { ids -> quickResultCaptures(ids.asReversed(), photos) }
+    fun viewerPhotos(entries: List<SavedCaptureMedia>) =
+        if (movedInViewer.isEmpty()) entries else entries.filterNot { it.asset.assetId in movedInViewer }
+
+    val resultPages = remember(resultCaptureIds, photos, movedInViewer) {
+        resultCaptureIds?.let { ids -> quickResultCaptures(ids.asReversed(), viewerPhotos(photos)) }
     }
     val resultEntries = remember(resultPages, photos, selectedId) {
         resultPages?.let { pages ->
@@ -256,17 +265,19 @@ internal fun IosPhotoKitGalleryScreen(
         }
     }
 
-    fun selectAfterViewerDeletion(deletedIds: Set<String>): String? {
-        val entries = resultEntries ?: visible
+    val viewerEntries = resultEntries ?: viewerPhotos(visible)
+
+    fun selectAfterViewerRemoval(removedIds: Set<String>): String? {
+        val entries = viewerEntries
         val currentIndex = entries.indexOfFirst { it.asset.assetId == selectedId }
         // A companion opened from another folder still belongs to the same capture.
         val anchor = if (currentIndex >= 0) currentIndex else entries.indexOfFirst { it.captureId == selected?.captureId }
         val pages = resultPages?.map { page ->
             listOfNotNull(page.result?.uri, page.original?.uri)
-        } ?: visible.map { entry ->
+        } ?: entries.map { entry ->
             if (entry.availability == CaptureMediaAvailability.PRESENT) listOf(entry.asset.assetId) else emptyList()
         }
-        return savedGalleryPhotoAfterDeletion(pages, anchor, deletedIds)
+        return savedGalleryPhotoAfterRemoval(pages, anchor, removedIds)
     }
 
     fun refresh() {
@@ -279,7 +290,7 @@ internal fun IosPhotoKitGalleryScreen(
                 if (resultCaptureIds != null && photos.none {
                     it.asset.assetId == selectedId && it.availability == CaptureMediaAvailability.PRESENT
                 }) {
-                    val pages = quickResultCaptures(resultCaptureIds.asReversed(), photos)
+                    val pages = quickResultCaptures(resultCaptureIds.asReversed(), viewerPhotos(photos))
                     val ids = resultCaptureIds.asReversed()
                     selectedId = (pages.firstOrNull { ids[it.captureIndex] == previousCapture }
                         ?: pages.firstOrNull())?.displayedPhoto?.uri
@@ -481,7 +492,7 @@ internal fun IosPhotoKitGalleryScreen(
                             selecting = false
                             image = null
                             if (viewer) {
-                                selectedId = selectAfterViewerDeletion(targetIds)
+                                selectedId = selectAfterViewerRemoval(targetIds)
                                 if (selectedId == null) {
                                     if (initialAssetId != null) {
                                         onBack()
@@ -533,16 +544,43 @@ internal fun IosPhotoKitGalleryScreen(
                 scope.launch {
                     try {
                         repository.moveGalleryAssets(targetIds, path)
-                        photos = readScopedPhotos()
-                        folders = repository.listGalleryFolders()
-                        recentView = false
-                        defaultStorageView = false
-                        folder = path
-                        selectedId = targetIds.first()
+                        if (viewer) {
+                            selectedId = selectAfterViewerRemoval(targetIds)
+                            movedInViewer = movedInViewer + targetIds
+                            if (selectedId == null) {
+                                if (initialAssetId != null) {
+                                    onBack()
+                                    return@launch
+                                }
+                                viewer = false
+                            }
+                        } else {
+                            recentView = false
+                            defaultStorageView = false
+                            folder = path
+                            selectedId = targetIds.first()
+                        }
                         batchSelection = emptySet()
                         selecting = false
                         operationMessage = "사진을 이동했습니다."
-                    } catch (error: Throwable) { operationMessage = "사진 이동 실패: ${error.message}" }
+                        // The move is already committed even if a subsequent Photos read fails.
+                        photos = photos.map { entry ->
+                            if (entry.asset.assetId !in targetIds) entry else entry.copy(
+                                asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = path)),
+                            )
+                        }
+                        try {
+                            photos = readScopedPhotos()
+                            folders = repository.listGalleryFolders()
+                            loadError = null
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            loadError = "이동 후 갤러리 조회 실패: ${error.message}"
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) { operationMessage = "사진 이동 실패: ${error.message}" }
                     finally { managing = false }
                 }
             }) { Text("이동") } },
@@ -558,7 +596,7 @@ internal fun IosPhotoKitGalleryScreen(
         }
         if (viewer) {
             // Every navigation entry point shares the active filtered order.
-            val entries = resultEntries ?: visible
+            val entries = viewerEntries
             val index = entries.indexOfFirst { it.asset.assetId == selectedId }
             fun navigate(delta: Int) {
                 if (!managing && !refreshing && index >= 0 && index + delta in entries.indices) {
@@ -628,7 +666,7 @@ internal fun IosPhotoKitGalleryScreen(
             // Do not silently expand previous/next navigation to the entire library.
             if (viewerControls) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
-                val companion = photos.firstOrNull { it.captureId == selected?.captureId &&
+                val companion = photos.firstOrNull { it.asset.assetId !in movedInViewer && it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
                 if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing, onClick = {
                     if (!managing && !refreshing) selectedId = companion.asset.assetId
@@ -797,7 +835,7 @@ internal fun IosPhotoKitGalleryScreen(
                         }
                         Text(message)
                         if (!selecting && selected != null && visible.any { it.asset.assetId == selectedId }) image?.let {
-                            Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { viewer = true },
+                            Image(it, "갤러리 사진 미리보기", Modifier.fillMaxWidth().height(100.dp).clickable { openViewer(selected.asset.assetId) },
                                 contentScale = ContentScale.Fit)
                         }
                     }

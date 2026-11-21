@@ -813,6 +813,51 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(button("그리드 2열").waitForExistence(timeout: 20), "Grid preference must survive relaunch")
     }
 
+    func testGalleryMoveKeepsViewerOrderUntilReopened() {
+        configureCaptureFixture("둘 다", merged: true)
+        tapButton("촬영 저장")
+        XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        tapButton("폴더 생성")
+        tapPanelText("폴더 이름")
+        typeWithVisibleKeyboard("moved")
+        tapButton("저장")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/moved/").waitForExistence(timeout: 20))
+        tapButton("전체 사진")
+        tapPanelText("갤러리 사진 미리보기")
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30))
+        if text("결과 보기").exists { tapButton("결과 보기") }
+        XCTAssertTrue(text("원본 보기").waitForExistence(timeout: 10))
+        let move = app.buttons["사진 이동"]
+        if !move.exists || move.frame.isEmpty || !app.frame.contains(move.frame) {
+            let rowY = button("조작부 숨김").frame.midY
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            origin.withOffset(CGVector(dx: app.frame.width * 0.9, dy: rowY)).press(
+                forDuration: 0.1, thenDragTo: origin.withOffset(CGVector(dx: app.frame.width * 0.1, dy: rowY)))
+        }
+        tapButton("사진 이동")
+        tapPanelText("moved")
+        tapButton("이동")
+        XCTAssertTrue(text("사진을 이동했습니다.").waitForExistence(timeout: 20))
+        tapButton("사진 다시 읽기")
+        XCTAssertTrue(text("사진 복원 완료").waitForExistence(timeout: 30))
+        tapButton("사진 정보")
+        XCTAssertTrue(text("사진 종류: 원본").waitForExistence(timeout: 10))
+        tapButton("닫기")
+        XCTAssertFalse(button("다음 사진").isEnabled)
+        XCTAssertFalse(button("이전 사진").isEnabled)
+        tapButton("사진 목록")
+        XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10))
+        tapButton("폴더 보기")
+        tapButton("moved")
+        XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
+        tapPanelText("갤러리 사진 미리보기")
+        tapButton("사진 정보")
+        XCTAssertTrue(text("사진 종류: 결과").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("폴더: Pictures/DZlog/moved/").exists)
+    }
+
     func testGalleryFavoriteAndEmptyFolderManagementPersist() {
         configureCaptureFixture("둘 다", merged: true)
         tapButton("촬영 저장")
