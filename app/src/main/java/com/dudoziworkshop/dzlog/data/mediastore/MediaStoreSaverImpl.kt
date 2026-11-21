@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.mediastore
 
+import com.dudoziworkshop.dzlog.domain.naming.duplicateFileName
 import com.dudoziworkshop.dzlog.R
 
 import android.content.ContentUris
@@ -89,14 +90,9 @@ class MediaStoreSaverImpl : MediaStoreSaver {
             return displayName to false
         }
 
-        val (stem, ext) = splitFileName(displayName)
         var suffix = 2
         while (true) {
-            val candidate = if (ext.isEmpty()) {
-                "$stem ($suffix)"
-            } else {
-                "$stem ($suffix).$ext"
-            }
+            val candidate = duplicateFileName(displayName, suffix)
             if (!doesNameExist(resolver, relativePath, candidate)) {
                 return candidate to true
             }
@@ -125,15 +121,6 @@ class MediaStoreSaverImpl : MediaStoreSaver {
         return false
     }
 
-    private fun splitFileName(displayName: String): Pair<String, String> {
-        val dot = displayName.lastIndexOf('.')
-        if (dot <= 0 || dot == displayName.length - 1) {
-            return displayName to ""
-        }
-        val stem = displayName.take(dot)
-        val ext = displayName.drop(dot + 1)
-        return stem to ext
-    }
     override fun deleteByUri(context: Context, uri: Uri): Boolean {
         return try {
             val rows = context.contentResolver.delete(uri, null, null)

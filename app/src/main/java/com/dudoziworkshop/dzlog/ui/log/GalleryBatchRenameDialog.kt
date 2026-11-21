@@ -26,7 +26,6 @@ import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 @Composable
 internal fun GalleryBatchRenameDialog(
     fileNames: List<String>,
-    photo: Boolean,
     busy: Boolean,
     validate: (String, String) -> String?,
     onCancel: () -> Unit,
@@ -39,7 +38,7 @@ internal fun GalleryBatchRenameDialog(
     val typography = LocalDDZTypography.current
     val previews = runCatching {
         fileNames.map { old ->
-            old to GalleryBatchRenamePolicy.renamedName(old, find, replace, photo)
+            old to GalleryBatchRenamePolicy.renamedName(old, find, replace, photo = false)
         }.filter { (old, new) -> old != new }
     }
     val error = if (find.isEmpty()) "찾을 문구를 입력해 주세요."
@@ -51,8 +50,7 @@ internal fun GalleryBatchRenameDialog(
         content = {
             Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
-                Text(if (photo) "선택한 사진의 지정 문구만 변경합니다. 확장자는 유지하며 연결된 원본도 함께 변경합니다."
-                    else "선택한 폴더의 지정 문구만 변경합니다. 폴더 속 파일은 그대로 유지합니다.",
+                Text("선택한 폴더의 지정 문구만 변경합니다. 폴더 속 파일은 그대로 유지합니다.",
                     style = typography.Caption, color = colors.TextSecondary)
                 OutlinedTextField(value = find, onValueChange = { find = it },
                     label = { Text("찾을 문구") }, singleLine = true, enabled = !busy,

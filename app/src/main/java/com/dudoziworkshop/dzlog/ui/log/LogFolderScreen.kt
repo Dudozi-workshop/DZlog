@@ -81,9 +81,8 @@ import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderCatalog
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryFolderStorage
 import com.dudoziworkshop.dzlog.data.mediastore.GallerySnapshotMemory
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoRenamer
-import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePlan
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderBatchPolicy
-import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.data.mediastore.GalleryPhotoMover
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryDefaultStoragePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoMovePolicy
@@ -103,6 +102,7 @@ import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import com.dudoziworkshop.dzlog.ui.theme.DDZSpacing
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -221,8 +221,8 @@ fun LogFolderScreen(
     var batchFolderKnownPaths by remember { mutableStateOf<List<String>>(emptyList()) }
     var batchFolderPickerLoading by remember { mutableStateOf(false) }
     var batchFolderPickerError by remember { mutableStateOf<String?>(null) }
-    var batchRenamePhotos by remember { mutableStateOf<List<MediaImageItem>>(emptyList()) }
-    var pendingRenamePlan by remember { mutableStateOf<com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePlan?>(null) }
+    val photoRenameSession: GalleryPhotoRenameSession = viewModel(key = if (demoGallery) "tutorial-gallery-rename" else "gallery-rename")
+    val photoRenamer = remember(context) { GalleryPhotoRenamer(context) }
     var showPhotoMove by remember { mutableStateOf(false) }
     var showMoveDestination by remember { mutableStateOf(false) }
     var photoMoveLoading by remember { mutableStateOf(false) }
@@ -291,8 +291,8 @@ fun LogFolderScreen(
         }
     }
     val deleteBusy = deleteAction.busy || photoDeleteLoading
-    val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || pendingRenamePlan != null || folderManagementBusy || batchFolderBusy || batchRenameBusy
-    val navigationLocked = folderSelectionActive || operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || showBatchFolderMove || showBatchRename || folderAccessBusy || showFolderAccessHelp
+    val operationLocked = deleteBusy || photoMoveBusy || pendingPhotoPlan != null || photoRenameSession.pendingPermission != null || folderManagementBusy || batchFolderBusy || batchRenameBusy || photoRenameSession.busy
+    val navigationLocked = folderSelectionActive || operationLocked || manageAction != null || showPhotoDelete || showPhotoMove || showBatchFolderMove || showBatchRename || photoRenameSession.selectedIds.isNotEmpty() || folderAccessBusy || showFolderAccessHelp
     val folderAccess = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         if (treeUri == null) {
             folderAccessBusy = false
@@ -478,8 +478,23 @@ fun LogFolderScreen(
             batchFolderPickerLoading = false
         }
     }
+    LaunchedEffect(photoRenameSession.error, photoRenameSession.snapshot) {
+        if (photoRenameSession.snapshot == null) photoRenameSession.error?.let { folderOperationError = it }
+    }
+    LaunchedEffect(photoRenameSession.selectedIds, photoRenameSession.result) {
+        val result = photoRenameSession.result
+        if (photoRenameSession.selectedIds.isNotEmpty()) {
+            selectedPhotoIds = photoRenameSession.selectedIds - result?.renamedIds.orEmpty()
+            selectionActive = selectedPhotoIds.isNotEmpty()
+        }
+        if (result != null) {
+            GallerySnapshotMemory.cache.invalidate()
+            reloadKey++
+        }
+    }
+
     fun beginBatchRename() {
-        if (operationLocked) return
+        if (demoGallery || operationLocked) return
         if (folderSelectionActive) {
             if (selectedFolderPaths.isEmpty()) return
             if (!folderStorage.isConnected()) {
@@ -488,63 +503,29 @@ fun LogFolderScreen(
             }
             showBatchRename = true
         } else {
-            if (selectedPhotoIds.isEmpty()) return
-            val ids = selectedPhotoIds
-            batchRenameBusy = true
-            scope.launch {
-                val data = withContext(Dispatchers.IO) {
-                    runCatching { reader.loadImagesUnderPrefix(GalleryFolderIndexPolicy.ROOT) }
-                }
-                batchRenameBusy = false
-                data.onSuccess { images ->
-                    if (images.count { it.id in ids } == ids.size) {
-                        batchRenamePhotos = images
-                        showBatchRename = true
-                    } else folderOperationError = "선택한 파일 일부를 찾지 못했습니다."
-                }.onFailure { folderOperationError = it.message ?: "파일을 불러오지 못했습니다." }
-            }
+            photoRenameSession.start(selectedPhotoIds, photoRenamer)
         }
     }
-    fun finishPhotoRename(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePlan) {
-        batchRenameBusy = true
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { GalleryPhotoRenamer(context.contentResolver).rename(plan) }
-            }
-            batchRenameBusy = false
-            pendingRenamePlan = null
-            GallerySnapshotMemory.cache.invalidate()
-            reloadKey++
-            result.onSuccess { finished ->
-                selectedPhotoIds = selectedPhotoIds - finished.renamedIds
-                selectionActive = selectedPhotoIds.isNotEmpty()
-                folderOperationError = if (finished.failedIds.isEmpty())
-                    "사진 ${finished.renamedIds.size}개 이름 변경 완료"
-                else "이름 변경 ${finished.renamedIds.size}개 · 미완료 ${finished.failedIds.size}개. ${finished.detail.orEmpty()}"
-            }.onFailure { folderOperationError = it.message ?: "파일 이름 변경 실패" }
-        }
-    }
+
     val renameWritePermission = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        val pending = pendingRenamePlan
-        if (result.resultCode == Activity.RESULT_OK && pending != null) finishPhotoRename(pending)
-        else {
-            pendingRenamePlan = null
-            folderOperationError = "사진 수정 권한이 허용되지 않았습니다."
-        }
+        val pending = photoRenameSession.pendingPermission
+        if (result.resultCode == Activity.RESULT_OK && pending != null) photoRenameSession.execute(photoRenamer, pending)
+        else photoRenameSession.permissionFailed("사진 수정 권한이 허용되지 않았습니다.")
     }
-    fun requestPhotoRename(plan: com.dudoziworkshop.dzlog.feature.log.policy.GalleryPhotoRenamePlan) {
+
+    fun requestPhotoRename(plan: GalleryPhotoRenamePlan) {
+        if (photoRenameSession.busy || photoRenameSession.pendingPermission != null || plan.writablePhotos.isEmpty()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             runCatching {
-                pendingRenamePlan = plan
-                val request = MediaStore.createWriteRequest(context.contentResolver, plan.items.map { it.uri })
+                photoRenameSession.requestPermission(plan)
+                val request = MediaStore.createWriteRequest(context.contentResolver, plan.writablePhotos.map { it.uri })
                 renameWritePermission.launch(IntentSenderRequest.Builder(request.intentSender).build())
             }.onFailure {
-                pendingRenamePlan = null
-                folderOperationError = "사진 이름 변경 권한을 요청하지 못했습니다."
+                photoRenameSession.permissionFailed("사진 이름 변경 권한을 요청하지 못했습니다.")
             }
-        } else finishPhotoRename(plan)
+        } else photoRenameSession.execute(photoRenamer, plan)
     }
     fun enterSelection(photo: MediaImageItem) {
         if (operationLocked || folderSelectionActive || showPhotoDelete || showPhotoMove || manageAction != null) return
@@ -705,7 +686,7 @@ fun LogFolderScreen(
     BackHandler(enabled = showRecentPhotos && !selectionActive && !showPhotoMove) { showRecentPhotos = false }
     BackHandler(enabled = showDefaultPhotos && !selectionActive && !showPhotoMove) { onShowDefaultPhotosChange(false) }
     BackHandler(enabled = folderSelectionActive && !operationLocked && !showBatchFolderMove && !showBatchRename) { cancelFolderSelection() }
-    BackHandler(enabled = selectionActive && !showPhotoMove && !showBatchRename) {
+    BackHandler(enabled = selectionActive && !showPhotoMove && !showBatchRename && photoRenameSession.selectedIds.isEmpty()) {
         if (!photoMoveBusy && !deleteBusy && !showPhotoDelete && pendingPhotoPlan == null) cancelSelection()
     }
     BackHandler(enabled = operationLocked && !photoDeleteLoading) { /* Preserve the active operation and its callbacks. */ }
@@ -1156,69 +1137,65 @@ fun LogFolderScreen(
                 },
             )
         }
+        photoRenameSession.snapshot?.takeUnless { demoGallery }?.let { snapshot ->
+            GalleryPhotoRenameFlow(
+                snapshot = snapshot,
+                busy = photoRenameSession.busy || photoRenameSession.pendingPermission != null,
+                result = photoRenameSession.result,
+                executionError = photoRenameSession.error,
+                onDismiss = photoRenameSession::dismiss,
+                onExecute = ::requestPhotoRename,
+            )
+        }
         if (showBatchRename) {
             val folders = selectedFolderPaths.sorted()
-            val photosToRename = batchRenamePhotos.filter { it.id in selectedPhotoIds }
-            val folderMode = folderSelectionActive
             GalleryBatchRenameDialog(
-                fileNames = if (folderMode) folders.map { it.trimEnd('/').substringAfterLast('/') }
-                    else photosToRename.map { it.displayName },
-                photo = !folderMode,
+                fileNames = folders.map { it.trimEnd('/').substringAfterLast('/') },
                 busy = batchRenameBusy,
                 validate = { find, replacement ->
                     runCatching {
-                        if (folderMode) GalleryFolderBatchPolicy.renameTargets(
+                        GalleryFolderBatchPolicy.renameTargets(
                             folders, index?.children.orEmpty().map { it.relativePath }, find, replacement,
                         )
-                        else GalleryPhotoRenamePolicy.plan(photosToRename, batchRenamePhotos, find, replacement)
                     }.exceptionOrNull()?.message
                 },
                 onCancel = { showBatchRename = false },
                 onConfirm = { find, replacement ->
-                    if (folderMode) {
-                        val planned = runCatching {
-                            GalleryFolderBatchPolicy.renameTargets(
-                                folders, index?.children.orEmpty().map { it.relativePath }, find, replacement,
-                            )
-                        }
-                        planned.onFailure { folderOperationError = it.message }
-                        planned.onSuccess { changes ->
-                            showBatchRename = false
-                            batchRenameBusy = true
-                            scope.launch {
-                                val renamed = mutableListOf<String>()
-                                var failure: String? = null
-                                for (entry in changes) {
-                                    val result = withContext(Dispatchers.IO) {
-                                        runCatching {
-                                            val target = GalleryFolderOperationPolicy.renamedPath(entry.oldPath, entry.newName)
-                                            folderCatalog.relocateFolder(entry.oldPath, target) {
-                                                folderStorage.renameFolder(entry.oldPath, entry.newName)
-                                            }
+                    val planned = runCatching {
+                        GalleryFolderBatchPolicy.renameTargets(
+                            folders, index?.children.orEmpty().map { it.relativePath }, find, replacement,
+                        )
+                    }
+                    planned.onFailure { folderOperationError = it.message }
+                    planned.onSuccess { changes ->
+                        showBatchRename = false
+                        batchRenameBusy = true
+                        scope.launch {
+                            val renamed = mutableListOf<String>()
+                            var failure: String? = null
+                            for (entry in changes) {
+                                val result = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val target = GalleryFolderOperationPolicy.renamedPath(entry.oldPath, entry.newName)
+                                        folderCatalog.relocateFolder(entry.oldPath, target) {
+                                            folderStorage.renameFolder(entry.oldPath, entry.newName)
                                         }
                                     }
-                                    if (result.isSuccess) renamed += entry.oldPath
-                                    else {
-                                        failure = result.exceptionOrNull()?.message ?: "폴더 이름 변경 실패"
-                                        break
-                                    }
                                 }
-                                batchRenameBusy = false
-                                selectedFolderPaths = selectedFolderPaths - renamed.toSet()
-                                folderSelectionActive = selectedFolderPaths.isNotEmpty()
-                                GallerySnapshotMemory.cache.invalidate()
-                                reloadKey++
-                                folderOperationError = if (failure == null) "폴더 ${renamed.size}개 이름 변경 완료"
-                                    else "폴더 ${renamed.size}개 변경 · ${changes.size - renamed.size}개 미완료. ${failure}"
+                                if (result.isSuccess) renamed += entry.oldPath
+                                else {
+                                    failure = result.exceptionOrNull()?.message ?: "폴더 이름 변경 실패"
+                                    break
+                                }
                             }
+                            batchRenameBusy = false
+                            selectedFolderPaths = selectedFolderPaths - renamed.toSet()
+                            folderSelectionActive = selectedFolderPaths.isNotEmpty()
+                            GallerySnapshotMemory.cache.invalidate()
+                            reloadKey++
+                            folderOperationError = if (failure == null) "폴더 ${renamed.size}개 이름 변경 완료"
+                                else "폴더 ${renamed.size}개 변경 · ${changes.size - renamed.size}개 미완료. ${failure}"
                         }
-                    } else {
-                        runCatching {
-                            GalleryPhotoRenamePolicy.plan(photosToRename, batchRenamePhotos, find, replacement)
-                        }.onSuccess { plan ->
-                            showBatchRename = false
-                            requestPhotoRename(plan)
-                        }.onFailure { folderOperationError = it.message }
                     }
                 },
             )
