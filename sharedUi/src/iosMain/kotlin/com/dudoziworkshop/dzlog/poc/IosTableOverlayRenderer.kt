@@ -1,16 +1,14 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
-import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.Font
-import org.jetbrains.skia.FontMgr
-import org.jetbrains.skia.FontStyle
-import org.jetbrains.skia.Paint
-import org.jetbrains.skia.Rect
-import org.jetbrains.skia.Surface
-import org.jetbrains.skia.impl.use
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.useContents
+import platform.CoreGraphics.*
+import platform.Foundation.*
+import platform.UIKit.*
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -40,6 +38,7 @@ internal object IosTableOverlayRenderer {
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
         cellRects: List<IosCaptureCellRect>? = null,
+        placement: IosCaptureTablePlacement? = null,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
         require(rows > 0 && cols > 0 && rows.toLong() * cols <= 10000)
@@ -56,20 +55,26 @@ internal object IosTableOverlayRenderer {
             }
         }
         require(owners.all { it >= 0 }) { "표 셀 좌표가 누락됐습니다." }
-        val xEdges = edges(cols, colWeights)
-        val yEdges = edges(rows, rowWeights)
-        require(widthRatio in 10..100 && heightRatio in 10..100) {
-            "표 크기 비율이 올바르지 않습니다."
+        require(widthRatio in 10..100 && heightRatio in 10..100)
+        require(offsetXRatio.isFinite() && offsetYRatio.isFinite())
+        val maxW = imageWidth * (widthRatio / 100f)
+        val maxH = imageWidth * (heightRatio / 100f)
+        val layout = placement?.let {
+            fitCameraTable(resolvedTexts, rects, rows, cols, style.valueScale, rowWeights, colWeights, maxW, maxH)
         }
-        val tableW = imageWidth * (widthRatio / 100f)
-        val tableH = imageWidth * (heightRatio / 100f)
-        // A 90-degree CUSTOM anchor can have a negative *unrotated* origin;
-        // only the final rotated bounds must stay within the photograph.
-        require(offsetXRatio.isFinite() && offsetYRatio.isFinite()) {
-            "표 위치 비율이 올바르지 않습니다."
-        }
-        val originX = imageWidth * offsetXRatio
-        val originY = imageHeight * offsetYRatio
+        val xEdges = edges(cols, layout?.widths ?: colWeights)
+        val yEdges = edges(rows, layout?.heights ?: rowWeights)
+        val tableW = layout?.width ?: maxW
+        val tableH = layout?.height ?: maxH
+        val viewport = placement?.let { iosCaptureTableBounds(imageWidth, imageHeight, it) }
+        val rotated = placement?.rotationCwDeg == 90
+        val visibleW = if (rotated) tableH else tableW
+        val visibleH = if (rotated) tableW else tableH
+        fun fraction(start: Float, available: Float) = if (available < 0.001f) 0.5f else (start / available).coerceIn(0f, 1f)
+        val originX = if (viewport == null) imageWidth * offsetXRatio else
+            fraction(viewport.x, imageWidth - viewport.width) * (imageWidth - visibleW) + (visibleW - tableW) / 2
+        val originY = if (viewport == null) imageHeight * offsetYRatio else
+            fraction(viewport.y, imageHeight - viewport.height) * (imageHeight - visibleH) + (visibleH - tableH) / 2
         require(rotationDegrees.isFinite()) { "표 회전값이 올바르지 않습니다." }
         val angle = rotationDegrees * (kotlin.math.PI / 180.0)
         val rotatedW = abs(tableW * cos(angle)) + abs(tableH * sin(angle))
@@ -85,90 +90,91 @@ internal object IosTableOverlayRenderer {
             centerY + rotatedH / 2 <= imageHeight + edgeTolerance) {
             "회전된 표가 이미지 영역을 벗어납니다."
         }
-        return Surface.makeRasterN32Premul(imageWidth, imageHeight).use { surface ->
-            surface.canvas.clear(0x00000000)
-            surface.canvas.save()
-            surface.canvas.translate(centerX, centerY)
-            surface.canvas.rotate(rotationDegrees)
-            surface.canvas.translate(-centerX, -centerY)
-            val backgroundColor = if (style.bgStyle == 1) 0x00FFFFFF else 0x00000000
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(imageWidth.toDouble(), imageHeight.toDouble()), false, 1.0)
+        try {
+            val context = checkNotNull(UIGraphicsGetCurrentContext())
+            CGContextTranslateCTM(context, centerX.toDouble(), centerY.toDouble())
+            CGContextRotateCTM(context, angle)
+            CGContextTranslateCTM(context, -centerX.toDouble(), -centerY.toDouble())
             if (style.bgStyle != 2 && style.bgAlpha > 0) {
-                val alpha = style.bgAlpha.coerceIn(0, 255)
-                Paint().use { bg ->
-                    bg.color = (alpha shl 24) or backgroundColor
-                    surface.canvas.drawRect(Rect.makeXYWH(originX, originY, tableW, tableH), bg)
-                }
+                val gray = if (style.bgStyle == 1) 1.0 else 0.0
+                CGContextSetGrayFillColor(context, gray, style.bgAlpha.coerceIn(0, 255) / 255.0)
+                CGContextFillRect(context, CGRectMake(originX.toDouble(), originY.toDouble(), tableW.toDouble(), tableH.toDouble()))
             }
+            fun x(col: Int) = (originX + xEdges[col] * tableW).toDouble()
+            fun y(row: Int) = (originY + yEdges[row] * tableH).toDouble()
             if (style.gridEnabled) {
-                Paint().use { grid ->
-                    grid.color = if (style.bgStyle == 0) 0x6EFFFFFF else 0x6E000000
-                    grid.strokeWidth = 1.2f
-                    // Android paints the grid before cell values. Draw each
-                    // shared boundary once; merged cells keep no internal line.
-                    for (r in 0 until rows) for (c in 0..cols) {
-                        if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
-                            val x = originX + xEdges[c] * tableW
-                            surface.canvas.drawLine(x, originY + yEdges[r] * tableH,
-                                x, originY + yEdges[r + 1] * tableH, grid)
-                        }
-                    }
-                    for (r in 0..rows) for (c in 0 until cols) {
-                        if (r == 0 || r == rows || owners[(r - 1) * cols + c] != owners[r * cols + c]) {
-                            val y = originY + yEdges[r] * tableH
-                            surface.canvas.drawLine(originX + xEdges[c] * tableW, y,
-                                originX + xEdges[c + 1] * tableW, y, grid)
-                        }
+                CGContextSetGrayStrokeColor(context, if (style.bgStyle == 0) 1.0 else 0.0, 110 / 255.0)
+                CGContextSetLineWidth(context, 1.2)
+                for (r in 0 until rows) for (c in 0..cols) {
+                    if (c == 0 || c == cols || owners[r * cols + c - 1] != owners[r * cols + c]) {
+                        CGContextMoveToPoint(context, x(c), y(r))
+                        CGContextAddLineToPoint(context, x(c), y(r + 1))
                     }
                 }
-            }
-            val textColor = if (style.textColorMode == 1) {
-                if (style.manualTextColor == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-            } else if (style.bgStyle == 0) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
-            Paint().use { textPaint ->
-                textPaint.color = textColor
-                textPaint.isAntiAlias = true
-                val fontSize = (minOf(tableW / cols, tableH / rows) * 0.36f *
-                    (style.valueScale.coerceIn(20, 300) / 100f)).coerceAtLeast(1f)
-                val boldTypeface = FontMgr.default.matchFamilyStyle(null, FontStyle.BOLD)
-                try {
-                    Font(boldTypeface, fontSize).use { font ->
-                        // CoreText normally provides a real bold system face. Keep
-                        // a safe fallback for targets where the default match is absent.
-                        if (boldTypeface == null) font.isEmboldened = true
-                        font.isSubpixel = true
-                        val metrics = font.metrics
-                        val cellTextPadding = (tableH * 0.08f).coerceIn(8f, 20f)
-                        for (cell in rects) {
-                            val left = originX + xEdges[cell.col] * tableW
-                            val right = originX + xEdges[cell.col + cell.cols] * tableW
-                            val top = originY + yEdges[cell.row] * tableH
-                            val bottom = originY + yEdges[cell.row + cell.rows] * tableH
-                            val value = resolvedTexts[cell.row * cols + cell.col]
-                            val textW = font.measureTextWidth(value)
-                            val x = when (style.textAlign) {
-                                1 -> (left + right - textW) / 2f
-                                2 -> right - textW - cellTextPadding
-                                else -> left + cellTextPadding
-                            }
-                            // Match Android Paint.FontMetrics baseline centering.
-                            val y = (top + bottom) / 2f - (metrics.ascent + metrics.descent) / 2f
-                            surface.canvas.save()
-                            surface.canvas.clipRect(Rect.makeLTRB(left, top, right, bottom))
-                            surface.canvas.drawString(value, x, y, font, textPaint)
-                            surface.canvas.restore()
-                        }
+                for (r in 0..rows) for (c in 0 until cols) {
+                    if (r == 0 || r == rows || owners[(r - 1) * cols + c] != owners[r * cols + c]) {
+                        CGContextMoveToPoint(context, x(c), y(r))
+                        CGContextAddLineToPoint(context, x(c + 1), y(r))
                     }
-                } finally {
-                    boldTypeface?.close()
                 }
+                CGContextStrokePath(context)
             }
-            surface.canvas.restore()
-            surface.makeImageSnapshot().use { snapshot ->
-                checkNotNull(snapshot.encodeToData(EncodedImageFormat.PNG)) {
-                    "표 오버레이 인코딩 실패"
-                }.use { it.bytes }
+            val white = if (style.textColorMode == 1) style.manualTextColor == 0 else style.bgStyle == 0
+            val base = (minOf(tableW / cols, tableH / rows) * 0.36f).coerceAtLeast(1f)
+            val size = (base * style.valueScale / 100f).coerceAtLeast(1f).toDouble()
+            val attributes = mapOf<Any?, Any>(NSFontAttributeName to UIFont.boldSystemFontOfSize(size),
+                NSForegroundColorAttributeName to if (white) UIColor.whiteColor else UIColor.blackColor)
+            val padding = (tableH * 0.08f).coerceIn(8f, 20f)
+            for (cell in rects) {
+                val value = resolvedTexts[cell.row * cols + cell.col]
+                if (value.isEmpty()) continue
+                val label = NSAttributedString.create(string = value, attributes = attributes)
+                val (width, height) = label.size().useContents { width to height }
+                val left = x(cell.col)
+                val right = x(cell.col + cell.cols)
+                val top = y(cell.row)
+                val bottom = y(cell.row + cell.rows)
+                val leftText = when (style.textAlign) {
+                    1 -> (left + right - width) / 2
+                    2 -> right - width - padding
+                    else -> left + padding
+                }
+                CGContextSaveGState(context)
+                CGContextClipToRect(context, CGRectMake(left, top, right - left, bottom - top))
+                label.drawAtPoint(CGPointMake(leftText, (top + bottom - height) / 2))
+                CGContextRestoreGState(context)
             }
+            val data = checkNotNull(UIImagePNGRepresentation(checkNotNull(UIGraphicsGetImageFromCurrentImageContext())))
+            return checkNotNull(data.bytes).readBytes(data.length.toInt())
+        } finally {
+            UIGraphicsEndImageContext()
         }
+    }
+
+    private data class FittedTable(val widths: List<Float>, val heights: List<Float>, val width: Float, val height: Float)
+
+    private fun fitCameraTable(texts: List<String>, roots: List<IosCaptureCellRect>, rows: Int, cols: Int,
+                               valueScale: Int, rowWeights: List<Float>?, colWeights: List<Float>?,
+                               maxW: Float, maxH: Float): FittedTable {
+        val font = UIFont.systemFontOfSize(28.0 * valueScale.coerceIn(60, 160) / 100)
+        val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
+        val widths = MutableList(cols) { 72f }
+        val heights = MutableList(rows) { 48f }
+        for (cell in roots) {
+            val lines = texts[cell.row * cols + cell.col].ifEmpty { " " }.split('\n')
+            val longest = lines.maxOf { NSAttributedString.create(string = it, attributes = attributes).size().useContents { width } }
+            val w = (longest.toFloat() + 24f) / cell.cols
+            val h = ((font.ascender - font.descender).coerceAtLeast(12.0).toFloat() * lines.size + 18f) / cell.rows
+            for (c in cell.col until cell.col + cell.cols) widths[c] = maxOf(widths[c], w)
+            for (r in cell.row until cell.row + cell.rows) heights[r] = maxOf(heights[r], h)
+        }
+        val weightedW = widths.mapIndexed { i, w -> w * (colWeights?.get(i) ?: 1f) }
+        val weightedH = heights.mapIndexed { i, h -> h * (rowWeights?.get(i) ?: 1f) }
+        val w = weightedW.sum()
+        val h = weightedH.sum()
+        val fit = minOf(maxW / w, maxH / h)
+        return FittedTable(weightedW, weightedH, w * fit, h * fit)
     }
 
     /**
@@ -187,6 +193,7 @@ internal object IosTableOverlayRenderer {
         offsetXRatio: Float = 0f,
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
+        placement: IosCaptureTablePlacement? = null,
     ): ByteArray {
         val rects = iosCaptureCellRects(template)
         val expected = template.cells.associateBy { it.cellId }
@@ -203,7 +210,7 @@ internal object IosTableOverlayRenderer {
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
-            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects,
+            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement,
         )
     }
 
@@ -225,14 +232,10 @@ internal object IosTableOverlayRenderer {
         heightRatio: Int,
         rotationCwDeg: Int = 0,
     ): ByteArray {
-        val bounds = iosCaptureTableBounds(imageWidth, imageHeight,
-            IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg))
+        val placement = IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg)
         return renderResolvedPreviewPng(
-            imageWidth, imageHeight, template, preview, style,
-            widthRatio, heightRatio,
-            offsetXRatio = bounds.rawX / imageWidth,
-            offsetYRatio = bounds.rawY / imageHeight,
-            rotationDegrees = rotationCwDeg.toFloat(),
+            imageWidth, imageHeight, template, preview, style, widthRatio, heightRatio,
+            rotationDegrees = rotationCwDeg.toFloat(), placement = placement,
         )
     }
 
