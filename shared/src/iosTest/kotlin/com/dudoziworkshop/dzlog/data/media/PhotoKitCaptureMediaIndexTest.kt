@@ -23,7 +23,7 @@ class PhotoKitCaptureMediaIndexTest {
             val index = PhotoKitCaptureMediaIndex(defaults)
             val root = SavedGalleryEntryPolicy.ROOT
             val source = index.createFolder(root, "A")
-            val originals = index.createFolder(source, "original")
+            val originals = source + "original/"
             index.createFolder(source, "empty")
             val sibling = index.createFolder(root, "AA")
             val result = batchEntry("r", "same.jpg", source)
@@ -171,12 +171,17 @@ class PhotoKitCaptureMediaIndexTest {
             val root = "Pictures/DZlog/"
             val source = index.createFolder(root, "A")
             val dest = index.createFolder(root, "B")
-            val original = index.createFolder(source, "original")
+            val original = source + "original/"
             index.createFolder(source, "empty")
             index.append(listOf(
                 IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.RESULT, source, "1.jpg"), "r")),
                 IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.ORIGINAL, original, "1.jpg"), "o")),
             ))
+            assertFailsWith<IllegalArgumentException> { index.createFolder(root, " a ") }
+            assertFailsWith<IllegalArgumentException> { index.createFolder(dest, "Original") }
+            assertFailsWith<IllegalArgumentException> { index.renameFolder(source, "b") }
+            assertFailsWith<IllegalArgumentException> { index.renameFolder(original, "edited") }
+            assertFailsWith<IllegalArgumentException> { index.renameFolder(source, "마침표.") }
             index.setFavorite("o", true)
             assertFailsWith<IllegalArgumentException> { index.moveFolder(source, original) }
             assertFailsWith<IllegalArgumentException> { index.moveFolder(original, dest) }

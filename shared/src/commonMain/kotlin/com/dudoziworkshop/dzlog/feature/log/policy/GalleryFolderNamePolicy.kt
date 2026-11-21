@@ -5,6 +5,9 @@ package com.dudoziworkshop.dzlog.feature.log.policy
  * An "original" folder is reserved for paired unwatermarked captures.
  */
 object GalleryFolderNamePolicy {
+    fun isOriginalFolder(path: String): Boolean =
+        path.trimEnd('/').substringAfterLast('/').equals("original", ignoreCase = true)
+
     fun normalize(input: String): String {
         val name = input.trim()
         require(name.isNotEmpty()) { "폴더 이름을 입력해 주세요." }

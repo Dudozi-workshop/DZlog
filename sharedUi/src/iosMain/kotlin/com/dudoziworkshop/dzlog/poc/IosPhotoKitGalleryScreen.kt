@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -742,14 +743,14 @@ internal fun IosPhotoKitGalleryScreen(
                                     folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
                                 }) { Text("폴더 생성") }
                                 if (path != GALLERY_ROOT) {
-                                    if (!path.trimEnd('/').endsWith("/original", ignoreCase = true)) {
+                                    if (!GalleryFolderNamePolicy.isOriginalFolder(path)) {
                                         TextButton(enabled = !managing && !refreshing, onClick = {
                                             folderTarget = path; folderDestination = null; folderError = null; folderAction = "move"
                                         }) { Text("폴더 이동") }
+                                        TextButton(enabled = !managing && !refreshing, onClick = {
+                                            folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
+                                        }) { Text("이름 변경") }
                                     }
-                                    TextButton(enabled = !managing && !refreshing, onClick = {
-                                        folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
-                                    }) { Text("이름 변경") }
                                     if (remember(path) { runCatching { GalleryFolderDeleteScope.source(path) }.isSuccess }) {
                                         TextButton(enabled = !managing && !refreshing, onClick = {
                                             folderTarget = path; folderError = null; folderAction = "delete"

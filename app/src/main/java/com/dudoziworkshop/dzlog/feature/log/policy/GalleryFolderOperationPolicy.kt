@@ -68,7 +68,7 @@ object GalleryFolderOperationPolicy {
         require(source.startsWith(root) && source != root) {
             "DZlog 루트 폴더는 이름을 변경할 수 없습니다."
         }
-        require(!source.trimEnd('/').endsWith("/original", ignoreCase = true)) {
+        require(!GalleryFolderNamePolicy.isOriginalFolder(source)) {
             "원본사진 전용 폴더는 이름을 변경할 수 없습니다."
         }
         val name = GalleryFolderNamePolicy.normalize(rawName)

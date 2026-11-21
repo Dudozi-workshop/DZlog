@@ -4,6 +4,7 @@ import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaTarget
 import com.dudoziworkshop.dzlog.domain.media.PersistedCaptureAsset
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -71,7 +72,7 @@ internal class PhotoKitCaptureMediaIndex(
         check(pending().isEmpty()) { "Recover the outstanding capture first." }
         require(parent in folders()) { "Parent folder no longer exists." }
         val path = parent + folderName(name) + "/"
-        require(path !in folders()) { "Folder already exists." }
+        require(folders().none { it.equals(path, ignoreCase = true) }) { "같은 이름의 폴더가 이미 있습니다." }
         persistState(load(), explicitFolders() + path)
         return path
     }
@@ -79,10 +80,11 @@ internal class PhotoKitCaptureMediaIndex(
     fun renameFolder(path: String, name: String): String {
         check(pending().isEmpty()) { "Recover the outstanding capture first." }
         require(path != ROOT && path in folders()) { "Select an existing child folder." }
+        require(!GalleryFolderNamePolicy.isOriginalFolder(path)) { "원본사진 전용 폴더는 이름을 변경할 수 없습니다." }
         val parent = path.trimEnd('/').substringBeforeLast('/') + "/"
         val replacement = parent + folderName(name) + "/"
         if (replacement == path) return path
-        require(replacement !in folders()) { "Folder already exists." }
+        require(folders().none { it.equals(replacement, ignoreCase = true) }) { "같은 이름의 폴더가 이미 있습니다." }
         return relocateFolder(path, replacement)
     }
 
@@ -148,9 +150,8 @@ internal class PhotoKitCaptureMediaIndex(
     }
 
     private fun folderName(name: String): String {
-        val value = name.trim()
-        require(value.isNotEmpty() && value != "." && value != ".." &&
-            value.none { it == '/' || it == '\\' || it.isISOControl() }) { "Invalid folder name." }
+        val value = GalleryFolderNamePolicy.normalize(name)
+        require(value.none(Char::isISOControl)) { "폴더 이름에 제어 문자를 사용할 수 없습니다." }
         return value
     }
 
