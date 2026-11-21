@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.data.template.*
 import com.dudoziworkshop.dzlog.data.media.PhotoKitCaptureMediaRepository
+import com.dudoziworkshop.dzlog.data.media.SavedCaptureMedia
 import com.dudoziworkshop.dzlog.data.media.CaptureMediaAvailability
 import com.dudoziworkshop.dzlog.data.backup.LocalTemplateBackupMerge
 import com.dudoziworkshop.dzlog.data.project.IosCaptureContext
@@ -34,6 +35,8 @@ import com.dudoziworkshop.dzlog.ui.table.template.TableTemplateListContent
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.cinterop.*
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.skia.Image
@@ -85,13 +88,12 @@ internal fun HomeNavigationPoc(
     var showEditor by remember { mutableStateOf(cameraPage == CameraWorkspacePage.TABLE_EDITOR ||
         cameraPage == CameraWorkspacePage.SAVE_SETTINGS) }
     var showGallery by remember { mutableStateOf(false) }
+    var galleryEntryFolder by remember { mutableStateOf<String?>(null) }
     var showCaptureSettings by remember { mutableStateOf(false) }
     val photoRepository = remember { PhotoKitCaptureMediaRepository() }
     val permissions = rememberIosPermissions()
     var recentPhoto by remember(permissions.photoScopeVersion) { mutableStateOf<ImageBitmap?>(null) }
-    var recentPhotoName by remember(permissions.photoScopeVersion) { mutableStateOf("") }
-    var recentPhotoTime by remember(permissions.photoScopeVersion) { mutableStateOf("-") }
-    var recentPhotoLocation by remember(permissions.photoScopeVersion) { mutableStateOf("") }
+    var recentEntry by remember(permissions.photoScopeVersion) { mutableStateOf<SavedCaptureMedia?>(null) }
     val cameraReturnRevision = IosCameraReturnSignal.revision
     val recoveryMutex = remember(store) { Mutex() }
     var recoveryRevision by remember { mutableIntStateOf(0) }
@@ -133,18 +135,23 @@ internal fun HomeNavigationPoc(
     LaunchedEffect(showGallery, cameraReturnRevision, permissions.photoScopeVersion) {
         if (cameraPage == null && !showGallery && permissions.photos.readable) {
             val indexed = runCatching { photoRepository.listSavedAssets() }.getOrDefault(emptyList())
+            currentCoroutineContext().ensureActive()
             val newestCapture = indexed.lastOrNull()?.captureId
             val recent = indexed.lastOrNull {
                 it.captureId == newestCapture && it.asset.target.role == CaptureMediaRole.RESULT &&
                     it.availability == CaptureMediaAvailability.PRESENT
             } ?: indexed.lastOrNull { it.availability == CaptureMediaAvailability.PRESENT }
             recentPhoto = null
-            recentPhotoName = recent?.asset?.target?.displayName.orEmpty()
-            recentPhotoTime = recent?.createdAtMillis?.let(::formatIosRecentCaptureTime) ?: "-"
-            recentPhotoLocation = recent?.asset?.target?.relativePath
-                ?.let(::formatIosRecentCaptureLocation).orEmpty()
+            recentEntry = recent
             if (recent != null) {
-                val bytes = runCatching { photoRepository.readAsset(recent.asset.assetId) }.getOrNull()
+                val bytes = try {
+                    photoRepository.readThumbnail(recent.asset.assetId)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+                currentCoroutineContext().ensureActive()
                 recentPhoto = bytes?.let { runCatching { Image.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }.getOrNull() }
             }
         }
@@ -348,7 +355,8 @@ internal fun HomeNavigationPoc(
             projectTitle = project.title,
         )
     } else if (showGallery) {
-        IosPhotoKitGalleryScreen(repository = photoRepository, onBack = { showGallery = false })
+        IosPhotoKitGalleryScreen(repository = photoRepository, initialFolder = galleryEntryFolder,
+            onBack = { showGallery = false })
     } else if (showEditor) {
         key(currentTemplate.id) {
             TableEditorV2Content(
@@ -498,16 +506,25 @@ internal fun HomeNavigationPoc(
                     else "이전 촬영을 복구하려면 사진 접근을 허용해 주세요.")
                     PermissionCard(camera = false, access = permissions.photos)
                 } else HomeRecentCaptureContent(
-                    hasImage = recentPhoto != null, displayName = recentPhotoName,
-                    timeText = recentPhotoTime, locationText = recentPhotoLocation,
+                    hasImage = recentEntry != null, displayName = recentEntry?.asset?.target?.displayName.orEmpty(),
+                    timeText = recentEntry?.createdAtMillis?.let(::formatIosRecentCaptureTime) ?: "-",
+                    locationText = recentEntry?.asset?.target?.relativePath?.let(::formatIosRecentCaptureLocation).orEmpty(),
                     recentLabel = "최근 촬영",
                     emptyTitle = "아직 촬영한 사진이 없어요.", emptyHint = "첫 기록을 남겨보세요.",
-                    onOpenAlbum = { showGallery = true }, onOpenImage = { showGallery = true },
+                    onOpenAlbum = { galleryEntryFolder = null; showGallery = true },
+                    onOpenImage = {
+                        recentEntry?.asset?.target?.relativePath?.let { path ->
+                            galleryEntryFolder = path
+                            showGallery = true
+                        }
+                    },
                     albumEnabled = true,
                     imageContent = {
                         recentPhoto?.let { photo ->
                             ComposeImage(bitmap = photo, contentDescription = "최근 사진",
                                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        } ?: Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            androidx.compose.material3.Text("사진 폴더 열기")
                         }
                     },
                 )

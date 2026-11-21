@@ -181,6 +181,10 @@ class PhotoKitCaptureMediaRepository(
         index.renameFolder(path, name)
     }
 
+    suspend fun moveGalleryFolder(path: String, destination: String): String = manageFolder {
+        index.moveFolder(path, destination)
+    }
+
     suspend fun deleteEmptyGalleryFolder(path: String) = manageFolder {
         index.deleteEmptyFolder(path)
     }

@@ -110,6 +110,37 @@ class PhotoKitCaptureMediaIndexTest {
     }
 
     @Test
+    fun movingFolderPersistsDescendantsCompanionsAndFavoritesTogether() {
+        val suite = "dzlog.photokit.move.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val root = "Pictures/DZlog/"
+            val source = index.createFolder(root, "A")
+            val dest = index.createFolder(root, "B")
+            val original = index.createFolder(source, "original")
+            index.createFolder(source, "empty")
+            index.append(listOf(
+                IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.RESULT, source, "1.jpg"), "r")),
+                IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.ORIGINAL, original, "1.jpg"), "o")),
+            ))
+            index.setFavorite("o", true)
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(source, original) }
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(original, dest) }
+            val occupied = index.createFolder(dest, "a")
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(source, dest) }
+            index.deleteEmptyFolder(occupied)
+            val moved = index.moveFolder(source, dest)
+            val reopened = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf(moved, moved + "original/"), reopened.load().map { it.asset.target.relativePath })
+            assertEquals(listOf("r", "o"), reopened.load().map { it.asset.assetId })
+            assertEquals(setOf("o"), reopened.favoriteAssetIds())
+            assertTrue(moved + "empty/" in reopened.folders())
+            assertTrue(source !in reopened.folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun legacyIndexMigratesOnFolderMutationWithoutDroppingAssets() {
         val suite = "dzlog.photokit.legacy.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)

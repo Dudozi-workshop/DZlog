@@ -3,6 +3,7 @@ package com.dudoziworkshop.dzlog.data.media
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaTarget
 import com.dudoziworkshop.dzlog.domain.media.PersistedCaptureAsset
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -75,11 +76,28 @@ internal class PhotoKitCaptureMediaIndex(
         val replacement = parent + folderName(name) + "/"
         if (replacement == path) return path
         require(replacement !in folders()) { "Folder already exists." }
+        return relocateFolder(path, replacement)
+    }
+
+    fun moveFolder(path: String, destination: String): String {
+        check(pending().isEmpty()) { "이전 촬영을 먼저 복구해 주세요." }
+        val indexedFolders = folders()
+        require(path in indexedFolders && destination in indexedFolders) { "선택한 폴더를 찾을 수 없습니다." }
+        val replacement = GalleryFolderMovePolicy.movedPath(path, destination)
+        require(indexedFolders.none { it.equals(replacement, ignoreCase = true) }) { "대상 위치에 같은 이름의 폴더가 있습니다." }
+        return relocateFolder(path, replacement)
+    }
+
+    private fun relocateFolder(path: String, replacement: String): String {
         fun remap(value: String) = if (value.startsWith(path)) replacement + value.removePrefix(path) else value
+        fun parentOf(value: String) = value.trimEnd('/').substringBeforeLast('/') + "/"
+        val updatedFolders = (explicitFolders() + path).mapTo(mutableSetOf(), ::remap)
+        val oldParent = parentOf(path)
+        if (oldParent != ROOT && oldParent != parentOf(replacement)) updatedFolders.add(oldParent)
         // Folder and descendant photo paths are written together in one durable snapshot.
         persistState(load().map { entry -> entry.copy(asset = entry.asset.copy(
             target = entry.asset.target.copy(relativePath = remap(entry.asset.target.relativePath)))) },
-            (explicitFolders() + path).map(::remap).toSet())
+            updatedFolders)
         return replacement
     }
 
