@@ -43,6 +43,7 @@ internal object IosTableOverlayRenderer {
         rotationDegrees: Float = 0f,
         cellRects: List<IosCaptureCellRect>? = null,
         placement: IosCaptureTablePlacement? = null,
+        probeFont: UIFont? = null,
         onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         require(imageWidth > 0 && imageHeight > 0)
@@ -65,7 +66,8 @@ internal object IosTableOverlayRenderer {
         val maxW = imageWidth * (widthRatio / 100f)
         val maxH = imageWidth * (heightRatio / 100f)
         val layout = placement?.let {
-            val font = UIFont.systemFontOfSize(contentMeasureTextSize(style.valueScale).toDouble())
+            val size = contentMeasureTextSize(style.valueScale).toDouble()
+            val font = probeFont?.fontWithSize(size) ?: UIFont.systemFontOfSize(size)
             val attributes = mapOf<Any?, Any>(NSFontAttributeName to font)
             val cells = rects.map { cell ->
                 ContentDrivenLayoutCell(
@@ -184,6 +186,7 @@ internal object IosTableOverlayRenderer {
         offsetYRatio: Float = 0f,
         rotationDegrees: Float = 0f,
         placement: IosCaptureTablePlacement? = null,
+        probeFont: UIFont? = null,
         onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val rects = iosCaptureCellRects(template)
@@ -201,7 +204,7 @@ internal object IosTableOverlayRenderer {
         return renderPng(
             imageWidth, imageHeight, template.rows, template.cols, texts, style,
             widthRatio, heightRatio, template.rowWeights, template.colWeights,
-            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement, onContentAspect = onContentAspect,
+            offsetXRatio, offsetYRatio, rotationDegrees, cellRects = rects, placement = placement, probeFont = probeFont, onContentAspect = onContentAspect,
         )
     }
 
@@ -222,12 +225,13 @@ internal object IosTableOverlayRenderer {
         widthRatio: Int,
         heightRatio: Int,
         rotationCwDeg: Int = 0,
+        probeFont: UIFont? = null,
         onContentAspect: ((Float) -> Unit)? = null,
     ): ByteArray {
         val placement = IosCaptureTablePlacement(anchor, offsetXPercent, offsetYPercent, widthRatio, heightRatio, rotationCwDeg)
         return renderResolvedPreviewPng(
             imageWidth, imageHeight, template, preview, style, widthRatio, heightRatio,
-            rotationDegrees = rotationCwDeg.toFloat(), placement = placement, onContentAspect = onContentAspect,
+            rotationDegrees = rotationCwDeg.toFloat(), placement = placement, probeFont = probeFont, onContentAspect = onContentAspect,
         )
     }
 

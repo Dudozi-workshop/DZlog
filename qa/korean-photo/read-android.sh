@@ -16,3 +16,10 @@ for fixture in qa/korean-photo/cells*.txt; do
     fi
     adb exec-out run-as "$pkg" cat "files/$photo" > "$photo"
 done
+for attempt in {1..30}; do
+    adb shell run-as "$pkg" test -s files/measured-faces.json && break
+    sleep 1
+done
+adb exec-out run-as "$pkg" cat files/measured-faces.json > measured-faces.json
+adb exec-out run-as "$pkg" cat files/android-metrics.json > android-metrics.json
+python3 qa/korean-photo/measure-faces.py

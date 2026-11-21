@@ -14,7 +14,7 @@ def grid_edges(image, low, high, cross_low, cross_high, vertical):
     return [low, *(round(sum(group) / len(group)) for group in candidates), high]
 
 
-def compare_fixture(fixture):
+def compare_fixture(fixture, iphone="iphone"):
     grid = [row.split("|") for row in fixture.read_text().splitlines()]
     rows, cols = len(grid), len(grid[0])
     assert all(len(row) == cols for row in grid)
@@ -24,10 +24,11 @@ def compare_fixture(fixture):
     results = {}
     issues = []
     for index, platform in enumerate(("android", "iphone")):
-        im = Image.open(f"{platform}-{fixture.stem}.jpg").convert("RGB")
+        variant = iphone if platform == "iphone" else platform
+        im = Image.open(f"{variant}-{fixture.stem}.jpg").convert("RGB")
         gray = ImageOps.grayscale(im)
         bounds = gray.point(lambda p: 255 if p < 140 else 0).getbbox()
-        draw.text((600 * index + 8, 8), platform, fill="black")
+        draw.text((600 * index + 8, 8), variant, fill="black")
         canvas.paste(im.crop((200, 360, 800, 600)), (600 * index, 32))
         if im.size != (800, 600) or not bounds:
             issues.append(f"{platform}: missing table or wrong image size")
@@ -70,15 +71,17 @@ def compare_fixture(fixture):
         for i, (a,b) in enumerate(zip(results["android"]["ink_bounds"], results["iphone"]["ink_bounds"])):
             if a and b and any(abs((a[d]+a[d+2]) - (b[d]+b[d+2])) > 12 for d in (0, 1)):
                 issues.append(f"cross-platform: inspect text alignment in cell {i}")
-    canvas.save(f"comparison-{fixture.stem}.png")
+    canvas.save(f"comparison-{iphone}-{fixture.stem}.png")
     return dict(results=results, issues=issues)
 
 
 if __name__ == "__main__":
-    measurements = {path.stem: compare_fixture(path) for path in sorted(Path(__file__).parent.glob("cells*.txt"))}
-    assert measurements
+    fixtures = sorted(Path(__file__).parent.glob("cells*.txt"))
+    assert fixtures
+    measurements = {variant: {path.stem: compare_fixture(path, variant) for path in fixtures}
+                    for variant in ("iphone", "probe")}
     report = json.dumps(measurements, ensure_ascii=False, indent=2)
     Path("measurements.json").write_text(report)
     print(report)
-    if any(result["issues"] for result in measurements.values()):
+    if any(result["issues"] for variants in measurements.values() for result in variants.values()):
         raise SystemExit(1)
