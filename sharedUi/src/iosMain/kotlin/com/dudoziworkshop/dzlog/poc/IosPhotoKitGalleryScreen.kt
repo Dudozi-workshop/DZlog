@@ -256,6 +256,19 @@ internal fun IosPhotoKitGalleryScreen(
         }
     }
 
+    fun selectAfterViewerDeletion(deletedIds: Set<String>): String? {
+        val entries = resultEntries ?: visible
+        val currentIndex = entries.indexOfFirst { it.asset.assetId == selectedId }
+        // A companion opened from another folder still belongs to the same capture.
+        val anchor = if (currentIndex >= 0) currentIndex else entries.indexOfFirst { it.captureId == selected?.captureId }
+        val pages = resultPages?.map { page ->
+            listOfNotNull(page.result?.uri, page.original?.uri)
+        } ?: visible.map { entry ->
+            if (entry.availability == CaptureMediaAvailability.PRESENT) listOf(entry.asset.assetId) else emptyList()
+        }
+        return savedGalleryPhotoAfterDeletion(pages, anchor, deletedIds)
+    }
+
     fun refresh() {
         if (refreshing || managing) return
         refreshing = true
@@ -467,16 +480,24 @@ internal fun IosPhotoKitGalleryScreen(
                             batchSelection = batchSelection - targetIds
                             selecting = false
                             image = null
-                            if (initialAssetId != null) {
-                                onBack()
-                                return@launch
+                            if (viewer) {
+                                selectedId = selectAfterViewerDeletion(targetIds)
+                                if (selectedId == null) {
+                                    if (initialAssetId != null) {
+                                        onBack()
+                                        return@launch
+                                    }
+                                    viewer = false
+                                }
                             }
-                            viewer = false
+                            photos = photos.filterNot { it.asset.assetId in targetIds }
                         }
                         photos = readScopedPhotos()
                         folders = repository.listGalleryFolders()
                         favorites = repository.favoriteGalleryAssetIds()
-                    } catch (error: Throwable) {
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
                         operationMessage = "삭제 결과 확인이 필요합니다: ${error.message}"
                     } finally { managing = false }
                 }
