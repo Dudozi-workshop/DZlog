@@ -509,7 +509,7 @@ private fun RenameReport(result: GalleryPhotoRenameResult) {
             Text(labels.entries.joinToString(" · ") { (outcome, label) ->
                 "$label ${result.rows.count { it.outcome == outcome }}"
             })
-            RenameHint("실제 변경 파일 ${result.renamedIds.size}개")
+            RenameHint("변경 성공 파일 ${result.renamedIds.size}개")
         }
         items(result.rows, key = { it.preview.group.id }) { row ->
             Text("${labels.getValue(row.outcome)}  ${row.preview.group.oldName}")
