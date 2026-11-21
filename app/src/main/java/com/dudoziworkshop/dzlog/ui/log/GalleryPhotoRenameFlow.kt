@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.log
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,19 +8,14 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -41,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -168,7 +166,7 @@ internal fun GalleryPhotoRenameFlow(
         RenamePage.Resolve -> "중복 이름 해결"
     }
     val input = page == RenamePage.Input && result == null
-    PhotoRenameDialog(
+    PhotoRenamePanel(
         title = title,
         compact = input,
         onBack = ::goBack,
@@ -350,7 +348,7 @@ internal fun GalleryPhotoRenameFlow(
 }
 
 @Composable
-private fun PhotoRenameDialog(
+private fun PhotoRenamePanel(
     title: String,
     compact: Boolean,
     onBack: () -> Unit,
@@ -359,59 +357,64 @@ private fun PhotoRenameDialog(
 ) {
     val spacing = LocalDDZSpacing.current
     val colors = LocalDDZColor.current
-    // A full-screen dialog may receive zero navigation insets even while the host has a visible taskbar.
-    val hostInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
-    Dialog(
-        onDismissRequest = onBack,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = compact,
-            dismissOnClickOutside = compact,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        val bounds = if (compact) Modifier.fillMaxWidth() else Modifier.fillMaxSize()
-        val dialogInsets = WindowInsets.safeDrawing
-        val insets = if (compact) dialogInsets else dialogInsets.union(hostInsets)
-        Box(bounds.windowInsetsPadding(insets).imePadding(), contentAlignment = Alignment.Center) {
-            Surface(
-                modifier = bounds,
-                shape = if (compact) MaterialTheme.shapes.large else MaterialTheme.shapes.extraSmall,
-                color = colors.Surface,
-                contentColor = colors.TextPrimary,
-            ) {
-                Layout(
-                    modifier = Modifier.padding(horizontal = spacing.sectionGap, vertical = spacing.controlGap),
-                    content = {
-                        Text(
-                            title, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
-                            style = LocalDDZTypography.current.SectionTitle,
-                        )
-                        Box(Modifier.fillMaxWidth()) { content() }
-                        Box(Modifier.fillMaxWidth()) { footer() }
-                    },
-                ) { children, constraints ->
-                    val loose = constraints.copy(minHeight = 0)
-                    val header = children[0].measure(loose)
-                    val actions = children[2].measure(loose)
-                    val gap = spacing.controlGap.roundToPx()
-                    val afterActions = (constraints.maxHeight - actions.height - gap).coerceAtLeast(0)
-                    // Keep one control reachable when the keyboard leaves very little room.
-                    val showHeader = afterActions >= header.height + gap + 48.dp.roundToPx()
-                    val headerSpace = if (showHeader) header.height + gap else 0
-                    val bodyHeight = (afterActions - headerSpace).coerceAtLeast(0)
-                    val body = children[1].measure(loose.copy(
-                        minHeight = if (compact) 0 else bodyHeight,
-                        maxHeight = bodyHeight,
-                    ))
-                    val height = (headerSpace + body.height + gap + actions.height)
-                        .coerceIn(constraints.minHeight, constraints.maxHeight)
-                    layout(constraints.maxWidth, height) {
-                        if (showHeader) header.placeRelative(0, 0)
-                        body.placeRelative(0, headerSpace)
-                        actions.placeRelative(0, height - actions.height)
-                    }
+    val panel: @Composable () -> Unit = {
+        Surface(
+            modifier = if (compact) Modifier.fillMaxWidth() else Modifier.fillMaxSize(),
+            shape = if (compact) MaterialTheme.shapes.large else MaterialTheme.shapes.extraSmall,
+            color = colors.Surface,
+            contentColor = colors.TextPrimary,
+        ) {
+            Layout(
+                modifier = Modifier.padding(horizontal = spacing.sectionGap, vertical = spacing.controlGap),
+                content = {
+                    Text(
+                        title, Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                        style = LocalDDZTypography.current.SectionTitle,
+                    )
+                    Box(Modifier.fillMaxWidth()) { content() }
+                    Box(Modifier.fillMaxWidth()) { footer() }
+                },
+            ) { children, constraints ->
+                val loose = constraints.copy(minHeight = 0)
+                val header = children[0].measure(loose)
+                val actions = children[2].measure(loose)
+                val gap = spacing.controlGap.roundToPx()
+                val afterActions = (constraints.maxHeight - actions.height - gap).coerceAtLeast(0)
+                // Keep one control reachable when the keyboard leaves very little room.
+                val showHeader = afterActions >= header.height + gap + 48.dp.roundToPx()
+                val headerSpace = if (showHeader) header.height + gap else 0
+                val bodyHeight = (afterActions - headerSpace).coerceAtLeast(0)
+                val body = children[1].measure(loose.copy(
+                    minHeight = if (compact) 0 else bodyHeight,
+                    maxHeight = bodyHeight,
+                ))
+                val height = (headerSpace + body.height + gap + actions.height)
+                    .coerceIn(constraints.minHeight, constraints.maxHeight)
+                layout(constraints.maxWidth, height) {
+                    if (showHeader) header.placeRelative(0, 0)
+                    body.placeRelative(0, headerSpace)
+                    actions.placeRelative(0, height - actions.height)
                 }
             }
+        }
+    }
+    if (compact) {
+        Dialog(
+            onDismissRequest = onBack,
+            properties = DialogProperties(decorFitsSystemWindows = false),
+        ) {
+            Box(Modifier.fillMaxWidth().safeDrawingPadding().imePadding(), contentAlignment = Alignment.Center) {
+                panel()
+            }
+        }
+    } else {
+        BackHandler(onBack = onBack)
+        // Keep full-screen pages in the activity window so system bars constrain the whole layout.
+        Surface(
+            modifier = Modifier.fillMaxSize().semantics { paneTitle = title },
+            color = colors.Surface,
+        ) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) { panel() }
         }
     }
 }
