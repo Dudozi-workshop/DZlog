@@ -155,6 +155,10 @@ private fun checkIosLiveTableGeometry() {
     val moved = moveIosCaptureTable(corner, 800, 600, -100f, -225f, 4f)
     val middle = iosCaptureTableBounds(800, 600, moved, 4f)
     check(middle.x == 100f && middle.y == 225f)
+    val shrunk = iosCaptureTableBounds(800, 600, resizeIosCaptureTable(corner, 800, 600, 0.8f, 4f), 4f)
+    check(shrunk.width < visible.width && shrunk.height < visible.height)
+    check(kotlin.math.abs(shrunk.x + shrunk.width / 2 - (visible.x + visible.width / 2)) < 3f)
+    check(kotlin.math.abs(shrunk.y + shrunk.height / 2 - (visible.y + visible.height / 2)) < 3f)
     val turned = iosCaptureTableBounds(800, 800, moved.copy(rotationCwDeg = 90), 4f)
     check(turned.width == 150f && turned.height == 600f)
 
@@ -164,13 +168,13 @@ private fun checkIosLiveTableGeometry() {
             val p = IosCaptureTablePlacement(anchor, 50, 50, 60, 20, rotation)
             val initial = iosCaptureTableBounds(w, h, p)
             check(initial.rawX + w * p.widthRatio / 200f == initial.x + initial.width / 2f)
-            for (d in listOf(-10000f, -40f, 0f, 40f, 10000f)) {
-                for (edited in listOf(moveIosCaptureTable(p, w, h, d, d), resizeIosCaptureTable(p, w, h, d, d))) {
-                    val b = iosCaptureTableBounds(w, h, edited)
-                    check(b.x >= 0 && b.y >= 0 && b.x + b.width <= w + 0.01f && b.y + b.height <= h + 0.01f)
-                    check(edited.rotationCwDeg == rotation)
-                    check(edited.widthRatio in 10..100 && edited.heightRatio in 10..100)
-                }
+            val moves = listOf(-10000f, -40f, 0f, 40f, 10000f).map { moveIosCaptureTable(p, w, h, it, it) }
+            val resizes = listOf(0.1f, 0.5f, 1f, 2f, 10f).map { resizeIosCaptureTable(p, w, h, it) }
+            for (edited in moves + resizes) {
+                val b = iosCaptureTableBounds(w, h, edited)
+                check(b.x >= 0 && b.y >= 0 && b.x + b.width <= w + 0.01f && b.y + b.height <= h + 0.01f)
+                check(edited.rotationCwDeg == rotation)
+                check(edited.widthRatio in 10..100 && edited.heightRatio in 10..100)
             }
             check(moveIosCaptureTable(p, w, h, -10000f, -10000f).offsetXPercent == 0)
             check(moveIosCaptureTable(p, w, h, 10000f, 10000f).offsetYPercent == 100)

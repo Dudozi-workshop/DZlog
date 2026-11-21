@@ -7,6 +7,9 @@ import androidx.compose.ui.viewinterop.UIKitView
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitInteropInteractionMode
 import com.dudoziworkshop.dzlog.feature.capture.policy.*
+import com.dudoziworkshop.dzlog.ui.camera.preview.CameraResizeGesture
+import com.dudoziworkshop.dzlog.ui.camera.preview.ResizeHandleCorner
+import com.dudoziworkshop.dzlog.ui.camera.preview.chooseResizeHandleCorner
 import kotlinx.cinterop.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -116,6 +119,8 @@ internal class IosLiveTableView(
     private val focusTap = UITapGestureRecognizer(target, NSSelectorFromString("focus:"))
     private val pinchZoom = UIPinchGestureRecognizer(target, NSSelectorFromString("pinchZoom:"))
     private var placement: IosCaptureTablePlacement? = null
+    private var resizeGesture: CameraResizeGesture? = null
+    private var dragCorner: ResizeHandleCorner? = null
     private var start: IosCaptureTablePlacement? = null
     private var enabled = false
     private var showGrid = false
@@ -613,14 +618,21 @@ internal class IosLiveTableView(
     private fun box(p: IosCaptureTablePlacement) = iosCaptureTableBounds(
         viewport.width.toInt(), viewport.height.toInt(), p, contentAspect)
 
+    private fun handleCorner(b: IosTableBounds) = chooseResizeHandleCorner(
+        b.x, b.y, b.x + b.width, b.y + b.height, viewport.width / 2, viewport.height / 2,
+    )
+
     private fun updateHandles(p: IosCaptureTablePlacement) {
         val b = box(p)
         moveHandle.setFrame(CGRectMake((viewport.x + b.x).toDouble(), (viewport.y + b.y).toDouble(),
             b.width.toDouble(), b.height.toDouble()))
-        // Keep the 32pt handle inside the image at flush right/bottom anchors.
-        val handleX = (viewport.x + b.x + b.width - 32).coerceIn(viewport.x, maxOf(viewport.x, viewport.x + viewport.width - 32))
-        val handleY = (viewport.y + b.y + b.height - 32).coerceIn(viewport.y, maxOf(viewport.y, viewport.y + viewport.height - 32))
-        resizeHandle.setFrame(CGRectMake(handleX.toDouble(), handleY.toDouble(), 32.0, 32.0))
+        val corner = (if (start != null) dragCorner else null) ?: handleCorner(b)
+        val x = b.x + if (corner.right) b.width else 0f
+        val y = b.y + if (corner.bottom) b.height else 0f
+        val size = minOf(32f, viewport.width, viewport.height)
+        val handleX = viewport.x + (x - size / 2).coerceIn(0f, viewport.width - size)
+        val handleY = viewport.y + (y - size / 2).coerceIn(0f, viewport.height - size)
+        resizeHandle.setFrame(CGRectMake(handleX.toDouble(), handleY.toDouble(), size.toDouble(), size.toDouble()))
         moveHandle.accessibilityValue = "가로 ${p.offsetXPercent}, 세로 ${p.offsetYPercent}"
         resizeHandle.accessibilityValue = "너비 ${p.widthRatio}, 높이 ${p.heightRatio}"
     }
@@ -629,15 +641,31 @@ internal class IosLiveTableView(
         if (!enabled || !previewReady) return
         when (sender.state) {
             UIGestureRecognizerStateBegan -> {
-                start = placement
+                val initial = placement ?: return
+                start = initial
+                dragCorner = if (resizing) handleCorner(box(initial)) else null
+                resizeGesture = dragCorner?.let { corner ->
+                    val b = box(initial)
+                    val pivotX = viewport.x + b.x + if (corner.right) 0f else b.width
+                    val pivotY = viewport.y + b.y + if (corner.bottom) 0f else b.height
+                    val (dx, dy) = sender.translationInView(this).useContents { x.toFloat() to y.toFloat() }
+                    sender.locationInView(this).useContents {
+                        CameraResizeGesture(pivotX, pivotY, x.toFloat() - dx, y.toFloat() - dy)
+                    }
+                }
                 editing?.invoke(true)
             }
             UIGestureRecognizerStateChanged,
             UIGestureRecognizerStateEnded -> {
                 val initial = start ?: return
-                val delta = sender.translationInView(this).useContents { x.toFloat() to y.toFloat() }
-                val p = if (resizing) resizeIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second, contentAspect)
-                    else moveIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), delta.first, delta.second, contentAspect)
+                val p = if (resizing) {
+                    val gesture = resizeGesture ?: return
+                    val scale = sender.locationInView(this).useContents { gesture.scaleAt(x.toFloat(), y.toFloat()) }
+                    resizeIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), scale, contentAspect)
+                } else {
+                    val (dx, dy) = sender.translationInView(this).useContents { x.toFloat() to y.toFloat() }
+                    moveIosCaptureTable(initial, viewport.width.toInt(), viewport.height.toInt(), dx, dy, contentAspect)
+                }
                 val old = box(initial)
                 val next = box(p)
                 val sx = next.width / old.width

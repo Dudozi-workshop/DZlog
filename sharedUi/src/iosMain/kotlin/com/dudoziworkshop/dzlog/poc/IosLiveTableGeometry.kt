@@ -51,17 +51,23 @@ internal fun moveIosCaptureTable(p: IosCaptureTablePlacement, w: Int, h: Int, dx
     return atPhotoPosition(p, w, h, box.x + dx, box.y + dy, contentAspect)
 }
 
-/** Uniform scaling around the displayed top-left, including CUSTOM 90-degree tables. */
-internal fun resizeIosCaptureTable(p: IosCaptureTablePlacement, w: Int, h: Int, dx: Float, dy: Float, contentAspect: Float? = null): IosCaptureTablePlacement {
-    require(dx.isFinite() && dy.isFinite())
-    val box = iosCaptureTableBounds(w, h, p, contentAspect)
+/** Resize the visible table around its center, clamping at the photo edges. */
+internal fun resizeIosCaptureTable(
+    p: IosCaptureTablePlacement, w: Int, h: Int, scale: Float, contentAspect: Float? = null,
+): IosCaptureTablePlacement {
+    require(scale.isFinite() && scale > 0f)
+    val rotated = p.rotationCwDeg == 90
+    val photoHeightRatio = (h.toLong() * 100 / w).toInt().coerceAtMost(100)
+    val maxW = if (rotated) photoHeightRatio else 100
+    val maxH = if (rotated) 100 else photoHeightRatio
     val minScale = maxOf(10f / p.widthRatio, 10f / p.heightRatio)
-    val maxScale = minOf(100f / p.widthRatio, 100f / p.heightRatio,
-        (w - box.x) / box.width, (h - box.y) / box.height,
-        h / (w * (if (p.rotationCwDeg == 90) p.widthRatio else p.heightRatio) / 100f))
-    val scale = (1f + (dx + dy) / (box.width + box.height)).coerceIn(minScale, maxOf(minScale, maxScale))
-    val sized = p.copy(widthRatio = (p.widthRatio * scale).roundToInt().coerceIn(10, 100),
-        heightRatio = (p.heightRatio * scale).roundToInt().coerceIn(10, 100))
-    // Rounding can move a flush edge by less than one percent; clamp its position too.
-    return runCatching { atPhotoPosition(sized, w, h, box.x, box.y, contentAspect) }.getOrDefault(p)
+    val maxScale = minOf(maxW.toFloat() / p.widthRatio, maxH.toFloat() / p.heightRatio)
+    val fitted = scale.coerceIn(minOf(minScale, maxScale), maxScale)
+    val sized = p.copy(widthRatio = (p.widthRatio * fitted).roundToInt().coerceIn(10, maxW),
+        heightRatio = (p.heightRatio * fitted).roundToInt().coerceIn(10, maxH))
+    if (sized == p) return p
+    val old = iosCaptureTableBounds(w, h, p, contentAspect)
+    val next = iosCaptureTableBounds(w, h, sized, contentAspect)
+    return atPhotoPosition(sized, w, h,
+        old.x + (old.width - next.width) / 2, old.y + (old.height - next.height) / 2, contentAspect)
 }

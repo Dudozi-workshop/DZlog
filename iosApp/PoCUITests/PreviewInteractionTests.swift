@@ -320,7 +320,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertNotEqual(moved, initialMove)
         let beforeResize = liveHandle("ios.table.move").frame
         let initialSize = String(describing: liveHandle("ios.table.resize").value ?? "")
-        dragLiveHandle("ios.table.resize", dx: -35, dy: -20)
+        let handle = liveHandle("ios.table.resize").frame
+        // Drag the active handle toward the table center to shrink from any corner.
+        dragLiveHandle("ios.table.resize", dx: (beforeResize.midX - handle.midX) / 2,
+                       dy: (beforeResize.midY - handle.midY) / 2)
         let resized = String(describing: liveHandle("ios.table.resize").value ?? "")
         let resizedPosition = String(describing: liveHandle("ios.table.move").value ?? "")
         let afterResize = liveHandle("ios.table.move").frame
@@ -328,10 +331,10 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertLessThan(afterResize.width, beforeResize.width)
         XCTAssertLessThan(afterResize.height, beforeResize.height)
         // Offsets are percentages of the remaining free space. Resizing preserves
-        // the displayed top-left and recomputes those percentages, rounded to 1%.
+        // the displayed center and recomputes those percentages, rounded to 1%.
         let roundingTolerance = max(app.frame.width, app.frame.height) / 200 + 1
-        XCTAssertEqual(afterResize.minX, beforeResize.minX, accuracy: roundingTolerance)
-        XCTAssertEqual(afterResize.minY, beforeResize.minY, accuracy: roundingTolerance)
+        XCTAssertEqual(afterResize.midX, beforeResize.midX, accuracy: roundingTolerance)
+        XCTAssertEqual(afterResize.midY, beforeResize.midY, accuracy: roundingTolerance)
         XCTAssertTrue(text("다음 번호: 12").exists)
         tapButton("이 배치로 촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 표 배치·사진 저장 완료"), app.debugDescription)
