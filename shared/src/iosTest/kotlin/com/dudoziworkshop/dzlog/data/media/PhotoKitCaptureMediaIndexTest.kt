@@ -16,6 +16,59 @@ class PhotoKitCaptureMediaIndexTest {
             CaptureMediaTarget(CaptureMediaRole.RESULT, path, name), id))
 
     @Test
+    fun folderDeletionUsesExactSubtreeAndPreservesOtherPhotosAndFavorites() {
+        val suite = "dzlog.photokit.folder-delete.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val root = SavedGalleryEntryPolicy.ROOT
+            val source = index.createFolder(root, "A")
+            val originals = index.createFolder(source, "original")
+            index.createFolder(source, "empty")
+            val sibling = index.createFolder(root, "AA")
+            val result = batchEntry("r", "same.jpg", source)
+            val original = IndexedCaptureMedia(result.captureId, PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, originals, "same.jpg"), "o"))
+            val keep = batchEntry("k", "same.jpg", sibling)
+            index.append(listOf(result, original, keep))
+            index.setFavorite("o", true)
+            index.setFavorite("k", true)
+            assertFailsWith<IllegalArgumentException> { index.folderContents(root) }
+            assertFailsWith<IllegalArgumentException> { index.folderContents(originals) }
+            val contents = index.folderContents(source)
+            val plan = PhotoKitFolderDeletion(contents, setOf("r", "o"))
+            assertEquals(1, plan.resultCount)
+            assertEquals(1, plan.originalCount)
+            assertEquals(1, plan.folderCount)
+            assertEquals(1, PhotoKitFolderDeletion(contents, setOf("o")).missingCount)
+            assertEquals(listOf(result, original, keep), index.load())
+            index.finishFolderDeletion(contents)
+            val reopened = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf(keep), reopened.load())
+            assertEquals(setOf("k"), reopened.favoriteAssetIds())
+            assertEquals(listOf(root, sibling), reopened.folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun newPhotoDuringSystemConfirmationSurvives() {
+        val suite = "dzlog.photokit.changed-folder.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val source = index.createFolder(SavedGalleryEntryPolicy.ROOT, "garden")
+            index.append(listOf(batchEntry("old", "1.jpg", source)))
+            val confirmed = index.folderContents(source)
+            val added = batchEntry("new", "2.jpg", source)
+            index.append(listOf(added))
+            val empty = index.createFolder(source, "new child")
+            assertFailsWith<IllegalStateException> { index.finishFolderDeletion(confirmed) }
+            assertEquals(listOf(added), index.load())
+            assertTrue(empty in index.folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun batchMoveValidatesEveryMemberBeforePersistingAndPreservesOtherAssets() {
         val suite = "dzlog.photokit.batch-move.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)
@@ -106,6 +159,37 @@ class PhotoKitCaptureMediaIndexTest {
             assertTrue(renamed in restored.folders())
             restored.deleteEmptyFolder(renamed)
             assertTrue(renamed !in PhotoKitCaptureMediaIndex(defaults).folders())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
+    fun movingFolderPersistsDescendantsCompanionsAndFavoritesTogether() {
+        val suite = "dzlog.photokit.move.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val root = "Pictures/DZlog/"
+            val source = index.createFolder(root, "A")
+            val dest = index.createFolder(root, "B")
+            val original = index.createFolder(source, "original")
+            index.createFolder(source, "empty")
+            index.append(listOf(
+                IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.RESULT, source, "1.jpg"), "r")),
+                IndexedCaptureMedia("c", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.ORIGINAL, original, "1.jpg"), "o")),
+            ))
+            index.setFavorite("o", true)
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(source, original) }
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(original, dest) }
+            val occupied = index.createFolder(dest, "a")
+            assertFailsWith<IllegalArgumentException> { index.moveFolder(source, dest) }
+            index.deleteEmptyFolder(occupied)
+            val moved = index.moveFolder(source, dest)
+            val reopened = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(listOf(moved, moved + "original/"), reopened.load().map { it.asset.target.relativePath })
+            assertEquals(listOf("r", "o"), reopened.load().map { it.asset.assetId })
+            assertEquals(setOf("o"), reopened.favoriteAssetIds())
+            assertTrue(moved + "empty/" in reopened.folders())
+            assertTrue(source !in reopened.folders())
         } finally { defaults.removePersistentDomainForName(suite) }
     }
 
