@@ -201,7 +201,7 @@ internal class PhotoKitCaptureMediaIndex(
 
     fun move(assetIds: Set<String>, relativePath: String) = move(assetIds.associateWith { relativePath })
 
-    fun move(destinations: Map<String, String>) {
+    fun move(destinations: Map<String, String>, confirmedSources: Map<String, String>? = null) {
         require(destinations.isNotEmpty() && destinations.keys.all { it.isNotBlank() }) { "Select at least one photo." }
         check(pending().isEmpty()) { "Recover the outstanding capture before moving photos." }
         for (path in destinations.values.toSet()) {
@@ -214,6 +214,11 @@ internal class PhotoKitCaptureMediaIndex(
         val selected = entries.filter { it.asset.assetId in destinations }
         check(selected.size == destinations.size && selected.map { it.asset.assetId }.toSet() == destinations.keys) {
             "A selected photo is no longer uniquely indexed."
+        }
+        if (confirmedSources != null) {
+            check(selected.associate { it.asset.assetId to it.asset.target.relativePath } == confirmedSources) {
+                "사진의 현재 경로가 변경되었습니다. 다시 선택해 주세요."
+            }
         }
         val names = selected.map { destinations.getValue(it.asset.assetId) to it.asset.target.displayName }.toSet()
         check(names.size == selected.size && entries.none {

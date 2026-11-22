@@ -174,7 +174,7 @@ class PhotoKitCaptureMediaRepository internal constructor(
 
     suspend fun moveGalleryAssets(
         assetIds: Set<String>, relativePath: String, includeOriginals: Boolean = false,
-        confirmedPaths: Map<String, String>? = null,
+        confirmedPaths: Map<String, String>? = null, confirmedSources: Map<String, String>? = null,
     ): Map<String, String> {
         check(!saving) { "Wait until the current photo operation finishes." }
         saving = true
@@ -183,7 +183,7 @@ class PhotoKitCaptureMediaRepository internal constructor(
             val paths = SavedGalleryMovePolicy.destinations(listSavedAssets(), assetIds, relativePath, includeOriginals)
             check(confirmedPaths == null || paths == confirmedPaths) { "이동할 사진이 변경되었습니다. 다시 선택해 주세요." }
             check(relativePath in index.folders()) { "대상 폴더가 더 이상 존재하지 않습니다." }
-            index.move(paths)
+            index.move(paths, confirmedSources)
             return paths
         } finally { saving = false }
     }

@@ -524,26 +524,42 @@ internal fun IosPhotoKitGalleryScreen(
             } }
         }
         val paths = plan?.getOrNull()
+        val movingPhotos = remember(photos, paths) { photos.filter { paths?.containsKey(it.asset.assetId) == true } }
+        val sources = movingPhotos.associate { it.asset.assetId to it.asset.target.relativePath }
+        var reviewing by remember(targetIds, paths, sources, includeOriginals) { mutableStateOf(false) }
         AlertDialog(onDismissRequest = { moveTarget = null },
-            title = { Text("사진 이동") },
+            title = { Text(if (reviewing) "사진 이동 확인" else "사진 이동") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("선택한 사진 ${targetIds.size}장을 옮길 DZlog 폴더를 선택해 주세요.")
-                    if (originals.isNotEmpty()) {
-                        Text("연결된 원본 ${originals.size}장")
-                        Row {
-                            TextButton(onClick = { includeOriginals = false }) { Text(if (includeOriginals == false) "✓ 사진만" else "사진만") }
-                            TextButton(onClick = { includeOriginals = true }) { Text(if (includeOriginals == true) "✓ 원본 포함" else "원본 포함") }
+                    if (reviewing && paths != null) {
+                        val sourceFolders = sources.values.distinct()
+                        Text("현재 경로")
+                        Text(sourceFolders.singleOrNull() ?: "${sourceFolders.size}개 폴더에서 선택")
+                        Text("이동 후 경로")
+                        val byRole = movingPhotos.groupBy { it.asset.target.role }
+                        for ((role, label) in listOf(CaptureMediaRole.RESULT to "결과사진", CaptureMediaRole.ORIGINAL to "원본사진")) {
+                            val items = byRole[role] ?: continue
+                            Text("$label ${items.size}장 · ${paths.getValue(items.first().asset.assetId)}")
                         }
-                    }
-                    plan?.exceptionOrNull()?.message?.let { Text(it) }
-                    paths?.values?.distinct()?.forEach { Text("이동할 위치 · $it") }
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
-                        items(destinations.filterNot { GalleryFolderNamePolicy.isOriginalFolder(it) }) { path ->
-                            Row(Modifier.fillMaxWidth().clickable { destination = path },
-                                verticalAlignment = Alignment.CenterVertically) {
-                                RadioButton(selected = destination == path, onClick = { destination = path })
-                                Text(path.removePrefix(GALLERY_ROOT).trimEnd('/').ifEmpty { "DZlog" })
+                        Text("촬영 저장설정은 변경되지 않습니다.")
+                        TextButton(onClick = { reviewing = false }) { Text("이동 선택 변경") }
+                    } else {
+                        Text("선택한 사진 ${targetIds.size}장을 옮길 DZlog 폴더를 선택해 주세요.")
+                        if (originals.isNotEmpty()) {
+                            Text("연결된 원본 ${originals.size}장")
+                            Row {
+                                TextButton(onClick = { includeOriginals = false }) { Text(if (includeOriginals == false) "✓ 사진만" else "사진만") }
+                                TextButton(onClick = { includeOriginals = true }) { Text(if (includeOriginals == true) "✓ 원본 포함" else "원본 포함") }
+                            }
+                        }
+                        plan?.exceptionOrNull()?.message?.let { Text(it) }
+                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
+                            items(destinations.filterNot { GalleryFolderNamePolicy.isOriginalFolder(it) }) { path ->
+                                Row(Modifier.fillMaxWidth().clickable { destination = path },
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = destination == path, onClick = { destination = path })
+                                    Text(path.removePrefix(GALLERY_ROOT).trimEnd('/').ifEmpty { "DZlog" })
+                                }
                             }
                         }
                     }
@@ -551,13 +567,17 @@ internal fun IosPhotoKitGalleryScreen(
             },
             confirmButton = { TextButton(enabled = !managing && paths != null && (originals.isEmpty() || includeOriginals != null), onClick = {
                 if (managing || paths == null) return@TextButton
+                if (!reviewing) {
+                    reviewing = true
+                    return@TextButton
+                }
                 val path = destination ?: return@TextButton
                 val withOriginals = includeOriginals == true
                 moveTarget = null
                 managing = true
                 scope.launch {
                     try {
-                        val moved = repository.moveGalleryAssets(targetIds, path, withOriginals, paths)
+                        val moved = repository.moveGalleryAssets(targetIds, path, withOriginals, paths, sources)
                         if (viewer) {
                             selectedId = selectAfterViewerRemoval(moved.keys)
                             movedInViewer = movedInViewer + moved.keys
@@ -598,7 +618,7 @@ internal fun IosPhotoKitGalleryScreen(
                     } catch (error: Exception) { operationMessage = "사진 이동 실패: ${error.message}" }
                     finally { managing = false }
                 }
-            }) { Text("이동") } },
+            }) { Text(if (reviewing) "이동" else "다음") } },
             dismissButton = { TextButton(onClick = { moveTarget = null }) { Text("취소") } })
     }
 

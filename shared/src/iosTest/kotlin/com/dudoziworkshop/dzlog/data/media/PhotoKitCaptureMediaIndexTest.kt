@@ -112,6 +112,28 @@ class PhotoKitCaptureMediaIndexTest {
     }
 
     @Test
+    fun confirmedMoveRejectsAChangedSourceWithoutMovingItsCompanion() {
+        val suite = "dzlog.photokit.move.source.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val result = batchEntry("r", "same.jpg")
+            val original = IndexedCaptureMedia(result.captureId, PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, SavedGalleryEntryPolicy.ROOT_ORIGINALS, "same.jpg"), "o"))
+            index.append(listOf(result, original))
+            val confirmed = index.load().associate { it.asset.assetId to it.asset.target.relativePath }
+            val dest = SavedGalleryEntryPolicy.ROOT + "dest/"
+            val paths = mapOf("r" to dest, "o" to dest + "original/")
+            index.move("r", SavedGalleryEntryPolicy.ROOT + "other/")
+            val before = index.load()
+            assertFailsWith<IllegalStateException> { index.move(paths, confirmed) }
+            assertEquals(before, index.load())
+            index.move(paths, before.associate { it.asset.assetId to it.asset.target.relativePath })
+            assertEquals(paths, index.load().associate { it.asset.assetId to it.asset.target.relativePath })
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun pairedMovePersistsBothPathsOrNeitherWhenTheOriginalWouldCollide() {
         val suite = "dzlog.photokit.paired-move.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)
