@@ -172,20 +172,19 @@ class PhotoKitCaptureMediaRepository internal constructor(
     suspend fun moveGalleryAsset(assetId: String, relativePath: String) =
         moveGalleryAssets(setOf(assetId), relativePath)
 
-    suspend fun moveGalleryAssets(assetIds: Set<String>, relativePath: String) {
-        require(assetIds.isNotEmpty() && assetIds.all { it.isNotBlank() }) { "Select at least one photo." }
-        val selectedIds = assetIds.toSet()
+    suspend fun moveGalleryAssets(
+        assetIds: Set<String>, relativePath: String, includeOriginals: Boolean = false,
+        confirmedPaths: Map<String, String>? = null,
+    ): Map<String, String> {
         check(!saving) { "Wait until the current photo operation finishes." }
         saving = true
         try {
-            check(photos.hasReadAccess()) { "Photos access is required to move photos." }
-            reconcilePending()
-            val indexed = index.load()
-            check(selectedIds.all { id -> indexed.count { it.asset.assetId == id } == 1 }) {
-                "A selected photo is no longer uniquely indexed."
-            }
-            check(selectedIds.all { photos.exists(it) }) { "A selected photo is unavailable." }
-            index.move(selectedIds, relativePath)
+            check(photos.hasReadAccess()) { "사진 접근 권한을 확인해 주세요." }
+            val paths = SavedGalleryMovePolicy.destinations(listSavedAssets(), assetIds, relativePath, includeOriginals)
+            check(confirmedPaths == null || paths == confirmedPaths) { "이동할 사진이 변경되었습니다. 다시 선택해 주세요." }
+            check(relativePath in index.folders()) { "대상 폴더가 더 이상 존재하지 않습니다." }
+            index.move(paths)
+            return paths
         } finally { saving = false }
     }
 

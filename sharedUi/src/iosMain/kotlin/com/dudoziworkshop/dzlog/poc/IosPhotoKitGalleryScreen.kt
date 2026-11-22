@@ -516,17 +516,30 @@ internal fun IosPhotoKitGalleryScreen(
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("취소") } })
     }
     moveTarget?.let { targetIds ->
-        val targets = photos.filter { it.asset.assetId in targetIds }
-        val sources = targets.map { it.asset.target.relativePath }.toSet()
-        val duplicateNames = targets.map { it.asset.target.displayName }.distinct().size != targets.size
+        val originals = remember(photos, targetIds) { SavedGalleryMovePolicy.additionalOriginals(photos, targetIds) }
+        var includeOriginals by remember(targetIds) { mutableStateOf<Boolean?>(null) }
+        val plan = remember(photos, targetIds, destination, includeOriginals) {
+            destination?.let { path -> runCatching {
+                SavedGalleryMovePolicy.destinations(photos, targetIds, path, includeOriginals == true)
+            } }
+        }
+        val paths = plan?.getOrNull()
         AlertDialog(onDismissRequest = { moveTarget = null },
             title = { Text("사진 이동") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("선택한 사진 ${targetIds.size}장을 이동할 DZlog 폴더를 선택해 주세요. 선택하지 않은 사진과 iOS 사진 앱의 앨범은 변경되지 않습니다.")
-                    if (duplicateNames) Text("같은 이름의 사진은 한 폴더로 함께 이동할 수 없습니다. 원본과 결과를 나눠 선택해 주세요.")
-                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
-                        items(destinations) { path ->
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("선택한 사진 ${targetIds.size}장을 옮길 DZlog 폴더를 선택해 주세요.")
+                    if (originals.isNotEmpty()) {
+                        Text("연결된 원본 ${originals.size}장")
+                        Row {
+                            TextButton(onClick = { includeOriginals = false }) { Text(if (includeOriginals == false) "✓ 사진만" else "사진만") }
+                            TextButton(onClick = { includeOriginals = true }) { Text(if (includeOriginals == true) "✓ 원본 포함" else "원본 포함") }
+                        }
+                    }
+                    plan?.exceptionOrNull()?.message?.let { Text(it) }
+                    paths?.values?.distinct()?.forEach { Text("이동할 위치 · $it") }
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
+                        items(destinations.filterNot { GalleryFolderNamePolicy.isOriginalFolder(it) }) { path ->
                             Row(Modifier.fillMaxWidth().clickable { destination = path },
                                 verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(selected = destination == path, onClick = { destination = path })
@@ -536,17 +549,18 @@ internal fun IosPhotoKitGalleryScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(enabled = !managing && !duplicateNames && destination != null && (sources.size != 1 || destination !in sources), onClick = {
-                if (managing) return@TextButton
+            confirmButton = { TextButton(enabled = !managing && paths != null && (originals.isEmpty() || includeOriginals != null), onClick = {
+                if (managing || paths == null) return@TextButton
                 val path = destination ?: return@TextButton
+                val withOriginals = includeOriginals == true
                 moveTarget = null
                 managing = true
                 scope.launch {
                     try {
-                        repository.moveGalleryAssets(targetIds, path)
+                        val moved = repository.moveGalleryAssets(targetIds, path, withOriginals, paths)
                         if (viewer) {
-                            selectedId = selectAfterViewerRemoval(targetIds)
-                            movedInViewer = movedInViewer + targetIds
+                            selectedId = selectAfterViewerRemoval(moved.keys)
+                            movedInViewer = movedInViewer + moved.keys
                             if (selectedId == null) {
                                 if (initialAssetId != null) {
                                     onBack()
@@ -557,7 +571,7 @@ internal fun IosPhotoKitGalleryScreen(
                         } else {
                             recentView = false
                             defaultStorageView = false
-                            folder = path
+                            folder = moved.values.distinct().singleOrNull() ?: path
                             selectedId = targetIds.first()
                         }
                         batchSelection = emptySet()
@@ -565,8 +579,9 @@ internal fun IosPhotoKitGalleryScreen(
                         operationMessage = "사진을 이동했습니다."
                         // The move is already committed even if a subsequent Photos read fails.
                         photos = photos.map { entry ->
-                            if (entry.asset.assetId !in targetIds) entry else entry.copy(
-                                asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = path)),
+                            val newPath = moved[entry.asset.assetId] ?: return@map entry
+                            entry.copy(
+                                asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = newPath)),
                             )
                         }
                         try {
@@ -634,7 +649,7 @@ internal fun IosPhotoKitGalleryScreen(
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
                         onClick = { selectedId?.let { shareSelection(setOf(it)) } }) { Text("사진 공유") }
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
-                        onClick = { moveTarget = selectedId?.let { setOf(it) }; destination = selected?.asset?.target?.relativePath }) { Text("사진 이동") }
+                        onClick = { moveTarget = selectedId?.let { setOf(it) }; destination = null }) { Text("사진 이동") }
                     TextButton(enabled = !managing && !refreshing && selected?.availability == CaptureMediaAvailability.PRESENT,
                         onClick = { deleteTarget = selectedId?.let { setOf(it) } }) { Text("사진 삭제") }
                 }

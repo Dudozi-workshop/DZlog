@@ -112,6 +112,32 @@ class PhotoKitCaptureMediaIndexTest {
     }
 
     @Test
+    fun pairedMovePersistsBothPathsOrNeitherWhenTheOriginalWouldCollide() {
+        val suite = "dzlog.photokit.paired-move.${NSUUID().UUIDString}"
+        val defaults = NSUserDefaults(suiteName = suite)
+        try {
+            val index = PhotoKitCaptureMediaIndex(defaults)
+            val result = batchEntry("r", "same.jpg")
+            val original = IndexedCaptureMedia(result.captureId, PersistedCaptureAsset(
+                CaptureMediaTarget(CaptureMediaRole.ORIGINAL, SavedGalleryEntryPolicy.ROOT_ORIGINALS, "same.jpg"), "o"))
+            val dest = SavedGalleryEntryPolicy.ROOT + "B/"
+            val occupant = batchEntry("other", "same.jpg", dest + "original/")
+            val entries = listOf(result, original, occupant)
+            index.append(entries)
+            index.setFavorite("o", true)
+            val paths = mapOf("r" to dest, "o" to dest + "original/")
+            assertFailsWith<IllegalStateException> { index.move(paths) }
+            assertEquals(entries, index.load())
+            index.forgetDeleted("other")
+            index.move(paths)
+            val restored = PhotoKitCaptureMediaIndex(NSUserDefaults(suiteName = suite))
+            assertEquals(paths, restored.load().associate { it.asset.assetId to it.asset.target.relativePath })
+            assertEquals(setOf(result.captureId), restored.load().map { it.captureId }.toSet())
+            assertEquals(setOf("o"), restored.favoriteAssetIds())
+        } finally { defaults.removePersistentDomainForName(suite) }
+    }
+
+    @Test
     fun batchMoveRejectsInternalAndDestinationNameConflictsWithoutPartialChanges() {
         val suite = "dzlog.photokit.batch-conflict.${NSUUID().UUIDString}"
         val defaults = NSUserDefaults(suiteName = suite)

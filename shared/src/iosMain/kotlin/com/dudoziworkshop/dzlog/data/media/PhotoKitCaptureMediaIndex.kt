@@ -199,30 +199,30 @@ internal class PhotoKitCaptureMediaIndex(
     /** Only completed, indexed assets may be managed by the gallery. */
     fun move(assetId: String, relativePath: String) = move(setOf(assetId), relativePath)
 
-    fun move(assetIds: Set<String>, relativePath: String) {
-        require(assetIds.isNotEmpty() && assetIds.all { it.isNotBlank() }) { "Select at least one photo." }
+    fun move(assetIds: Set<String>, relativePath: String) = move(assetIds.associateWith { relativePath })
+
+    fun move(destinations: Map<String, String>) {
+        require(destinations.isNotEmpty() && destinations.keys.all { it.isNotBlank() }) { "Select at least one photo." }
         check(pending().isEmpty()) { "Recover the outstanding capture before moving photos." }
-        require(relativePath.startsWith(ROOT) && relativePath.endsWith('/'))
-        require(relativePath.removePrefix(ROOT).removeSuffix("/")
-            .split('/').all { it.isNotBlank() && it != "." && it != ".." &&
-                it.none { char -> char == '\\' || char.isISOControl() } } || relativePath == ROOT)
-        val entries = load()
-        check(assetIds.all { id -> entries.count { it.asset.assetId == id } == 1 }) {
-            "A selected photo is no longer indexed."
+        for (path in destinations.values.toSet()) {
+            require(path.startsWith(ROOT) && path.endsWith('/'))
+            require(path == ROOT || path.removePrefix(ROOT).removeSuffix("/").split('/').all {
+                it.isNotBlank() && it != "." && it != ".." && it.none { c -> c == '\\' || c.isISOControl() }
+            })
         }
-        val selected = entries.filter { it.asset.assetId in assetIds }
-        val names = selected.map { it.asset.target.displayName }
-        // Reject collisions both within the batch and with unselected photos.
-        // No per-photo write occurs until every member has passed validation.
-        check(names.distinct().size == names.size && entries.none {
-            it.asset.assetId !in assetIds && it.asset.target.relativePath == relativePath &&
-                it.asset.target.displayName in names
-        }) { "A photo with this filename already exists in the selected folder." }
+        val entries = load()
+        val selected = entries.filter { it.asset.assetId in destinations }
+        check(selected.size == destinations.size && selected.map { it.asset.assetId }.toSet() == destinations.keys) {
+            "A selected photo is no longer uniquely indexed."
+        }
+        val names = selected.map { destinations.getValue(it.asset.assetId) to it.asset.target.displayName }.toSet()
+        check(names.size == selected.size && entries.none {
+            it.asset.assetId !in destinations && (it.asset.target.relativePath to it.asset.target.displayName) in names
+        }) { "대상 폴더에 같은 이름의 사진이 있습니다." }
         persistState(entries.map { entry ->
-            if (entry.asset.assetId !in assetIds) entry else entry.copy(
-                asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = relativePath)),
-            )
-        }, folders().toSet() + relativePath)
+            val path = destinations[entry.asset.assetId] ?: return@map entry
+            entry.copy(asset = entry.asset.copy(target = entry.asset.target.copy(relativePath = path)))
+        }, folders().toSet() + destinations.values)
     }
 
     /** Call only after PhotoKit confirms deletion; a cancelled prompt keeps the index. */
