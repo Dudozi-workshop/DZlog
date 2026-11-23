@@ -17,7 +17,7 @@ base = Path(os.environ.get('DZLOG_QA_OUTPUT', 'pr122-android-evidence')).resolve
 apk=repo/'app/build/outputs/apk/debug/app-debug.apk'
 pkg='com.dudoziworkshop.dzlog.qa.rename122fix'
 out=base/'runtime-evidence'
-out.mkdir(exist_ok=True)
+out.mkdir(parents=True, exist_ok=True)
 os.chdir(out)
 sys.path.insert(0,str(repo/'.github/scripts'))
 journey=importlib.import_module('android16_journey_smoke')
