@@ -971,6 +971,53 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("폴더: " + root + "aaa/").waitForExistence(timeout: 10))
     }
 
+    func testFolderRowMenuKeepsParentForRenameMoveAndDelete() {
+        configureCaptureFixture("둘 다", merged: true)
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        let root = "Pictures/DZlog/"
+        for name in ["a", "b"] {
+            tapButton("폴더 생성")
+            tapPanelText("폴더 이름")
+            typeWithVisibleKeyboard(name)
+            tapButton("저장")
+            XCTAssertTrue(text("폴더: " + root + name + "/").waitForExistence(timeout: 20))
+            tapButton("상위 폴더")
+        }
+
+        tapButton("a 폴더 관리")
+        tapPanelText("이름 변경")
+        tapPanelText("새 폴더 이름")
+        typeWithVisibleKeyboard("a")
+        XCTAssertTrue(text(root + "aa/").waitForExistence(timeout: 10))
+        tapButton("이름 변경")
+        XCTAssertTrue(text("폴더 이름을 변경했습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("폴더: " + root).exists)
+
+        tapButton("aa 폴더 관리")
+        tapPanelText("이동")
+        tapPanelText("b")
+        tapButton("이 위치로 이동")
+        XCTAssertTrue(text(root + "b/aa/").waitForExistence(timeout: 10))
+        tapButton("이동")
+        XCTAssertTrue(text("폴더를 이동했습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("폴더: " + root).exists)
+        tapButton("b")
+        tapButton("aa 폴더 관리")
+        tapPanelText("삭제")
+        XCTAssertTrue(text(root + "b/aa/").waitForExistence(timeout: 10))
+        tapButton("취소")
+        tapButton("aa 폴더 관리")
+        tapPanelText("삭제")
+        XCTAssertTrue(text("하위 폴더 0개").waitForExistence(timeout: 20))
+        tapButton("삭제")
+        XCTAssertTrue(text("폴더를 삭제했습니다.").waitForExistence(timeout: 20))
+        XCTAssertTrue(text("폴더: " + root + "b/").exists)
+        let row = app.buttons.matching(NSPredicate(format: "label == %@", "aa 폴더 관리")).firstMatch
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: row)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 10), .completed)
+    }
+
     func testFolderMoveChoosesDestinationBeforeCommittingSubtree() {
         configureCaptureFixture("둘 다", merged: true)
         tapButton("갤러리 열기")

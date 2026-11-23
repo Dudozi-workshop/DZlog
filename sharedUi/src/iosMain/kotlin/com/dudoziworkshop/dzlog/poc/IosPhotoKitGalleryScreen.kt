@@ -30,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
@@ -145,6 +147,13 @@ internal fun IosPhotoKitGalleryScreen(
     var folderTarget by remember { mutableStateOf(GALLERY_ROOT) }
     var folderName by remember { mutableStateOf("") }
     var folderError by remember { mutableStateOf<String?>(null) }
+    fun openFolderAction(path: String, action: String) {
+        folderTarget = path
+        folderDestination = null
+        folderName = if (action == "rename") path.trimEnd('/').substringAfterLast('/') else ""
+        folderError = null
+        folderAction = action
+    }
     val thumbnails = remember(photoScopeVersion) { LinkedHashMap<String, ImageBitmap>() }
     val effectivePhotoSort = if (recentView) SavedGalleryPhotoSort.NEWEST else photoSort
     val scopedPhotos = when {
@@ -422,7 +431,7 @@ internal fun IosPhotoKitGalleryScreen(
                 managing = true
                 scope.launch {
                     try {
-                        folder = when (action) {
+                        val updatedFolder = when (action) {
                             "create" -> repository.createGalleryFolder(folderTarget, folderName)
                             "move" -> repository.moveGalleryFolder(folderTarget, checkNotNull(folderDestination))
                             "rename" -> repository.renameGalleryFolder(folderTarget, folderName)
@@ -431,6 +440,7 @@ internal fun IosPhotoKitGalleryScreen(
                                 folderTarget.trimEnd('/').substringBeforeLast('/') + "/"
                             }
                         }
+                        if (action == "create" || folder == folderTarget) folder = updatedFolder
                         operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; "move" -> "폴더를 이동했습니다."; else -> "폴더를 삭제했습니다." }
                         folderAction = null
                         try {
@@ -893,20 +903,20 @@ internal fun IosPhotoKitGalleryScreen(
                             }
                             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 TextButton(enabled = !managing && !refreshing, onClick = {
-                                    folderTarget = path; folderName = ""; folderError = null; folderAction = "create"
+                                    openFolderAction(path, "create")
                                 }) { Text("폴더 생성") }
                                 if (path != GALLERY_ROOT) {
                                     if (!GalleryFolderNamePolicy.isOriginalFolder(path)) {
                                         TextButton(enabled = !managing && !refreshing, onClick = {
-                                            folderTarget = path; folderDestination = null; folderError = null; folderAction = "move"
+                                            openFolderAction(path, "move")
                                         }) { Text("폴더 이동") }
                                         TextButton(enabled = !managing && !refreshing, onClick = {
-                                            folderTarget = path; folderName = path.trimEnd('/').substringAfterLast('/'); folderError = null; folderAction = "rename"
+                                            openFolderAction(path, "rename")
                                         }) { Text("이름 변경") }
                                     }
                                     if (remember(path) { runCatching { GalleryFolderDeleteScope.source(path) }.isSuccess }) {
                                         TextButton(enabled = !managing && !refreshing, onClick = {
-                                            folderTarget = path; folderError = null; folderAction = "delete"
+                                            openFolderAction(path, "delete")
                                         }) { Text("폴더 삭제") }
                                     }
                                 }
@@ -916,11 +926,16 @@ internal fun IosPhotoKitGalleryScreen(
                         operationMessage?.let { Text(it) }
                         if (!selecting && !defaultStorageView && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
                             items(childFolders, key = { it.path }) { summary ->
+                                val label = summary.path.trimEnd('/').substringAfterLast('/')
+                                val enabled = !managing && !refreshing
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(enabled = !managing, onClick = { folder = summary.path }) {
-                                        Text(summary.path.removePrefix(currentFolder.orEmpty()).trimEnd('/'))
+                                    TextButton(modifier = Modifier.weight(1f), enabled = enabled, onClick = { folder = summary.path }) {
+                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
-                                    Text("사진 기록 ${summary.photoCount}개 · 하위 포함")
+                                    Text("사진 기록 ${summary.photoCount}개 · 하위 포함", style = DDZTypography.Caption)
+                                    if (!GalleryFolderNamePolicy.isOriginalFolder(summary.path)) {
+                                        GalleryFolderRowMenu(summary.path, label, enabled, ::openFolderAction)
+                                    }
                                 }
                             }
                         }
@@ -1151,6 +1166,28 @@ private fun galleryThumbnail(
             }
         }
         bitmap
+    }
+}
+
+@Composable
+private fun GalleryFolderRowMenu(path: String, label: String, enabled: Boolean, onAction: (String, String) -> Unit) {
+    var expanded by remember(path) { mutableStateOf(false) }
+    fun choose(action: String) {
+        expanded = false
+        onAction(path, action)
+    }
+    Box {
+        IconButton(enabled = enabled, onClick = { expanded = true }) {
+            Icon(Icons.Default.MoreVert, contentDescription = "$label 폴더 관리")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("이름 변경") }, enabled = enabled, onClick = { choose("rename") })
+            DropdownMenuItem(text = { Text("이동") }, enabled = enabled, onClick = { choose("move") })
+            if (remember(path) { runCatching { GalleryFolderDeleteScope.source(path) }.isSuccess }) {
+                DropdownMenuItem(text = { Text("삭제", color = DDZColor.Destructive) }, enabled = enabled,
+                    onClick = { choose("delete") })
+            }
+        }
     }
 }
 

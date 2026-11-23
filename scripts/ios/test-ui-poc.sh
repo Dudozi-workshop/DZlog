@@ -39,6 +39,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFolderGridViewerAndOriginalResultSwitch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderRenamePreviewsPathRejectsCollisionAndPreservesCancellation
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderRowMenuKeepsParentForRenameMoveAndDelete
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderMoveChoosesDestinationBeforeCommittingSubtree
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryMoveKeepsViewerOrderUntilReopened
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFavoriteAndEmptyFolderManagementPersist
