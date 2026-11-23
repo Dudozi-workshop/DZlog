@@ -159,6 +159,11 @@ def onboarding():
                           '다음','시작하기','나중에','안내 닫기','폴더 선택 화면으로','DZlog 폴더 연결')
         options = [s for s in priorities if s.casefold() in visible]
         if not options:
+            if any('documentsui' in (n.get('package') or '').lower() for n in root.iter('node')):
+                # The disabled confirmation button can appear before directory entries.
+                print('onboarding: waiting for Android folder list',flush=True)
+                time.sleep(1)
+                continue
             raise AssertionError(('Unexpected onboarding',label(node),sorted(visible)))
         chosen = next(n for n in root.iter('node') if selector(options[0])(n))
         x1,y1,x2,y2 = box(root,chosen)
