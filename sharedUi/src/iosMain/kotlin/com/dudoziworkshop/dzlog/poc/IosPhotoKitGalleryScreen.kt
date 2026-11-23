@@ -527,15 +527,43 @@ internal fun IosPhotoKitGalleryScreen(
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("취소") } })
     }
     moveTarget?.let { targetIds ->
-        val originals = remember(photos, targetIds) { SavedGalleryMovePolicy.additionalOriginals(photos, targetIds) }
+        var browsePath by remember(targetIds) { mutableStateOf(GALLERY_ROOT) }
+        var retry by remember(targetIds) { mutableIntStateOf(0) }
+        // Quick results only contain the current captures. A move needs the entire gallery.
+        val catalog by produceState<Result<Pair<List<SavedCaptureMedia>, List<String>>>?>(
+            null, targetIds, photoScopeVersion, retry,
+        ) {
+            value = null
+            value = try {
+                Result.success(repository.listSavedAssets() to repository.listGalleryFolders())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
+        }
+        val snapshot = catalog?.getOrNull()
+        if (destination == null || snapshot == null) {
+            IosGalleryMoveDestinationPicker(
+                path = browsePath, photos = snapshot?.first.orEmpty(), folders = snapshot?.second.orEmpty(),
+                selectedIds = targetIds, loading = catalog == null,
+                error = catalog?.exceptionOrNull()?.let { it.message ?: "이동할 폴더를 불러오지 못했습니다." },
+                onNavigate = { browsePath = it }, onRetry = { retry++ }, onCancel = { moveTarget = null },
+                onChoose = { destination = browsePath },
+                thumbnail = { entry -> galleryThumbnail(entry, repository, thumbnails, photoScopeVersion) },
+            )
+            return@let
+        }
+        val libraryPhotos = snapshot.first
+        val originals = remember(libraryPhotos, targetIds) { SavedGalleryMovePolicy.additionalOriginals(libraryPhotos, targetIds) }
         var includeOriginals by remember(targetIds) { mutableStateOf<Boolean?>(null) }
-        val plan = remember(photos, targetIds, destination, includeOriginals) {
+        val plan = remember(libraryPhotos, targetIds, destination, includeOriginals) {
             destination?.let { path -> runCatching {
-                SavedGalleryMovePolicy.destinations(photos, targetIds, path, includeOriginals == true)
+                SavedGalleryMovePolicy.destinations(libraryPhotos, targetIds, path, includeOriginals == true)
             } }
         }
         val paths = plan?.getOrNull()
-        val movingPhotos = remember(photos, paths) { photos.filter { paths?.containsKey(it.asset.assetId) == true } }
+        val movingPhotos = remember(libraryPhotos, paths) { libraryPhotos.filter { paths?.containsKey(it.asset.assetId) == true } }
         val sources = movingPhotos.associate { it.asset.assetId to it.asset.target.relativePath }
         var reviewing by remember(targetIds, paths, sources, includeOriginals) { mutableStateOf(false) }
         AlertDialog(onDismissRequest = { moveTarget = null },
@@ -555,7 +583,8 @@ internal fun IosPhotoKitGalleryScreen(
                         Text("촬영 저장설정은 변경되지 않습니다.")
                         TextButton(onClick = { reviewing = false }) { Text("이동 선택 변경") }
                     } else {
-                        Text("선택한 사진 ${targetIds.size}장을 옮길 DZlog 폴더를 선택해 주세요.")
+                        Text("이동할 폴더: ${destination.orEmpty()}")
+                        TextButton(onClick = { destination = null }) { Text("이동 위치 변경") }
                         if (originals.isNotEmpty()) {
                             Text("연결된 원본 ${originals.size}장")
                             Row {
@@ -564,15 +593,6 @@ internal fun IosPhotoKitGalleryScreen(
                             }
                         }
                         plan?.exceptionOrNull()?.message?.let { Text(it) }
-                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
-                            items(destinations.filterNot { GalleryFolderNamePolicy.isOriginalFolder(it) }) { path ->
-                                Row(Modifier.fillMaxWidth().clickable { destination = path },
-                                    verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = destination == path, onClick = { destination = path })
-                                    Text(path.removePrefix(GALLERY_ROOT).trimEnd('/').ifEmpty { "DZlog" })
-                                }
-                            }
-                        }
                     }
                 }
             },
@@ -903,23 +923,7 @@ internal fun IosPhotoKitGalleryScreen(
                         modifier = Modifier.weight(1f).iosGalleryGridPinch(gridColumns, !managing && !refreshing && !selecting, ::changeColumns),
                         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         gridItems(visible, key = { it.asset.assetId }) { entry ->
-                            val thumbnail by produceState<ImageBitmap?>(
-                                if (entry.availability == CaptureMediaAvailability.PRESENT) thumbnails[entry.asset.assetId] else null,
-                                entry.asset.assetId, entry.availability, photoScopeVersion) {
-                                value = thumbnails[entry.asset.assetId]
-                                if (entry.availability != CaptureMediaAvailability.PRESENT) {
-                                    value = null
-                                    thumbnails.remove(entry.asset.assetId)
-                                } else if (value == null) {
-                                    value = runCatching { repository.readThumbnail(entry.asset.assetId)?.let {
-                                        SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap()
-                                    } }.getOrNull()
-                                    value?.let {
-                                        if (thumbnails.size >= 32) thumbnails.remove(thumbnails.keys.first())
-                                        thumbnails[entry.asset.assetId] = it
-                                    }
-                                }
-                            }
+                            val thumbnail = galleryThumbnail(entry, repository, thumbnails, photoScopeVersion)
                             Column(Modifier.fillMaxWidth().combinedClickable(
                                 enabled = !managing && !refreshing,
                                 onClick = { selectEntry(entry) },
@@ -931,7 +935,7 @@ internal fun IosPhotoKitGalleryScreen(
                                     enabled = !managing && !refreshing && entry.asset.assetId in selectableIds,
                                     onCheckedChange = { selectEntry(entry) })
                                 Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface), contentAlignment = Alignment.Center) {
-                                    if (thumbnail != null) Image(thumbnail!!, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    if (thumbnail != null) Image(thumbnail, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                     else Text(if (entry.availability == CaptureMediaAvailability.PRESENT) "사진" else "접근 불가")
                                 }
                                 Text((if (entry.asset.assetId in favorites) "★ " else "") +
@@ -1072,7 +1076,37 @@ private fun IosGalleryAnimatedPager(
 }
 
 @Composable
-private fun GalleryChoiceMenu(label: String, options: List<String>, enabled: Boolean, onSelected: (Int) -> Unit) {
+private fun galleryThumbnail(
+    entry: SavedCaptureMedia,
+    repository: PhotoKitCaptureMediaRepository,
+    cache: MutableMap<String, ImageBitmap>,
+    scopeVersion: Int,
+): ImageBitmap? {
+    val id = entry.asset.assetId
+    return key(id, entry.availability, scopeVersion) {
+        val bitmap by produceState<ImageBitmap?>(cache[id].takeIf { entry.availability == CaptureMediaAvailability.PRESENT }) {
+            if (entry.availability != CaptureMediaAvailability.PRESENT) {
+                cache.remove(id)
+            } else if (value == null) {
+                try {
+                    value = repository.readThumbnail(id)?.let { SkiaImage.makeFromEncoded(uprightIosImage(it)).toComposeImageBitmap() }
+                    value?.let {
+                        if (cache.size >= 32) cache.remove(cache.keys.first())
+                        cache[id] = it
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Keep the gallery tile visible when Photos cannot supply a preview.
+                }
+            }
+        }
+        bitmap
+    }
+}
+
+@Composable
+internal fun GalleryChoiceMenu(label: String, options: List<String>, enabled: Boolean, onSelected: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         TextButton(enabled = enabled, onClick = { expanded = true }) { Text(label) }
