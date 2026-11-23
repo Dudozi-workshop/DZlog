@@ -274,22 +274,35 @@ def main():
         position_preview('stem')
         shell('wm','set-ignore-orientation-request','true')
         shell('wm','user-rotation','lock','1')
-        def landscape_app():
-            for _ in range(12):
-                root = journey.hierarchy()
-                frame = bounds(next(root.iter('node')))
-                if frame[2]-frame[0] > frame[3]-frame[1]:
-                    return root
-                time.sleep(1)
-            raise AssertionError(('Expected landscape UI after rotation',frame))
-        window = landscape_app()
-        print('Landscape rotation applied',bounds(next(window.iter('node'))),flush=True)
+        for _ in range(12):
+            root = journey.hierarchy()
+            if root.get('rotation') in ('1','3') and journey.contains(root,'이름 변경 미리보기'):
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError('Active rename preview did not survive phone display rotation')
+        assert journey.contains(root,'2번째 자리 → stem')
         root,node=poll_ui(selector('변경'))
-        assert journey.contains(root,'이름 변경 미리보기'), 'Rename preview was not restored after rotation'
         assert_nav_clear(box(root,node))
-        checkpoint('08-landscape-preview')
+        checkpoint('08-landscape-phone-preview')
+        print('PASS phone rotation: rename preview retained in its existing portrait window',flush=True)
+
+        # Android 16 large displays can exercise a genuinely wide app window.
+        shell('wm','size','1280x1920')
+        for _ in range(12):
+            root = journey.hierarchy()
+            frame = bounds(next(root.iter('node')))
+            if frame[2]-frame[0] > frame[3]-frame[1] and journey.contains(root,'이름 변경 미리보기'):
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError(('Expected a wide rename preview on the large rotated display',frame))
+        assert journey.contains(root,'2번째 자리 → stem')
+        root,node=poll_ui(selector('변경'))
+        assert_nav_clear(box(root,node))
+        checkpoint('09-landscape-wide-preview')
         assert_media(hashes)
-        print('PASS landscape rename preview and footer; no additional files changed',flush=True)
+        print('PASS large landscape rename preview and footer; no additional files changed',flush=True)
     if phase=='inspect':
         checkpoint('inspection')
     if phase=='onboarding':
