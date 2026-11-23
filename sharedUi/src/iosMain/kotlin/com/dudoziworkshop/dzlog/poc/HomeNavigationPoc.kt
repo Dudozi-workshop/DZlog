@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.data.datastore.CaptureVibrationStrength
 import androidx.compose.foundation.Image as ComposeImage
 import androidx.compose.foundation.background
@@ -363,9 +364,11 @@ internal fun HomeNavigationPoc(
             },
             captureIds = project.captureIds,
             projectTitle = project.title,
+            capturePathImpact = { GalleryFolderOperationPolicy.captureImpact(it, workspace) },
         )
     } else if (showGallery) {
         IosPhotoKitGalleryScreen(repository = photoRepository, initialFolder = galleryEntryFolder,
+            capturePathImpact = { GalleryFolderOperationPolicy.captureImpact(it, workspace) },
             onBack = { showGallery = false })
     } else if (showEditor) {
         key(currentTemplate.id) {

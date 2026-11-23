@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.feature.table.policy.QuickEditSelectionMemory
 import com.dudoziworkshop.dzlog.data.media.IosCaptureSaveCoordinator
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoCoordinator
@@ -52,6 +53,7 @@ internal class IosCameraCaptureSession(
 
     private val sessionCaptures = mutableListOf<SessionCapture>()
     private val confirmedCaptureIds = mutableListOf<String>()
+    fun capturePathImpact(folder: String) = GalleryFolderOperationPolicy.captureImpact(folder, workspace)
     fun sessionResultIds(): List<String> = confirmedCaptureIds.toList()
     private var projectAssociationWarning: String? = null
 

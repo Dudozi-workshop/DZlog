@@ -932,6 +932,45 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("폴더: Pictures/DZlog/moved/pair/original/").exists)
     }
 
+    func testFolderRenamePreviewsPathRejectsCollisionAndPreservesCancellation() {
+        configureCaptureFixture("둘 다", merged: true)
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        let root = "Pictures/DZlog/"
+        for name in ["aa", "a"] {
+            tapButton("폴더 생성")
+            tapPanelText("폴더 이름")
+            typeWithVisibleKeyboard(name)
+            tapButton("저장")
+            XCTAssertTrue(text("폴더: " + root + name + "/").waitForExistence(timeout: 20))
+            if name == "aa" { tapButton("상위 폴더") }
+        }
+        tapButton("이름 변경")
+        XCTAssertTrue(text("현재 경로").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("변경 후 경로").exists)
+        tapPanelText("새 폴더 이름")
+        typeWithVisibleKeyboard("a")
+        XCTAssertTrue(text("같은 이름의 폴더가 이미 있습니다.").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("이름 변경").isEnabled)
+        typeWithVisibleKeyboard("a")
+        XCTAssertTrue(text(root + "aaa/").waitForExistence(timeout: 10))
+        tapButton("취소")
+        XCTAssertTrue(text("폴더: " + root + "a/").waitForExistence(timeout: 10))
+        tapButton("이름 변경")
+        tapPanelText("새 폴더 이름")
+        typeWithVisibleKeyboard("aa")
+        XCTAssertTrue(text(root + "aaa/").waitForExistence(timeout: 10))
+        tapButton("이름 변경")
+        XCTAssertTrue(text("폴더: " + root + "aaa/").waitForExistence(timeout: 20))
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        tapButton("aaa")
+        XCTAssertTrue(text("폴더: " + root + "aaa/").waitForExistence(timeout: 10))
+    }
+
     func testFolderMoveChoosesDestinationBeforeCommittingSubtree() {
         configureCaptureFixture("둘 다", merged: true)
         tapButton("갤러리 열기")

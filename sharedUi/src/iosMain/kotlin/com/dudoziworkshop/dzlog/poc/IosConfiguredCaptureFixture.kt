@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -81,7 +82,8 @@ internal fun IosConfiguredCaptureFixture() {
         return
     }
     if (gallery) {
-        IosPhotoKitGalleryScreen(media, onBack = { gallery = false })
+        IosPhotoKitGalleryScreen(media, onBack = { gallery = false },
+            capturePathImpact = { GalleryFolderOperationPolicy.captureImpact(it, workspace) })
         return
     }
     val doc = checkNotNull(workspace.active)

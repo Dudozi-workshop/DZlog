@@ -1,5 +1,7 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
@@ -72,6 +74,7 @@ internal fun IosPhotoKitGalleryScreen(
     resultCaptureIds: List<String>? = null,
     initialAssetId: String? = null,
     initialFolder: String? = null,
+    capturePathImpact: ((String) -> CapturePathImpact)? = null,
 ) {
     val permissions = rememberIosPermissions()
     val photoScopeVersion = permissions.photoScopeVersion
@@ -345,10 +348,14 @@ internal fun IosPhotoKitGalleryScreen(
                 }
             }
         }
+        val renamePlan = if (action == "rename") remember(folderTarget, folderName, folders) {
+            runCatching { GalleryFolderOperationPolicy.checkedRenamedPath(folderTarget, folderName, folders) }
+        } else null
         AlertDialog(onDismissRequest = { if (!managing) folderAction = null },
             title = { Text(when (action) { "create" -> "폴더 생성"; "rename" -> "폴더 이름 변경"; "move" -> "폴더 이동"; else -> "이 폴더를 삭제할까요?" }) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (action == "delete") {
                         Text(folderTarget)
                         val plan = deletion
@@ -374,21 +381,40 @@ internal fun IosPhotoKitGalleryScreen(
                         Text(folderTarget)
                         Text("이동 후 경로")
                         Text(GalleryFolderMovePolicy.movedPath(folderTarget, destination))
-                        Text("사진·원본·하위 폴더도 함께 이동합니다. 다음 촬영의 저장 경로는 현재 설정을 따릅니다.")
                         TextButton(enabled = !managing, onClick = {
                             browsePath = destination
                             pickingFolder = true
                         }) { Text("이동 위치 변경") }
                     }
-                    else OutlinedTextField(value = folderName, onValueChange = { folderName = it; folderError = null },
-                        // Compose's iOS dialog bridge can expose an empty field as
-                        // an unlabeled button. Preserve its visible input label for VoiceOver.
-                        modifier = Modifier.semantics { contentDescription = "폴더 이름" },
-                        enabled = !managing, singleLine = true, label = { Text("폴더 이름") })
+                    else {
+                        val rename = action == "rename"
+                        if (rename) {
+                            Text("현재 경로")
+                            Text(folderTarget)
+                        }
+                        val label = if (rename) "새 폴더 이름" else "폴더 이름"
+                        OutlinedTextField(value = folderName, onValueChange = { folderName = it; folderError = null },
+                            modifier = Modifier.semantics { contentDescription = label },
+                            enabled = !managing, singleLine = true, label = { Text(label) })
+                        if (rename) {
+                            Text("변경 후 경로")
+                            Text(renamePlan?.getOrNull() ?: "새 이름을 확인해 주세요.")
+                            renamePlan?.exceptionOrNull()?.message?.let { Text(it, color = DDZColor.Destructive) }
+                        }
+                    }
+                    if (action == "rename" || action == "move") {
+                        Text(when (capturePathImpact?.invoke(folderTarget)) {
+                            CapturePathImpact.MATCH -> "촬영 저장설정에 이 폴더 경로가 있습니다. 변경 후 촬영 저장경로를 확인해 주세요."
+                            CapturePathImpact.POSSIBLE -> "날짜·표 값에 따라 이 폴더가 촬영 경로가 될 수 있습니다. 변경 후 촬영 저장경로를 확인해 주세요."
+                            else -> if (action == "move") "사진·원본·하위 폴더도 함께 이동합니다. 다음 촬영의 저장 경로는 현재 설정을 따릅니다."
+                                else "촬영 저장설정은 변경되지 않습니다."
+                        }, style = DDZTypography.Caption)
+                    }
                     folderError?.let { Text(it) }
                 }
             },
             confirmButton = { TextButton(enabled = !managing && when (action) {
+                "rename" -> renamePlan?.isSuccess == true
                 "move" -> folderDestination != null
                 "delete" -> deletion != null
                 else -> folderName.isNotBlank()
@@ -425,7 +451,7 @@ internal fun IosPhotoKitGalleryScreen(
                     }
                     finally { managing = false }
                 }
-            }) { Text(when (action) { "delete" -> "삭제"; "move" -> "이동"; else -> "저장" }) } },
+            }) { Text(when (action) { "delete" -> "삭제"; "move" -> "이동"; "rename" -> "이름 변경"; else -> "저장" }) } },
             dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
     var refreshedScope by remember { mutableIntStateOf(-1) }

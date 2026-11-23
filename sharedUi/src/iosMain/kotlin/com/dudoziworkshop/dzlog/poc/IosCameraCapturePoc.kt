@@ -247,6 +247,7 @@ internal fun IosCameraCapturePoc(
             val active = registry.getOrNull()?.active
             IosQuickResultsScreen(repository, active?.captureIds ?: session.sessionResultIds(),
                 projectTitle = active?.title, onBack = { showGallery = false },
+                capturePathImpact = session::capturePathImpact,
                 scopeError = if (registry.isFailure) "프로젝트 촬영 기록을 읽지 못했습니다." else null)
         }
         return

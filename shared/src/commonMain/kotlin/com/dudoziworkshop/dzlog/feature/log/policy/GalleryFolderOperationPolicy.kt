@@ -2,7 +2,7 @@ package com.dudoziworkshop.dzlog.feature.log.policy
 
 import com.dudoziworkshop.dzlog.domain.model.TableEditorSlotDraft
 import com.dudoziworkshop.dzlog.domain.naming.sanitizeFilePart
-import java.util.Locale
+import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 
 /**
  * Gallery filesystem operations never rewrite the camera's saved capture path.
@@ -12,6 +12,9 @@ import java.util.Locale
 enum class CapturePathImpact { NONE, POSSIBLE, MATCH }
 
 object GalleryFolderOperationPolicy {
+    fun captureImpact(sourceFolder: String, workspace: EditorWorkspace): CapturePathImpact =
+        captureImpact(sourceFolder, workspace.documents.map { it.template.templateState.pathSlotDrafts })
+
     /**
      * Preview real configured save-path slots from active and saved templates.
      * Dynamic slots can vary per shot; a conservative prefix is used instead
@@ -28,7 +31,7 @@ object GalleryFolderOperationPolicy {
             val prefix = StringBuilder(GalleryFolderIndexPolicy.ROOT)
             var dynamic = false
             for (draft in drafts) {
-                when (draft?.kind?.uppercase(Locale.ROOT)) {
+                when (draft?.kind?.uppercase()) {
                     null -> Unit
                     "MANUAL" -> {
                         val token = sanitizeFilePart(draft.manualText.orEmpty())
@@ -74,6 +77,17 @@ object GalleryFolderOperationPolicy {
         val name = GalleryFolderNamePolicy.normalize(rawName)
         val parent = requireNotNull(GalleryFolderIndexPolicy.parentOf(source))
         return parent + name + "/"
+    }
+
+    /** Preview and commit against the same iOS folder catalog, including empty folders. */
+    fun checkedRenamedPath(sourceFolder: String, rawName: String, folders: Collection<String>): String {
+        require(sourceFolder in folders) { "선택한 폴더를 찾을 수 없습니다." }
+        val target = renamedPath(sourceFolder, rawName)
+        require(rawName.trim().none(Char::isISOControl)) { "폴더 이름에 제어 문자를 사용할 수 없습니다." }
+        if (target != sourceFolder) {
+            require(folders.none { it.equals(target, ignoreCase = true) }) { "같은 이름의 폴더가 이미 있습니다." }
+        }
+        return target
     }
 
     fun movedPath(sourceFolder: String, destinationFolder: String) =

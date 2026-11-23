@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.media
 
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderOperationPolicy
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaTarget
 import com.dudoziworkshop.dzlog.domain.media.PersistedCaptureAsset
@@ -79,12 +80,8 @@ internal class PhotoKitCaptureMediaIndex(
 
     fun renameFolder(path: String, name: String): String {
         check(pending().isEmpty()) { "Recover the outstanding capture first." }
-        require(path != ROOT && path in folders()) { "Select an existing child folder." }
-        require(!GalleryFolderNamePolicy.isOriginalFolder(path)) { "원본사진 전용 폴더는 이름을 변경할 수 없습니다." }
-        val parent = path.trimEnd('/').substringBeforeLast('/') + "/"
-        val replacement = parent + folderName(name) + "/"
+        val replacement = GalleryFolderOperationPolicy.checkedRenamedPath(path, name, folders())
         if (replacement == path) return path
-        require(folders().none { it.equals(replacement, ignoreCase = true) }) { "같은 이름의 폴더가 이미 있습니다." }
         return relocateFolder(path, replacement)
     }
 

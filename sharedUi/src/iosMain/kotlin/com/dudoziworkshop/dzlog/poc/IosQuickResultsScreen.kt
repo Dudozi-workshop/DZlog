@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.poc
 
+import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +40,7 @@ internal fun IosQuickResultsScreen(
     projectTitle: String?,
     onBack: () -> Unit,
     scopeError: String? = null,
+    capturePathImpact: (String) -> CapturePathImpact,
 ) {
     var album by remember { mutableStateOf(false) }
     var opened by remember { mutableStateOf<String?>(null) }
@@ -49,12 +51,12 @@ internal fun IosQuickResultsScreen(
     var revision by remember { mutableIntStateOf(0) }
     val grid = rememberLazyGridState()
     if (album) {
-        IosPhotoKitGalleryScreen(repository, onBack = { album = false })
+        IosPhotoKitGalleryScreen(repository, onBack = { album = false }, capturePathImpact = capturePathImpact)
         return
     }
     opened?.let { initial ->
         IosPhotoKitGalleryScreen(repository, onBack = { opened = null },
-            resultCaptureIds = viewerIds, initialAssetId = initial)
+            resultCaptureIds = viewerIds, initialAssetId = initial, capturePathImpact = capturePathImpact)
         return
     }
     val permissions = rememberIosPermissions()
