@@ -893,6 +893,27 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("original")
         XCTAssertTrue(text("폴더: Pictures/DZlog/moved/pair/original/").waitForExistence(timeout: 10))
         XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
+
+        // Leave only the linked original in pair, then reopen the parent from the root.
+        tapButton("상위 폴더")
+        tapButton("선택")
+        tapButton("전체 선택")
+        XCTAssertTrue(text("선택 1개").waitForExistence(timeout: 10))
+        tapButton("선택 이동")
+        tapPanelText("DZlog")
+        tapButton("사진만")
+        tapButton("다음")
+        tapButton("이동")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/").waitForExistence(timeout: 20))
+        tapButton("moved")
+        tapButton("pair")
+        XCTAssertTrue(text("폴더: Pictures/DZlog/moved/pair/").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@", "original")).firstMatch.exists)
+        tapPanelText("갤러리 사진 미리보기")
+        tapButton("사진 정보")
+        XCTAssertTrue(text("사진 종류: 원본").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("폴더: Pictures/DZlog/moved/pair/original/").exists)
     }
 
     func testGalleryFavoriteAndEmptyFolderManagementPersist() {

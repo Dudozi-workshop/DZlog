@@ -93,7 +93,7 @@ object GalleryFolderIndexPolicy {
             if (!path.startsWith(current) || path == current) continue
             val child = path.removePrefix(current).substringBefore('/')
             if (child.isNotBlank() && !child.equals("original", ignoreCase = true)) {
-                folderTotals.putIfAbsent(child, 0)
+                folderTotals.getOrPut(child) { 0 }
             }
         }
 

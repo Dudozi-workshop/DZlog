@@ -1,8 +1,8 @@
 package com.dudoziworkshop.dzlog.feature.log.policy
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class GalleryFolderIndexTest {
     @Test

@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.poc
 
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderDeleteScope
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -60,7 +61,7 @@ import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.create
 
-private const val GALLERY_ROOT = "Pictures/DZlog/"
+private const val GALLERY_ROOT = GalleryFolderIndexPolicy.ROOT
 
 /** Browses the app's indexed Photos assets; logical folders never rename Photos resources. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -148,7 +149,14 @@ internal fun IosPhotoKitGalleryScreen(
         defaultStorageView -> SavedGalleryEntryPolicy.defaultPhotos(photos)
         else -> photos
     }
-    val folderPhotos = scopedPhotos.filter { folder == null || it.asset.target.relativePath == folder }
+    val currentFolder = folder
+    val showOriginalsHere = remember(currentFolder, photos, folders) {
+        currentFolder != null && GalleryFolderIndexPolicy.showsOriginalsDirectly(
+            GalleryFolderIndexPolicy.index(currentFolder, photos.map { it.asset.target.relativePath }, folders),
+        )
+    }
+    val photoFolder = currentFolder?.let { if (showOriginalsHere) it + "original/" else it }
+    val folderPhotos = scopedPhotos.filter { photoFolder == null || it.asset.target.relativePath == photoFolder }
     val visible = effectivePhotoSort.sorted(folderPhotos.filter { entry ->
         !favoritesOnly || entry.asset.assetId in favorites
     })
@@ -239,9 +247,12 @@ internal fun IosPhotoKitGalleryScreen(
             }
         }
     }.sorted()
-    val currentFolder = folder
-    val childFolders = currentFolder?.let {
-        savedGalleryChildFolders(it, destinations, photos, folderFilter, folderSort)
+    val childFolders = currentFolder?.let { parent ->
+        val children = savedGalleryChildFolders(parent, destinations, photos, folderFilter, folderSort)
+        // Older iOS libraries may have custom descendants inside original/. Keep those reachable.
+        if (showOriginalsHere && destinations.none { path -> path != photoFolder && path.startsWith(parent + "original/") }) {
+            children.filterNot { child -> child.path == photoFolder }
+        } else children
     }.orEmpty()
 
     val scopeIds = remember(resultCaptureIds) { resultCaptureIds?.toSet() }
@@ -411,7 +422,7 @@ internal fun IosPhotoKitGalleryScreen(
             refresh()
         }
     }
-    LaunchedEffect(photos, folder, favoritesOnly, favorites, viewer, photoSort) {
+    LaunchedEffect(visible, viewer) {
         // A viewer can intentionally show the other capture companion outside
         // the filter. Reconcile the list preview when returning to the list.
         if (viewer) return@LaunchedEffect
@@ -776,7 +787,7 @@ internal fun IosPhotoKitGalleryScreen(
                             }
                             TextButton(enabled = !managing && !refreshing, onClick = { pendingScrollAnchor = captureScrollAnchor(); grid = !grid }) { Text(if (grid) "목록 보기" else "그리드 보기") }
                             if (folder != null && folder != GALLERY_ROOT) TextButton(enabled = !managing && !refreshing, onClick = {
-                                folder = folder!!.trimEnd('/').substringBeforeLast('/') + "/"
+                                folder = currentFolder?.let(GalleryFolderIndexPolicy::parentOf)
                             }) { Text("상위 폴더") }
                         }
                         if (folder == null && !recentView && !favoritesOnly && !selecting) {
