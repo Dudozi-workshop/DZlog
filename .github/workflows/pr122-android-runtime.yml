@@ -20,49 +20,31 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
       - name: Enable emulator KVM
-        if: github.event.head_commit.message != 'Prepare PR 122 device QA APK'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Restore the verified source revision's debug APK
-        id: qa-apk
-        uses: actions/cache/restore@v4
-        with:
-          path: app/build/outputs/apk/debug/app-debug.apk
-          key: pr122-runtime-apk-ubuntu-57d5c7c1-1000002-v1
-      - name: Build PR 122 isolated QA APK
-        if: steps.qa-apk.outputs.cache-hit != 'true'
-        run: bash ./gradlew --no-daemon :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=rename122fix -PdzlogDebugVersionCode=1000002
-      - name: Cache this source revision's QA APK
-        if: steps.qa-apk.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: app/build/outputs/apk/debug/app-debug.apk
-          key: pr122-runtime-apk-ubuntu-57d5c7c1-1000002-v1
+      - name: Run unit tests and build isolated QA APK
+        run: bash ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug -PdzlogStandaloneQa=true -PdzlogQaInstanceTag=rename122ui -PdzlogDebugVersionCode=1000003
       - name: Verify device QA APK and stage download
-        if: github.event.head_commit.message == 'Prepare PR 122 device QA APK'
         run: |
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$build_tools/apksigner" verify --verbose "$apk"
           "$build_tools/aapt" dump badging "$apk" > qa-apk-badging.txt
-          grep -F "name='com.dudoziworkshop.dzlog.qa.rename122fix' versionCode='1000002'" qa-apk-badging.txt
+          grep -F "name='com.dudoziworkshop.dzlog.qa.rename122ui' versionCode='1000003'" qa-apk-badging.txt
           mkdir -p device-qa-download
-          cp "$apk" device-qa-download/DZlog-PR122-QA-57d5c7c1.apk
-          (cd device-qa-download && sha256sum DZlog-PR122-QA-57d5c7c1.apk > SHA256SUMS)
-          cat device-qa-download/SHA256SUMS
+          cp "$apk" device-qa-download/DZlog-PR122-QA-014adfc9.apk
+          (cd device-qa-download && sha256sum DZlog-PR122-QA-014adfc9.apk > SHA256SUMS)
       - name: Upload device QA APK
-        if: github.event.head_commit.message == 'Prepare PR 122 device QA APK'
         uses: actions/upload-artifact@v4
         with:
-          name: DZlog-PR122-QA-57d5c7c1
+          name: DZlog-PR122-QA-014adfc9
           path: device-qa-download/
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
       - name: Verify rename on Android 16
-        if: github.event.head_commit.message != 'Prepare PR 122 device QA APK'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
@@ -74,7 +56,7 @@ jobs:
           emulator-boot-timeout: 600
           script: python3 -u .github/scripts/pr122_gallery_rename_runtime.py
       - name: Upload runtime QA evidence
-        if: ${{ always() && github.event.head_commit.message != 'Prepare PR 122 device QA APK' }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pr122-android-runtime

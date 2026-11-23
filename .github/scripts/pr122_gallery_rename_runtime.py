@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 repo = Path.cwd()
 base = Path(os.environ.get('DZLOG_QA_OUTPUT', 'pr122-android-evidence')).resolve()
 apk=repo/'app/build/outputs/apk/debug/app-debug.apk'
-pkg='com.dudoziworkshop.dzlog.qa.rename122fix'
+pkg='com.dudoziworkshop.dzlog.qa.rename122ui'
 out=base/'runtime-evidence'
 out.mkdir(parents=True, exist_ok=True)
 os.chdir(out)
@@ -202,12 +202,45 @@ def configure_compact_ui():
     poll_ui(selector('앨범 보기','앨범 보기 >'))
 
 
-def position_preview(replacement='leaf'):
+def open_rename_editor():
     tap('앨범 보기','앨범 보기 >')
     tap('PR122QA')
     tap('선택')
     tap('전체 선택')
     tap('이름 변경')
+
+
+def check_rename_inputs():
+    open_rename_editor()
+    root = poll_ui(selector('Draper · 2'))[0]
+    assert sum(label(node) == 'Draper · 2' for node in root.iter('node')) == 1
+    assert not any(label(node) == 'Draper' for node in root.iter('node'))
+    checkpoint('00-exact-cleanup')
+
+    tap('직접 입력')
+    poll_ui(selector('찾을 문구'))
+    checkpoint('00-literal')
+    tap('여러 문구 통합')
+    root = poll_ui(selector('통합할 새 문구'))[0]
+    assert not journey.contains(root, '문구 검색')
+    tap('통합할 새 문구')
+    shell('input','text','Cultivar')
+    shell('input','keyevent','KEYCODE_BACK')
+    tap('Draper')
+    tap('Duke')
+    poll_ui(selector('2개 선택'))
+    checkpoint('01-merge-selected')
+    tap('미리보기',check_nav=True)
+    poll_ui(selector('이름 변경 미리보기'))
+    tap('뒤로',check_nav=True)
+    tap('뒤로',check_nav=True)
+    poll_ui(selector('사진 이름 일괄 변경'))
+    print('PASS compact exact suggestions, direct input and merge selection',flush=True)
+
+
+def position_preview(replacement='leaf', open_editor=True):
+    if open_editor:
+        open_rename_editor()
     tap('같은 위치')
     tap_matching(lambda n: label(n).startswith('2. '))
     tap('새 문구')
@@ -260,7 +293,8 @@ def main():
         print('PASS real MediaStore PNG fixture index',flush=True)
         onboarding()
         configure_compact_ui()
-        position_preview()
+        check_rename_inputs()
+        position_preview(open_editor=False)
         write_permission(False)
         assert_media(hashes)
         print('PASS Android denied edit: all fixture paths and bytes unchanged',flush=True)
