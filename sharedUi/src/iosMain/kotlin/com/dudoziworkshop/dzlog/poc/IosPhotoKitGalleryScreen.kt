@@ -318,6 +318,22 @@ internal fun IosPhotoKitGalleryScreen(
     folderAction?.let { action ->
         var deletion by remember(action, folderTarget) { mutableStateOf<PhotoKitFolderDeletion?>(null) }
         var inspection by remember(action, folderTarget) { mutableIntStateOf(0) }
+        var pickingFolder by remember(action, folderTarget) { mutableStateOf(action == "move") }
+        var browsePath by remember(action, folderTarget) { mutableStateOf(GALLERY_ROOT) }
+        if (action == "move" && pickingFolder) {
+            val catalog = rememberMoveCatalog(repository, photoScopeVersion, inspection)
+            val snapshot = catalog?.getOrNull()
+            IosGalleryMoveDestinationPicker(
+                path = browsePath, photos = snapshot?.first.orEmpty(), folders = snapshot?.second.orEmpty(),
+                movingFolder = folderTarget, loading = catalog == null,
+                error = catalog?.exceptionOrNull()?.let { it.message ?: "이동할 폴더를 불러오지 못했습니다." },
+                onNavigate = { browsePath = it }, onRetry = { inspection++ },
+                onCancel = { if (folderDestination == null) folderAction = null else pickingFolder = false },
+                onChoose = { folderDestination = browsePath; folderError = null; pickingFolder = false },
+                thumbnail = { entry -> galleryThumbnail(entry, repository, thumbnails, photoScopeVersion) },
+            )
+            return@let
+        }
         if (action == "delete") {
             LaunchedEffect(folderTarget, inspection) {
                 try {
@@ -353,26 +369,16 @@ internal fun IosPhotoKitGalleryScreen(
                         }
                     }
                     else if (action == "move") {
-                        Text("하위 폴더와 사진을 함께 옮깁니다. 다음 촬영의 저장 경로는 현재 설정을 따릅니다.")
-                        val eligible = remember(destinations, folderTarget) {
-                            val occupied = destinations.mapTo(mutableSetOf()) { it.lowercase() }
-                            destinations.filter { parent ->
-                                val target = runCatching { GalleryFolderMovePolicy.movedPath(folderTarget, parent) }.getOrNull()
-                                target != null && target.lowercase() !in occupied
-                            }
-                        }
-                        if (eligible.isEmpty()) Text("이동할 수 있는 다른 폴더가 없습니다.")
-                        LazyColumn(Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
-                            items(eligible, key = { it }) { parent ->
-                                Row(Modifier.fillMaxWidth().clickable(enabled = !managing) {
-                                    folderDestination = parent
-                                    folderError = null
-                                }, verticalAlignment = Alignment.CenterVertically) {
-                                    RadioButton(selected = folderDestination == parent, onClick = null)
-                                    Text(parent)
-                                }
-                            }
-                        }
+                        val destination = checkNotNull(folderDestination)
+                        Text("현재 경로")
+                        Text(folderTarget)
+                        Text("이동 후 경로")
+                        Text(GalleryFolderMovePolicy.movedPath(folderTarget, destination))
+                        Text("사진·원본·하위 폴더도 함께 이동합니다. 다음 촬영의 저장 경로는 현재 설정을 따릅니다.")
+                        TextButton(enabled = !managing, onClick = {
+                            browsePath = destination
+                            pickingFolder = true
+                        }) { Text("이동 위치 변경") }
                     }
                     else OutlinedTextField(value = folderName, onValueChange = { folderName = it; folderError = null },
                         // Compose's iOS dialog bridge can expose an empty field as
@@ -399,11 +405,18 @@ internal fun IosPhotoKitGalleryScreen(
                                 folderTarget.trimEnd('/').substringBeforeLast('/') + "/"
                             }
                         }
-                        photos = readScopedPhotos()
-                        folders = repository.listGalleryFolders()
-                        favorites = repository.favoriteGalleryAssetIds()
                         operationMessage = when (action) { "create" -> "폴더를 생성했습니다."; "rename" -> "폴더 이름을 변경했습니다."; "move" -> "폴더를 이동했습니다."; else -> "폴더를 삭제했습니다." }
                         folderAction = null
+                        try {
+                            photos = readScopedPhotos()
+                            folders = repository.listGalleryFolders()
+                            favorites = repository.favoriteGalleryAssetIds()
+                            loadError = null
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            loadError = "폴더 변경 후 갤러리 조회 실패: ${error.message}"
+                        }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
@@ -530,18 +543,7 @@ internal fun IosPhotoKitGalleryScreen(
         var browsePath by remember(targetIds) { mutableStateOf(GALLERY_ROOT) }
         var retry by remember(targetIds) { mutableIntStateOf(0) }
         // Quick results only contain the current captures. A move needs the entire gallery.
-        val catalog by produceState<Result<Pair<List<SavedCaptureMedia>, List<String>>>?>(
-            null, targetIds, photoScopeVersion, retry,
-        ) {
-            value = null
-            value = try {
-                Result.success(repository.listSavedAssets() to repository.listGalleryFolders())
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Result.failure(error)
-            }
-        }
+        val catalog = rememberMoveCatalog(repository, photoScopeVersion, retry)
         val snapshot = catalog?.getOrNull()
         if (destination == null || snapshot == null) {
             IosGalleryMoveDestinationPicker(
@@ -1073,6 +1075,27 @@ private fun IosGalleryAnimatedPager(
             })
         }
     }
+}
+
+@Composable
+private fun rememberMoveCatalog(
+    repository: PhotoKitCaptureMediaRepository,
+    photoScopeVersion: Int,
+    retry: Int,
+): Result<Pair<List<SavedCaptureMedia>, List<String>>>? {
+    val catalog by produceState<Result<Pair<List<SavedCaptureMedia>, List<String>>>?>(
+        null, repository, photoScopeVersion, retry,
+    ) {
+        value = null
+        value = try {
+            Result.success(repository.listSavedAssets() to repository.listGalleryFolders())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+    return catalog
 }
 
 @Composable

@@ -90,10 +90,7 @@ internal class PhotoKitCaptureMediaIndex(
 
     fun moveFolder(path: String, destination: String): String {
         check(pending().isEmpty()) { "이전 촬영을 먼저 복구해 주세요." }
-        val indexedFolders = folders()
-        require(path in indexedFolders && destination in indexedFolders) { "선택한 폴더를 찾을 수 없습니다." }
-        val replacement = GalleryFolderMovePolicy.movedPath(path, destination)
-        require(indexedFolders.none { it.equals(replacement, ignoreCase = true) }) { "대상 위치에 같은 이름의 폴더가 있습니다." }
+        val replacement = GalleryFolderMovePolicy.checkedMovedPath(path, destination, folders())
         return relocateFolder(path, replacement)
     }
 

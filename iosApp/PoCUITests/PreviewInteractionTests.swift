@@ -932,6 +932,58 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("폴더: Pictures/DZlog/moved/pair/original/").exists)
     }
 
+    func testFolderMoveChoosesDestinationBeforeCommittingSubtree() {
+        configureCaptureFixture("둘 다", merged: true)
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        let root = "Pictures/DZlog/"
+        func createFolder(_ name: String, under parent: String) {
+            tapButton("폴더 생성")
+            tapPanelText("폴더 이름")
+            typeWithVisibleKeyboard(name)
+            tapButton("저장")
+            XCTAssertTrue(text("폴더: " + parent + name + "/").waitForExistence(timeout: 20))
+        }
+        createFolder("target", under: root)
+        tapButton("상위 폴더")
+        createFolder("source", under: root)
+        createFolder("child", under: root + "source/")
+        tapButton("상위 폴더")
+
+        tapButton("폴더 이동")
+        XCTAssertTrue(text("이미 같은 위치에 있는 폴더입니다.").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("이 위치로 이동").isEnabled)
+        tapPanelText("target")
+        tapButton("이 위치로 이동")
+        XCTAssertTrue(text(root + "target/source/").waitForExistence(timeout: 10))
+        tapButton("이동 위치 변경")
+        tapButton("DZlog")
+        tapButton("취소")
+        XCTAssertTrue(text(root + "target/source/").waitForExistence(timeout: 10))
+        tapButton("취소")
+        XCTAssertTrue(text("폴더: " + root + "source/").waitForExistence(timeout: 10))
+        XCTAssertTrue(button("child").exists)
+
+        tapButton("폴더 이동")
+        tapPanelText("target")
+        tapButton("이 위치로 이동")
+        tapButton("이동")
+        XCTAssertTrue(text("폴더: " + root + "target/source/").waitForExistence(timeout: 20))
+        tapButton("child")
+        XCTAssertTrue(text("폴더: " + root + "target/source/child/").waitForExistence(timeout: 10))
+        app.terminate()
+        app.launchArguments = configuredArguments(merged: true)
+        app.launch()
+        tapButton("갤러리 열기")
+        tapButton("폴더 보기")
+        XCTAssertTrue(button("target").exists)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@", "source")).firstMatch.exists)
+        tapButton("target")
+        tapButton("source")
+        tapButton("child")
+        XCTAssertTrue(text("폴더: " + root + "target/source/child/").waitForExistence(timeout: 10))
+    }
+
     func testGalleryFavoriteAndEmptyFolderManagementPersist() {
         configureCaptureFixture("둘 다", merged: true)
         tapButton("촬영 저장")

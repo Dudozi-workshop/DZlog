@@ -23,6 +23,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderMovePolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderNamePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -32,7 +33,8 @@ internal fun IosGalleryMoveDestinationPicker(
     path: String,
     photos: List<SavedCaptureMedia>,
     folders: List<String>,
-    selectedIds: Set<String>,
+    selectedIds: Set<String> = emptySet(),
+    movingFolder: String? = null,
     loading: Boolean,
     error: String?,
     onNavigate: (String) -> Unit,
@@ -54,12 +56,16 @@ internal fun IosGalleryMoveDestinationPicker(
         val photoPath = if (inlineOriginals) path + "original/" else path
         SavedGalleryPhotoSort.NEWEST.sorted(photos.filter { it.asset.target.relativePath == photoPath })
     }
-    val children = remember(path, folders, photos, filter, sort) {
+    val children = remember(path, folders, photos, filter, sort, movingFolder) {
         savedGalleryChildFolders(path, folders, photos, filter, sort)
-            .filterNot { GalleryFolderNamePolicy.isOriginalFolder(it.path) }
+            .filterNot { GalleryFolderNamePolicy.isOriginalFolder(it.path) || (movingFolder != null && it.path.startsWith(movingFolder)) }
     }
-    val validation = remember(photos, selectedIds, path) {
-        runCatching { SavedGalleryMovePolicy.destinations(photos, selectedIds, path, includeOriginals = false) }
+    val validation = remember(photos, selectedIds, path, movingFolder, folders) {
+        runCatching {
+            if (movingFolder == null) SavedGalleryMovePolicy.destinations(photos, selectedIds, path, includeOriginals = false)
+            else GalleryFolderMovePolicy.checkedMovedPath(movingFolder, path, folders)
+            Unit
+        }
     }
     fun back() {
         val parent = GalleryFolderIndexPolicy.parentOf(path)
