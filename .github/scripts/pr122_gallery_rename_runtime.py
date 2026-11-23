@@ -270,14 +270,22 @@ def main():
         assert_media(hashes)
         print('PASS Android approved edit: paired names and bytes verified, excluded photos unchanged',flush=True)
         shell('am','force-stop',pkg)
+        shell('am','start','-W','-n',f'{pkg}/com.dudoziworkshop.dzlog.MainActivity',timeout=80)
+        position_preview('stem')
         shell('wm','set-ignore-orientation-request','true')
         shell('wm','user-rotation','lock','1')
-        shell('am','start','-W','-n',f'{pkg}/com.dudoziworkshop.dzlog.MainActivity',timeout=80)
-        root,_=poll_ui(selector('앨범 보기','앨범 보기 >'))
-        window=bounds(next(root.iter('node')))
-        assert window[2]-window[0]>window[3]-window[1], ('Expected landscape UI',window)
-        position_preview('stem')
+        def landscape_app():
+            for _ in range(12):
+                root = journey.hierarchy()
+                frame = bounds(next(root.iter('node')))
+                if frame[2]-frame[0] > frame[3]-frame[1]:
+                    return root
+                time.sleep(1)
+            raise AssertionError(('Expected landscape UI after rotation',frame))
+        window = landscape_app()
+        print('Landscape rotation applied',bounds(next(window.iter('node'))),flush=True)
         root,node=poll_ui(selector('변경'))
+        assert journey.contains(root,'이름 변경 미리보기'), 'Rename preview was not restored after rotation'
         assert_nav_clear(box(root,node))
         checkpoint('08-landscape-preview')
         assert_media(hashes)
