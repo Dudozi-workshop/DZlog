@@ -94,6 +94,10 @@ internal fun LogGalleryHomeContent(
     onSelectPhoto: (MediaImageItem) -> Unit = {},
     projectAlbums: List<CaptureProject> = emptyList(),
     onOpenProjectAlbum: (String) -> Unit = {},
+    selectedFolderPaths: Set<String> = emptySet(),
+    folderSelectionActive: Boolean = false,
+    onLongPressFolder: (String) -> Unit = {},
+    onSelectFolder: (String) -> Unit = {},
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().tutorialTarget("gallery.tabs")
@@ -236,8 +240,12 @@ internal fun LogGalleryHomeContent(
                         GalleryFolderRow(folder, summary, summary?.coverImageId?.let(imagesById::get),
                             canManage = canManageFolders,
                             onManage = { action -> onManageFolder(folder.relativePath, action) },
+                            selected = folder.relativePath in selectedFolderPaths,
+                            selectionActive = folderSelectionActive,
+                            onLongClick = { onLongPressFolder(folder.relativePath) },
                         ) {
-                            onOpenFolder(folder.relativePath)
+                            if (folderSelectionActive) onSelectFolder(folder.relativePath)
+                            else onOpenFolder(folder.relativePath)
                         }
                     }
                 }
@@ -351,6 +359,7 @@ internal fun GalleryEmptyText(message: String) {
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 internal fun GalleryFolderRow(
     folder: GalleryChildFolder,
     summary: GalleryFolderSummary?,
@@ -359,13 +368,16 @@ internal fun GalleryFolderRow(
     onManage: (String) -> Unit,
     showManagement: Boolean = true,
     detailOverride: String? = null,
+    selected: Boolean = false,
+    selectionActive: Boolean = false,
+    onLongClick: () -> Unit = {},
     onClick: () -> Unit,
 ) {
     var menuExpanded by remember(folder.relativePath) { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth()
             .background(DDZColor.Surface, MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .defaultMinSize(minHeight = DDZLayout.ListItem.CompactMinHeight)
             .padding(horizontal = DDZSpacing.controlGap, vertical = DDZSpacing.itemGap),
         verticalAlignment = Alignment.CenterVertically,
@@ -393,7 +405,9 @@ internal fun GalleryFolderRow(
             }.joinToString(" · ")
             if (details.isNotEmpty()) Text(details, color = DDZColor.TextSecondary, style = DDZTypography.Secondary)
         }
-        if (showManagement) {
+        if (selectionActive) {
+            Checkbox(checked = selected, onCheckedChange = { onClick() })
+        } else if (showManagement) {
         Box {
             IconButton(onClick = { menuExpanded = true },
                 modifier = Modifier.tutorialTarget("gallery.folder-menu-button")) {
