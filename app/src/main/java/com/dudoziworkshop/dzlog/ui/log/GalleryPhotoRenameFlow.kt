@@ -19,12 +19,20 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -65,7 +74,9 @@ import com.dudoziworkshop.dzlog.ui.theme.LocalDDZSpacing
 import com.dudoziworkshop.dzlog.ui.theme.LocalDDZTypography
 
 private enum class RenamePage { Input, Phrases, Advanced, Preview, Resolve }
-private enum class RenameMode { Exact, Position, Literal }
+private enum class RenameMode(val label: String) {
+    Exact("같은 문구"), Position("같은 위치"), Literal("직접 입력"),
+}
 private enum class PreviewFilter(val label: String) {
     All("전체"), Ready("변경 가능"), Excluded("제외"), Unchanged("변경 없음");
 
@@ -105,6 +116,7 @@ internal fun GalleryPhotoRenameFlow(
     val examples = remember(snapshot) { snapshot.groups.map { GalleryPhotoName.parse(it.oldName) } }
     val representative = examples.indexOfFirst { it.components != null }.coerceAtLeast(0)
     val sample = examples[representative]
+    val sampleGroup = snapshot.groups[representative]
     val phrases = remember(examples) {
         examples.flatMap { it.components.orEmpty().distinct() }.groupingBy { it }.eachCount()
             .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
@@ -199,68 +211,86 @@ internal fun GalleryPhotoRenameFlow(
             result != null -> RenameReport(result)
             page == RenamePage.Input -> Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.controlGap),
+                verticalArrangement = Arrangement.spacedBy(spacing.itemGap),
             ) {
-                RenameChoices {
-                    RenameChip(mode != RenameMode.Literal, "구성 선택") {
-                        if (mode == RenameMode.Literal) mode = RenameMode.Exact
-                    }
-                    RenameChip(mode == RenameMode.Literal, "직접 입력") { mode = RenameMode.Literal }
-                }
-                if (mode == RenameMode.Literal) {
-                    RenameField(literal, { literal = it }, "찾을 문구")
-                } else {
-                    RenameChoices {
-                        RenameChip(mode == RenameMode.Exact, "같은 문구") { mode = RenameMode.Exact }
-                        RenameChip(mode == RenameMode.Position, "같은 위치") { mode = RenameMode.Position }
-                    }
-                    Text(snapshot.groups[representative].oldName, style = LocalDDZTypography.current.Body)
-                    RenameChoices {
-                        sample.components.orEmpty().forEachIndexed { index, part ->
-                            val label = if (mode == RenameMode.Position) "${index + 1}. $part" else part
-                            RenameChip(if (mode == RenameMode.Position) position == index else phrase == part, label) {
-                                if (mode == RenameMode.Position) position = index else phrase = part
-                            }
+                RenameModeSelector(mode, onSelect = { mode = it })
+                RenameExample(
+                    before = sampleGroup.oldName,
+                    after = plan?.rows?.firstOrNull { it.group.id == sampleGroup.id }?.proposedName,
+                )
+                when (mode) {
+                    RenameMode.Exact -> {
+                        val counts = remember(phrases) { phrases.associate { it.key to it.value } }
+                        val defaults = remember(sample, counts) {
+                            (sample.components.orEmpty() + counts.keys).distinct().take(4)
                         }
-                        if (mode == RenameMode.Position) {
-                            val maxParts = examples.maxOf { it.components?.size ?: 0 }
-                            for (index in sample.components.orEmpty().size until maxParts) {
-                                RenameChip(position == index, "${index + 1}번째 자리") { position = index }
-                            }
-                        }
-                    }
-                    if (mode == RenameMode.Exact && phrases.isNotEmpty()) {
+                        val shortcuts = if (phrase in counts && phrase !in defaults) {
+                            defaults.dropLast(1) + phrase
+                        } else defaults
                         RenameChoices {
-                            phrases.take(4).forEach { (text, count) ->
-                                RenameChip(phrase == text, "$text · $count") { phrase = text }
+                            shortcuts.forEach { text ->
+                                RenameChip(phrase == text, "$text · ${counts.getValue(text)}") { phrase = text }
                             }
-                            if (phrases.size > 4) TextButton(onClick = { search = ""; page = RenamePage.Phrases }) {
-                                Text("전체 문구")
+                            if (phrases.size > shortcuts.size) {
+                                TextButton(onClick = { search = ""; page = RenamePage.Phrases }) {
+                                    Text("전체 문구")
+                                }
                             }
                         }
                     }
+                    RenameMode.Position -> {
+                        val maxParts = remember(examples) { examples.maxOf { it.components?.size ?: 0 } }
+                        RenameChoices {
+                            repeat(maxParts) { index ->
+                                val part = sample.components?.getOrNull(index)
+                                val label = if (part == null) "${index + 1}번째 자리" else "${index + 1}. $part"
+                                RenameChip(position == index, label) { position = index }
+                            }
+                        }
+                    }
+                    RenameMode.Literal -> RenameField(literal, { literal = it }, "찾을 문구")
                 }
                 RenameField(replacement, { replacement = it },
                     if (mode == RenameMode.Literal) "바꿀 문구 (비우면 삭제)" else "새 문구")
                 if (plan != null) RenameSummary(plan)
                 else RenameHint("선택한 사진 ${snapshot.groups.size}장")
                 if (replacement.isNotEmpty()) validation?.let { RenameHint(it, error = true) }
-                TextButton(onClick = { search = ""; page = RenamePage.Advanced }) { Text("고급 설정") }
+                TextButton(onClick = { search = ""; page = RenamePage.Advanced }) { Text("여러 문구 통합") }
             }
             page == RenamePage.Phrases || page == RenamePage.Advanced -> {
                 val advanced = page == RenamePage.Advanced
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.controlGap)) {
+                val visiblePhrases = remember(phrases, search) {
+                    phrases.filter { (text) -> text.contains(search.trim(), ignoreCase = true) }
+                }
+                LazyColumn {
                     item {
-                        RenameField(search, { search = it }, "문구 검색")
-                        if (advanced) {
-                            RenameField(advancedReplacement, { advancedReplacement = it }, "통합할 새 문구")
-                            RenameHint("${advancedPhrases.size}개 선택 · 두 개 이상 선택")
-                            if (advancedReplacement.isNotEmpty()) validation?.let { RenameHint(it, error = true) }
+                        Column(
+                            Modifier.padding(bottom = spacing.itemGap),
+                            verticalArrangement = Arrangement.spacedBy(spacing.itemGap),
+                        ) {
+                            if (advanced) {
+                                RenameField(advancedReplacement, { advancedReplacement = it }, "통합할 새 문구")
+                                if (advancedReplacement.isNotEmpty() && advancedPhrases.size >= 2) {
+                                    validation?.let { RenameHint(it, error = true) }
+                                }
+                            }
+                            if (phrases.size > 4 || search.isNotBlank()) {
+                                RenameField(search, { search = it }, "문구 검색")
+                            }
+                            if (advanced) RenameHint(
+                                if (advancedPhrases.size >= 2) "${advancedPhrases.size}개 선택"
+                                else "${advancedPhrases.size}개 선택 · 최소 2개",
+                            )
                         }
                     }
-                    items(phrases.filter { (text) -> text.contains(search.trim(), ignoreCase = true) }, key = { it.key }) {
-                        (text, count) ->
-                        RenameChip(if (advanced) text in advancedPhrases else phrase == text, "$text · $count") {
+                    if (visiblePhrases.isEmpty()) item {
+                        RenameHint(if (search.isBlank()) "선택할 문구가 없습니다." else "검색 결과가 없습니다.")
+                    }
+                    items(visiblePhrases, key = { it.key }) { (text, count) ->
+                        RenamePhraseRow(
+                            phrase = text, count = count, multiple = advanced,
+                            selected = if (advanced) text in advancedPhrases else phrase == text,
+                        ) {
                             if (advanced) {
                                 advancedPhrases = ArrayList(if (text in advancedPhrases) advancedPhrases - text
                                     else advancedPhrases + text)
@@ -269,6 +299,7 @@ internal fun GalleryPhotoRenameFlow(
                                 page = RenamePage.Input
                             }
                         }
+                        HorizontalDivider(color = LocalDDZColor.current.Border)
                     }
                 }
             }
@@ -343,6 +374,88 @@ internal fun GalleryPhotoRenameFlow(
                     HorizontalDivider()
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RenameModeSelector(mode: RenameMode, onSelect: (RenameMode) -> Unit) {
+    val colors = LocalDDZColor.current
+    val buttonColors = SegmentedButtonDefaults.colors(
+        activeContainerColor = colors.SelectedSoft,
+        activeContentColor = colors.SelectionEmphasis,
+        activeBorderColor = colors.BorderStrong,
+        inactiveContainerColor = colors.Surface,
+        inactiveContentColor = colors.TextSecondary,
+        inactiveBorderColor = colors.BorderStrong,
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        RenameMode.entries.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = mode == option,
+                onClick = { onSelect(option) },
+                shape = SegmentedButtonDefaults.itemShape(index, RenameMode.entries.size),
+                colors = buttonColors,
+                icon = {},
+            ) {
+                Text(option.label, style = LocalDDZTypography.current.Caption, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenameExample(before: String, after: String?) {
+    val colors = LocalDDZColor.current
+    val spacing = LocalDDZSpacing.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.small,
+        color = colors.AmbientWarm,
+        contentColor = colors.TextPrimary,
+    ) {
+        Column(Modifier.padding(spacing.itemGap), verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            RenameHint("대표 파일")
+            Text(before, style = LocalDDZTypography.current.Body)
+            if (after != null && after != before) {
+                Text("→ $after", color = colors.SelectionEmphasis, style = LocalDDZTypography.current.Body)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenamePhraseRow(
+    phrase: String,
+    count: Int,
+    multiple: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDDZColor.current
+    val spacing = LocalDDZSpacing.current
+    val selection = if (multiple) {
+        Modifier.toggleable(selected, role = Role.Checkbox, onValueChange = { onClick() })
+    } else {
+        Modifier.selectable(selected, role = Role.RadioButton, onClick = onClick)
+    }
+    Surface(color = if (selected) colors.SelectedSoft else colors.Surface) {
+        Row(
+            Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp).then(selection).padding(
+                horizontal = spacing.itemGap, vertical = spacing.xs,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.itemGap),
+        ) {
+            if (multiple) Checkbox(checked = selected, onCheckedChange = null)
+            else RadioButton(selected = selected, onClick = null)
+            Text(
+                phrase, Modifier.weight(1f),
+                style = LocalDDZTypography.current.Body,
+                color = if (selected) colors.SelectionEmphasis else colors.TextPrimary,
+            )
+            RenameHint("${count}장")
         }
     }
 }
