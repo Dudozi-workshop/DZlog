@@ -162,8 +162,17 @@ def onboarding():
             raise AssertionError(('Unexpected onboarding',label(node),sorted(visible)))
         chosen = next(n for n in root.iter('node') if selector(options[0])(n))
         x1,y1,x2,y2 = box(root,chosen)
+        if options[0] == 'Pictures':
+            left,top,right,bottom = bounds(next(root.iter('node')))
+            height = bottom - top
+            if (y1+y2)//2 > top + height*0.72:
+                # Bring the folder above DocumentsUI's bottom button and snackbar.
+                x = str(left + (right-left)//3)
+                shell('input','swipe',x,str(top + height*68//100),x,str(top + height*41//100),'350')
+                print('onboarding: scrolling Android folder picker',flush=True)
+                continue
         shell('input','tap',str((x1+x2)//2),str((y1+y2)//2))
-        print('onboarding:', options[0],flush=True)
+        print('onboarding:', options[0], (x1,y1,x2,y2),flush=True)
     raise AssertionError('onboarding did not reach home')
 
 def prepare_ui():
@@ -172,9 +181,6 @@ def prepare_ui():
     shell('wm','dismiss-keyguard')
     for k in ('window_animation_scale','transition_animation_scale','animator_duration_scale'):
         shell('settings','put','global',k,'0')
-    shell('wm','size','640x1280')
-    shell('wm','density','320')
-    shell('settings','put','system','font_scale','1.35')
     shell('cmd','overlay','enable-exclusive','--user','0','--category','com.android.internal.systemui.navbar.threebutton')
     assert '[x] com.android.internal.systemui.navbar.threebutton' in shell('cmd','overlay','list','--user','0','android')
     adb('install','-r',str(apk),timeout=200)
@@ -182,6 +188,14 @@ def prepare_ui():
     for p in ('android.permission.CAMERA','android.permission.READ_MEDIA_IMAGES'):
         shell('pm','grant',pkg,p)
     shell('am','start','-W','-n',f'{pkg}/com.dudoziworkshop.dzlog.MainActivity',timeout=80)
+
+def configure_compact_ui():
+    shell('wm','size','640x1280')
+    shell('wm','density','320')
+    shell('settings','put','system','font_scale','1.35')
+    shell('settings','put','secure','show_ime_with_hard_keyboard','1')
+    poll_ui(selector('앨범 보기','앨범 보기 >'))
+
 
 def position_preview(replacement='leaf'):
     tap('앨범 보기','앨범 보기 >')
@@ -240,6 +254,7 @@ def main():
         hashes=insert_fixtures()
         print('PASS real MediaStore PNG fixture index',flush=True)
         onboarding()
+        configure_compact_ui()
         position_preview()
         write_permission(False)
         assert_media(hashes)
