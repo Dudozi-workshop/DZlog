@@ -96,8 +96,9 @@ case "$test_scope" in
   media) limit_seconds=2100 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
-  # The 37-test subset alone took 1,963 seconds. The full suite has 50 tests.
-  full) limit_seconds=3900 ;;
+  # The 54-case suite reached case 48 before the former 65-minute cap.
+  # Leave enough time for slower simulator runs without reducing test coverage.
+  full) limit_seconds=5700 ;;
 esac
 python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \

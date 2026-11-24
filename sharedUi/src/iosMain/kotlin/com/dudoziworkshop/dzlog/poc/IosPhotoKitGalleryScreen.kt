@@ -891,7 +891,13 @@ internal fun IosPhotoKitGalleryScreen(
                                     onClick = { shareSelection(selectedBatch.toSet()) }) { Text("선택 공유") }
                             }
                         }
-                        currentFolder?.let { Text("폴더: $it") }
+                        currentFolder?.let { path ->
+                            Text("폴더: $path")
+                            if (!selecting && !defaultStorageView && path != GALLERY_ROOT) {
+                                IosGalleryFolderBreadcrumbs(path, enabled = !managing && !refreshing,
+                                    onNavigate = { folder = it })
+                            }
+                        }
                         currentFolder?.takeUnless { selecting || defaultStorageView }?.let { path ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 GalleryChoiceMenu("폴더 · ${folderFilter.label}", SavedGalleryFolderFilter.entries.map { it.label },
@@ -1206,6 +1212,26 @@ private fun galleryThumbnail(
             }
         }
         bitmap
+    }
+}
+
+@Composable
+private fun IosGalleryFolderBreadcrumbs(path: String, enabled: Boolean, onNavigate: (String) -> Unit) {
+    val crumbs = remember(path) { GalleryFolderIndexPolicy.breadcrumbs(path) }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+        crumbs.forEachIndexed { index, crumb ->
+            if (index > 0) Text("/", color = DDZColor.TextSecondary)
+            val name = if (GalleryFolderNamePolicy.isOriginalFolder(crumb.relativePath)) "원본사진" else crumb.label
+            if (crumb.relativePath == path) {
+                Text(name, modifier = Modifier.padding(horizontal = 8.dp), style = DDZTypography.Caption)
+            } else {
+                TextButton(enabled = enabled, onClick = { onNavigate(crumb.relativePath) },
+                    modifier = Modifier.semantics { contentDescription = "$name 폴더로 이동" },
+                    contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Text(name, style = DDZTypography.Caption, modifier = Modifier.clearAndSetSemantics {})
+                }
+            }
+        }
     }
 }
 

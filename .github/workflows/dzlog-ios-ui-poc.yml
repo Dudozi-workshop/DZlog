@@ -31,8 +31,8 @@ jobs:
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
-    # Allow a cold native build, the 65-minute full XCTest budget, and evidence upload.
-    timeout-minutes: 95
+    # Reserve 35 minutes for cold native setup/build and evidence beyond the 95-minute XCTest cap.
+    timeout-minutes: 130
     steps:
       - uses: actions/checkout@v4
       - name: Select development or full UI scope
