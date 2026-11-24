@@ -8,8 +8,9 @@ import kotlin.test.assertEquals
 
 class SavedGalleryOrderingTest {
     private val root = "Pictures/DZlog/"
-    private fun photo(id: String, name: String, date: Long?, path: String = root) = SavedCaptureMedia(
-        "capture-$id", PersistedCaptureAsset(CaptureMediaTarget(CaptureMediaRole.ORIGINAL, path, name), id),
+    private fun photo(id: String, name: String, date: Long?, path: String = root,
+        role: CaptureMediaRole = CaptureMediaRole.ORIGINAL) = SavedCaptureMedia(
+        "capture-$id", PersistedCaptureAsset(CaptureMediaTarget(role, path, name), id),
         CaptureMediaAvailability.PRESENT, date,
     )
     private fun List<SavedCaptureMedia>.ids() = map { it.asset.assetId }
@@ -40,6 +41,28 @@ class SavedGalleryOrderingTest {
         assertEquals(listOf("a/", "ab/", "empty/"), result.map { it.path.removePrefix(root) })
         assertEquals(listOf(1, 1, 0), result.map { it.photoCount })
         assertEquals(listOf(100L, 200L, null), result.map { it.latestPhotoMillis })
+    }
+
+    @Test fun coversPreferReadableDirectResultsThenNestedResultsThenOriginals() {
+        val parent = root + "a/"
+        val nested = parent + "child/"
+        val direct = photo("direct", "direct.jpg", 10, parent, CaptureMediaRole.RESULT)
+        val newer = photo("nested", "nested.jpg", 20, nested, CaptureMediaRole.RESULT)
+        val original = photo("original", "original.jpg", 30, parent + "original/")
+        val photos = listOf(original, newer, direct, direct)
+        fun folder(entries: List<SavedCaptureMedia>) = savedGalleryChildFolders(root,
+            listOf(nested, parent + "empty/deep/", parent + "original/"), entries,
+            SavedGalleryFolderFilter.ALL, SavedGalleryFolderSort.NAME).single()
+
+        val summary = folder(photos)
+        assertEquals(3, summary.photoCount)
+        assertEquals(1, summary.counts.originalPhotoCount)
+        assertEquals(2, summary.counts.directChildFolderCount)
+        assertEquals(direct, summary.cover)
+        val unavailable = direct.copy(availability = CaptureMediaAvailability.INACCESSIBLE)
+        assertEquals(newer, folder(listOf(unavailable, newer, original)).cover)
+        assertEquals(original, folder(listOf(unavailable, original)).cover)
+        assertEquals(null, folder(listOf(unavailable)).cover)
     }
 
     @Test fun folderFiltersAndRecentSortKeepEmptyAndUnknownDatesLast() {

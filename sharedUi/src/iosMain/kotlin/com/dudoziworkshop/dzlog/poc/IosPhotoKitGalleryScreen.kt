@@ -30,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.*
@@ -39,6 +40,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -260,7 +265,9 @@ internal fun IosPhotoKitGalleryScreen(
         }
     }.sorted()
     val childFolders = currentFolder?.let { parent ->
-        val children = savedGalleryChildFolders(parent, destinations, photos, folderFilter, folderSort)
+        val children = remember(parent, destinations, photos, folderFilter, folderSort) {
+            savedGalleryChildFolders(parent, destinations, photos, folderFilter, folderSort)
+        }
         // Older iOS libraries may have custom descendants inside original/. Keep those reachable.
         if (showOriginalsHere && destinations.none { path -> path != photoFolder && path.startsWith(parent + "original/") }) {
             children.filterNot { child -> child.path == photoFolder }
@@ -461,7 +468,7 @@ internal fun IosPhotoKitGalleryScreen(
                     }
                     finally { managing = false }
                 }
-            }) { Text(when (action) { "delete" -> "삭제"; "move" -> "이동"; "rename" -> "이름 변경"; else -> "저장" }) } },
+            }) { Text(when (action) { "delete" -> "삭제"; "move" -> "이동"; "rename" -> "변경 확정"; else -> "저장" }) } },
             dismissButton = { TextButton(enabled = !managing, onClick = { folderAction = null }) { Text("취소") } })
     }
     var refreshedScope by remember { mutableIntStateOf(-1) }
@@ -924,15 +931,37 @@ internal fun IosPhotoKitGalleryScreen(
                         }
                         loadError?.let { Text(it) }
                         operationMessage?.let { Text(it) }
-                        if (!selecting && !defaultStorageView && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = 100.dp)) {
+                        if (!selecting && !defaultStorageView && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = DDZLayout.ListItem.CompactMinHeight * 2)) {
                             items(childFolders, key = { it.path }) { summary ->
                                 val label = summary.path.trimEnd('/').substringAfterLast('/')
                                 val enabled = !managing && !refreshing
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(modifier = Modifier.weight(1f), enabled = enabled, onClick = { folder = summary.path }) {
-                                        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Row(Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    val counts = summary.counts
+                                    val detail = buildList {
+                                        val results = counts.totalPhotoCount - counts.originalPhotoCount
+                                        if (results > 0) add("사진 ${results}장")
+                                        if (counts.originalPhotoCount > 0) add("원본 ${counts.originalPhotoCount}장")
+                                        if (counts.directChildFolderCount > 0) add("하위 폴더 ${counts.directChildFolderCount}개")
+                                    }.joinToString(" · ")
+                                    Row(Modifier.weight(1f).heightIn(min = DDZLayout.ListItem.CompactMinHeight)
+                                        .clickable(enabled = enabled, role = Role.Button) { folder = summary.path }
+                                        .clearAndSetSemantics {
+                                            contentDescription = label
+                                            if (detail.isNotEmpty()) stateDescription = detail
+                                        }, verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val cover = summary.cover?.let { galleryThumbnail(it, repository, thumbnails, photoScopeVersion) }
+                                        Box(Modifier.size(DDZLayout.ListItem.CompactThumbnailSize).clip(MaterialTheme.shapes.small)
+                                            .background(DDZColor.SurfaceSoft), contentAlignment = Alignment.Center) {
+                                            if (cover != null) Image(cover, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                            else Icon(Icons.Default.Folder, null, tint = DDZColor.IconMuted)
+                                        }
+                                        Column {
+                                            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            if (detail.isNotEmpty()) Text(detail, style = DDZTypography.Caption)
+                                        }
                                     }
-                                    Text("사진 기록 ${summary.photoCount}개 · 하위 포함", style = DDZTypography.Caption)
                                     if (!GalleryFolderNamePolicy.isOriginalFolder(summary.path)) {
                                         GalleryFolderRowMenu(summary.path, label, enabled, ::openFolderAction)
                                     }

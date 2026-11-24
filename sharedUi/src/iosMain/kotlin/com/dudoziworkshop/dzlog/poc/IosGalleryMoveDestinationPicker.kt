@@ -119,10 +119,7 @@ internal fun IosGalleryMoveDestinationPicker(
                             }
                             if (children.isEmpty()) item { Text("하위 폴더가 없습니다.") }
                             items(children, key = { it.path }) { child ->
-                                val cover = remember(photos, child.path) { photos.firstOrNull {
-                                    it.asset.target.relativePath.startsWith(child.path) &&
-                                        !GalleryFolderNamePolicy.isOriginalFolder(it.asset.target.relativePath)
-                                } }
+                                val cover = child.cover
                                 Surface(onClick = { onNavigate(child.path) }, color = DDZColor.Surface,
                                     shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                                     Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),

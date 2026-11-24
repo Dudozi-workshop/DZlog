@@ -1,11 +1,5 @@
 package com.dudoziworkshop.dzlog.feature.log.policy
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-
 /**
  * Platform-independent image metadata for gallery folder summaries.
  * Paths refer to actual directory locations, not UI folder labels.
@@ -16,6 +10,7 @@ data class GallerySummaryImage(
     val isOriginal: Boolean,
     val capturedAtMillis: Long? = null,
     val addedAtMillis: Long? = null,
+    val availableForCover: Boolean = true,
 )
 
 data class GalleryFolderSummary(
@@ -52,7 +47,7 @@ object GalleryFolderSummaryPolicy {
 
         // Prefer this folder's results, then descendant results, then originals.
         // The summary already holds the complete snapshot; no extra storage query is needed.
-        val cover = inScope.minWithOrNull(
+        val cover = inScope.asSequence().filter { it.availableForCover }.minWithOrNull(
             compareBy<GallerySummaryImage> {
                 when {
                     it.isOriginal -> 2
@@ -89,18 +84,5 @@ object GalleryFolderSummaryPolicy {
         if (child == parent || !belongsTo(parent, child)) return false
         val remainder = if (parent.isEmpty()) child else child.removePrefix("$parent/")
         return remainder.isNotBlank() && !remainder.contains('/')
-    }
-
-    fun compactDate(
-        epochMillis: Long?,
-        referenceMillis: Long,
-        timeZone: TimeZone,
-    ): String {
-        if (epochMillis == null || epochMillis <= 0L) return "—"
-        val taken = Calendar.getInstance(timeZone).apply { timeInMillis = epochMillis }
-        val reference = Calendar.getInstance(timeZone).apply { timeInMillis = referenceMillis }
-        val pattern = if (taken.get(Calendar.YEAR) == reference.get(Calendar.YEAR)) "MM.dd" else "yy.MM.dd"
-        return SimpleDateFormat(pattern, Locale.KOREA).apply { this.timeZone = timeZone }
-            .format(Date(epochMillis))
     }
 }
