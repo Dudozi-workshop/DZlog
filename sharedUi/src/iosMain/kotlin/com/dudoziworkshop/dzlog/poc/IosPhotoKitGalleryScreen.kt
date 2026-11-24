@@ -167,12 +167,24 @@ internal fun IosPhotoKitGalleryScreen(
         else -> photos
     }
     val currentFolder = folder
-    val showOriginalsHere = remember(currentFolder, photos, folders) {
-        currentFolder != null && GalleryFolderIndexPolicy.showsOriginalsDirectly(
-            GalleryFolderIndexPolicy.index(currentFolder, photos.map { it.asset.target.relativePath }, folders),
-        )
+    val destinations = remember(photos, folders) {
+        buildSet {
+            add(GALLERY_ROOT)
+            addAll(folders)
+            photos.forEach { entry ->
+                var path = entry.asset.target.relativePath
+                while (path.startsWith(GALLERY_ROOT) && path != GALLERY_ROOT) {
+                    add(path)
+                    path = path.trimEnd('/').substringBeforeLast('/') + "/"
+                }
+            }
+        }.sorted()
     }
-    val photoFolder = currentFolder?.let { if (showOriginalsHere) it + "original/" else it }
+    val folderListing = remember(currentFolder, destinations, photos, folderFilter, folderSort) {
+        currentFolder?.let { savedGalleryFolderListing(it, destinations, photos, folderFilter, folderSort) }
+    }
+    val childFolders = folderListing?.childFolders.orEmpty()
+    val photoFolder = currentFolder?.let { if (folderListing?.showsOriginalsDirectly == true) it + "original/" else it }
     val folderPhotos = scopedPhotos.filter { photoFolder == null || it.asset.target.relativePath == photoFolder }
     val visible = effectivePhotoSort.sorted(folderPhotos.filter { entry ->
         !favoritesOnly || entry.asset.assetId in favorites
@@ -253,27 +265,6 @@ internal fun IosPhotoKitGalleryScreen(
         }
     }
     val selected = photos.firstOrNull { it.asset.assetId == selectedId }
-    val destinations = buildSet {
-        add(GALLERY_ROOT)
-        addAll(folders)
-        photos.forEach { entry ->
-            var path = entry.asset.target.relativePath
-            while (path.startsWith(GALLERY_ROOT) && path != GALLERY_ROOT) {
-                add(path)
-                path = path.trimEnd('/').substringBeforeLast('/') + "/"
-            }
-        }
-    }.sorted()
-    val childFolders = currentFolder?.let { parent ->
-        val children = remember(parent, destinations, photos, folderFilter, folderSort) {
-            savedGalleryChildFolders(parent, destinations, photos, folderFilter, folderSort)
-        }
-        // Older iOS libraries may have custom descendants inside original/. Keep those reachable.
-        if (showOriginalsHere && destinations.none { path -> path != photoFolder && path.startsWith(parent + "original/") }) {
-            children.filterNot { child -> child.path == photoFolder }
-        } else children
-    }.orEmpty()
-
     val scopeIds = remember(resultCaptureIds) { resultCaptureIds?.toSet() }
     suspend fun readScopedPhotos(): List<SavedCaptureMedia> = repository.listSavedAssets()
         .filter { scopeIds == null || it.captureId in scopeIds }
@@ -931,6 +922,26 @@ internal fun IosPhotoKitGalleryScreen(
                         }
                         loadError?.let { Text(it) }
                         operationMessage?.let { Text(it) }
+                        if (!selecting && !defaultStorageView) folderListing?.pinnedOriginal?.let { original ->
+                            Row(Modifier.fillMaxWidth().heightIn(min = DDZLayout.ListItem.CompactMinHeight)
+                                .clickable(enabled = !managing && !refreshing, role = Role.Button) { folder = original.path }
+                                .clearAndSetSemantics {
+                                    contentDescription = "원본사진"
+                                    if (original.directPhotoCount > 0) stateDescription = "${original.directPhotoCount}장"
+                                },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(Modifier.size(DDZLayout.ListItem.CompactThumbnailSize)
+                                    .clip(MaterialTheme.shapes.small).background(DDZColor.SurfaceSoft),
+                                    contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Folder, null, tint = DDZColor.Primary)
+                                }
+                                Column {
+                                    Text("원본사진")
+                                    if (original.directPhotoCount > 0) Text("${original.directPhotoCount}장", style = DDZTypography.Caption)
+                                }
+                            }
+                        }
                         if (!selecting && !defaultStorageView && childFolders.isNotEmpty()) LazyColumn(Modifier.fillMaxWidth().heightIn(max = DDZLayout.ListItem.CompactMinHeight * 2)) {
                             items(childFolders, key = { it.path }) { summary ->
                                 val label = summary.path.trimEnd('/').substringAfterLast('/')

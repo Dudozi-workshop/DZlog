@@ -1,6 +1,7 @@
 package com.dudoziworkshop.dzlog.data.media
 
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
+import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderIndexPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummary
 import com.dudoziworkshop.dzlog.feature.log.policy.GalleryFolderSummaryPolicy
 import com.dudoziworkshop.dzlog.feature.log.policy.GallerySummaryImage
@@ -40,6 +41,42 @@ data class SavedGalleryFolderSummary(
 ) {
     val photoCount get() = counts.totalPhotoCount
     val latestPhotoMillis get() = counts.latestPhotoEpochMillis
+}
+
+data class SavedGalleryOriginalFolder(val path: String, val directPhotoCount: Int)
+
+data class SavedGalleryFolderListing(
+    val pinnedOriginal: SavedGalleryOriginalFolder?,
+    val childFolders: List<SavedGalleryFolderSummary>,
+    val showsOriginalsDirectly: Boolean,
+)
+
+/** Like the Android browser, keep the reserved originals entry outside ordinary folder filtering and sorting. */
+fun savedGalleryFolderListing(
+    parent: String,
+    folders: List<String>,
+    photos: List<SavedCaptureMedia>,
+    filter: SavedGalleryFolderFilter,
+    sort: SavedGalleryFolderSort,
+): SavedGalleryFolderListing {
+    val photoPaths = photos.map { it.asset.target.relativePath }
+    val index = GalleryFolderIndexPolicy.index(parent, photoPaths, folders)
+    val inline = GalleryFolderIndexPolicy.showsOriginalsDirectly(index)
+    val originalPath = parent + "original/"
+    // Preserve navigation to custom descendants created by older iOS versions.
+    val hasLegacyChildren = (folders.asSequence() + photoPaths.asSequence())
+        .any { it != originalPath && it.startsWith(originalPath) }
+    val pinned = if (hasLegacyChildren || (!inline && index.directOriginalCount > 0)) {
+        SavedGalleryOriginalFolder(originalPath, index.directOriginalCount)
+    } else null
+    return SavedGalleryFolderListing(
+        pinnedOriginal = pinned,
+        childFolders = savedGalleryChildFolders(parent, folders, photos, filter, sort)
+            // PhotoKit writes the canonical lowercase path. Leave any older,
+            // differently cased entries reachable at their actual recorded path.
+            .filterNot { it.path == originalPath },
+        showsOriginalsDirectly = inline,
+    )
 }
 
 /** Counts indexed photos in the whole subtree, independently of favorite view. */

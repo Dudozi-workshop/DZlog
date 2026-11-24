@@ -77,4 +77,61 @@ class SavedGalleryOrderingTest {
         assertEquals(emptyList(), savedGalleryChildFolders(root + "new/", folders, photos,
             SavedGalleryFolderFilter.ALL, SavedGalleryFolderSort.NAME))
     }
+
+    @Test fun browserPinsOnlyDirectOriginalsBeforeRegularFoldersRegardlessOfControls() {
+        val parent = root + "project/"
+        val original = parent + "original/"
+        val populated = parent + "aaa/"
+        val empty = parent + "zzz/"
+        val photos = listOf(
+            photo("result", "Result.jpg", 10, parent, CaptureMediaRole.RESULT),
+            photo("direct", "Original.jpg", 1, original),
+            photo("child", "Later.jpg", 99, populated, CaptureMediaRole.RESULT),
+            photo("elsewhere", "Elsewhere.jpg", 100, root + "project-other/original/"),
+        )
+        SavedGalleryFolderSort.entries.forEach { sort ->
+            SavedGalleryFolderFilter.entries.forEach { filter ->
+                val listing = savedGalleryFolderListing(parent, listOf(populated, empty), photos, filter, sort)
+                assertEquals(SavedGalleryOriginalFolder(original, 1), listing.pinnedOriginal)
+                assertEquals(false, listing.showsOriginalsDirectly)
+                assertEquals(when (filter) {
+                    SavedGalleryFolderFilter.ALL -> listOf(populated, empty)
+                    SavedGalleryFolderFilter.WITH_PHOTOS -> listOf(populated)
+                    SavedGalleryFolderFilter.EMPTY -> listOf(empty)
+                }, listing.childFolders.map { it.path })
+            }
+        }
+        val originals = savedGalleryFolderListing(original, emptyList(), photos,
+            SavedGalleryFolderFilter.ALL, SavedGalleryFolderSort.NAME)
+        assertEquals(null, originals.pinnedOriginal)
+        assertEquals(false, originals.showsOriginalsDirectly)
+    }
+
+    @Test fun browserKeepsInlineOriginalsAndLegacyDescendantsWithoutAnEmptyReservedRow() {
+        val parent = root + "project/"
+        val original = parent + "original/"
+        val legacy = original + "legacy/"
+        val direct = photo("direct", "Original.jpg", 1, original)
+        fun listing(base: String, folders: List<String>, photos: List<SavedCaptureMedia>) =
+            savedGalleryFolderListing(base, folders, photos, SavedGalleryFolderFilter.EMPTY, SavedGalleryFolderSort.RECENT)
+
+        val inline = listing(parent, listOf(original), listOf(direct))
+        assertEquals(true, inline.showsOriginalsDirectly)
+        assertEquals(null, inline.pinnedOriginal)
+        assertEquals(emptyList(), inline.childFolders)
+        val empty = listing(parent, listOf(original), emptyList())
+        assertEquals(false, empty.showsOriginalsDirectly)
+        assertEquals(null, empty.pinnedOriginal)
+        assertEquals(emptyList(), empty.childFolders)
+        assertEquals(SavedGalleryOriginalFolder(original, 1),
+            listing(parent, listOf(original, legacy), listOf(direct)).pinnedOriginal)
+        val legacyPhoto = photo("legacy", "Legacy.jpg", 2, legacy)
+        assertEquals(SavedGalleryOriginalFolder(original, 0),
+            listing(parent, emptyList(), listOf(legacyPhoto)).pinnedOriginal)
+        assertEquals(listOf(legacy), listing(original, listOf(legacy), emptyList()).childFolders.map { it.path })
+        val legacyCase = parent + "Original/"
+        assertEquals(listOf(legacyCase), listing(parent, listOf(legacyCase), emptyList()).childFolders.map { it.path })
+        assertEquals(SavedGalleryOriginalFolder(root + "original/", 1),
+            listing(root, emptyList(), listOf(photo("root", "Root.jpg", 1, root + "original/"))).pinnedOriginal)
+    }
 }
