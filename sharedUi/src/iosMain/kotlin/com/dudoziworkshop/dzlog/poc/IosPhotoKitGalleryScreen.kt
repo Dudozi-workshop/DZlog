@@ -29,10 +29,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -812,22 +810,14 @@ internal fun IosPhotoKitGalleryScreen(
                                 color = DDZColor.Primary,
                                 textAlign = TextAlign.Center,
                             )
-                            Box(
-                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
-                                    .background(DDZColor.Card)
-                                    .border(1.dp, DDZColor.Border, RoundedCornerShape(14.dp))
-                                    .clickable(enabled = !managing && !refreshing) {
-                                        favoritesOnly = !favoritesOnly
-                                    },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = if (favoritesOnly) Icons.Default.GridView else Icons.Default.FavoriteBorder,
-                                    contentDescription = if (favoritesOnly) "전체 보기" else "좋아요만 보기",
-                                    tint = DDZColor.Primary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
+                            Spacer(Modifier.size(40.dp))
+                        }
+                        IosGalleryScopeTabs(
+                            favoritesOnly = favoritesOnly,
+                            enabled = !managing && !refreshing && selectedBatch.isEmpty(),
+                        ) { favorite ->
+                            favoritesOnly = favorite
+                            batchSelection = emptySet()
                         }
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1077,6 +1067,29 @@ private fun IosGalleryCounterBadge(label: String, modifier: Modifier = Modifier)
         contentAlignment = Alignment.Center,
     ) {
         Text(label, style = DDZTypography.Caption, color = Color.White, maxLines = 1)
+    }
+}
+
+@Composable
+private fun IosGalleryScopeTabs(favoritesOnly: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(DDZColor.SurfaceSoft, MaterialTheme.shapes.medium)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        listOf(false to "전체", true to "즐겨찾기").forEach { (favorite, label) ->
+            val active = favoritesOnly == favorite
+            TextButton(
+                onClick = { onChange(favorite) },
+                enabled = enabled,
+                modifier = Modifier.weight(1f).background(
+                    if (active) DDZColor.Surface else DDZColor.SurfaceSoft,
+                    MaterialTheme.shapes.small,
+                ),
+            ) {
+                Text(label, color = if (active) DDZColor.TextPrimary else DDZColor.TextSecondary)
+            }
+        }
     }
 }
 

@@ -819,9 +819,9 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("선택 이동")
         XCTAssertTrue(text("이동할 위치 선택").waitForExistence(timeout: 10))
         tapButton("취소")
-        tapButton("좋아요만 보기")
+        tapButton("즐겨찾기")
         XCTAssertTrue(text("선택 0개").waitForExistence(timeout: 10), "Hidden selections must not survive a filter change")
-        tapButton("전체 보기")
+        tapButton("전체")
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10), "Cancelling batch dialogs must keep both Photos assets")
         XCTAssertTrue(text("선택 0개").exists)
         tapButton("선택 취소")
@@ -1130,7 +1130,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton(app.buttons.matching(NSPredicate(format: "label == %@", "원본 보기")).firstMatch.exists ? "원본 보기" : "결과 보기")
         XCTAssertTrue(button("☆ 즐겨찾기").waitForExistence(timeout: 10))
         tapButton("사진 목록")
-        tapButton("좋아요만 보기")
+        tapButton("즐겨찾기")
         XCTAssertTrue(text("사진 1개").waitForExistence(timeout: 10))
         XCTAssertTrue(text("갤러리 사진 미리보기").waitForExistence(timeout: 30))
         tapPanelText("갤러리 사진 미리보기")
@@ -1149,7 +1149,7 @@ final class PreviewInteractionTests: XCTestCase {
         app.launchArguments = configuredArguments(merged: true)
         app.launch()
         tapButton("갤러리 열기")
-        tapButton("좋아요만 보기")
+        tapButton("즐겨찾기")
         let favoriteThumbnail = app.descendants(matching: .any).matching(NSPredicate(
             format: "label == %@ OR label BEGINSWITH %@", "사진 썸네일", "사진 썸네일\n"
         )).firstMatch
@@ -1194,7 +1194,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(text("즐겨찾기한 사진이 없습니다.").waitForExistence(timeout: 10))
         XCTAssertFalse(text("사진이 없습니다.").exists)
         XCTAssertFalse(text("갤러리 사진 미리보기").exists)
-        tapButton("전체 보기")
+        tapButton("전체")
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10))
         XCTAssertFalse(text("즐겨찾기한 사진이 없습니다.").exists)
         XCTAssertFalse(text("사진이 없습니다.").exists)
