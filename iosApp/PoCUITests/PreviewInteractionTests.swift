@@ -684,6 +684,7 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("촬영 저장")
         XCTAssertTrue(waitForPhotoState("상태: 설정대로 저장 완료"))
         tapButton("갤러리 열기")
+        XCTAssertTrue(text("자동번호 12").waitForExistence(timeout: 20))
         tapButton("최근 촬영")
         XCTAssertTrue(text("최근 촬영 · 전체 사진 최신순").waitForExistence(timeout: 10))
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10))

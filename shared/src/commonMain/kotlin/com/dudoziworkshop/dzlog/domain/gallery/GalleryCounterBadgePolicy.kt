@@ -1,12 +1,6 @@
 package com.dudoziworkshop.dzlog.domain.gallery
 
-/**
- * Presentation-only counter badges. Never changes filenames or counter state.
- *
- * Capture-session photos should supply the counter saved at capture time via
- * [labelForVerifiedCounter]. Historical MediaStore images lack that receipt,
- * so a deliberately conservative DZlog filename fallback is used.
- */
+/** Presentation-only counter badges. Never changes filenames or counter state. */
 object GalleryCounterBadgePolicy {
     fun labelForVerifiedCounter(counter: Int?, enabled: Boolean): String? {
         if (!enabled) return null
@@ -18,9 +12,8 @@ object GalleryCounterBadgePolicy {
     private val fullDatePrefix = Regex(".*(?:^|_)(?:19|20)[0-9]{2}_[01]?[0-9]_[0-3]?[0-9]$")
 
     /**
-     * Fallback for historical DZlog JPGs only.
-     * No badge is shown for an unrecognizable or likely date-derived suffix.
-     * Even a convention match is not proof for a manually renamed photo.
+     * Fallback for historical DZlog JPGs only. Date-shaped suffixes and names
+     * outside the app folder remain unlabeled because they are not counters.
      */
     fun labelFromDzlogFilename(displayName: String, relativePath: String, enabled: Boolean): String? {
         if (!enabled) return null
@@ -32,7 +25,6 @@ object GalleryCounterBadgePolicy {
         val rawNumber = match.groupValues[2]
         if (prefix.isBlank() || prefix.all { it.isDigit() }) return null
 
-        // 202610 may mean YYYYMM; Sample_2026_10_16.jpg may mean a date.
         if (rawNumber.length == 6) {
             val year = rawNumber.take(4).toIntOrNull()
             val month = rawNumber.takeLast(2).toIntOrNull()

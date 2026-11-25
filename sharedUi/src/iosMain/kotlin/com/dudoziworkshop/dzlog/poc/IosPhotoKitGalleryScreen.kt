@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
+import com.dudoziworkshop.dzlog.domain.gallery.GalleryCounterBadgePolicy
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -1026,6 +1028,11 @@ internal fun IosPhotoKitGalleryScreen(
                                 Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface), contentAlignment = Alignment.Center) {
                                     if (thumbnail != null) Image(thumbnail, "사진 썸네일", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                     else Text(if (entry.availability == CaptureMediaAvailability.PRESENT) "사진" else "접근 불가")
+                                    GalleryCounterBadgePolicy.labelFromDzlogFilename(
+                                        entry.asset.target.displayName,
+                                        entry.asset.target.relativePath,
+                                        enabled = true,
+                                    )?.let { label -> IosGalleryCounterBadge(label, Modifier.align(Alignment.BottomStart).padding(5.dp)) }
                                 }
                                 Text((if (entry.asset.assetId in favorites) "★ " else "") +
                                     if (entry.asset.target.role == CaptureMediaRole.RESULT) "결과" else "원본")
@@ -1058,6 +1065,18 @@ internal fun IosPhotoKitGalleryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun IosGalleryCounterBadge(label: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color(0xB8332A25), RoundedCornerShape(5.dp))
+            .padding(horizontal = 5.dp, vertical = 2.dp)
+            .clearAndSetSemantics { contentDescription = "자동번호 $label" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, style = DDZTypography.Caption, color = Color.White, maxLines = 1)
     }
 }
 
