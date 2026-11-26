@@ -33,6 +33,26 @@ class DurableCaptureQueuePolicyTest {
             records.dropLast(1), setOf("capture-0"), "template-a", "project-a"))
     }
 
+    @Test fun admissionReopensOnlyAfterOneOfThreeCapturesSettles() {
+        val queued = listOf(
+            record(0, DurableCaptureStage.PROCESSING),
+            record(1, DurableCaptureStage.READY),
+            record(2, DurableCaptureStage.READY),
+        )
+        assertFalse(DurableCaptureQueuePolicy.canReserve(
+            queued, setOf("capture-0"), "template-a", "project-a"))
+
+        val afterFirstCommit = queued.map { candidate ->
+            if (candidate.captureId == "capture-0") {
+                candidate.copy(stage = DurableCaptureStage.COMMITTED)
+            } else {
+                candidate
+            }
+        }
+        assertTrue(DurableCaptureQueuePolicy.canReserve(
+            afterFirstCommit, emptySet(), "template-a", "project-a"))
+    }
+
     @Test fun liveWorkerMayContinueButOrphanedUncertaintyBlocksAdmission() {
         val processing = listOf(record(0, DurableCaptureStage.PROCESSING))
         assertTrue(DurableCaptureQueuePolicy.canReserve(
@@ -103,6 +123,24 @@ class DurableCaptureQueuePolicyTest {
             record(0, DurableCaptureStage.COMMITTED),
             record(1, DurableCaptureStage.COMMITTED),
         )))
+    }
+
+    @Test fun undoChoosesNewestReservationAfterThreeRapidCapturesSettle() {
+        val committed = listOf(
+            record(2, DurableCaptureStage.COMMITTED),
+            record(0, DurableCaptureStage.COMMITTED),
+            record(1, DurableCaptureStage.COMMITTED),
+        )
+        assertEquals("capture-2", DurableCaptureQueuePolicy.latestUndoableCaptureId(committed))
+
+        val thirdStillSaving = committed.map { candidate ->
+            if (candidate.captureId == "capture-2") {
+                candidate.copy(stage = DurableCaptureStage.MEDIA_SAVED)
+            } else {
+                candidate
+            }
+        }
+        assertNull(DurableCaptureQueuePolicy.latestUndoableCaptureId(thirdStillSaving))
     }
 
     @Test fun transitionGraphForbidsBlindRetryAndTerminalMutation() {

@@ -63,6 +63,31 @@ class IosDurableCaptureWorkerTest {
         assertEquals(DurableCaptureStage.COMMITTED, staging.load("capture-2")?.record?.stage)
     }
 
+    @Test fun drainsThreeRapidCapturesAndAdvancesWorkspaceExactlyOnceEach() = withFixture { staging, journal, media, initial ->
+        val jpeg = byteArrayOf(1, 2, 3)
+        val first = snapshot("capture-1", 1, initial, jpeg)
+        val second = snapshot("capture-2", 2, first.workspaceAfter, jpeg)
+        val third = snapshot("capture-3", 3, second.workspaceAfter, jpeg)
+        staging.stage(third, jpeg)
+        staging.stage(first, jpeg)
+        staging.stage(second, jpeg)
+        var workspace = initial
+
+        val results = runSynchronously { worker(staging, journal, media,
+            { workspace }, { workspace = it; true }).processAvailable() }
+
+        assertEquals(listOf("capture-1", "capture-2", "capture-3"), media.saveOrder)
+        assertEquals(List(3) { IosDurableCaptureWorkerStatus.COMMITTED },
+            results.map { it.status })
+        assertEquals(10, workspace.active?.nextCounter)
+        assertEquals(listOf(8, 9, 10), listOf(first, second, third).map {
+            it.workspaceAfter.active?.nextCounter
+        })
+        assertTrue(listOf(first, second, third).all {
+            staging.load(it.record.captureId)?.record?.stage == DurableCaptureStage.COMMITTED
+        })
+    }
+
     @Test fun renderFailureLeavesHeadReadyAndNeverSkipsToLaterCapture() = withFixture { staging, journal, media, initial ->
         val jpeg = byteArrayOf(1, 2, 3)
         val first = snapshot("capture-1", 1, initial, jpeg)
