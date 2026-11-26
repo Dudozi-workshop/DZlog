@@ -7,8 +7,7 @@ import kotlinx.cinterop.convert
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import platform.CoreCrypto.CC_SHA256
-import platform.Foundation.NSData
-import platform.Foundation.NSFileManager
+import platform.Foundation.*
 import platform.posix.memcpy
 
 /** Files are private staging inputs, not user-visible gallery assets. */

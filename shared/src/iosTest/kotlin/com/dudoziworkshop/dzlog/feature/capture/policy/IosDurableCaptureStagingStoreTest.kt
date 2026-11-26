@@ -21,10 +21,7 @@ import com.dudoziworkshop.dzlog.domain.table.TablePatch
 import com.dudoziworkshop.dzlog.feature.table.model.TableStyleState
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import platform.Foundation.NSData
-import platform.Foundation.NSFileManager
-import platform.Foundation.NSTemporaryDirectory
-import platform.Foundation.NSUUID
+import platform.Foundation.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
