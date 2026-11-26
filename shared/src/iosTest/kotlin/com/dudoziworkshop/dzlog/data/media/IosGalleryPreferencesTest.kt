@@ -19,6 +19,11 @@ class IosGalleryPreferencesTest {
             assertEquals(2, preferences.gridColumns())
             preferences.setGridColumns(9)
             assertEquals(5, preferences.gridColumns())
+            assertEquals(3, preferences.quickResultGridColumns())
+            preferences.setQuickResultGridColumns(4)
+            assertEquals(4, IosGalleryPreferences(NSUserDefaults(suiteName = suite)).quickResultGridColumns())
+            preferences.setQuickResultGridColumns(8)
+            assertEquals(5, preferences.quickResultGridColumns())
             assertEquals("workspace sentinel", defaults.stringForKey("workspace"))
         } finally { defaults.removePersistentDomainForName(suite) }
     }
@@ -31,6 +36,8 @@ class IosGalleryPreferencesTest {
             assertEquals(3, IosGalleryPreferences(defaults).gridColumns())
             defaults.setObject("-20", forKey = IosGalleryPreferences.GRID_COLUMNS_KEY)
             assertEquals(2, IosGalleryPreferences(defaults).gridColumns())
+            defaults.setObject("invalid", forKey = IosGalleryPreferences.QUICK_RESULT_GRID_COLUMNS_KEY)
+            assertEquals(3, IosGalleryPreferences(defaults).quickResultGridColumns())
         } finally { defaults.removePersistentDomainForName(suite) }
     }
 }

@@ -50,6 +50,8 @@ internal fun IosQuickResultsScreen(
     var collapsed by remember { mutableStateOf(emptySet<String>()) }
     var revision by remember { mutableIntStateOf(0) }
     val grid = rememberLazyGridState()
+    val galleryPreferences = remember { IosGalleryPreferences() }
+    var gridColumns by remember { mutableStateOf(galleryPreferences.quickResultGridColumns()) }
     if (album) {
         IosPhotoKitGalleryScreen(repository, onBack = { album = false }, capturePathImpact = capturePathImpact)
         return
@@ -109,7 +111,12 @@ internal fun IosQuickResultsScreen(
                         }
                     }
                 }
-                LazyVerticalGrid(GridCells.Adaptive(100.dp), state = grid,
+                LazyVerticalGrid(GridCells.Fixed(gridColumns), state = grid,
+                    modifier = Modifier.iosGalleryGridPinch(gridColumns, enabled = true) { columns ->
+                        val normalized = SavedGalleryGridPolicy.normalize(columns)
+                        gridColumns = normalized
+                        galleryPreferences.setQuickResultGridColumns(normalized)
+                    },
                     horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     sections.forEach { section ->
                         item(key = section.key, span = { GridItemSpan(maxLineSpan) }) {
