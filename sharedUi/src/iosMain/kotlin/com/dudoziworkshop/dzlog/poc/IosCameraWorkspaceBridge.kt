@@ -14,6 +14,7 @@ import com.dudoziworkshop.dzlog.data.template.EditorWorkspace
 import com.dudoziworkshop.dzlog.data.template.SavedTableTemplate
 import com.dudoziworkshop.dzlog.domain.media.CaptureMediaRole
 import com.dudoziworkshop.dzlog.domain.media.buildCaptureMediaSavePlan
+import com.dudoziworkshop.dzlog.domain.media.prepareCaptureWorkspaceUpdate
 import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.naming.NamingFormatDefaults
 import com.dudoziworkshop.dzlog.domain.preview.CaptureScopeInput
@@ -29,6 +30,18 @@ import com.dudoziworkshop.dzlog.data.media.IosCaptureWorkspaceJournal
 import com.dudoziworkshop.dzlog.data.media.IosCaptureUndoJournal
 import platform.Foundation.NSUUID
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPolicy
+import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureQueuePolicy
+import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureRecord
+import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureSnapshot
+import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureStage
+import com.dudoziworkshop.dzlog.feature.capture.policy.FrozenCapturePreview
+import com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureStagingStore
+import com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorker
+import com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerResult
+import com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus
+import platform.Foundation.NSApplicationSupportDirectory
+import platform.Foundation.NSSearchPathForDirectoriesInDomains
+import platform.Foundation.NSUserDomainMask
 import kotlin.math.roundToInt
 
 /**
@@ -40,6 +53,7 @@ internal class IosCameraCaptureSession(
     private var workspace: EditorWorkspace,
     private val persistWorkspace: ((EditorWorkspace) -> Boolean)? = null,
     mediaDefaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
+    stagingRootPath: String = iosCaptureStagingRoot(editorKey),
 ) {
     val quickSelection = QuickEditSelectionMemory()
     private val store = IosWorkspaceStore(editorKey)
@@ -48,6 +62,21 @@ internal class IosCameraCaptureSession(
     private val media get() = mediaRepository
     private val coordinator = IosCaptureSaveCoordinator(media, IosCaptureWorkspaceJournal(mediaDefaults))
     private val undoCoordinator = IosCaptureUndoCoordinator(media, IosCaptureUndoJournal(mediaDefaults))
+    private val staging = IosDurableCaptureStagingStore(stagingRootPath)
+    private val durableWorker = IosDurableCaptureWorker(
+        staging = staging,
+        media = media,
+        loadWorkspace = { store.load(checkNotNull(workspace.active).template) },
+        persistWorkspace = { persistWorkspace?.invoke(it) ?: store.save(it) },
+        buildPayloads = ::buildDurablePayloads,
+        journal = IosCaptureWorkspaceJournal(mediaDefaults),
+    )
+    private val durableTerminalStages = setOf(DurableCaptureStage.COMMITTED, DurableCaptureStage.CANCELLED)
+    private var reservationWorkspace: EditorWorkspace = staging.listSnapshots()
+        .filter { it.record.stage !in durableTerminalStages }
+        .maxByOrNull { it.record.reservationOrder }?.workspaceAfter ?: workspace
+    private var nextReservationOrder: Long = (staging.listSnapshots()
+        .maxOfOrNull { it.record.reservationOrder } ?: -1L) + 1L
     private data class SessionCapture(val undo: IosCaptureUndoRequest, val folder: String)
     data class UndoPathWarning(val captureId: String, val capturedFolder: String, val currentFolder: String)
 
@@ -71,6 +100,7 @@ internal class IosCameraCaptureSession(
         if (next != workspace || previousProjectId != projects.activeId) sessionCaptures.clear()
         if (previousProjectId != projects.activeId) confirmedCaptureIds.clear()
         workspace = next
+        resetReservationToCommittedIfIdle()
         return projects
     }
 
@@ -83,12 +113,28 @@ internal class IosCameraCaptureSession(
         if (next == before) return true
         if (!projectStore.saveContext(before, next, selectedDocument.template)) return false
         workspace = store.load(selectedDocument.template)
+        resetReservationToCommittedIfIdle()
         sessionCaptures.clear()
         confirmedCaptureIds.clear()
         return true
     }
 
-    fun hasPending(): Boolean = coordinator.hasPendingCapture() || undoCoordinator.hasPendingUndo()
+    fun hasPending(): Boolean = coordinator.hasPendingCapture() || undoCoordinator.hasPendingUndo() ||
+        runCatching { staging.listSnapshots().any { it.record.stage !in durableTerminalStages } }
+            .getOrDefault(true)
+
+    val canAcceptCapture: Boolean
+        get() = runCatching {
+            if (undoCoordinator.hasPendingUndo()) return@runCatching false
+            val records = staging.listSnapshots().map(DurableCaptureSnapshot::record)
+            val document = checkNotNull(reservationWorkspace.active)
+            DurableCaptureQueuePolicy.canReserve(
+                records = records,
+                activeWorkerIds = durableWorker.activeCaptureIds(),
+                expectedTemplateId = document.template.id,
+                expectedProjectId = projectStore.load().activeId,
+            )
+        }.getOrDefault(false)
 
     val latestSessionCaptureId: String? get() = confirmedCaptureIds.lastOrNull()
     val canUndoLatestCapture: Boolean get() = sessionCaptures.isNotEmpty() && !hasPending()
@@ -144,6 +190,7 @@ internal class IosCameraCaptureSession(
         val updated = workspace.copy(settings = settings)
         if (!store.save(updated)) return false
         workspace = store.load(selectedDocument.template)
+        resetReservationToCommittedIfIdle()
         // Undo snapshots contain the whole workspace. Never roll a later camera preference
         // change back as a side effect of deleting a photo.
         sessionCaptures.clear()
@@ -185,6 +232,7 @@ internal class IosCameraCaptureSession(
         )
         if (rolledBack) {
             workspace = store.load(request.before.active!!.template)
+            resetReservationToCommittedIfIdle()
             sessionCaptures.removeAt(sessionCaptures.lastIndex)
             if (optOut) {
                 // Older Undo entries must preserve this preference through subsequent rollbacks.
@@ -226,6 +274,7 @@ internal class IosCameraCaptureSession(
         val next = before.withWorkspace(workspace.save(updatedCurrent).copy(activeTemplateId = targetTemplateId))
         if (!projectStore.saveContext(before, next, expected.template)) return false
         workspace = store.load(selectedDocument.template)
+        resetReservationToCommittedIfIdle()
         sessionCaptures.clear()
         return workspace.activeTemplateId == targetTemplateId
     }
@@ -236,6 +285,7 @@ internal class IosCameraCaptureSession(
         val updated = workspace.save(document)
         if (!store.save(updated)) return false
         workspace = store.load(document.template)
+        resetReservationToCommittedIfIdle()
         sessionCaptures.clear()
         return true
     }
@@ -270,18 +320,22 @@ internal class IosCameraCaptureSession(
             captureAspectMode = captureAspectMode))
         if (!store.save(updated)) return false
         workspace = store.load(document.template)
+        resetReservationToCommittedIfIdle()
         sessionCaptures.clear()
         return workspace.active == document && workspace.settings.continuousPreviewMode == continuousPreviewMode &&
             workspace.settings.captureHapticEnabled == captureHapticEnabled &&
             workspace.settings.captureAspectMode == captureAspectMode
     }
 
-    fun previewInfo() = com.dudoziworkshop.dzlog.domain.preview.buildPreview(
+    fun previewInfo(): com.dudoziworkshop.dzlog.domain.preview.PreviewState {
+        val document = checkNotNull(reservationWorkspace.active)
+        return com.dudoziworkshop.dzlog.domain.preview.buildPreview(
         com.dudoziworkshop.dzlog.domain.preview.PreviewInput(
-            selectedDocument.template.templateState, tableEditorNow(), selectedDocument.counterPadding,
+            document.template.templateState, tableEditorNow(), document.counterPadding,
             NamingFormatDefaults.DATE_FORMAT_DEFAULT, NamingFormatDefaults.TIME_FORMAT_PREVIEW_COMPACT,
-            NamingFormatDefaults.FILE_NAME_DELIMITER, selectedDocument.includePathInScope,
-            selectedDocument.includeFilenameInScope, selectedDocument.saveMode, selectedDocument.nextCounter, 0))
+            NamingFormatDefaults.FILE_NAME_DELIMITER, document.includePathInScope,
+            document.includeFilenameInScope, document.saveMode, document.nextCounter, 0))
+    }
 
     private fun buildCaptureScope(
         doc: com.dudoziworkshop.dzlog.data.template.EditorDocument,
@@ -342,6 +396,7 @@ internal class IosCameraCaptureSession(
         val updated = workspace.save(doc.copy(nextCounter = next, usesAutoNext = true))
         check(store.save(updated)) { "동기화한 촬영 번호를 저장하지 못했습니다." }
         workspace = store.load(doc.template)
+        resetReservationToCommittedIfIdle()
         check(selectedDocument.nextCounter == next) { "동기화한 촬영 번호를 확인하지 못했습니다." }
         // The previous session Undo snapshot no longer matches this externally advanced stream.
         sessionCaptures.clear()
@@ -369,9 +424,10 @@ internal class IosCameraCaptureSession(
     private var liveAspect: Double? = null
 
     fun renderLiveOverlay(width: Int, height: Int, onContentAspect: (Float) -> Unit = {}): ByteArray {
+        val document = checkNotNull(reservationWorkspace.active)
         val placement = checkNotNull(tablePlacement)
         val png = IosTableOverlayRenderer.renderAndroidAnchoredPng(width, height,
-            selectedDocument.template.templateState, resolveCapturePreview(), selectedDocument.template.styleState,
+            document.template.templateState, resolveCapturePreview(document), document.template.styleState,
             placement.anchor, placement.offsetXPercent, placement.offsetYPercent,
             placement.widthRatio, placement.heightRatio, placement.rotationCwDeg, onContentAspect)
         liveAspect = width.toDouble() / height
@@ -384,6 +440,139 @@ internal class IosCameraCaptureSession(
                 "사진과 미리보기 비율이 달라 결과를 저장할 수 없습니다. 원본만 모드로 전환하거나 카메라를 다시 열어 주세요."
             }
         }
+    }
+
+    /** Freeze and durably stage one shutter result without waiting for PhotoKit. */
+    suspend fun reserveConfiguredJpeg(jpeg: ByteArray): String {
+        media.ensureWritePermission()
+        val existing = staging.listSnapshots()
+        val outstanding = existing.filter { it.record.stage !in durableTerminalStages }
+        if (outstanding.isEmpty()) {
+            synchronizeAutomaticCounter()
+            reservationWorkspace = workspace
+        }
+        val document = checkNotNull(reservationWorkspace.active) {
+            "촬영 템플릿이 선택되지 않았습니다."
+        }
+        val projectId = projectStore.load().activeId
+        check(DurableCaptureQueuePolicy.canReserve(
+            records = existing.map(DurableCaptureSnapshot::record),
+            activeWorkerIds = durableWorker.activeCaptureIds(),
+            expectedTemplateId = document.template.id,
+            expectedProjectId = projectId,
+        )) { "저장 대기열이 가득 찼거나 이전 촬영 복구가 필요합니다." }
+
+        val aspect = com.dudoziworkshop.dzlog.domain.model.CaptureAspect.from(
+            reservationWorkspace.settings.captureAspectMode)
+        val sourceJpeg = cropIosCaptureJpeg(jpeg, aspect)
+        val now = tableEditorNow()
+        val preview = resolveCapturePreview(document, now, buildCaptureScope(document, now))
+        val captureId = NSUUID().UUIDString.lowercase()
+        val plan = buildCaptureMediaSavePlan(preview, document.saveMode, captureId)
+        val after = prepareCaptureWorkspaceUpdate(reservationWorkspace, document, plan)
+        val snapshot = DurableCaptureSnapshot(
+            record = DurableCaptureRecord(
+                captureId = captureId,
+                reservationOrder = nextReservationOrder,
+                templateId = document.template.id,
+                projectId = projectId,
+                counterValue = preview.usedCounter,
+                phraseProgressCursor = preview.nextPhraseProgressCursor,
+                stage = DurableCaptureStage.READY,
+            ),
+            capturedDocument = document,
+            workspaceBefore = reservationWorkspace,
+            workspaceAfter = after,
+            preview = FrozenCapturePreview.freeze(preview),
+            savePlan = plan,
+            sourceJpeg = IosDurableCaptureStagingStore.sourceIdentity(sourceJpeg),
+        )
+        staging.stage(snapshot, sourceJpeg)
+        reservationWorkspace = after
+        nextReservationOrder += 1L
+        return captureId
+    }
+
+    /** May be called after every reservation; a running owner absorbs later wake-ups. */
+    suspend fun processReservedCaptures(): List<IosDurableCaptureWorkerResult> {
+        val results = durableWorker.processAvailable()
+        results.filter { it.status == IosDurableCaptureWorkerStatus.COMMITTED ||
+            it.status == IosDurableCaptureWorkerStatus.RECOVERED }.forEach { result ->
+            if (result.captureId in confirmedCaptureIds) return@forEach
+            val snapshot = checkNotNull(staging.load(result.captureId))
+            sessionCaptures += SessionCapture(
+                IosCaptureUndoRequest(result.captureId, snapshot.workspaceBefore, snapshot.workspaceAfter),
+                snapshot.preview.relativePathPreview,
+            )
+            confirmedCaptureIds += result.captureId
+            if (snapshot.record.projectId != null && projectStore.appendCapture(result.captureId) == null) {
+                projectAssociationWarning = "사진은 저장됐지만 프로젝트 연결을 기록하지 못했습니다."
+            }
+        }
+        workspace = store.load(checkNotNull(workspace.active).template)
+        val outstanding = staging.listSnapshots().filter { it.record.stage !in durableTerminalStages }
+        reservationWorkspace = outstanding.maxByOrNull { it.record.reservationOrder }?.workspaceAfter ?: workspace
+        return results
+    }
+
+    private fun buildDurablePayloads(
+        snapshot: DurableCaptureSnapshot,
+        sourceJpeg: ByteArray,
+    ): Map<CaptureMediaRole, ByteArray> {
+        val document = snapshot.capturedDocument
+        if (document.saveMode == SaveMode.ORIGINAL_ONLY) {
+            return mapOf(CaptureMediaRole.ORIGINAL to sourceJpeg)
+        }
+        val placement = checkNotNull(document.capturePlacement) {
+            "촬영 시점의 표 배치 정보가 없습니다."
+        }
+        val upright = uprightIosImage(sourceJpeg)
+        val image = Image.makeFromEncoded(upright)
+        checkLiveCaptureAspect(image.width, image.height)
+        val cellsById = document.template.templateState.cells.associateBy { it.cellId }
+        val renderPreview = snapshot.preview.thaw().let { frozen ->
+            frozen.copy(resolvedCells = frozen.resolvedCells.map { cell ->
+                cell.copy(raw = checkNotNull(cellsById[cell.id]) {
+                    "촬영 시점의 표 셀을 찾을 수 없습니다."
+                })
+            })
+        }
+        val overlay = IosTableOverlayRenderer.renderAndroidAnchoredPng(
+            imageWidth = image.width,
+            imageHeight = image.height,
+            template = document.template.templateState,
+            preview = renderPreview,
+            style = document.template.styleState,
+            anchor = when (placement.anchor) {
+                EditorCaptureAnchor.TOP_LEFT -> IosTableAnchor.TOP_LEFT
+                EditorCaptureAnchor.TOP_RIGHT -> IosTableAnchor.TOP_RIGHT
+                EditorCaptureAnchor.BOTTOM_LEFT -> IosTableAnchor.BOTTOM_LEFT
+                EditorCaptureAnchor.BOTTOM_RIGHT -> IosTableAnchor.BOTTOM_RIGHT
+                EditorCaptureAnchor.CUSTOM -> IosTableAnchor.CUSTOM
+            },
+            offsetXPercent = placement.offsetXPercent,
+            offsetYPercent = placement.offsetYPercent,
+            widthRatio = placement.widthRatio,
+            heightRatio = placement.heightRatio,
+            rotationCwDeg = placement.rotationCwDeg,
+        )
+        val result = IosCaptureResultRenderer.compositeJpeg(
+            upright, overlay, snapshot.workspaceBefore.settings.qualityMode)
+        return when (document.saveMode) {
+            SaveMode.ORIGINAL_ONLY -> error("Original-only capture was handled above.")
+            SaveMode.WATERMARK_ONLY -> mapOf(CaptureMediaRole.RESULT to result)
+            SaveMode.BOTH -> mapOf(
+                CaptureMediaRole.RESULT to result,
+                CaptureMediaRole.ORIGINAL to sourceJpeg,
+            )
+        }
+    }
+
+    private fun resetReservationToCommittedIfIdle() {
+        val hasOutstanding = runCatching {
+            staging.listSnapshots().any { it.record.stage !in durableTerminalStages }
+        }.getOrDefault(true)
+        if (!hasOutstanding) reservationWorkspace = workspace
     }
 
     /** One camera entry point for all modes, using only this document's saved placement. */
@@ -527,6 +716,7 @@ internal class IosCameraCaptureSession(
         )
         if (committed) {
             workspace = store.load(doc.template)
+            resetReservationToCommittedIfIdle()
             sessionCaptures += SessionCapture(IosCaptureUndoRequest(plan.captureId, beforeCaptureWorkspace, workspace),
                 preview.relativePathPreview)
             confirmedCaptureIds += plan.captureId
@@ -581,7 +771,19 @@ internal object IosCameraWorkspaceBridge {
             }
         }
         if (document.nextCounter == null) return "먼저 촬영 번호를 확정해 주세요."
-        if (IosCameraCaptureSession.hasPending(mediaDefaults)) {
+        val durableOutstanding = runCatching {
+            IosDurableCaptureStagingStore(iosCaptureStagingRoot(editorKey)).listSnapshots()
+                .any { it.record.stage != DurableCaptureStage.COMMITTED &&
+                    it.record.stage != DurableCaptureStage.CANCELLED }
+        }.getOrElse {
+            return "이전 촬영 임시 파일을 확인할 수 없습니다."
+        }
+        val media = PhotoKitCaptureMediaRepository(mediaDefaults)
+        val capturePending = IosCaptureSaveCoordinator(
+            media, IosCaptureWorkspaceJournal(mediaDefaults)).hasPendingCapture()
+        val undoPending = IosCaptureUndoCoordinator(
+            media, IosCaptureUndoJournal(mediaDefaults)).hasPendingUndo()
+        if (undoPending || capturePending && !durableOutstanding) {
             return "이전 사진의 저장 기록을 복구하기 전에는 촬영할 수 없습니다."
         }
         current = IosCameraCaptureSession(editorKey, workspace, mediaDefaults = mediaDefaults)
@@ -591,5 +793,13 @@ internal object IosCameraWorkspaceBridge {
     fun clear() {
         current = null
     }
+}
+
+private fun iosCaptureStagingRoot(editorKey: String): String {
+    val applicationSupport = NSSearchPathForDirectoriesInDomains(
+        NSApplicationSupportDirectory, NSUserDomainMask, true,
+    ).firstOrNull() as? String ?: error("앱 지원 저장소를 찾을 수 없습니다.")
+    val namespace = IosDurableCaptureStagingStore.stableNamespace(editorKey)
+    return "$applicationSupport/DZlog/CaptureQueue/$namespace"
 }
 

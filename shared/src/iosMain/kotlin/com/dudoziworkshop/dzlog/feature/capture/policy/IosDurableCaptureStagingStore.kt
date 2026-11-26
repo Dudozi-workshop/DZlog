@@ -146,6 +146,18 @@ class IosDurableCaptureStagingStore(
         fun sourceIdentity(bytes: ByteArray): DurableCaptureSourceJpeg =
             sourceIdentity(SOURCE_FILE_NAME, bytes)
 
+        fun stableNamespace(value: String): String {
+            val bytes = value.encodeToByteArray()
+            require(bytes.isNotEmpty())
+            val digest = ByteArray(32)
+            bytes.usePinned { source -> digest.usePinned { target ->
+                CC_SHA256(source.addressOf(0), bytes.size.convert(), target.addressOf(0).reinterpret())
+            } }
+            return digest.joinToString("") {
+                (it.toInt() and 255).toString(16).padStart(2, '0')
+            }
+        }
+
         private fun sourceIdentity(fileName: String, bytes: ByteArray): DurableCaptureSourceJpeg {
             require(bytes.isNotEmpty())
             val digest = ByteArray(32)

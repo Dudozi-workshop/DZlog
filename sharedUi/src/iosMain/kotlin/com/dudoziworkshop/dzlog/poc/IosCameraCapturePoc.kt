@@ -110,6 +110,7 @@ internal fun IosCameraCapturePoc(
     var settingsRevision by remember { mutableIntStateOf(0) }
     var placementRevision by remember { mutableIntStateOf(0) }
     var counterRevision by remember { mutableIntStateOf(0) }
+    var queueRevision by remember { mutableIntStateOf(0) }
     var counterSyncing by remember(session) { mutableStateOf(session?.selectedDocument?.usesAutoNext == true) }
     var counterSyncReady by remember(session, permissions.captureAllowed, permissions.photoScopeVersion) { mutableStateOf(session?.selectedDocument?.usesAutoNext != true) }
     var liveTick by remember { mutableIntStateOf(0) }
@@ -146,6 +147,22 @@ internal fun IosCameraCapturePoc(
             return@LaunchedEffect
         }
         try {
+            if (session.hasPending()) {
+                val recovered = session.processReservedCaptures()
+                queueRevision += 1
+                val completed = recovered.count {
+                    it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.COMMITTED ||
+                        it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.RECOVERED
+                }
+                if (completed > 0) successfulSaves += completed
+                if (session.hasPending()) {
+                    status = if (recovered.any {
+                        it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.NEEDS_REVIEW
+                    }) "이전 촬영 상태 확인 필요" else "이전 촬영 기록 복구 대기 중"
+                    counterSyncing = false
+                    return@LaunchedEffect
+                }
+            }
             val before = session.selectedDocument.nextCounter
             val next = session.synchronizeAutomaticCounter()
             if (next != before) counterRevision += 1
@@ -253,7 +270,8 @@ internal fun IosCameraCapturePoc(
         }
         return
     }
-    val info = remember(successfulSaves, settingsRevision, counterRevision, placementRevision, liveTick, showInfo) {
+    val info = remember(successfulSaves, settingsRevision, counterRevision, queueRevision,
+        placementRevision, liveTick, showInfo) {
         session?.previewInfo()
     }
     val latestSessionCaptureId = session?.latestSessionCaptureId
@@ -280,10 +298,11 @@ internal fun IosCameraCapturePoc(
         onOpenSaveSettings = { showInfo = false; workspacePage = CameraWorkspacePage.SAVE_SETTINGS },
         onDismiss = { showInfo = false },
     )
+    val queueAcceptsCapture = queueRevision.let { session?.canAcceptCapture != false }
     val captureEnabled = permissions.captureAllowed && ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
         !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
-        (onBack == null || session != null) && session?.hasPending() != true
+        (onBack == null || session != null) && queueAcceptsCapture
     val triggerCapture: () -> Unit = capture@{
         // Both shutter surfaces can deliver a tap before recomposition disables
         // them. Re-read mutable busy state here so a duplicate request cannot
@@ -301,24 +320,41 @@ internal fun IosCameraCapturePoc(
                 scope.launch {
                     try {
                         val jpeg = result.getOrThrow()
-                        val committed = if (session != null) {
-                            session.saveConfiguredJpeg(jpeg)
+                        if (session != null) {
+                            session.reserveConfiguredJpeg(jpeg)
+                            queueRevision += 1
+                            counterRevision += 1
+                            busy = false
+                            status = "사진 저장 대기 중"
+                            val results = session.processReservedCaptures()
+                            val committed = results.count {
+                                it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.COMMITTED ||
+                                    it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.RECOVERED
+                            }
+                            if (committed > 0) {
+                                successfulSaves += committed
+                                reviewVisible = continuousPreviewMode != 0
+                                status = session.takeProjectAssociationWarning() ?: "사진 저장 완료"
+                            } else if (results.any {
+                                it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.WAITING_FOR_RECOVERY
+                            }) {
+                                status = "사진 저장됨 · 촬영 기록 복구 필요"
+                            } else if (results.any {
+                                it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.NEEDS_REVIEW
+                            }) {
+                                status = "사진 저장 상태 확인 필요"
+                            }
                         } else {
                             check(onBack == null) { "선택한 iOS 촬영 문서가 없습니다." }
                             saveStandaloneCameraFixture(jpeg, repository)
-                            true
-                        }
-                        if (committed) {
                             successfulSaves += 1
-                            reviewVisible = continuousPreviewMode != 0
-                            status = session?.takeProjectAssociationWarning() ?: "사진 저장 완료"
-                        } else {
-                            status = "사진 저장됨 · 촬영 기록 복구 필요"
+                            status = "사진 저장 완료"
                         }
                     } catch (error: Throwable) {
                         status = "사진 저장 실패: ${error.message}"
                     } finally {
                         busy = false
+                        queueRevision += 1
                     }
                 }
             }
@@ -422,7 +458,7 @@ internal fun IosCameraCapturePoc(
                     if (session.setCameraZoom(next)) zoom = session.cameraZoom
                     else status = "카메라 배율을 저장하지 못했습니다."
                 },
-                revision = successfulSaves + settingsRevision + counterRevision + placementRevision + liveTick,
+                revision = successfulSaves + settingsRevision + counterRevision + queueRevision + placementRevision + liveTick,
                 onReady = { overlayReady = it }, onEditing = { overlayEditing = it },
                 onSaved = { placementRevision += 1; status = "표 배치 저장 완료" },
                 onError = { status = it },

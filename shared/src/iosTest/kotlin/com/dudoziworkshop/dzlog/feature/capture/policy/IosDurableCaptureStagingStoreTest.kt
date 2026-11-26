@@ -43,6 +43,14 @@ class IosDurableCaptureStagingStoreTest {
         assertTrue(files.fileExistsAtPath("$root/capture-a/manifest.json"))
     }
 
+    @Test fun editorNamespaceIsStableAndFilesystemSafe() {
+        val first = IosDurableCaptureStagingStore.stableNamespace("편집기/현장 A")
+        assertEquals(first, IosDurableCaptureStagingStore.stableNamespace("편집기/현장 A"))
+        assertEquals(64, first.length)
+        assertTrue(first.all { it in '0'..'9' || it in 'a'..'f' })
+        assertTrue(first != IosDurableCaptureStagingStore.stableNamespace("편집기/현장 B"))
+    }
+
     @Test fun corruptedJpegNeverLoadsAsReadyWork() = withStore { store, _ ->
         val jpeg = byteArrayOf(1, 2, 3, 4)
         store.stage(fixture("capture-a", 1, jpeg), jpeg)

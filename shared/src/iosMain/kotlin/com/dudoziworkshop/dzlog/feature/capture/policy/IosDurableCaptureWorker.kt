@@ -36,15 +36,30 @@ class IosDurableCaptureWorker(
 ) {
     private val coordinator = IosCaptureSaveCoordinator(media, journal)
     private var draining = false
+    private var rerunRequested = false
+    private var activeCaptureId: String? = null
+
+    fun activeCaptureIds(): Set<String> = setOfNotNull(activeCaptureId)
 
     suspend fun processAvailable(): List<IosDurableCaptureWorkerResult> {
-        check(!draining) { "Capture queue is already being processed." }
+        if (draining) {
+            rerunRequested = true
+            return emptyList()
+        }
         draining = true
         return try {
             val results = mutableListOf<IosDurableCaptureWorkerResult>()
             while (true) {
                 val records = staging.listSnapshots()
-                val first = records.firstOrNull { it.record.stage !in terminalStages } ?: break
+                val first = records.firstOrNull { it.record.stage !in terminalStages }
+                if (first == null) {
+                    if (rerunRequested) {
+                        rerunRequested = false
+                        continue
+                    }
+                    break
+                }
+                activeCaptureId = first.record.captureId
                 val result = when (first.record.stage) {
                     DurableCaptureStage.READY -> processReady(records, first)
                     DurableCaptureStage.PROCESSING -> recoverProcessing(first)
@@ -55,12 +70,14 @@ class IosDurableCaptureWorker(
                     DurableCaptureStage.COMMITTED,
                     DurableCaptureStage.CANCELLED -> error("Terminal capture was not filtered.")
                 }
+                activeCaptureId = null
                 results += result
                 if (result.status == IosDurableCaptureWorkerStatus.WAITING_FOR_RECOVERY ||
                     result.status == IosDurableCaptureWorkerStatus.NEEDS_REVIEW) break
             }
             results
         } finally {
+            activeCaptureId = null
             draining = false
         }
     }
