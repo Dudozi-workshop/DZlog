@@ -274,6 +274,12 @@ internal fun IosPhotoKitGalleryScreen(
     val resultPages = remember(resultCaptureIds, photos, movedInViewer) {
         resultCaptureIds?.let { ids -> quickResultCaptures(ids.asReversed(), viewerPhotos(photos)) }
     }
+    val selectedQuickPage = resultPages?.firstOrNull { page ->
+        selectedId == page.result?.uri || selectedId == page.original?.uri
+    }
+    val selectedQuickResultId = selectedQuickPage?.result?.uri
+    val showingQuickResultOriginal = selectedQuickResultId != null &&
+        selectedId == selectedQuickPage?.original?.uri
     val resultEntries = remember(resultPages, photos, selectedId) {
         resultPages?.let { pages ->
             val byId = photos.associateBy { it.asset.assetId }
@@ -706,7 +712,13 @@ internal fun IosPhotoKitGalleryScreen(
             if (viewerControls) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Button(enabled = !managing, onClick = {
-                        if (initialAssetId != null) onBack() else viewer = false
+                        if (showingQuickResultOriginal) {
+                            selectedId = selectedQuickResultId
+                        } else if (initialAssetId != null) {
+                            onBack()
+                        } else {
+                            viewer = false
+                        }
                     }) { Text(if (initialAssetId != null) "촬영 결과" else "사진 목록") }
                     TextButton(enabled = !managing && !refreshing, onClick = ::refresh) { Text("사진 다시 읽기") }
                     TextButton(enabled = !managing && selected != null, onClick = { showPhotoInfo = true }) { Text("사진 정보") }
@@ -749,6 +761,7 @@ internal fun IosPhotoKitGalleryScreen(
                     selectedId = selectedId,
                     imageLoadRevision = imageLoadRevision + photoScopeVersion,
                     enabled = !managing && !refreshing,
+                    pagingEnabled = !showingQuickResultOriginal,
                     showControls = viewerControls,
                     onSelected = { selectedId = it },
                     onToggleControls = { viewerControls = !viewerControls },
@@ -765,15 +778,19 @@ internal fun IosPhotoKitGalleryScreen(
             // A companion may live outside the active folder/favorites filter.
             // Do not silently expand previous/next navigation to the entire library.
             if (viewerControls) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && !showingQuickResultOriginal && index > 0, onClick = { navigate(-1) }) { Text("이전 사진") }
                 val companion = photos.firstOrNull { it.asset.assetId !in movedInViewer && it.captureId == selected?.captureId &&
                     it.asset.target.role != selected?.asset?.target?.role && it.availability == CaptureMediaAvailability.PRESENT }
                 if (companion != null) Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing, onClick = {
                     if (!managing && !refreshing) selectedId = companion.asset.assetId
                 }) {
-                    Text(if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기" else "결과 보기")
+                    Text(
+                        if (companion.asset.target.role == CaptureMediaRole.ORIGINAL) "원본 보기"
+                        else if (showingQuickResultOriginal) "결과사진으로 돌아가기"
+                        else "결과 보기",
+                    )
                 }
-                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && index >= 0 && index < entries.lastIndex,
+                Button(modifier = Modifier.weight(1f), contentPadding = PaddingValues(8.dp), enabled = !managing && !refreshing && !showingQuickResultOriginal && index >= 0 && index < entries.lastIndex,
                     onClick = { navigate(1) }) { Text("다음 사진") }
             }
         } else {
@@ -1087,6 +1104,7 @@ private fun IosGalleryAnimatedPager(
     selectedId: String?,
     imageLoadRevision: Int,
     enabled: Boolean,
+    pagingEnabled: Boolean,
     showControls: Boolean,
     onSelected: (String) -> Unit,
     onToggleControls: () -> Unit,
@@ -1128,7 +1146,7 @@ private fun IosGalleryAnimatedPager(
         modifier = Modifier.fillMaxSize(),
         key = { page -> entries[page].asset.assetId },
         beyondViewportPageCount = 1,
-        userScrollEnabled = enabled && currentId !in zoomedIds,
+        userScrollEnabled = enabled && pagingEnabled && currentId !in zoomedIds,
     ) { page ->
         val entry = entries[page]
         val id = entry.asset.assetId
