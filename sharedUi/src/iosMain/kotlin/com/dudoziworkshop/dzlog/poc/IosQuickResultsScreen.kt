@@ -143,6 +143,11 @@ internal fun IosQuickResultsScreen(
                                     contentAlignment = Alignment.Center) {
                                     thumbnail?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                                         ?: Text(if (capture.isOriginalOnly) "원본" else "결과")
+                                    IosGalleryCounterBadge(
+                                        photo.displayName,
+                                        photo.relativePath,
+                                        Modifier.align(Alignment.BottomStart).padding(5.dp),
+                                    )
                                 }
                                 Text(photo.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
