@@ -77,6 +77,13 @@ class IosDurableCaptureStagingStore(
         return snapshots
     }
 
+    fun readSourceJpeg(captureId: String): ByteArray {
+        val snapshot = checkNotNull(load(captureId)) { "Staged capture does not exist." }
+        return readBytes(paths(captureId).sourceJpeg).also { bytes ->
+            check(sourceIdentity(bytes) == snapshot.sourceJpeg) { "Staged source JPEG is damaged." }
+        }
+    }
+
     fun transition(captureId: String, next: DurableCaptureStage): DurableCaptureSnapshot {
         val current = checkNotNull(load(captureId)) { "Staged capture does not exist." }
         check(DurableCaptureQueuePolicy.canTransition(current.record.stage, next)) {
