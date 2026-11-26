@@ -1376,6 +1376,39 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label MATCHES %@", "사진 ([2-9]|[1-9][0-9]+)개")).firstMatch.waitForExistence(timeout: 20))
     }
 
+    func testQuickResultsViewerOriginalLockAndReturnTargets() {
+        app.launchArguments = ["--media-flow"]
+        app.launch()
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 15))
+
+        tapButton("빠른결과 탐색 검증 준비")
+        XCTAssertTrue(text("빠른결과").waitForExistence(timeout: 30), app.debugDescription)
+        let newest = app.buttons["빠른결과 사진 2"]
+        XCTAssertTrue(newest.waitForExistence(timeout: 20), app.debugDescription)
+        newest.tap()
+        XCTAssertTrue(text("사진 확대 보기").waitForExistence(timeout: 30), app.debugDescription)
+        XCTAssertTrue(button("원본 보기").waitForExistence(timeout: 20))
+        XCTAssertTrue(button("다음 사진").isEnabled)
+
+        tapButton("원본 보기")
+        XCTAssertTrue(button("결과사진으로 돌아가기").waitForExistence(timeout: 20))
+        XCTAssertFalse(button("이전 사진").isEnabled)
+        XCTAssertFalse(button("다음 사진").isEnabled)
+        tapButton("촬영 결과")
+        XCTAssertTrue(button("원본 보기").waitForExistence(timeout: 20))
+        XCTAssertTrue(button("다음 사진").isEnabled)
+        tapButton("촬영 결과")
+        XCTAssertTrue(text("빠른결과").waitForExistence(timeout: 20))
+        tapButton("촬영 계속하기")
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 20))
+
+        tapButton("프로젝트 결과 복귀 검증 준비")
+        XCTAssertTrue(text("프로젝트 결과").waitForExistence(timeout: 30), app.debugDescription)
+        XCTAssertTrue(button("프로젝트로 돌아가기").waitForExistence(timeout: 20))
+        tapButton("프로젝트로 돌아가기")
+        XCTAssertTrue(text("DZlog M3-A PhotoKit 검증").waitForExistence(timeout: 20))
+    }
+
     // Synthetic JPEG exercises the same iOS workspace/PhotoKit coordinator as the home camera.
     // No simulator camera or production preference key is used.
     func testCaptureWorkspaceCommitAndRelaunch() {

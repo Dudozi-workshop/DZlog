@@ -49,6 +49,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredSaveModesAndGalleryAfterRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickResultsViewerOriginalLockAndReturnTargets
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionProjectCreateSelectAndRelaunch
@@ -91,12 +92,12 @@ shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
 case "$test_scope" in
   settings) limit_seconds=480 ;;
   quick-values) limit_seconds=600 ;;
-  # The 37-case media run reached its final test at the 30-minute cap.
+  # The 38-case media run includes the quick-results PhotoKit navigation regression.
   # Allow a finite five-minute margin for native sheets and Photos permission.
   media) limit_seconds=2100 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
-  # The 54-case suite reached case 48 before the former 65-minute cap.
+  # The 55-case suite includes the quick-results PhotoKit navigation regression.
   # Leave enough time for slower simulator runs without reducing test coverage.
   full) limit_seconds=5700 ;;
 esac

@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
@@ -248,12 +250,16 @@ internal fun IosQuickResultsScreen(
                                     null
                                 }
                             }
-                            Column(Modifier.clickable {
-                                viewerIds = sections.flatMap { visible ->
-                                    visible.captures.map { captureIds[it.captureIndex] }
-                                }
-                                opened = photo.uri
-                            }) {
+                            Column(
+                                Modifier.clickable {
+                                    viewerIds = sections.flatMap { visible ->
+                                        visible.captures.map { captureIds[it.captureIndex] }
+                                    }
+                                    opened = photo.uri
+                                }.semantics {
+                                    contentDescription = "빠른결과 사진 ${capture.captureIndex + 1}"
+                                },
+                            ) {
                                 Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface),
                                     contentAlignment = Alignment.Center) {
                                     thumbnail?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }

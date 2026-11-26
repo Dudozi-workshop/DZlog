@@ -21,6 +21,7 @@ import com.dudoziworkshop.dzlog.domain.model.SaveMode
 import com.dudoziworkshop.dzlog.domain.naming.buildCounterPath
 import com.dudoziworkshop.dzlog.domain.preview.FinalCapturePreview
 import com.dudoziworkshop.dzlog.domain.table.TablePatch
+import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlinx.coroutines.launch
 import org.jetbrains.skia.EncodedImageFormat
@@ -46,6 +47,7 @@ internal fun PhotoKitMediaFlowPoc() {
     var firstImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var logicalPath by remember { mutableStateOf("") }
     var displayedName by remember { mutableStateOf("") }
+    var quickResultRoute by remember { mutableStateOf<Pair<List<String>, Boolean>?>(null) }
 
     suspend fun refreshFromPhotos() {
         val assets = repository.listSavedAssets().filter {
@@ -66,6 +68,47 @@ internal fun PhotoKitMediaFlowPoc() {
             firstImage == null -> "사진 데이터 읽기 실패"
             else -> "사진 복원 완료"
         }
+    }
+
+    suspend fun saveQuickResultFixtures(): List<String> = buildList {
+        repeat(2) { index ->
+            val captureId = NSUUID().UUIDString.lowercase()
+            val fileName = "QuickResult_${index + 1}_${captureId.take(8)}.jpg"
+            val mode = SaveMode.BOTH
+            val preview = FinalCapturePreview(
+                resolvedCells = emptyList(),
+                tablePatch = TablePatch(emptyMap()),
+                displayName = fileName,
+                usedCounter = index + 1,
+                nextPhraseProgressCursor = 0,
+                counterScope = CounterScope(
+                    buildCounterPath(MEDIA_FIXTURE_PATH, mode),
+                    "QuickResult_",
+                    index + 1,
+                    false,
+                ),
+                relativePathPreview = MEDIA_FIXTURE_PATH,
+            )
+            val plan = buildCaptureMediaSavePlan(preview, mode, captureId)
+            repository.saveAllOrRollback(plan, mapOf(
+                CaptureMediaRole.RESULT to fixtureJpeg(if (index == 0) 0xFF4B805A.toInt() else 0xFF41688A.toInt()),
+                CaptureMediaRole.ORIGINAL to fixtureJpeg(if (index == 0) 0xFF9A765A.toInt() else 0xFFA38462.toInt()),
+            ))
+            add(captureId)
+        }
+    }
+
+    quickResultRoute?.let { (ids, projectRoute) ->
+        IosQuickResultsScreen(
+            repository = repository,
+            captureIds = ids,
+            projectTitle = if (projectRoute) "테스트 프로젝트" else null,
+            returnTarget = if (projectRoute) IosQuickResultsReturnTarget.PROJECT
+            else IosQuickResultsReturnTarget.CAMERA,
+            onBack = { quickResultRoute = null },
+            capturePathImpact = { CapturePathImpact.NONE },
+        )
+        return
     }
 
     LaunchedEffect(Unit) {
@@ -116,6 +159,30 @@ internal fun PhotoKitMediaFlowPoc() {
                 }
             }
         }) { Text(if (busy) "저장 중" else "테스트 사진 저장") }
+        Button(enabled = !busy, onClick = {
+            busy = true
+            scope.launch {
+                try {
+                    quickResultRoute = saveQuickResultFixtures() to false
+                } catch (error: Throwable) {
+                    saveStatus = "빠른결과 준비 실패: ${error.message}"
+                } finally {
+                    busy = false
+                }
+            }
+        }) { Text("빠른결과 탐색 검증 준비") }
+        Button(enabled = !busy, onClick = {
+            busy = true
+            scope.launch {
+                try {
+                    quickResultRoute = saveQuickResultFixtures() to true
+                } catch (error: Throwable) {
+                    saveStatus = "프로젝트 결과 준비 실패: ${error.message}"
+                } finally {
+                    busy = false
+                }
+            }
+        }) { Text("프로젝트 결과 복귀 검증 준비") }
         Button(enabled = !busy, onClick = {
             scope.launch {
                 try { refreshFromPhotos() }
