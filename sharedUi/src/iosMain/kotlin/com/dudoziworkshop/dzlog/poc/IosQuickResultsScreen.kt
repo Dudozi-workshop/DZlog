@@ -55,6 +55,13 @@ internal fun IosQuickResultsScreen(
     val grid = rememberLazyGridState()
     val galleryPreferences = remember { IosGalleryPreferences() }
     var gridColumns by remember { mutableStateOf(galleryPreferences.quickResultGridColumns()) }
+    var pendingGridAnchor by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    LaunchedEffect(gridColumns, pendingGridAnchor) {
+        pendingGridAnchor?.let { (index, offset) ->
+            grid.scrollToItem(index, offset)
+            pendingGridAnchor = null
+        }
+    }
     if (album) {
         IosPhotoKitGalleryScreen(repository, onBack = { album = false }, capturePathImpact = capturePathImpact)
         return
@@ -117,17 +124,44 @@ internal fun IosQuickResultsScreen(
                 LazyVerticalGrid(GridCells.Fixed(gridColumns), state = grid,
                     modifier = Modifier.iosGalleryGridPinch(gridColumns, enabled = true) { columns ->
                         val normalized = SavedGalleryGridPolicy.normalize(columns)
-                        gridColumns = normalized
-                        galleryPreferences.setQuickResultGridColumns(normalized)
+                        if (normalized != gridColumns) {
+                            pendingGridAnchor = grid.firstVisibleItemIndex to grid.firstVisibleItemScrollOffset
+                            gridColumns = normalized
+                            galleryPreferences.setQuickResultGridColumns(normalized)
+                        }
                     },
                     horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     sections.forEach { section ->
                         item(key = section.key, span = { GridItemSpan(maxLineSpan) }) {
-                            TextButton(onClick = {
-                                collapsed = if (section.key in collapsed) collapsed - section.key else collapsed + section.key
-                            }) {
-                                Text(QuickResultsSessionPolicy.folderLabel(section.folderPath) + " · " +
-                                    QuickResultsSessionPolicy.sectionLabel(section) + if (section.key in collapsed) " ▾" else " ▴")
+                            Column(
+                                Modifier.fillMaxWidth()
+                                    .background(DDZColor.Surface, RoundedCornerShape(14.dp))
+                                    .clickable {
+                                        collapsed = if (section.key in collapsed) {
+                                            collapsed - section.key
+                                        } else {
+                                            collapsed + section.key
+                                        }
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                            ) {
+                                Text(
+                                    QuickResultsSessionPolicy.folderLabel(section.folderPath),
+                                    color = DDZColor.TextPrimary,
+                                    style = DDZTypography.SettingLabel,
+                                )
+                                Row(
+                                    Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        QuickResultsSessionPolicy.sectionLabel(section) +
+                                            if (section.key in collapsed) " ▾" else " ▴",
+                                        color = DDZColor.TextSecondary,
+                                        style = DDZTypography.Caption,
+                                    )
+                                }
                             }
                         }
                         if (section.key !in collapsed) items(section.captures, key = { it.displayedPhoto.uri }) { capture ->
@@ -144,7 +178,7 @@ internal fun IosQuickResultsScreen(
                                 }
                             }
                             Column(Modifier.clickable {
-                                viewerIds = sections.filterNot { it.key in collapsed }.flatMap { visible ->
+                                viewerIds = sections.flatMap { visible ->
                                     visible.captures.map { captureIds[it.captureIndex] }
                                 }
                                 opened = photo.uri
