@@ -337,8 +337,8 @@ private fun IosCameraSaveStatusIndicator(
     val foreground = if (hasError) DDZColor.Destructive else DDZColor.SelectionEmphasis
     val label = when {
         hasError -> "저장 상태 확인 필요"
-        atCapacity -> "$pendingCount장 저장 중, 대기열 가득 참"
-        else -> "$pendingCount장 저장 중"
+        atCapacity -> "${pendingCount}장 저장 중, 대기열 가득 참"
+        else -> "${pendingCount}장 저장 중"
     }
     Box(modifier = modifier) {
         Surface(
@@ -392,7 +392,7 @@ private fun IosCameraSaveStatusIndicator(
                     }
                     Text(when {
                         hasError -> "원본과 촬영번호를 보호하기 위해 저장 결과 확인 전까지 촬영이 제한됩니다."
-                        atCapacity -> "$capacity장 모두 저장 중입니다. 한 장의 저장이 완료되면 셔터가 다시 활성화됩니다."
+                        atCapacity -> "${capacity}장 모두 저장 중입니다. 한 장의 저장이 완료되면 셔터가 다시 활성화됩니다."
                         else -> "촬영한 사진을 순서대로 안전하게 저장하고 있습니다."
                     }, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
                 }
