@@ -84,6 +84,8 @@ class IosDurableCaptureStagingStoreTest {
             store.transition("capture-a", DurableCaptureStage.COMMITTED).record.stage)
         assertFails { store.transition("capture-a", DurableCaptureStage.READY) }
         assertEquals(DurableCaptureStage.COMMITTED, store.load("capture-a")?.record?.stage)
+        assertTrue(store.removeTerminal("capture-a"))
+        assertNull(store.load("capture-a"))
     }
 
     @Test fun refusesOverwriteTraversalAndIncompleteRetry() = withStore { store, _ ->
@@ -93,6 +95,7 @@ class IosDurableCaptureStagingStoreTest {
         assertFails { store.stage(snapshot, jpeg) }
         assertFails { store.load("../capture-a") }
         assertFails { store.discardIncomplete("capture-a") }
+        assertFails { store.removeTerminal("capture-a") }
     }
 
     private fun fixture(captureId: String, order: Long, jpeg: ByteArray): DurableCaptureSnapshot {

@@ -107,6 +107,18 @@ class IosDurableCaptureStagingStore(
         return true
     }
 
+    /** Completed records may be removed only after the caller retained any session Undo metadata. */
+    fun removeTerminal(captureId: String): Boolean {
+        val snapshot = checkNotNull(load(captureId)) { "Staged capture does not exist." }
+        check(snapshot.record.stage == DurableCaptureStage.COMMITTED ||
+            snapshot.record.stage == DurableCaptureStage.CANCELLED) {
+            "Only a terminal capture can be removed."
+        }
+        val directory = paths(captureId).directory
+        check(fileManager.removeItemAtPath(directory, error = null))
+        return !fileManager.fileExistsAtPath(directory)
+    }
+
     internal fun paths(captureId: String): Paths {
         validateCaptureId(captureId)
         val directory = "$rootPath/$captureId"

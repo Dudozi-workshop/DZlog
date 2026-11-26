@@ -136,6 +136,28 @@ internal class IosCameraCaptureSession(
             )
         }.getOrDefault(false)
 
+    data class CaptureQueueUiState(
+        val pendingCount: Int,
+        val needsReview: Boolean,
+        val atCapacity: Boolean,
+        val capacity: Int,
+    )
+
+    fun captureQueueUiState(): CaptureQueueUiState = runCatching {
+        val stages = staging.listSnapshots().map { it.record.stage }
+        val pending = stages.count {
+            it == DurableCaptureStage.RESERVED || it == DurableCaptureStage.READY ||
+                it == DurableCaptureStage.PROCESSING || it == DurableCaptureStage.MEDIA_SAVED
+        }
+        CaptureQueueUiState(
+            pendingCount = pending,
+            needsReview = DurableCaptureStage.NEEDS_REVIEW in stages,
+            atCapacity = pending >= DurableCaptureQueuePolicy.MAX_OUTSTANDING,
+            capacity = DurableCaptureQueuePolicy.MAX_OUTSTANDING,
+        )
+    }.getOrElse { CaptureQueueUiState(0, needsReview = true, atCapacity = false,
+        capacity = DurableCaptureQueuePolicy.MAX_OUTSTANDING) }
+
     val latestSessionCaptureId: String? get() = confirmedCaptureIds.lastOrNull()
     val canUndoLatestCapture: Boolean get() = sessionCaptures.isNotEmpty() && !hasPending()
 
@@ -496,19 +518,24 @@ internal class IosCameraCaptureSession(
     /** May be called after every reservation; a running owner absorbs later wake-ups. */
     suspend fun processReservedCaptures(): List<IosDurableCaptureWorkerResult> {
         val results = durableWorker.processAvailable()
-        results.filter { it.status == IosDurableCaptureWorkerStatus.COMMITTED ||
-            it.status == IosDurableCaptureWorkerStatus.RECOVERED }.forEach { result ->
-            if (result.captureId in confirmedCaptureIds) return@forEach
-            val snapshot = checkNotNull(staging.load(result.captureId))
+        val terminal = staging.listSnapshots().filter {
+            it.record.stage == DurableCaptureStage.COMMITTED ||
+                it.record.stage == DurableCaptureStage.CANCELLED
+        }
+        terminal.filter { it.record.stage == DurableCaptureStage.COMMITTED }.forEach { snapshot ->
+            if (snapshot.record.captureId in confirmedCaptureIds) return@forEach
             sessionCaptures += SessionCapture(
-                IosCaptureUndoRequest(result.captureId, snapshot.workspaceBefore, snapshot.workspaceAfter),
+                IosCaptureUndoRequest(snapshot.record.captureId,
+                    snapshot.workspaceBefore, snapshot.workspaceAfter),
                 snapshot.preview.relativePathPreview,
             )
-            confirmedCaptureIds += result.captureId
-            if (snapshot.record.projectId != null && projectStore.appendCapture(result.captureId) == null) {
+            confirmedCaptureIds += snapshot.record.captureId
+            if (snapshot.record.projectId != null &&
+                projectStore.appendCapture(snapshot.record.captureId) == null) {
                 projectAssociationWarning = "사진은 저장됐지만 프로젝트 연결을 기록하지 못했습니다."
             }
         }
+        terminal.forEach { staging.removeTerminal(it.record.captureId) }
         workspace = store.load(checkNotNull(workspace.active).template)
         val outstanding = staging.listSnapshots().filter { it.record.stage !in durableTerminalStages }
         reservationWorkspace = outstanding.maxByOrNull { it.record.reservationOrder }?.workspaceAfter ?: workspace

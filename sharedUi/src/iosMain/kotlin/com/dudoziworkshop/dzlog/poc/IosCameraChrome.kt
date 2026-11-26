@@ -20,16 +20,20 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
@@ -40,6 +44,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -247,6 +255,11 @@ internal fun IosCameraBottomBar(
     toolsSelected: Boolean,
     quickValuesEnabled: Boolean,
     undoEnabled: Boolean,
+    pendingSaveCount: Int,
+    saveNeedsReview: Boolean,
+    saveQueueFull: Boolean,
+    saveQueueCapacity: Int,
+    saveDetailsAllowed: Boolean,
     recentThumbnail: ImageBitmap?,
     galleryLabel: String,
     onOpenGallery: () -> Unit,
@@ -261,6 +274,14 @@ internal fun IosCameraBottomBar(
     ) {
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraGalleryButton(recentThumbnail, galleryLabel, controlsEnabled, onOpenGallery)
+            IosCameraSaveStatusIndicator(
+                pendingCount = pendingSaveCount,
+                hasError = saveNeedsReview,
+                atCapacity = saveQueueFull,
+                capacity = saveQueueCapacity,
+                detailsAllowed = saveDetailsAllowed,
+                modifier = Modifier.align(Alignment.TopCenter).offset(y = (-24).dp),
+            )
         }
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraChromeButton("촬영 도구", Icons.Default.Tune, controlsEnabled, onToggleTools,
@@ -293,6 +314,89 @@ internal fun IosCameraBottomBar(
         Box(Modifier.weight(18f), contentAlignment = Alignment.Center) {
             IosCameraChromeButton("직전 촬영 삭제", Icons.AutoMirrored.Filled.Undo,
                 undoEnabled, onUndo)
+        }
+    }
+}
+
+/** iOS counterpart of Android C-2c; queue display only, with no save side effects. */
+@Composable
+private fun IosCameraSaveStatusIndicator(
+    pendingCount: Int,
+    hasError: Boolean,
+    atCapacity: Boolean,
+    capacity: Int,
+    detailsAllowed: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (pendingCount == 0 && !hasError) return
+    var detailsOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(detailsAllowed) {
+        if (!detailsAllowed) detailsOpen = false
+    }
+    val background = if (hasError) DDZColor.DestructiveSoft else DDZColor.SelectedSoft
+    val foreground = if (hasError) DDZColor.Destructive else DDZColor.SelectionEmphasis
+    val label = when {
+        hasError -> "저장 상태 확인 필요"
+        atCapacity -> "$pendingCount장 저장 중, 대기열 가득 참"
+        else -> "$pendingCount장 저장 중"
+    }
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier.height(24.dp).clip(CircleShape)
+                .clickable(enabled = detailsAllowed, role = Role.Button) {
+                    detailsOpen = !detailsOpen
+                }.semantics { contentDescription = "$label, 자세히 보기" },
+            color = background,
+            shape = CircleShape,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Icon(if (hasError) Icons.Default.Warning else Icons.Default.Save,
+                    contentDescription = null, tint = foreground, modifier = Modifier.size(13.dp))
+                Text(if (hasError) "!" else if (atCapacity) "$pendingCount/$capacity" else pendingCount.toString(),
+                    color = foreground, fontSize = 11.sp, maxLines = 1)
+            }
+        }
+        val density = LocalDensity.current
+        val popupOffset = remember(density) {
+            IntOffset(with(density) { 12.dp.roundToPx() }, with(density) { (-112).dp.roundToPx() })
+        }
+        if (detailsOpen && detailsAllowed) Popup(
+            alignment = Alignment.BottomStart,
+            offset = popupOffset,
+            onDismissRequest = { detailsOpen = false },
+            properties = PopupProperties(focusable = true),
+        ) {
+            Surface(
+                modifier = Modifier.width(220.dp),
+                color = if (hasError) DDZColor.DestructiveSoft else DDZColor.Surface,
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp,
+                    if (hasError) DDZColor.Destructive.copy(alpha = 0.30f) else DDZColor.Border),
+                shadowElevation = 4.dp,
+            ) {
+                Column(Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 11.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (hasError) Icons.Default.Warning else Icons.Default.Save,
+                            contentDescription = null, tint = foreground, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(label, modifier = Modifier.weight(1f), style = DDZTypography.Caption,
+                            color = DDZColor.TextPrimary)
+                        IconButton(onClick = { detailsOpen = false }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "닫기",
+                                tint = DDZColor.TextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    Text(when {
+                        hasError -> "원본과 촬영번호를 보호하기 위해 저장 결과 확인 전까지 촬영이 제한됩니다."
+                        atCapacity -> "$capacity장 모두 저장 중입니다. 한 장의 저장이 완료되면 셔터가 다시 활성화됩니다."
+                        else -> "촬영한 사진을 순서대로 안전하게 저장하고 있습니다."
+                    }, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                }
+            }
         }
     }
 }

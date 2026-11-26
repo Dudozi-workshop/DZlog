@@ -299,6 +299,9 @@ internal fun IosCameraCapturePoc(
         onDismiss = { showInfo = false },
     )
     val queueAcceptsCapture = queueRevision.let { session?.canAcceptCapture != false }
+    val queueUiState = remember(session, queueRevision) {
+        session?.captureQueueUiState()
+    }
     val captureEnabled = permissions.captureAllowed && ready && !showInfo && !showSettings && !showProjectPicker && !busy && !reviewVisible &&
         !overlayEditing && !counterSyncing && counterSyncReady &&
         (session == null || session.selectedDocument.saveMode == SaveMode.ORIGINAL_ONLY || overlayReady) &&
@@ -325,7 +328,12 @@ internal fun IosCameraCapturePoc(
                             queueRevision += 1
                             counterRevision += 1
                             busy = false
-                            status = "사진 저장 대기 중"
+                            val queued = session.captureQueueUiState()
+                            status = if (queued.atCapacity) {
+                                "${queued.pendingCount}장 저장 중 · 완료 후 다시 촬영 가능"
+                            } else {
+                                "사진 저장 대기 중"
+                            }
                             val results = session.processReservedCaptures()
                             val committed = results.count {
                                 it.status == com.dudoziworkshop.dzlog.feature.capture.policy.IosDurableCaptureWorkerStatus.COMMITTED ||
@@ -427,8 +435,8 @@ internal fun IosCameraCapturePoc(
         if (cameraAllowed && onBack != null && session == null) Text(
             "촬영할 템플릿과 저장 설정이 준비되지 않았습니다.",
             modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
-        if (session?.hasPending() == true) Text(
-            "이전 촬영 기록을 복구한 후 촬영해 주세요.",
+        if (queueUiState?.needsReview == true) Text(
+            "저장 상태를 확인한 후 촬영해 주세요.",
             modifier = Modifier.padding(horizontal = 16.dp), style = com.dudoziworkshop.dzlog.ui.theme.DDZTypography.Caption)
         Box(Modifier.fillMaxWidth().weight(1f).background(androidx.compose.ui.graphics.Color.Black),
             contentAlignment = Alignment.Center) {
@@ -568,6 +576,12 @@ internal fun IosCameraCapturePoc(
                 !showProjectPicker && !session.hasPending(),
             undoEnabled = permissions.photos.readable && session?.canUndoLatestCapture == true && !busy && !reviewVisible &&
                 !overlayEditing && !showProjectPicker,
+            pendingSaveCount = queueUiState?.pendingCount ?: 0,
+            saveNeedsReview = queueUiState?.needsReview == true,
+            saveQueueFull = queueUiState?.atCapacity == true,
+            saveQueueCapacity = queueUiState?.capacity
+                ?: com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureQueuePolicy.MAX_OUTSTANDING,
+            saveDetailsAllowed = !busy && !showSettings && !showProjectPicker,
             recentThumbnail = recentThumbnail,
             galleryLabel = if (session == null) "앨범 보기" else "촬영 결과 보기",
             onOpenGallery = { showTools = false; showGallery = true },
