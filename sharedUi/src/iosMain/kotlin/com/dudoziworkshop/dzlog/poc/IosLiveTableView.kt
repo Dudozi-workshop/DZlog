@@ -134,7 +134,6 @@ internal class IosLiveTableView(
         private set
     private var focusTimedOut = false
     private var exposureLocked = false
-    private var awaitingLockedRefocusTap = false
     private var focusX = Float.NaN
     private var focusY = Float.NaN
     private var minimumExposureBias = 0f
@@ -366,15 +365,6 @@ internal class IosLiveTableView(
             (!focusLock.hidden && contains(focusLock, location)) ||
             (!exposureSlider.hidden && contains(exposureSlider, location))) return
 
-        if (exposureLocked && !awaitingLockedRefocusTap) {
-            // Confirmed Android behavior: the first locked tap only reveals EV;
-            // the following tap chooses a new AF point while keeping AE locked.
-            focusExpanded = true
-            awaitingLockedRefocusTap = true
-            focusInteraction?.invoke(trackingExposure)
-            layoutFocusControls()
-            return
-        }
         val devicePoint = preview?.let { it.captureDevicePointOfInterestForPoint(it.convertPoint(location, fromLayer = layer)) } ?: location.useContents {
             CGPointMake(
                 ((x - viewport.x) / viewport.width).coerceIn(0.0, 1.0),
@@ -392,7 +382,6 @@ internal class IosLiveTableView(
         focusX = location.useContents { x.toFloat() }
         focusY = location.useContents { y.toFloat() }
         focusExpanded = true
-        awaitingLockedRefocusTap = false
         waitingForFocus = true
         focusRing.accessibilityValue = "초점 조정 중"
         focusRing.layer.addAnimation(CABasicAnimation().apply {
@@ -455,7 +444,6 @@ internal class IosLiveTableView(
         }
         if (!desired) cancelFocusFeedback()
         exposureLocked = desired
-        awaitingLockedRefocusTap = false
         focusRing.layer.borderColor = if (desired) lockedColor.CGColor
             else UIColor.whiteColor.CGColor
         updateLockIcon()
@@ -521,7 +509,6 @@ internal class IosLiveTableView(
         }
         setExposureTracking(false)
         focusExpanded = false
-        awaitingLockedRefocusTap = false
         if (!exposureLocked) {
             focusRing.hidden = true
             focusLock.hidden = true
@@ -533,7 +520,6 @@ internal class IosLiveTableView(
     private fun clearFocusControls() {
         focusExpanded = false
         exposureLocked = false
-        awaitingLockedRefocusTap = false
         focusX = Float.NaN
         focusY = Float.NaN
         focusRing.hidden = true
@@ -553,7 +539,6 @@ internal class IosLiveTableView(
             return
         }
         focusExpanded = false
-        awaitingLockedRefocusTap = false
         focusRing.hidden = true
         focusLock.hidden = true
         expandBrightness.hidden = true

@@ -435,7 +435,7 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(button("노출 잠금 해제").exists)
     }
 
-    func testNativeFocusExposureLockUsesConfirmedTwoTapPolicy() {
+    func testNativeFocusExposureLockRefocusesOnOneTapAndRetainsBias() {
         openLiveTable(reset: true)
         func tapFocusPoint(_ x: CGFloat, _ y: CGFloat) {
             // The overlay UIImageView is not an interactive UIKit view. Use its
@@ -476,21 +476,21 @@ final class PreviewInteractionTests: XCTestCase {
         XCTAssertTrue(button("노출 잠금 해제").exists)
         XCTAssertFalse(app.sliders["밝기 조절"].exists)
 
-        // Locked first tap only expands EV. It must not move the focus point.
+        // Android parity: a locked preview tap refocuses immediately while
+        // preserving both native exposure compensation and the slider value.
         let lockedFocusFrame = text("카메라 초점").frame
         tapFocusPoint(0.10, 0.82)
-        XCTAssertTrue(text("상태: 노출 잠금").exists)
+        XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
         XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
         XCTAssertEqual(biasLabel.label, retainedBias)
-        let expandedFocusFrame = text("카메라 초점").frame
-        XCTAssertEqual(expandedFocusFrame.midX, lockedFocusFrame.midX, accuracy: 1)
-        XCTAssertEqual(expandedFocusFrame.midY, lockedFocusFrame.midY, accuracy: 1)
-        // Explicit locked refocus preserves the native bias and slider, repeatedly.
+        let firstRefocusedFrame = text("카메라 초점").frame
+        XCTAssertGreaterThan(abs(firstRefocusedFrame.midX - lockedFocusFrame.midX), 20)
+        XCTAssertGreaterThan(abs(firstRefocusedFrame.midY - lockedFocusFrame.midY), 20)
+        // Repeated locked refocuses preserve the same native bias and slider.
         tapFocusPoint(0.88, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
         let refocusedFrame = text("카메라 초점").frame
-        XCTAssertGreaterThan(abs(refocusedFrame.midX - expandedFocusFrame.midX), 20)
-        XCTAssertGreaterThan(abs(refocusedFrame.midY - expandedFocusFrame.midY), 20)
+        XCTAssertGreaterThan(abs(refocusedFrame.midX - firstRefocusedFrame.midX), 20)
         XCTAssertEqual(biasLabel.label, retainedBias)
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
         tapFocusPoint(0.10, 0.82)
