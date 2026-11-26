@@ -560,12 +560,23 @@ internal fun IosCameraCapturePoc(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (recentThumbnail != null) Image(
-                        bitmap = recentThumbnail!!,
-                        contentDescription = "촬영 결과 미리보기",
-                        modifier = Modifier.fillMaxWidth(0.76f).fillMaxHeight(0.72f),
-                        contentScale = ContentScale.Fit,
-                    ) else Text("사진 불러오는 중", color = androidx.compose.ui.graphics.Color.White)
+                    if (recentThumbnail != null) Surface(
+                        modifier = Modifier.fillMaxWidth(0.72f)
+                            .aspectRatio(session?.captureAspect?.ratioF
+                                ?: com.dudoziworkshop.dzlog.domain.model.CaptureAspect.R3_4.ratioF),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            2.dp, androidx.compose.ui.graphics.Color.White,
+                        ),
+                        color = androidx.compose.ui.graphics.Color.Black,
+                    ) {
+                        Image(
+                            bitmap = recentThumbnail!!,
+                            contentDescription = "촬영 결과 미리보기",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                    } else Text("사진 불러오는 중", color = androidx.compose.ui.graphics.Color.White)
                     Text(if (continuousPreviewMode == 2) "화면을 터치하면 닫힙니다" else "저장 완료",
                         color = androidx.compose.ui.graphics.Color.White)
                 }
