@@ -3,9 +3,11 @@ package com.dudoziworkshop.dzlog.poc
 import com.dudoziworkshop.dzlog.feature.log.policy.CapturePathImpact
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.quickresults.*
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
+import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.skia.Image as SkiaImage
@@ -149,12 +152,34 @@ internal fun IosQuickResultsScreen(
                                 Box(Modifier.fillMaxWidth().aspectRatio(1f).background(DDZColor.Surface),
                                     contentAlignment = Alignment.Center) {
                                     thumbnail?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                                        ?: Text(if (capture.isOriginalOnly) "원본" else "결과")
+                                        ?: Text("사진")
                                     IosGalleryCounterBadge(
                                         photo.displayName,
                                         photo.relativePath,
                                         Modifier.align(Alignment.BottomStart).padding(5.dp),
                                     )
+                                    if (capture.isOriginalOnly) {
+                                        Text(
+                                            "원본",
+                                            modifier = Modifier.align(Alignment.TopStart)
+                                                .padding(DDZLayout.QuickOriginalBadge.EdgeInset)
+                                                .background(
+                                                    DDZColor.QuickOriginalBadgeBackground,
+                                                    RoundedCornerShape(DDZLayout.QuickOriginalBadge.Radius),
+                                                )
+                                                .border(
+                                                    DDZLayout.QuickOriginalBadge.BorderWidth,
+                                                    DDZColor.QuickOriginalBadgeBorder,
+                                                    RoundedCornerShape(DDZLayout.QuickOriginalBadge.Radius),
+                                                )
+                                                .padding(
+                                                    horizontal = DDZLayout.QuickOriginalBadge.HorizontalPadding,
+                                                    vertical = DDZLayout.QuickOriginalBadge.VerticalPadding,
+                                                ),
+                                            color = DDZColor.QuickOriginalBadgeText,
+                                            style = DDZTypography.QuickOriginalBadge,
+                                        )
+                                    }
                                 }
                                 Text(photo.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
