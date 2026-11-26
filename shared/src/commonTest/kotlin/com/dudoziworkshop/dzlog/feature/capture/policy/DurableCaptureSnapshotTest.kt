@@ -70,6 +70,20 @@ class DurableCaptureSnapshotTest {
         assertEquals(value.preview.thaw(), restored.preview.thaw())
     }
 
+    @Test fun roundTripPreservesReviewReasonAndReadsLegacyRecordWithoutIt() {
+        val ready = fixture()
+        val review = ready.copy(record = ready.record.copy(
+            stage = DurableCaptureStage.NEEDS_REVIEW,
+            reviewReason = DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE,
+        ))
+        assertEquals(review, DurableCaptureSnapshotCodec.decode(
+            DurableCaptureSnapshotCodec.encode(review)))
+
+        val legacy = DurableCaptureSnapshotCodec.encode(ready)
+            .replace(",\"reviewReason\":null", "")
+        assertEquals(ready, DurableCaptureSnapshotCodec.decode(legacy))
+    }
+
     @Test fun rejectsSnapshotWhoseRecordAndPlanReferToDifferentCapture() {
         val value = fixture()
         assertFails { value.copy(record = value.record.copy(captureId = "capture-b")) }

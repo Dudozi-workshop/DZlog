@@ -88,6 +88,23 @@ class IosDurableCaptureStagingStoreTest {
         assertNull(store.load("capture-a"))
     }
 
+    @Test fun onlyPreSaveReviewCanBeResolvedAsCancelled() = withStore { store, _ ->
+        val jpeg = byteArrayOf(1, 2, 3, 4)
+        store.stage(fixture("capture-a", 1, jpeg), jpeg)
+        val reviewed = store.markNeedsReview("capture-a",
+            DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE)
+        assertEquals(DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE,
+            reviewed.record.reviewReason)
+        assertEquals(DurableCaptureStage.CANCELLED,
+            store.cancelReviewedBeforeSave("capture-a").record.stage)
+
+        store.stage(fixture("capture-b", 2, jpeg), jpeg)
+        store.transition("capture-b", DurableCaptureStage.PROCESSING)
+        store.markNeedsReview("capture-b",
+            DurableCaptureReviewReason.PROCESSING_RECEIPT_MISSING)
+        assertFails { store.cancelReviewedBeforeSave("capture-b") }
+    }
+
     @Test fun refusesOverwriteTraversalAndIncompleteRetry() = withStore { store, _ ->
         val jpeg = byteArrayOf(1, 2, 3, 4)
         val snapshot = fixture("capture-a", 1, jpeg)

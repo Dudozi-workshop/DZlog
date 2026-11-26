@@ -32,6 +32,7 @@ import platform.Foundation.NSUUID
 import com.dudoziworkshop.dzlog.feature.capture.policy.CaptureUndoPathWarningPolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureQueuePolicy
 import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureRecord
+import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureReviewReason
 import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureSnapshot
 import com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureStage
 import com.dudoziworkshop.dzlog.feature.capture.policy.FrozenCapturePreview
@@ -139,24 +140,56 @@ internal class IosCameraCaptureSession(
     data class CaptureQueueUiState(
         val pendingCount: Int,
         val needsReview: Boolean,
+        val canCancelBeforeSave: Boolean,
         val atCapacity: Boolean,
         val capacity: Int,
     )
 
     fun captureQueueUiState(): CaptureQueueUiState = runCatching {
-        val stages = staging.listSnapshots().map { it.record.stage }
+        val snapshots = staging.listSnapshots()
+        val stages = snapshots.map { it.record.stage }
         val pending = stages.count {
             it == DurableCaptureStage.RESERVED || it == DurableCaptureStage.READY ||
                 it == DurableCaptureStage.PROCESSING || it == DurableCaptureStage.MEDIA_SAVED
         }
+        val outstanding = snapshots.filter { it.record.stage !in durableTerminalStages }
         CaptureQueueUiState(
             pendingCount = pending,
             needsReview = DurableCaptureStage.NEEDS_REVIEW in stages,
+            canCancelBeforeSave = canCancelBeforeSave(outstanding),
             atCapacity = pending >= DurableCaptureQueuePolicy.MAX_OUTSTANDING,
             capacity = DurableCaptureQueuePolicy.MAX_OUTSTANDING,
         )
-    }.getOrElse { CaptureQueueUiState(0, needsReview = true, atCapacity = false,
+    }.getOrElse { CaptureQueueUiState(0, needsReview = true, canCancelBeforeSave = false, atCapacity = false,
         capacity = DurableCaptureQueuePolicy.MAX_OUTSTANDING) }
+
+    fun cancelCaptureQueueBeforeSave(): Boolean = runCatching {
+        check(!coordinator.hasPendingCapture() && !undoCoordinator.hasPendingUndo())
+        val outstanding = staging.listSnapshots()
+            .filter { it.record.stage !in durableTerminalStages }
+        check(canCancelBeforeSave(outstanding))
+        outstanding.forEachIndexed { index, snapshot ->
+            if (index == 0) {
+                staging.cancelReviewedBeforeSave(snapshot.record.captureId)
+            } else {
+                staging.transition(snapshot.record.captureId, DurableCaptureStage.CANCELLED)
+            }
+        }
+        outstanding.forEach { staging.removeTerminal(it.record.captureId) }
+        workspace = store.load(checkNotNull(workspace.active).template)
+        reservationWorkspace = workspace
+        true
+    }.getOrDefault(false)
+
+    private fun canCancelBeforeSave(outstanding: List<DurableCaptureSnapshot>): Boolean {
+        val first = outstanding.firstOrNull() ?: return false
+        if (first.record.stage != DurableCaptureStage.NEEDS_REVIEW ||
+            first.record.reviewReason != DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE) {
+            return false
+        }
+        return outstanding.drop(1).all { it.record.stage == DurableCaptureStage.READY } &&
+            !coordinator.hasPendingCapture() && !undoCoordinator.hasPendingUndo()
+    }
 
     val latestSessionCaptureId: String? get() = confirmedCaptureIds.lastOrNull()
     val canUndoLatestCapture: Boolean get() = sessionCaptures.isNotEmpty() && !hasPending()

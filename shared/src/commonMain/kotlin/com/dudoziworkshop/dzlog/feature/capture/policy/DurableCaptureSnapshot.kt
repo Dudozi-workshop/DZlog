@@ -201,11 +201,13 @@ object DurableCaptureSnapshotCodec {
         .put("template", value.templateId).put("project", value.projectId ?: CompatJsonObject.NULL)
         .put("counter", value.counterValue).put("phrase", value.phraseProgressCursor)
         .put("stage", value.stage.name)
+        .put("reviewReason", value.reviewReason?.name ?: CompatJsonObject.NULL)
 
     private fun decodeRecord(value: CompatJsonObject): DurableCaptureRecord = DurableCaptureRecord(
         value.getString("id"), value.optLong("order", -1L), value.getString("template"),
         value.nullableString("project"), value.getInt("counter"), value.getInt("phrase"),
         DurableCaptureStage.valueOf(value.getString("stage")),
+        value.nullableString("reviewReason")?.let(DurableCaptureReviewReason::valueOf),
     )
 
     private fun CompatJsonObject.nullableString(key: String): String? =

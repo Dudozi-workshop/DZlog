@@ -89,7 +89,39 @@ class IosDurableCaptureStagingStore(
         check(DurableCaptureQueuePolicy.canTransition(current.record.stage, next)) {
             "Unsafe capture stage transition."
         }
-        val updated = current.copy(record = current.record.copy(stage = next))
+        val updated = current.copy(record = current.record.copy(stage = next, reviewReason = null))
+        writeAtomically(paths(captureId).manifest,
+            DurableCaptureSnapshotCodec.encode(updated).encodeToByteArray())
+        return checkNotNull(load(captureId))
+    }
+
+    fun markNeedsReview(
+        captureId: String,
+        reason: DurableCaptureReviewReason,
+    ): DurableCaptureSnapshot {
+        val current = checkNotNull(load(captureId)) { "Staged capture does not exist." }
+        check(DurableCaptureQueuePolicy.canTransition(
+            current.record.stage, DurableCaptureStage.NEEDS_REVIEW)) {
+            "Unsafe capture review transition."
+        }
+        val updated = current.copy(record = current.record.copy(
+            stage = DurableCaptureStage.NEEDS_REVIEW,
+            reviewReason = reason,
+        ))
+        writeAtomically(paths(captureId).manifest,
+            DurableCaptureSnapshotCodec.encode(updated).encodeToByteArray())
+        return checkNotNull(load(captureId))
+    }
+
+    fun cancelReviewedBeforeSave(captureId: String): DurableCaptureSnapshot {
+        val current = checkNotNull(load(captureId)) { "Staged capture does not exist." }
+        check(DurableCaptureQueuePolicy.canCancelReviewedCapture(current.record)) {
+            "Only a capture proven to have stopped before saving may be cancelled."
+        }
+        val updated = current.copy(record = current.record.copy(
+            stage = DurableCaptureStage.CANCELLED,
+            reviewReason = null,
+        ))
         writeAtomically(paths(captureId).manifest,
             DurableCaptureSnapshotCodec.encode(updated).encodeToByteArray())
         return checkNotNull(load(captureId))

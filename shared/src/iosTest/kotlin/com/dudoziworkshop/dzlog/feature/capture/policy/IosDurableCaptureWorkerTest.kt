@@ -138,6 +138,8 @@ class IosDurableCaptureWorkerTest {
             { changed }, { true }).processAvailable() }
         assertEquals(IosDurableCaptureWorkerStatus.NEEDS_REVIEW, result.single().status)
         assertEquals(DurableCaptureStage.NEEDS_REVIEW, staging.load("capture-1")?.record?.stage)
+        assertEquals(DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE,
+            staging.load("capture-1")?.record?.reviewReason)
         assertEquals(DurableCaptureStage.READY, staging.load("capture-2")?.record?.stage)
         assertTrue(media.saveOrder.isEmpty())
     }

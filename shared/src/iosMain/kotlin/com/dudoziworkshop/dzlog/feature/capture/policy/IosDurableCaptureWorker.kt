@@ -91,7 +91,8 @@ class IosDurableCaptureWorker(
             "A later capture cannot skip the queue head."
         }
         if (loadWorkspace() != snapshot.workspaceBefore) {
-            staging.transition(snapshot.record.captureId, DurableCaptureStage.NEEDS_REVIEW)
+            staging.markNeedsReview(snapshot.record.captureId,
+                DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE)
             return IosDurableCaptureWorkerResult(snapshot.record.captureId,
                 IosDurableCaptureWorkerStatus.NEEDS_REVIEW)
         }
@@ -124,7 +125,8 @@ class IosDurableCaptureWorker(
         snapshot: DurableCaptureSnapshot,
     ): IosDurableCaptureWorkerResult {
         if (!coordinator.hasPendingCapture()) {
-            staging.transition(snapshot.record.captureId, DurableCaptureStage.NEEDS_REVIEW)
+            staging.markNeedsReview(snapshot.record.captureId,
+                DurableCaptureReviewReason.PROCESSING_RECEIPT_MISSING)
             return IosDurableCaptureWorkerResult(snapshot.record.captureId,
                 IosDurableCaptureWorkerStatus.NEEDS_REVIEW)
         }
@@ -133,7 +135,8 @@ class IosDurableCaptureWorker(
                 IosDurableCaptureWorkerStatus.WAITING_FOR_RECOVERY)
         }
         if (loadWorkspace() != snapshot.workspaceAfter) {
-            staging.transition(snapshot.record.captureId, DurableCaptureStage.NEEDS_REVIEW)
+            staging.markNeedsReview(snapshot.record.captureId,
+                DurableCaptureReviewReason.RECOVERED_WORKSPACE_MISMATCH)
             return IosDurableCaptureWorkerResult(snapshot.record.captureId,
                 IosDurableCaptureWorkerStatus.NEEDS_REVIEW)
         }
@@ -145,7 +148,8 @@ class IosDurableCaptureWorker(
 
     private fun recoverMediaSaved(snapshot: DurableCaptureSnapshot): IosDurableCaptureWorkerResult {
         if (coordinator.hasPendingCapture() || loadWorkspace() != snapshot.workspaceAfter) {
-            staging.transition(snapshot.record.captureId, DurableCaptureStage.NEEDS_REVIEW)
+            staging.markNeedsReview(snapshot.record.captureId,
+                DurableCaptureReviewReason.MEDIA_SAVED_STATE_UNCERTAIN)
             return IosDurableCaptureWorkerResult(snapshot.record.captureId,
                 IosDurableCaptureWorkerStatus.NEEDS_REVIEW)
         }

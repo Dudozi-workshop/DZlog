@@ -260,6 +260,7 @@ internal fun IosCameraBottomBar(
     saveQueueFull: Boolean,
     saveQueueCapacity: Int,
     saveDetailsAllowed: Boolean,
+    saveCanCancelBeforeSave: Boolean,
     recentThumbnail: ImageBitmap?,
     galleryLabel: String,
     onOpenGallery: () -> Unit,
@@ -267,6 +268,7 @@ internal fun IosCameraBottomBar(
     onCapture: () -> Unit,
     onOpenQuickValues: () -> Unit,
     onUndo: () -> Unit,
+    onCancelPendingBeforeSave: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 84.dp).padding(horizontal = 12.dp, vertical = 7.dp),
@@ -280,6 +282,8 @@ internal fun IosCameraBottomBar(
                 atCapacity = saveQueueFull,
                 capacity = saveQueueCapacity,
                 detailsAllowed = saveDetailsAllowed,
+                canCancelBeforeSave = saveCanCancelBeforeSave,
+                onCancelBeforeSave = onCancelPendingBeforeSave,
                 modifier = Modifier.align(Alignment.TopCenter).offset(y = (-24).dp),
             )
         }
@@ -326,10 +330,13 @@ private fun IosCameraSaveStatusIndicator(
     atCapacity: Boolean,
     capacity: Int,
     detailsAllowed: Boolean,
+    canCancelBeforeSave: Boolean,
+    onCancelBeforeSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (pendingCount == 0 && !hasError) return
     var detailsOpen by remember { mutableStateOf(false) }
+    var cancelConfirmationOpen by remember { mutableStateOf(false) }
     LaunchedEffect(detailsAllowed) {
         if (!detailsAllowed) detailsOpen = false
     }
@@ -391,14 +398,38 @@ private fun IosCameraSaveStatusIndicator(
                         }
                     }
                     Text(when {
-                        hasError -> "원본과 촬영번호를 보호하기 위해 저장 결과 확인 전까지 촬영이 제한됩니다."
+                        hasError && canCancelBeforeSave -> "사진 저장 전 작업 상태가 변경됐습니다. 이 촬영과 뒤따르는 저장 대기를 안전하게 취소할 수 있습니다."
+                        hasError -> "저장 여부가 불확실해 원본과 촬영번호를 보호하고 있습니다. 자동 취소하지 않습니다."
                         atCapacity -> "${capacity}장 모두 저장 중입니다. 한 장의 저장이 완료되면 셔터가 다시 활성화됩니다."
                         else -> "촬영한 사진을 순서대로 안전하게 저장하고 있습니다."
                     }, style = DDZTypography.Caption, color = DDZColor.TextSecondary)
+                    if (hasError && canCancelBeforeSave) TextButton(
+                        onClick = {
+                            detailsOpen = false
+                            cancelConfirmationOpen = true
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text("저장 대기 전체 취소", color = DDZColor.Destructive)
+                    }
                 }
             }
         }
     }
+    if (cancelConfirmationOpen) AlertDialog(
+        onDismissRequest = { cancelConfirmationOpen = false },
+        title = { Text("저장 대기를 취소할까요?") },
+        text = { Text("사진 저장이 시작되지 않은 촬영만 취소합니다. 저장 여부가 불확실한 촬영은 삭제하지 않습니다.") },
+        confirmButton = {
+            TextButton(onClick = {
+                cancelConfirmationOpen = false
+                onCancelBeforeSave()
+            }) { Text("전체 취소", color = DDZColor.Destructive) }
+        },
+        dismissButton = {
+            TextButton(onClick = { cancelConfirmationOpen = false }) { Text("돌아가기") }
+        },
+    )
 }
 
 @Composable

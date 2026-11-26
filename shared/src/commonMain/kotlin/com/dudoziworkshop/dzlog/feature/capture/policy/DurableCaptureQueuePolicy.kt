@@ -17,6 +17,13 @@ enum class DurableCaptureStage {
     NEEDS_REVIEW,
 }
 
+enum class DurableCaptureReviewReason {
+    WORKSPACE_CHANGED_BEFORE_SAVE,
+    PROCESSING_RECEIPT_MISSING,
+    RECOVERED_WORKSPACE_MISMATCH,
+    MEDIA_SAVED_STATE_UNCERTAIN,
+}
+
 data class DurableCaptureRecord(
     val captureId: String,
     val reservationOrder: Long,
@@ -25,6 +32,7 @@ data class DurableCaptureRecord(
     val counterValue: Int,
     val phraseProgressCursor: Int,
     val stage: DurableCaptureStage,
+    val reviewReason: DurableCaptureReviewReason? = null,
 ) {
     init {
         require(captureId.isNotBlank())
@@ -32,6 +40,9 @@ data class DurableCaptureRecord(
         require(templateId.isNotBlank())
         require(counterValue >= 1)
         require(phraseProgressCursor >= 0)
+        require(stage == DurableCaptureStage.NEEDS_REVIEW || reviewReason == null) {
+            "Only a capture awaiting review may retain a review reason."
+        }
     }
 }
 
@@ -137,7 +148,7 @@ object DurableCaptureQueuePolicy {
         DurableCaptureStage.RESERVED -> to == DurableCaptureStage.READY ||
             to == DurableCaptureStage.CANCELLED || to == DurableCaptureStage.NEEDS_REVIEW
         DurableCaptureStage.READY -> to == DurableCaptureStage.PROCESSING ||
-            to == DurableCaptureStage.NEEDS_REVIEW
+            to == DurableCaptureStage.CANCELLED || to == DurableCaptureStage.NEEDS_REVIEW
         DurableCaptureStage.PROCESSING -> to == DurableCaptureStage.MEDIA_SAVED ||
             to == DurableCaptureStage.NEEDS_REVIEW
         DurableCaptureStage.MEDIA_SAVED -> to == DurableCaptureStage.COMMITTED ||
@@ -146,4 +157,8 @@ object DurableCaptureQueuePolicy {
         DurableCaptureStage.CANCELLED,
         DurableCaptureStage.NEEDS_REVIEW -> false
     }
+
+    fun canCancelReviewedCapture(record: DurableCaptureRecord): Boolean =
+        record.stage == DurableCaptureStage.NEEDS_REVIEW &&
+            record.reviewReason == DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE
 }

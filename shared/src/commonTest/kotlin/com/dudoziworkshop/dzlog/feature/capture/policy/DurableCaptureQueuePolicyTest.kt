@@ -154,6 +154,14 @@ class DurableCaptureQueuePolicyTest {
             DurableCaptureStage.MEDIA_SAVED, DurableCaptureStage.PROCESSING))
         assertFalse(DurableCaptureQueuePolicy.canTransition(
             DurableCaptureStage.COMMITTED, DurableCaptureStage.READY))
+        assertTrue(DurableCaptureQueuePolicy.canTransition(
+            DurableCaptureStage.READY, DurableCaptureStage.CANCELLED))
+        assertTrue(DurableCaptureQueuePolicy.canCancelReviewedCapture(record(
+            0, DurableCaptureStage.NEEDS_REVIEW).copy(
+                reviewReason = DurableCaptureReviewReason.WORKSPACE_CHANGED_BEFORE_SAVE)))
+        assertFalse(DurableCaptureQueuePolicy.canCancelReviewedCapture(record(
+            0, DurableCaptureStage.NEEDS_REVIEW).copy(
+                reviewReason = DurableCaptureReviewReason.MEDIA_SAVED_STATE_UNCERTAIN)))
     }
 
     @Test fun duplicateIdsOrReservationOrdersAreRejected() {

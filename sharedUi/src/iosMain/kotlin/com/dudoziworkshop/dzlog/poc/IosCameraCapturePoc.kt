@@ -582,6 +582,7 @@ internal fun IosCameraCapturePoc(
             saveQueueCapacity = queueUiState?.capacity
                 ?: com.dudoziworkshop.dzlog.feature.capture.policy.DurableCaptureQueuePolicy.MAX_OUTSTANDING,
             saveDetailsAllowed = !busy && !showSettings && !showProjectPicker,
+            saveCanCancelBeforeSave = queueUiState?.canCancelBeforeSave == true,
             recentThumbnail = recentThumbnail,
             galleryLabel = if (session == null) "앨범 보기" else "촬영 결과 보기",
             onOpenGallery = { showTools = false; showGallery = true },
@@ -589,6 +590,14 @@ internal fun IosCameraCapturePoc(
             onCapture = triggerCapture,
             onOpenQuickValues = { showTools = false; showQuickValues = true },
             onUndo = triggerUndo,
+            onCancelPendingBeforeSave = {
+                if (session?.cancelCaptureQueueBeforeSave() == true) {
+                    status = "저장 전 대기 촬영을 취소했습니다."
+                    queueRevision += 1
+                } else {
+                    status = "저장 여부를 확인할 수 없어 자동 취소하지 않았습니다."
+                }
+            },
         )
     }
     if (showSettings && session != null) {
