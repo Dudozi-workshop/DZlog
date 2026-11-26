@@ -364,6 +364,7 @@ internal fun HomeNavigationPoc(
             },
             captureIds = project.captureIds,
             projectTitle = project.title,
+            returnTarget = IosQuickResultsReturnTarget.PROJECT,
             capturePathImpact = { GalleryFolderOperationPolicy.captureImpact(it, workspace) },
         )
     } else if (showGallery) {

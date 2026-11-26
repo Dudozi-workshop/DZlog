@@ -2104,7 +2104,8 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("촬영 결과 보기")
         XCTAssertTrue(text("프로젝트 결과").waitForExistence(timeout: 10))
         XCTAssertTrue(text("확인할 수 있는 촬영 사진이 없습니다.").waitForExistence(timeout: 10))
-        tapButton("뒤로")
+        XCTAssertTrue(button("촬영 계속하기").waitForExistence(timeout: 10))
+        tapButton("촬영 계속하기")
         tapButton("뒤로가기")
         XCTAssertTrue(button("촬영 시작").waitForExistence(timeout: 20))
 

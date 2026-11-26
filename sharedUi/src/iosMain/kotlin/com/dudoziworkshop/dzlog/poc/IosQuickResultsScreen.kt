@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.quickresults.*
 import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
+import com.dudoziworkshop.dzlog.ui.common.DDZButton
+import com.dudoziworkshop.dzlog.ui.common.DDZButtonStyle
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -37,11 +42,17 @@ internal fun quickResultCaptures(ids: List<String>, photos: List<SavedCaptureMed
     })
 }
 
+internal enum class IosQuickResultsReturnTarget {
+    CAMERA,
+    PROJECT,
+}
+
 @Composable
 internal fun IosQuickResultsScreen(
     repository: PhotoKitCaptureMediaRepository,
     captureIds: List<String>,
     projectTitle: String?,
+    returnTarget: IosQuickResultsReturnTarget,
     onBack: () -> Unit,
     scopeError: String? = null,
     capturePathImpact: (String) -> CapturePathImpact,
@@ -282,5 +293,21 @@ internal fun IosQuickResultsScreen(
                 }
             }
         }
+        DDZButton(
+            text = when (returnTarget) {
+                IosQuickResultsReturnTarget.CAMERA -> "촬영 계속하기"
+                IosQuickResultsReturnTarget.PROJECT -> "프로젝트로 돌아가기"
+            },
+            leadingIcon = when (returnTarget) {
+                IosQuickResultsReturnTarget.CAMERA -> Icons.Default.CameraAlt
+                IosQuickResultsReturnTarget.PROJECT -> Icons.Default.ArrowBack
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            onClick = onBack,
+            style = DDZButtonStyle.Primary,
+            containerColorOverride = DDZColor.PrimaryDark,
+            minHeight = 48.dp,
+            shape = RoundedCornerShape(16.dp),
+        )
     }
 }
