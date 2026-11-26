@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dudoziworkshop.dzlog.data.media.*
 import com.dudoziworkshop.dzlog.domain.quickresults.*
+import com.dudoziworkshop.dzlog.ui.common.AlbumViewAction
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import com.dudoziworkshop.dzlog.ui.theme.DDZLayout
 import com.dudoziworkshop.dzlog.ui.theme.DDZTypography
@@ -63,11 +64,17 @@ internal fun IosQuickResultsScreen(
         }
     }
     if (album) {
-        IosPhotoKitGalleryScreen(repository, onBack = { album = false }, capturePathImpact = capturePathImpact)
+        IosPhotoKitGalleryScreen(repository, onBack = {
+            album = false
+            revision++
+        }, capturePathImpact = capturePathImpact)
         return
     }
     opened?.let { initial ->
-        IosPhotoKitGalleryScreen(repository, onBack = { opened = null },
+        IosPhotoKitGalleryScreen(repository, onBack = {
+            opened = null
+            revision++
+        },
             resultCaptureIds = viewerIds, initialAssetId = initial, capturePathImpact = capturePathImpact)
         return
     }
@@ -93,22 +100,67 @@ internal fun IosQuickResultsScreen(
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("뒤로") }
-            Text(if (projectTitle == null) "빠른결과" else "프로젝트 결과",
-                Modifier.weight(1f), style = DDZTypography.ScreenTitle)
-            TextButton(onClick = { album = true }) { Text("앨범 보기") }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (projectTitle == null) "빠른결과" else "프로젝트 결과",
+                    style = DDZTypography.ScreenTitle,
+                    color = DDZColor.TextPrimary,
+                )
+                Text(
+                    "${projectTitle ?: "이번 촬영"} · ${captures.size}건",
+                    color = DDZColor.TextSecondary,
+                    style = DDZTypography.Secondary,
+                )
+            }
+            AlbumViewAction(onClick = { album = true })
         }
-        if (scopeError != null) Text(scopeError)
+        if (scopeError != null) {
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = DDZColor.SurfaceSoft,
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Text(
+                    scopeError,
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    color = DDZColor.TextSecondary,
+                    style = DDZTypography.Caption,
+                )
+            }
+        }
         when {
             captureIds.isNotEmpty() && !permissions.photos.readable -> PermissionCard(camera = false, access = permissions.photos)
-            loading -> CircularProgressIndicator()
+            loading -> Box(
+                Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator() }
             error != null -> {
-                Text(error.orEmpty())
-                TextButton(onClick = { revision++ }) { Text("다시 시도") }
+                Box(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(error.orEmpty(), color = DDZColor.TextSecondary)
+                        TextButton(onClick = { revision++ }) { Text("다시 시도") }
+                    }
+                }
             }
-            captures.isEmpty() -> Text("확인할 수 있는 촬영 사진이 없습니다.")
+            captures.isEmpty() -> Box(
+                Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (projectTitle == null) "이번 촬영 사진이 없습니다."
+                    else "확인할 수 있는 촬영 사진이 없습니다.",
+                    color = DDZColor.TextSecondary,
+                )
+            }
             else -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${projectTitle ?: "이번 촬영"} · ${captures.size}건", Modifier.weight(1f))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Box {
                         TextButton(onClick = { menu = true }) {
                             Text(folder?.let(QuickResultsSessionPolicy::folderLabel) ?: "전체 폴더")
@@ -121,15 +173,23 @@ internal fun IosQuickResultsScreen(
                         }
                     }
                 }
-                LazyVerticalGrid(GridCells.Fixed(gridColumns), state = grid,
-                    modifier = Modifier.iosGalleryGridPinch(gridColumns, enabled = true) { columns ->
+                if (sections.isEmpty()) {
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text("선택한 폴더에 이번 촬영 사진이 없습니다.", color = DDZColor.TextSecondary)
+                    }
+                } else LazyVerticalGrid(GridCells.Fixed(gridColumns), state = grid,
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                        .iosGalleryGridPinch(gridColumns, enabled = true) { columns ->
                         val normalized = SavedGalleryGridPolicy.normalize(columns)
                         if (normalized != gridColumns) {
                             pendingGridAnchor = grid.firstVisibleItemIndex to grid.firstVisibleItemScrollOffset
                             gridColumns = normalized
                             galleryPreferences.setQuickResultGridColumns(normalized)
                         }
-                    },
+                        },
                     horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     sections.forEach { section ->
                         item(key = section.key, span = { GridItemSpan(maxLineSpan) }) {
