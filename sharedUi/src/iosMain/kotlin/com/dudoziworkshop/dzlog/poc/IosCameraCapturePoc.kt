@@ -91,6 +91,7 @@ internal fun IosCameraCapturePoc(
     var showQuickValues by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
     var showTools by remember(permissions.captureAllowed) { mutableStateOf(false) }
+    var zoomExpanded by remember(permissions.captureAllowed) { mutableStateOf(false) }
     var projectRegistry by remember(session) {
         mutableStateOf(session?.let { runCatching { it.loadProjectRegistry() }.getOrNull() })
     }
@@ -491,6 +492,7 @@ internal fun IosCameraCapturePoc(
                 flashLabel = listOf("꺼짐", "자동", "켜짐")[flash],
                 zoom = zoom,
                 maximumZoom = camera.maximumZoom,
+                zoomExpanded = zoomExpanded,
                 onAutoFocus = {
                     if (!camera.autoFocus()) status = "자동초점을 설정할 수 없습니다."
                 },
@@ -505,11 +507,12 @@ internal fun IosCameraCapturePoc(
                     }
                 },
                 onZoomChange = { if (camera.setZoom(it)) zoom = it },
-                onZoomFinished = {
-                    if (session == null || session.setCameraZoom(zoom)) {
-                        zoom = session?.cameraZoom ?: zoom
+                onZoomFinished = { finishedZoom ->
+                    if (session == null || session.setCameraZoom(finishedZoom)) {
+                        zoom = session?.cameraZoom ?: finishedZoom
                     } else status = "카메라 배율을 저장하지 못했습니다."
                 },
+                onToggleZoomExpanded = { zoomExpanded = !zoomExpanded },
                 showGrid = showGrid,
                 showTable = showTable,
                 assistShutterEnabled = assistShutterEnabled,

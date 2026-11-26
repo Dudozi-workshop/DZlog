@@ -21,17 +21,9 @@ import androidx.compose.ui.unit.sp
 import com.dudoziworkshop.dzlog.ui.theme.DDZColor
 import kotlin.math.roundToInt
 
-private const val MIN_ZOOM_TENTHS = 10
-private const val MAX_ZOOM_TENTHS = 100
 /** Mockup 2: horizontal bottom baseline, long upright major marks. */
-internal enum class ZoomTickWeight { MINOR, HALF, MAJOR }
-internal fun zoomTickWeight(tenths: Int): ZoomTickWeight = when {
-    tenths % 10 == 0 -> ZoomTickWeight.MAJOR
-    tenths % 5 == 0 -> ZoomTickWeight.HALF
-    else -> ZoomTickWeight.MINOR
-}
-internal fun zoomTickLabel(tenths: Int): String? =
-    if (tenths >= MIN_ZOOM_TENTHS && tenths % 10 == 0) (tenths / 10).toString() else null
+internal fun zoomTickWeight(tenths: Int): ZoomTickWeight = cameraZoomTickWeight(tenths)
+internal fun zoomTickLabel(tenths: Int): String? = cameraZoomTickLabel(tenths)
 
 private data class ZoomDragSession(
     val startZoomTenths: Int,
@@ -64,8 +56,8 @@ internal fun ZoomTickBar(
         textSize = with(density) { 11.sp.toPx() }
     }
 
-    val normalizedMaxTenths = maxZoomTenths.coerceIn(MIN_ZOOM_TENTHS, MAX_ZOOM_TENTHS)
-    val normalizedTenths = zoomTenths.coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
+    val normalizedMaxTenths = maxZoomTenths.coerceIn(CAMERA_MIN_ZOOM_TENTHS, CAMERA_MAX_ZOOM_TENTHS)
+    val normalizedTenths = zoomTenths.coerceIn(CAMERA_MIN_ZOOM_TENTHS, normalizedMaxTenths)
 
     val latestZoomTenths by rememberUpdatedState(normalizedTenths)
     val latestHapticEnabled by rememberUpdatedState(hapticEnabled)
@@ -82,7 +74,7 @@ internal fun ZoomTickBar(
                     val deltaTenths = (offset.x - centerX) / tickSpacingPx
                     val mapped = (latestZoomTenths + deltaTenths)
                         .roundToInt()
-                        .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
+                        .coerceIn(CAMERA_MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
                     latestOnZoomGestureFinished(mapped)
                 }
@@ -119,7 +111,7 @@ internal fun ZoomTickBar(
                     val deltaTenths = (change.position.x - session.startX) / tickSpacingPx
                     val mapped = (session.startZoomTenths + deltaTenths)
                         .roundToInt()
-                        .coerceIn(MIN_ZOOM_TENTHS, normalizedMaxTenths)
+                        .coerceIn(CAMERA_MIN_ZOOM_TENTHS, normalizedMaxTenths)
                     latestOnZoomTenthsChange(mapped)
                     lastGestureValue = mapped
                     val previousHapticTenths = session.lastHapticTenths
@@ -142,7 +134,7 @@ internal fun ZoomTickBar(
             end = Offset(size.width, baselineY),
             strokeWidth = 1.dp.toPx()
         )
-        for (tick in MIN_ZOOM_TENTHS..normalizedMaxTenths) {
+        for (tick in CAMERA_MIN_ZOOM_TENTHS..normalizedMaxTenths) {
             val x = centerX + (tick - normalizedTenths) * tickSpacingPx
             if (x < 0f || x > size.width || kotlin.math.abs(x - centerX) < 2.dp.toPx()) continue
 

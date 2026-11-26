@@ -174,13 +174,15 @@ internal fun IosCameraToolPanel(
     flashLabel: String,
     zoom: Float,
     maximumZoom: Float,
+    zoomExpanded: Boolean,
     showGrid: Boolean,
     showTable: Boolean,
     assistShutterEnabled: Boolean,
     onAutoFocus: () -> Unit,
     onCycleFlash: () -> Unit,
     onZoomChange: (Float) -> Unit,
-    onZoomFinished: () -> Unit,
+    onZoomFinished: (Float) -> Unit,
+    onToggleZoomExpanded: () -> Unit,
     onToggleGrid: () -> Unit,
     onToggleTable: () -> Unit,
     onToggleAssistShutter: () -> Unit,
@@ -209,12 +211,14 @@ internal fun IosCameraToolPanel(
                     Icons.Default.CameraAlt, true, onToggleAssistShutter,
                     selected = assistShutterEnabled)
             }
-            Slider(
-                value = zoom.coerceIn(1f, maxOf(1.01f, maximumZoom)),
-                valueRange = 1f..maxOf(1.01f, maximumZoom),
+            IosCameraZoomControl(
+                zoom = zoom,
+                maximumZoom = maximumZoom,
+                expanded = zoomExpanded,
                 enabled = ready && maximumZoom > 1f,
-                onValueChange = onZoomChange,
-                onValueChangeFinished = onZoomFinished,
+                onToggleExpanded = onToggleZoomExpanded,
+                onZoomChange = onZoomChange,
+                onZoomFinished = onZoomFinished,
             )
         }
     }
@@ -477,7 +481,7 @@ private fun IosCameraChromeButton(
     }
 }
 
-private fun formatIosZoom(value: Float): String {
+internal fun formatIosZoom(value: Float): String {
     val tenths = (value * 10f).toInt()
     return if (tenths % 10 == 0) (tenths / 10).toString() else "${tenths / 10}.${tenths % 10}"
 }
