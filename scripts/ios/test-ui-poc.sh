@@ -32,7 +32,7 @@ case "$test_scope" in
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusFeedbackFailureTimeoutAndRecovery
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusControlsAtPreviewEdges
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusControlsCollapseAfterInteraction
-    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusExposureLockUsesConfirmedTwoTapPolicy
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusExposureLockRefocusesOnOneTapAndRetainsBias
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativePreviewPinchZoomCommitsCompactScale
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraControlsStayDisabledWithoutCameraPermission

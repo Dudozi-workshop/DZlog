@@ -437,7 +437,8 @@ final class PreviewInteractionTests: XCTestCase {
 
     func testNativeFocusExposureLockRefocusesOnOneTapAndRetainsBias() {
         openLiveTable(reset: true)
-        func tapFocusPoint(_ x: CGFloat, _ y: CGFloat) {
+        @discardableResult
+        func tapFocusPoint(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
             // The overlay UIImageView is not an interactive UIKit view. Use its
             // observed screen frame, not XCTest's element-relative hit-point routing.
             let frame = livePreview().frame
@@ -451,6 +452,7 @@ final class PreviewInteractionTests: XCTestCase {
             }
             app.coordinate(withNormalizedOffset: .zero)
                 .withOffset(CGVector(dx: point.x - app.frame.minX, dy: point.y - app.frame.minY)).tap()
+            return point
         }
         tapFocusPoint(0.08, 0.08)
         XCTAssertTrue(text("상태: 터치 초점 적용").waitForExistence(timeout: 10), app.debugDescription)
@@ -478,19 +480,17 @@ final class PreviewInteractionTests: XCTestCase {
 
         // Android parity: a locked preview tap refocuses immediately while
         // preserving both native exposure compensation and the slider value.
-        let lockedFocusFrame = text("카메라 초점").frame
-        tapFocusPoint(0.10, 0.82)
+        let firstTarget = tapFocusPoint(0.10, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
         XCTAssertTrue(app.sliders["밝기 조절"].waitForExistence(timeout: 10))
         XCTAssertEqual(biasLabel.label, retainedBias)
         let firstRefocusedFrame = text("카메라 초점").frame
-        XCTAssertGreaterThan(abs(firstRefocusedFrame.midX - lockedFocusFrame.midX), 20)
-        XCTAssertGreaterThan(abs(firstRefocusedFrame.midY - lockedFocusFrame.midY), 20)
+        XCTAssertTrue(firstRefocusedFrame.contains(firstTarget))
         // Repeated locked refocuses preserve the same native bias and slider.
-        tapFocusPoint(0.88, 0.82)
+        let secondTarget = tapFocusPoint(0.88, 0.82)
         XCTAssertTrue(text("상태: 잠금 초점 이동").waitForExistence(timeout: 10))
         let refocusedFrame = text("카메라 초점").frame
-        XCTAssertGreaterThan(abs(refocusedFrame.midX - firstRefocusedFrame.midX), 20)
+        XCTAssertTrue(refocusedFrame.contains(secondTarget))
         XCTAssertEqual(biasLabel.label, retainedBias)
         XCTAssertEqual(String(describing: brightness.value ?? ""), retainedSlider)
         tapFocusPoint(0.10, 0.82)
@@ -821,8 +821,12 @@ final class PreviewInteractionTests: XCTestCase {
         tapButton("선택 이동")
         XCTAssertTrue(text("이동할 위치 선택").waitForExistence(timeout: 10))
         tapButton("취소")
+        XCTAssertTrue(text("선택 2개").waitForExistence(timeout: 10))
+        XCTAssertFalse(button("즐겨찾기").isEnabled)
+        tapButton("선택 해제")
         tapButton("즐겨찾기")
-        XCTAssertTrue(text("선택 0개").waitForExistence(timeout: 10), "Hidden selections must not survive a filter change")
+        XCTAssertTrue(text("사진 0개").waitForExistence(timeout: 10))
+        XCTAssertTrue(text("선택 0개").exists)
         tapButton("전체")
         XCTAssertTrue(text("사진 2개").waitForExistence(timeout: 10), "Cancelling batch dialogs must keep both Photos assets")
         XCTAssertTrue(text("선택 0개").exists)
