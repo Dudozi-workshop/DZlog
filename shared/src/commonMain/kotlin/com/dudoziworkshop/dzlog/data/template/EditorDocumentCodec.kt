@@ -12,6 +12,7 @@ data class EditorDocument(
     val counterPadding: Int = 4,
     val nextCounter: Int? = null,
     val usesAutoNext: Boolean = true,
+    val capturePlacement: EditorCapturePlacement? = null,
 )
 
 object EditorDocumentCodec {
@@ -24,6 +25,17 @@ object EditorDocumentCodec {
         .put("padding", value.counterPadding)
         .put("next", value.nextCounter ?: CompatJsonObject.NULL)
         .put("autoNext", value.usesAutoNext)
+        // Optional extension: existing schema-1 documents have no placement key.
+        .put("placementV1", value.capturePlacement?.let { placement ->
+            CompatJsonObject()
+                .put("anchor", placement.anchor.name)
+                .put("x", placement.offsetXPercent)
+                .put("y", placement.offsetYPercent)
+                .put("width", placement.widthRatio)
+                .put("height", placement.heightRatio)
+                .put("rotation", placement.rotationCwDeg)
+                .toString()
+        } ?: CompatJsonObject.NULL)
         .toString()
 
     fun decode(json: String): EditorDocument {
@@ -35,8 +47,20 @@ object EditorDocumentCodec {
         val next = if (root.opt("next") == null || root.opt("next") == CompatJsonObject.NULL) null
             else root.getInt("next").also { require(it >= 1) }
         val padding = root.getInt("padding").also { require(it in 0..4) }
+        val rawPlacement = root.opt("placementV1")
+        val placement = if (rawPlacement == null || rawPlacement == CompatJsonObject.NULL) null
+        else CompatJsonObject(root.getString("placementV1")).let { saved ->
+            EditorCapturePlacement(
+                anchor = EditorCaptureAnchor.valueOf(saved.getString("anchor")),
+                offsetXPercent = saved.getInt("x"),
+                offsetYPercent = saved.getInt("y"),
+                widthRatio = saved.getInt("width"),
+                heightRatio = saved.getInt("height"),
+                rotationCwDeg = saved.getInt("rotation"),
+            )
+        }
         return EditorDocument(template, root.optBoolean("pathScope", true),
             root.optBoolean("filenameScope", true), SaveMode.valueOf(root.getString("saveMode")),
-            padding, next, root.optBoolean("autoNext", true))
+            padding, next, root.optBoolean("autoNext", true), placement)
     }
 }

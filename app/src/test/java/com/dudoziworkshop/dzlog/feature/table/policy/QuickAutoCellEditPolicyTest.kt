@@ -18,7 +18,7 @@ class QuickAutoCellEditPolicyTest {
             RotatingPhraseSet("new", "New", listOf("X", "Y"))
         ))
     @Test fun `only eligible visible cells are selectable`() {
-        assertEquals(listOf("text", "date", "time", "phrase"), quickSelectableCells(template).map { it.cellId })
+        assertEquals(listOf("text", "date", "time", "phrase", "hidden"), quickSelectableCells(template).map { it.cellId })
     }
     @Test fun `date changes only supported format and leaves all other cells untouched`() {
         val changed = updateQuickDateFormat(template, "date", "yyMMdd")

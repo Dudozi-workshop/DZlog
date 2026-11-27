@@ -153,8 +153,7 @@ internal fun ZoomQuickPanelCore(
 
 /** Only valid preset stops are selectable; never duplicate the device maximum. */
 internal fun rememberZoomPresets(maxZoomTenths: Int): List<Int> {
-    val end = maxZoomTenths.coerceIn(10, 100)
-    return (listOf(10, 20, 40, 100).filter { it <= end } + end).distinct().sorted()
+    return cameraZoomPresets(maxZoomTenths)
 }
 
 @Composable

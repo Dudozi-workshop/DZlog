@@ -16,9 +16,24 @@ class MonetizationRolloutPolicyTest {
         kind = "MANUAL", label = "직접입력", manualText = text
     )
     private val fiveSlotTemplate = base.copy(
-        fileNameSlotDrafts = base.fileNameSlotDrafts + listOf(manual("A"), manual("B")),
+        fileNameSlotDrafts = base.fileNameSlotDrafts.take(3) + listOf(manual("A"), manual("B")),
         pathSlotDrafts = (1..5).map { manual("segment$it") },
     )
+
+    @Test
+    fun `all unlocked keeps five slots available regardless of entitlement`() {
+        assertEquals(5, fiveSlotTemplate.fileNameSlotDrafts.size)
+        assertEquals(5, fiveSlotTemplate.fileNameSlotDrafts.count { it != null })
+        for (tier in listOf(null, SaveRuleTier.FREE, SaveRuleTier.VERIFIED_PRO)) {
+            val result = MonetizationRolloutPolicy.evaluate(
+                fiveSlotTemplate, 100, TemplateCollectionAction.CREATE, verifiedTier = tier,
+                freeSavedTemplateLimit = 0, proSavedTemplateLimit = 0,
+            )
+            assertTrue(result.canCaptureWithTemplate)
+            assertTrue(result.canAddSavedTemplates)
+            assertFalse(result.purchaseUIVisible)
+        }
+    }
 
     @Test
     fun `default release gives everyone full access without billing`() {

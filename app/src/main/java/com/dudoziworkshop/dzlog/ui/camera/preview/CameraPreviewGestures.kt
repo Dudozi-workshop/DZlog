@@ -142,10 +142,9 @@ internal fun Modifier.cameraPreviewGestureModifier(
                 onCornerResizeScale(1f, false)
             }
             val resizeAnchor = if (corner != null && selectedCorner != null) oppositeHandleCornerPoint(corner, selectedCorner) else null
-            val resizeStartDistance = if (cornerHit && resizeAnchor != null) hypot(
-                (firstDown.position.x - resizeAnchor.x).toDouble(),
-                (firstDown.position.y - resizeAnchor.y).toDouble(),
-            ).toFloat().coerceAtLeast(1f) else 1f
+            val resizeGesture = if (cornerHit && resizeAnchor != null) CameraResizeGesture(
+                resizeAnchor.x, resizeAnchor.y, firstDown.position.x, firstDown.position.y,
+            ) else null
             if (localDragEnabled) {
                 val br = corner!!
                 localDragStartLeftPx = br.left - captureRect.left
@@ -207,13 +206,9 @@ internal fun Modifier.cameraPreviewGestureModifier(
                     continue
                 }
 
-                if (cornerHit && resizeAnchor != null) {
+                if (resizeGesture != null) {
                     val active = event.changes.firstOrNull { it.pressed } ?: continue
-                    val resizeDistance = hypot(
-                        (active.position.x - resizeAnchor.x).toDouble(),
-                        (active.position.y - resizeAnchor.y).toDouble(),
-                    ).toFloat()
-                    onCornerResizeScale((resizeDistance / resizeStartDistance).coerceIn(0.1f, 10f), false)
+                    onCornerResizeScale(resizeGesture.scaleAt(active.position.x, active.position.y), false)
                     active.consume()
                     continue
                 }

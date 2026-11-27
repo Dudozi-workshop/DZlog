@@ -58,8 +58,11 @@ fun editorCellNeighbours(cells: List<TableEditorCellUiModel>, selectedId: String
     val ids = cells.filter { !it.isCovered && it.domainCellId != null }
         .sortedWith(compareBy({ it.rowIndex }, { it.colIndex })).mapNotNull { it.domainCellId }.distinct()
     val index = ids.indexOf(selectedId)
-    return if (index < 0) EditorCellNeighbours(null, null)
-    else EditorCellNeighbours(ids.getOrNull(index - 1), ids.getOrNull(index + 1))
+    if (index < 0 || ids.size < 2) return EditorCellNeighbours(null, null)
+    return EditorCellNeighbours(
+        previous = ids[(index - 1 + ids.size) % ids.size],
+        next = ids[(index + 1) % ids.size],
+    )
 }
 
 @Composable

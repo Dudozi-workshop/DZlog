@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.ui.camera.controls
 
+import com.dudoziworkshop.dzlog.feature.table.render.CameraTableSizeLimits
 import com.dudoziworkshop.dzlog.domain.model.WatermarkTableAnchor
 import com.dudoziworkshop.dzlog.feature.table.render.TableLayoutCalculator
 import kotlin.math.roundToInt
@@ -23,19 +24,7 @@ internal data class CameraTableResizeResult(
 )
 
 internal fun cameraTableScaleRange(base: CameraTableResizeBaseline): ClosedFloatingPointRange<Float> {
-    val w = base.widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO).toFloat()
-    val h = base.heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO).toFloat()
-    val rotated = base.rotationCwDeg % 180 != 0
-    val photoHeightPercent = 100f / base.photoAspect.coerceAtLeast(0.01f)
-    // Fit the rotated table inside both sides of the actual photo.
-    val maxScale = minOf(
-        TableLayoutCalculator.CAMERA_MAX_RATIO / w,
-        TableLayoutCalculator.CAMERA_MAX_RATIO / h,
-        100f / (if (rotated) h else w),
-        photoHeightPercent / (if (rotated) w else h),
-    )
-    val minScale = maxOf(10f / w, 10f / h).coerceAtMost(maxScale)
-    return minScale..maxScale
+    return CameraTableSizeLimits(base.photoAspect, base.rotationCwDeg).scaleRange(base.widthRatio, base.heightRatio)
 }
 
 /** 100% means the largest proportional table fitting inside the photo. */
@@ -47,19 +36,12 @@ internal fun resizeCameraTableKeepingCenter(
     base: CameraTableResizeBaseline,
     scale: Float,
 ): CameraTableResizeResult {
-    val range = cameraTableScaleRange(base)
-    val appliedScale = scale.coerceIn(range.start, range.endInclusive)
+    val (newW, newH) = CameraTableSizeLimits(base.photoAspect, base.rotationCwDeg)
+        .fit(base.widthRatio, base.heightRatio, scale)
     val oldW = base.widthRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f
     val oldH = base.heightRatio.coerceIn(10, TableLayoutCalculator.CAMERA_MAX_RATIO) / 100f
     val photoHeightInWidths = 1f / base.photoAspect.coerceAtLeast(0.01f)
     val rotated = (base.rotationCwDeg % 180) != 0
-    val maxW = minOf(TableLayoutCalculator.CAMERA_MAX_RATIO,
-        if (rotated) (photoHeightInWidths * 100f).toInt() else 100)
-    val maxH = minOf(TableLayoutCalculator.CAMERA_MAX_RATIO,
-        if (rotated) 100 else (photoHeightInWidths * 100f).toInt())
-    val newW = (base.widthRatio * appliedScale).roundToInt().coerceIn(10, maxW)
-    val newH = (base.heightRatio * appliedScale).roundToInt().coerceIn(10, maxH)
-
     val oldBoundsW = if (rotated) oldH else oldW
     val oldBoundsH = if (rotated) oldW else oldH
     val newBoundsW = (if (rotated) newH else newW) / 100f

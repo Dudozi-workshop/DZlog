@@ -4,10 +4,67 @@ repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 test_scope="${DZLOG_UI_TEST_SCOPE:-full}"
 case "$test_scope" in
   settings) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testSettingsQualityAccessibilityAndPersistence) ;;
+  quick-values) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPhraseCsvFilesPickersCanCancelWithoutReplacingTheSet
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickAutomaticDraftWrapCancelAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
+  ) ;;
+  media) selection=(
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPhotoPermissionDeniedThenGrantedInSettingsRestoresGallery
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPermissionsSettingsExposeCurrentStateAndSystemSettingsRoute
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureHapticSettingPersistsFromGlobalSettings
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickTextFavoriteSurvivesCancellationAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickInputKeepsKeyboardAcrossManualCellsAndCancelsPhraseSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testPhraseCsvFilesPickersCanCancelWithoutReplacingTheSet
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickGridWrapAndDraftAcrossCells
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickAutomaticDraftWrapCancelAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesCancelApplySaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValuesEligibilityNumbersAndStaleWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickValueTemplateSwitchPersistsDraftAndSelection
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableMoveResizePersistsAndSaves
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeLiveTableRotationLockAndGeometryBounds
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusFeedbackFailureTimeoutAndRecovery
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusControlsAtPreviewEdges
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusControlsCollapseAfterInteraction
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativeFocusExposureLockRefocusesOnOneTapAndRetainsBias
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testNativePreviewPinchZoomCommitsCompactScale
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testExifRasterIsUprightAndOriginalRemainsUnchanged
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraControlsStayDisabledWithoutCameraPermission
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraSettingsPersistThroughNativeModalReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFolderGridViewerAndOriginalResultSwitch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderRenamePreviewsPathRejectsCollisionAndPreservesCancellation
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderRowMenuKeepsParentForRenameMoveAndDelete
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testFolderMoveChoosesDestinationBeforeCommittingSubtree
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryMoveKeepsViewerOrderUntilReopened
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testGalleryFavoriteAndEmptyFolderManagementPersist
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedConfiguredRecoveryAfterWorkspaceFailure
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMergedRasterPixelsAndMalformedSpans
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredSaveModesAndGalleryAfterRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testConfiguredPhotoKitSaveRecoversAfterWorkspaceWriteFailure
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testMediaFixturePhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testQuickResultsViewerOriginalLockAndReturnTargets
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCameraPermissionDeniedBlocksCapture
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCameraPermissionDeniedEntryAndReturn
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionProjectCreateSelectAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureWorkspaceCommitAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeCompositedJpegPhotoKitSaveAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testBothModeMissingRenderedJpegIsRejected
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureRasterCompositorProducesJpegAndRejectsMismatchedOverlay
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testCaptureResolvedTableOverlayProducesJpeg
+  ) ;;
   editor) selection=(-only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch) ;;
   navigation) selection=(
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testEditorContentStructureStyleSaveAndRelaunch
     -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testHomeCatalogSettingsAndRelaunch
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionOnboardingSelectsStarterAndPersistsWorkspace
+    -only-testing:DZlogUiPocUITests/PreviewInteractionTests/testProductionProjectCreateSelectAndRelaunch
   ) ;;
   full) selection=() ;;
   *) echo "Unsupported UI scope: $test_scope" >&2; exit 2 ;;
@@ -34,11 +91,18 @@ shasum -a 256 "$bundled_png" | tee "$evidence_dir/home-leaf-bundle-sha256.txt"
 # Bound native XCTest execution and preserve a partial transcript on simulator stalls.
 case "$test_scope" in
   settings) limit_seconds=480 ;;
+  quick-values) limit_seconds=600 ;;
+  # The 38-case media run includes the quick-results PhotoKit navigation regression.
+  # Allow a finite five-minute margin for native sheets and Photos permission.
+  media) limit_seconds=2100 ;;
   editor) limit_seconds=720 ;;
   navigation) limit_seconds=900 ;;
-  full) limit_seconds=1200 ;;
+  # The 55-case suite includes the quick-results PhotoKit navigation regression.
+  # Leave enough time for slower simulator runs without reducing test coverage.
+  full) limit_seconds=5700 ;;
 esac
 python3 "$repo_root/scripts/ios/run-capped-command.py" "$limit_seconds" \
   "$evidence_dir/interaction-build.log" \
   xcodebuild test-without-building "${xcode_args[@]}" ${selection[@]+"${selection[@]}"} \
     -resultBundlePath "$evidence_dir/interaction.xcresult"
+

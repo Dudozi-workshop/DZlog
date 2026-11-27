@@ -1,5 +1,6 @@
 package com.dudoziworkshop.dzlog.data.template
 
+import com.dudoziworkshop.dzlog.domain.model.FILE_NAME_SLOT_COUNT
 import com.dudoziworkshop.dzlog.domain.model.CellValue
 import com.dudoziworkshop.dzlog.domain.model.TableCellDataType
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
@@ -56,7 +57,9 @@ class OnboardingStarterCatalogTest {
         val s = requireNotNull(OnboardingStarterCatalog.buildState(OnboardingStarterCatalog.DEFAULT_ID))
         assertEquals(listOf("기록명", "날짜", "번호"), s.cells.filter { it.rowIndex == 0 }.map { it.rawText })
         assertEquals(1, s.cells.count { it.rowIndex == 1 && it.quickEditable && it.dataType == TableCellDataType.TEXT })
-        assertEquals(3, s.fileNameSlotDrafts.size)
+        assertEquals(FILE_NAME_SLOT_COUNT, s.fileNameSlotDrafts.size)
+        assertEquals(3, s.fileNameSlotDrafts.count { it != null })
+        assertTrue(s.fileNameSlotDrafts.drop(3).all { it == null })
         assertEquals("DZlog", s.fileNameSlotDrafts[0]?.manualText)
         assertEquals("yyyyMMdd", s.fileNameSlotDrafts[2]?.formatPattern)
         assertTrue(s.pathSlotDrafts.isEmpty())
@@ -171,7 +174,7 @@ class OnboardingStarterCatalogTest {
         val input = requireNotNull(OnboardingStarterCatalog.buildState("research"))
         val decoded = requireNotNull(tableTemplateStateFromJson(input.toJsonString()))
         assertEquals(input.cells.map { it.quickEditable }, decoded.cells.map { it.quickEditable })
-        assertEquals(input.fileNameSlotDrafts.map { it?.cellId }, decoded.fileNameSlotDrafts.take(3).map { it?.cellId })
+        assertEquals(input.fileNameSlotDrafts.map { it?.cellId }, decoded.fileNameSlotDrafts.map { it?.cellId })
         val legacyJson = JSONObject(input.toJsonString())
         val cells = legacyJson.getJSONArray("cells")
         for (index in 0 until cells.length()) {

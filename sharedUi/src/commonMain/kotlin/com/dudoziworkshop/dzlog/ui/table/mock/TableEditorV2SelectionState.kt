@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.dudoziworkshop.dzlog.domain.model.TableTemplateState
 import com.dudoziworkshop.dzlog.feature.table.editor.TableSelectionRange
+import com.dudoziworkshop.dzlog.feature.table.editor.TableStructureRangeActions
 
 class TableEditorV2SelectionState {
     var selectedCellId by mutableStateOf<String?>(null)
@@ -13,8 +14,17 @@ class TableEditorV2SelectionState {
     var layoutSelection by mutableStateOf(MockLayoutSelection())
         private set
 
+    private var editCellId: String? = null
+
+    fun selectFirstEditableCellOnEntry(template: TableTemplateState) {
+        TableStructureRangeActions.rootCells(template.cells)
+            .minWithOrNull(compareBy({ it.rowIndex }, { it.colIndex }))
+            ?.cellId?.let(::selectEditCell)
+    }
+
     fun selectEditCell(cellId: String) {
         selectedCellId = cellId
+        editCellId = cellId
     }
 
     fun selectLayoutCell(
@@ -62,13 +72,14 @@ class TableEditorV2SelectionState {
     }
 
     fun reconcileEditSelection(templateState: TableTemplateState) {
-        if (selectedCellId != null && templateState.cells.none { it.cellId == selectedCellId }) {
-            selectedCellId = null
-        }
+        val roots = TableStructureRangeActions.rootCells(templateState.cells)
+        editCellId = editCellId?.takeIf { id -> roots.any { it.cellId == id } }
+        selectedCellId = editCellId
     }
 
     fun clearEditSelection() {
         selectedCellId = null
+        editCellId = null
     }
 
     fun clearLayoutSelection() {

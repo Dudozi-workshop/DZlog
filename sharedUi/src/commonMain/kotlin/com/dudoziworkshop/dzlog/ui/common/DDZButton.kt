@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -43,12 +44,15 @@ fun DDZButton(
     horizontalPadding: Dp = 16.dp,
     containerColorOverride: Color? = null,
     textStyleOverride: TextStyle? = null,
+    leadingIconSize: Dp? = null,
+    leadingIconSpacing: Dp = 8.dp,
 ) {
     val typography = LocalDDZTypography.current
     DDZButtonContent(onClick, modifier, style, enabled, minHeight, shape, horizontalPadding, containerColorOverride) {
         if (leadingIcon != null) {
-            Icon(imageVector = leadingIcon, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            Icon(imageVector = leadingIcon, contentDescription = null,
+                modifier = leadingIconSize?.let { Modifier.size(it) } ?: Modifier)
+            Spacer(Modifier.width(leadingIconSpacing))
         }
         Text(text = text, style = textStyleOverride ?: typography.ButtonText)
     }

@@ -19,20 +19,61 @@ import com.dudoziworkshop.dzlog.ui.theme.*
 import platform.UIKit.UIViewController
 import platform.Foundation.*
 
-/** Simulator-only PoC host; the screen implementation is the existing shared dialog. */
+/** Native iOS camera presentation. Swift already resolved the OS permission state. */
 @OptIn(ExperimentalComposeApi::class)
-fun MainViewController(): UIViewController = ComposeUIViewController(configure = {
+fun CameraViewController(cameraPermissionGranted: Boolean): UIViewController = ComposeUIViewController(configure = {
+    accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
+}) {
+    IosAppTheme {
+        val session = remember { IosCameraWorkspaceBridge.current }
+        IosCameraCapturePoc(
+            permissionGranted = cameraPermissionGranted,
+            session = session,
+            onBack = {
+                IosCameraWorkspaceBridge.clear()
+                IosCameraReturnSignal.noteCameraClosed()
+                NSNotificationCenter.defaultCenter.postNotificationName("dzlog.dismissCamera", null)
+            },
+        )
+    }
+}
+
+/** Existing entry point retains its signature for all UI tests and normal launches. */
+fun MainViewController(): UIViewController = MainViewControllerWithCameraPermission(false)
+
+/** Only the Swift host may supply the result of an actual AVCaptureDevice permission check. */
+@OptIn(ExperimentalComposeApi::class)
+fun MainViewControllerWithCameraPermission(cameraPermissionGranted: Boolean): UIViewController = ComposeUIViewController(configure = {
     // Compose 1.7 requires explicit synchronization for XCTest without VoiceOver.
     // This host is PoC-only; Android and the shared dialog implementation are unchanged.
     accessibilitySyncOptions = AccessibilitySyncOptions.Always(debugLogger = null)
 }) {
-    DDZTheme {
-        if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
+    IosAppTheme {
+        if (NSProcessInfo.processInfo.arguments.contains("--quick-values-flow")) {
+            IosQuickValuesFixture()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--live-table-placement-flow")) {
+            IosLiveTableFixture()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--configured-capture-flow")) {
+            IosConfiguredCaptureFixture()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--camera-flow")) {
+            IosCameraCapturePoc(permissionGranted = cameraPermissionGranted)
+        } else if (NSProcessInfo.processInfo.arguments.contains("--media-flow")) {
+            PhotoKitMediaFlowPoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--capture-workspace-flow")) {
+            IosCaptureWorkspaceFixturePoc()
+        } else if (NSProcessInfo.processInfo.arguments.contains("--navigation-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_NAVIGATION_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-navigation-fixture"))
         } else if (NSProcessInfo.processInfo.arguments.contains("--editor-flow")) {
             HomeNavigationPoc(remember { previewFixture() }, editorKey = IOS_EDITOR_TEST_KEY,
                 resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-editor-fixture"))
+        } else if (NSProcessInfo.processInfo.arguments.contains("--production-home-flow")) {
+            HomeNavigationPoc(
+                template = remember { iosProductionStarterTemplate() },
+                editorKey = IOS_PRODUCTION_STARTUP_TEST_KEY,
+                resetTestFixture = NSProcessInfo.processInfo.arguments.contains("--reset-production-home-fixture"),
+                enableOnboarding = true,
+            )
         } else if (NSProcessInfo.processInfo.arguments.contains("--table-structure")) {
             TableStructurePoc()
         } else if (NSProcessInfo.processInfo.arguments.contains("--table-style")) {
@@ -40,7 +81,7 @@ fun MainViewController(): UIViewController = ComposeUIViewController(configure =
         } else if (!NSProcessInfo.processInfo.arguments.contains("--preview-dialog") &&
             !NSProcessInfo.processInfo.arguments.contains("--large-table") &&
             !NSProcessInfo.processInfo.arguments.contains("--template-navigation")) {
-            HomeNavigationPoc(remember { previewFixture() })
+            HomeNavigationPoc(remember { iosProductionStarterTemplate() }, enableOnboarding = true)
         } else {
         val template = remember {
             if (NSProcessInfo.processInfo.arguments.contains("--large-table")) scrollFixture() else previewFixture()
@@ -124,3 +165,4 @@ private fun formatPocTemplateDate(timestamp: Long, used: Boolean): String {
     return (if (used) "사용 " else "수정 ") + formatter.stringFromDate(
         NSDate.dateWithTimeIntervalSince1970(timestamp / 1000.0))
 }
+

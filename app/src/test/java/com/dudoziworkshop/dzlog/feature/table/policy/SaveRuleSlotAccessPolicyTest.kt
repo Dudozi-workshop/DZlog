@@ -30,7 +30,7 @@ class SaveRuleSlotAccessPolicyTest {
     fun `Free requires both independent rules to fit within three slots`() {
         val base = requireNotNull(OnboardingStarterCatalog.buildState("work"))
         val fourFile = base.copy(
-            fileNameSlotDrafts = base.fileNameSlotDrafts + manual("extra"),
+            fileNameSlotDrafts = base.fileNameSlotDrafts.take(3) + listOf(manual("extra"), null),
         )
         val result = SaveRuleSlotAccessPolicy.evaluate(fourFile, SaveRuleTier.FREE)
         assertFalse(result.allowed)
@@ -52,7 +52,7 @@ class SaveRuleSlotAccessPolicyTest {
     fun `evaluation never mutates or truncates existing rules`() {
         val base = requireNotNull(OnboardingStarterCatalog.buildState("basic"))
         val expanded = base.copy(
-            fileNameSlotDrafts = base.fileNameSlotDrafts +
+            fileNameSlotDrafts = base.fileNameSlotDrafts.take(3) +
                 listOf(manual("four"), manual("five")),
             pathSlotDrafts = listOf(
                 manual("one"), manual("two"), manual("three"),

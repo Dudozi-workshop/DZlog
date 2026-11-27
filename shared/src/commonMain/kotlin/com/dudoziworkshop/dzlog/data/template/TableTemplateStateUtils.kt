@@ -62,15 +62,22 @@ fun tableTemplateStateFromJson(json: String): TableTemplateState? {
                     if (id.isBlank()) continue
 
                     val itemsJson = set.optJSONArray("items") ?: JSONArray()
-                    val items = List(itemsJson.length()) { idx -> itemsJson.optString(idx, "") }
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
+                    val positions = (0 until itemsJson.length()).filter { itemsJson.optString(it, "").isNotBlank() }
+                    val items = positions.map { itemsJson.optString(it, "").trim() }
+                    fun periods(key: String): List<Int?> {
+                        val array = set.optJSONArray(key) ?: return emptyList()
+                        return positions.map { index ->
+                            (array.opt(index) as? Int)?.takeIf { it in 1..RotatingPhraseSet.MAX_EVERY }
+                        }
+                    }
 
                     add(
                         RotatingPhraseSet(
                             id = id,
                             name = set.optString("name", ""),
                             items = items,
+                            itemEveryOverrides = periods("itemEveryOverrides"),
+                            itemEveryInactiveOverrides = periods("itemEveryInactiveOverrides"),
                             defaultEvery = set.optInt("defaultEvery", 1).coerceAtLeast(1),
                             counterProgressMode = runCatching {
                                 RotatingCounterProgressMode.valueOf(set.optString("counterProgressMode"))
@@ -329,6 +336,14 @@ fun TableTemplateState.toJsonString(): String {
             set.items.forEach { itemsJson.put(it) }
             setJson.put("items", itemsJson)
 
+            fun writePeriods(key: String, values: List<Int?>) {
+                if (values.isEmpty()) return
+                val array = JSONArray()
+                set.items.indices.forEach { array.put(values.getOrNull(it) ?: JSONObject.NULL) }
+                setJson.put(key, array)
+            }
+            writePeriods("itemEveryOverrides", set.itemEveryOverrides)
+            writePeriods("itemEveryInactiveOverrides", set.itemEveryInactiveOverrides)
             phraseSetsJson.put(setJson)
         }
         root.put("phraseSets", phraseSetsJson)
